@@ -9,6 +9,7 @@ use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_oauth::OauthResult;
+use systemprompt_oauth::repository::EnabledHostPrefs;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserError;
 
@@ -35,7 +36,10 @@ pub async fn load_revocations(
     Ok(ids.into_iter().map(ApiKeyId::new).collect())
 }
 
-pub async fn load_enabled_hosts(ctx: &AppContext, user_id: &UserId) -> OauthResult<Vec<HostKind>> {
+pub async fn load_enabled_hosts(
+    ctx: &AppContext,
+    user_id: &UserId,
+) -> OauthResult<EnabledHostPrefs> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
     repo.list_enabled(user_id).await
 }

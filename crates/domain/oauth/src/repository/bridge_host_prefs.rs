@@ -12,6 +12,11 @@
 //!   a separate table precisely so a model-filter override never perturbs the
 //!   enable-state "no rows means all" heuristic above.
 //!
+//! Rows written by earlier releases may name a host that no longer exists
+//! (`cowork`). Such a row is skipped with a warning rather than failing the
+//! read: it selects no host the bridge can run, but it still counts as a
+//! stored enable preference, so it never turns "some hosts" into "all hosts".
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -21,13 +26,39 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_traits::RepositoryError;
 
-use crate::error::{OauthError, OauthResult};
+use crate::error::OauthResult;
 
-fn decode_host(column: &'static str, raw: &str) -> OauthResult<HostKind> {
-    raw.parse::<HostKind>()
-        .map_err(|source| OauthError::Repository(RepositoryError::decode(column, source)))
+/// A user's stored enable preferences.
+///
+/// `any_enabled_row` is true when at least one enabled row exists, including
+/// rows naming a host outside [`HostKind`] that were skipped on read.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EnabledHostPrefs {
+    pub hosts: Vec<HostKind>,
+    pub any_enabled_row: bool,
+}
+
+impl EnabledHostPrefs {
+    #[must_use]
+    pub fn admits(&self, host: HostKind) -> bool {
+        !self.any_enabled_row || self.hosts.contains(&host)
+    }
+}
+
+fn known_host(user_id: &UserId, table: &'static str, raw: &str) -> Option<HostKind> {
+    match raw.parse::<HostKind>() {
+        Ok(host) => Some(host),
+        Err(error) => {
+            tracing::warn!(
+                user_id = %user_id,
+                table,
+                %error,
+                "Skipping a stored bridge host preference for an unknown host"
+            );
+            None
+        },
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -44,7 +75,7 @@ impl BridgeHostPrefsRepository {
         }
     }
 
-    pub async fn list_enabled(&self, user_id: &UserId) -> OauthResult<Vec<HostKind>> {
+    pub async fn list_enabled(&self, user_id: &UserId) -> OauthResult<EnabledHostPrefs> {
         let rows = sqlx::query!(
             r#"
             SELECT host_id FROM bridge_user_host_prefs
@@ -55,9 +86,13 @@ impl BridgeHostPrefsRepository {
         )
         .fetch_all(self.pool.as_ref())
         .await?;
-        rows.iter()
-            .map(|r| decode_host("bridge_user_host_prefs.host_id", &r.host_id))
-            .collect()
+        Ok(EnabledHostPrefs {
+            any_enabled_row: !rows.is_empty(),
+            hosts: rows
+                .iter()
+                .filter_map(|r| known_host(user_id, "bridge_user_host_prefs", &r.host_id))
+                .collect(),
+        })
     }
 
     pub async fn upsert(&self, user_id: &UserId, host: HostKind, enabled: bool) -> OauthResult<()> {
@@ -91,12 +126,13 @@ impl BridgeHostPrefsRepository {
         )
         .fetch_all(self.pool.as_ref())
         .await?;
-        rows.into_iter()
-            .map(|r| {
-                let host = decode_host("bridge_user_host_model_prefs.host_id", &r.host_id)?;
-                Ok((host, r.model_protocols))
+        Ok(rows
+            .into_iter()
+            .filter_map(|r| {
+                known_host(user_id, "bridge_user_host_model_prefs", &r.host_id)
+                    .map(|host| (host, r.model_protocols))
             })
-            .collect()
+            .collect())
     }
 
     pub async fn set_model_protocols(

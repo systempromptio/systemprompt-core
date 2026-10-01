@@ -70,9 +70,9 @@ pub(super) async fn load_per_user_context(
         .map_err(|e| BridgeError::internal("manifest: revocations unavailable", e))?;
 
     let enabled_hosts = match bridge_data::load_enabled_hosts(ctx, user_id).await {
-        Ok(rows) => instance_hosts
+        Ok(prefs) => instance_hosts
             .into_iter()
-            .filter(|host| rows.is_empty() || rows.iter().any(|row| row == host.as_str()))
+            .filter(|host| prefs.admits(*host))
             .map(|host| host.as_str().to_owned())
             .collect(),
         Err(e) => {

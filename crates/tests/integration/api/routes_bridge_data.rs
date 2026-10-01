@@ -37,8 +37,9 @@ async fn load_enabled_hosts_empty_for_unknown_user() -> anyhow::Result<()> {
     let _ = ensure_test_bootstrap();
     let (_pool, ctx) = setup_ctx().await?;
     let user = UserId::new(format!("hosts-{}", uuid::Uuid::new_v4()));
-    let hosts = load_enabled_hosts(&ctx, &user).await?;
-    assert!(hosts.is_empty());
+    let prefs = load_enabled_hosts(&ctx, &user).await?;
+    assert!(prefs.hosts.is_empty());
+    assert!(!prefs.any_enabled_row);
     Ok(())
 }
 
@@ -54,12 +55,12 @@ async fn upsert_host_pref_round_trip() -> anyhow::Result<()> {
         .execute(exec_pool.as_ref())
         .await?;
     upsert_host_pref(&ctx, &user, HostKind::ClaudeCode, true).await?;
-    let hosts = load_enabled_hosts(&ctx, &user).await?;
-    assert!(hosts.iter().any(|h| h == "claude-code"), "got {hosts:?}");
+    let prefs = load_enabled_hosts(&ctx, &user).await?;
+    assert!(prefs.hosts.contains(&HostKind::ClaudeCode), "got {prefs:?}");
     // Toggle off.
     upsert_host_pref(&ctx, &user, HostKind::ClaudeCode, false).await?;
-    let hosts2 = load_enabled_hosts(&ctx, &user).await?;
-    assert!(!hosts2.iter().any(|h| h == "claude-code"));
+    let prefs2 = load_enabled_hosts(&ctx, &user).await?;
+    assert!(!prefs2.hosts.contains(&HostKind::ClaudeCode));
     Ok(())
 }
 

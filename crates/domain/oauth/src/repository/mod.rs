@@ -14,7 +14,7 @@ pub mod setup_token;
 pub mod webauthn;
 pub mod webauthn_challenge;
 
-pub use bridge_host_prefs::BridgeHostPrefsRepository;
+pub use bridge_host_prefs::{BridgeHostPrefsRepository, EnabledHostPrefs};
 pub use bridge_session::{BridgeSessionRepository, BridgeSessionRow, UpsertBridgeSession};
 pub use cleanup::{OauthCleanupCounts, OauthCleanupRepository};
 pub use client::{ClientRepository, CreateClientParams, UpdateClientParams};

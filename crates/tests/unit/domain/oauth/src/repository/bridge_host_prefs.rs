@@ -1,12 +1,10 @@
 // DB-backed bridge per-host preference tests (upsert + list-enabled).
 
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_oauth::OauthError;
 use systemprompt_oauth::repository::BridgeHostPrefsRepository;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
-use systemprompt_traits::RepositoryError;
 
 #[tokio::test]
 async fn upsert_then_list_enabled() {
@@ -31,8 +29,8 @@ async fn upsert_then_list_enabled() {
         .expect("disable b");
 
     let enabled = repo.list_enabled(&user_id).await.expect("list");
-    assert!(enabled.contains(&host_a));
-    assert!(!enabled.contains(&host_b));
+    assert!(enabled.hosts.contains(&host_a));
+    assert!(!enabled.hosts.contains(&host_b));
 }
 
 #[tokio::test]
@@ -55,6 +53,7 @@ async fn upsert_toggles_enabled_flag() {
         repo.list_enabled(&user_id)
             .await
             .expect("list")
+            .hosts
             .contains(&host)
     );
 
@@ -64,6 +63,7 @@ async fn upsert_toggles_enabled_flag() {
             .list_enabled(&user_id)
             .await
             .expect("list")
+            .hosts
             .contains(&host)
     );
 }
@@ -75,7 +75,8 @@ async fn list_enabled_empty_for_unknown_user() {
     let repo = BridgeHostPrefsRepository::new(&pool);
     let user_id = unique_user_id("bhp-unknown");
     let enabled = repo.list_enabled(&user_id).await.expect("list");
-    assert!(enabled.is_empty());
+    assert!(enabled.hosts.is_empty());
+    assert!(!enabled.any_enabled_row);
 }
 
 #[tokio::test]
@@ -151,13 +152,13 @@ async fn model_protocols_do_not_perturb_enabled_state() {
         .await
         .expect("set filter");
     assert!(
-        repo.list_enabled(&user_id).await.expect("list").is_empty(),
+        !repo.list_enabled(&user_id).await.expect("list").any_enabled_row,
         "model-filter override must not register an enable-state row"
     );
 }
 
 #[tokio::test]
-async fn an_unknown_stored_host_is_a_decode_error() {
+async fn an_unknown_stored_host_is_skipped_but_still_counts_as_a_preference() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool);
@@ -170,19 +171,32 @@ async fn an_unknown_stored_host_is_a_decode_error() {
     .await
     .expect("seed user");
     sqlx::query(
-        "INSERT INTO bridge_user_host_prefs (user_id, host_id, enabled) VALUES ($1, 'codex', true)",
+        "INSERT INTO bridge_user_host_prefs (user_id, host_id, enabled) VALUES ($1, 'cowork', true)",
     )
     .bind(user_id.as_str())
     .execute(pool.write_pool().as_ref())
     .await
     .expect("insert a host id outside HostKind");
+    sqlx::query(
+        "INSERT INTO bridge_user_host_model_prefs (user_id, host_id, model_protocols) \
+         VALUES ($1, 'cowork', ARRAY['anthropic'])",
+    )
+    .bind(user_id.as_str())
+    .execute(pool.write_pool().as_ref())
+    .await
+    .expect("insert a model pref for a host outside HostKind");
 
-    let err = repo
+    let enabled = repo
         .list_enabled(&user_id)
         .await
-        .expect_err("an unknown host id must not decode");
+        .expect("an unknown host id must not fail the read");
+    assert!(enabled.hosts.is_empty());
+    assert!(enabled.any_enabled_row);
+    assert!(!enabled.admits(HostKind::ClaudeCode));
     assert!(
-        matches!(err, OauthError::Repository(RepositoryError::Decode { .. })),
-        "{err:?}"
+        repo.load_model_protocols(&user_id)
+            .await
+            .expect("an unknown host id must not fail the read")
+            .is_empty()
     );
 }
