@@ -15,7 +15,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
+    seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -31,11 +31,6 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -44,7 +39,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -90,7 +85,7 @@ async fn seed_conversation(pool: &DbPool) -> String {
 
 #[tokio::test]
 async fn the_conversation_listing_projects_seeded_contexts() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_conversation(&pool).await;
     let ctx = ctx(&pool);
 
@@ -117,7 +112,7 @@ async fn the_conversation_listing_projects_seeded_contexts() {
 
 #[tokio::test]
 async fn conversation_stats_and_trends_render_with_seeded_tasks() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_conversation(&pool).await;
     let ctx = ctx(&pool);
 
@@ -131,7 +126,7 @@ async fn conversation_stats_and_trends_render_with_seeded_tasks() {
 
 #[tokio::test]
 async fn a_limit_of_one_still_renders_a_row() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_conversation(&pool).await;
     let ctx = ctx(&pool);
 
@@ -161,7 +156,7 @@ async fn a_limit_of_one_still_renders_a_row() {
 // contexts, and narrow to one user.
 #[tokio::test]
 async fn the_conversation_listing_accepts_source_and_user_filters() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_conversation(&pool).await;
     let ctx = ctx(&pool);
 
@@ -207,10 +202,8 @@ async fn gateway_conversations_project_exact_owners_counts_and_global_order() {
 
     systemprompt_test_fixtures::ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_gateway_conversation_projection")
-        .await
-        .expect("private gateway conversation database");
-    let pool = database.pool().await.expect("private gateway pool");
+    let database = DisposableDb::with_schema("cli_gateway_conversation_projection").await;
+    let pool = database.test_pool().await;
     let raw = pool.pool_arc().expect("private SQL pool");
     let older_owner = unique_user_id("gwconvo_old");
     let newer_owner = unique_user_id("gwconvo_new");

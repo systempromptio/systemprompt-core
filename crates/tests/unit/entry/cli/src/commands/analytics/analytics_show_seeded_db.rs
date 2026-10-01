@@ -12,7 +12,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
+    seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -28,11 +28,6 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -41,7 +36,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -155,7 +150,7 @@ async fn seed_agent_fixture(pool: &DbPool) -> String {
 
 #[tokio::test]
 async fn tools_show_renders_seeded_activity() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let tool = seed_tool_fixture(&pool).await;
 
@@ -169,7 +164,7 @@ async fn tools_show_renders_seeded_activity() {
 
 #[tokio::test]
 async fn tools_show_exports_csv() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let tool = seed_tool_fixture(&pool).await;
     let dir = tempfile::tempdir().unwrap();
@@ -189,7 +184,7 @@ async fn tools_show_exports_csv() {
 
 #[tokio::test]
 async fn tools_show_unknown_tool_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let err = analytics::execute(parse(&["tools", "show", "no-such-cov-tool"]), &ctx(&pool))
         .await
         .unwrap_err();
@@ -198,7 +193,7 @@ async fn tools_show_unknown_tool_errors() {
 
 #[tokio::test]
 async fn agents_show_renders_seeded_activity() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let agent = seed_agent_fixture(&pool).await;
 
@@ -209,7 +204,7 @@ async fn agents_show_renders_seeded_activity() {
 
 #[tokio::test]
 async fn agents_show_exports_csv() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let agent = seed_agent_fixture(&pool).await;
     let dir = tempfile::tempdir().unwrap();

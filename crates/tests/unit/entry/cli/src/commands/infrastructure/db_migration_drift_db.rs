@@ -32,7 +32,7 @@ struct Disposable {
 
 impl Disposable {
     async fn create() -> Self {
-        let db = DisposableDb::create("cov_cli_drift").await.unwrap();
+        let db = DisposableDb::empty("cov_cli_drift").await;
         let url = db.url().to_owned();
         Self { db, url }
     }

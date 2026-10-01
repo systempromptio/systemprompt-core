@@ -10,15 +10,8 @@ use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
-use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
-};
+use systemprompt_test_fixtures::{seed_user_row, seed_user_session, test_db_pool, unique_user_id};
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 async fn seeded_identity(pool: &DbPool, prefix: &str) -> (UserId, SessionId) {
     let user_id = unique_user_id(prefix);
@@ -51,7 +44,7 @@ fn session_for(user_id: &UserId, session_id: SessionId, context_id: ContextId) -
 
 #[tokio::test]
 async fn revalidate_context_keeps_a_context_owned_by_the_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxvalid").await;
     let repo = ContextRepository::new(&pool).unwrap();
     let context_id = repo
@@ -68,7 +61,7 @@ async fn revalidate_context_keeps_a_context_owned_by_the_user() {
 
 #[tokio::test]
 async fn revalidate_context_recovers_a_stale_context() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxstale").await;
 
     let stale = ContextId::generate();
@@ -89,7 +82,7 @@ async fn revalidate_context_recovers_a_stale_context() {
 
 #[tokio::test]
 async fn revalidate_context_adopts_the_existing_cli_context_by_name() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxadopt").await;
     let repo = ContextRepository::new(&pool).unwrap();
     let existing = repo

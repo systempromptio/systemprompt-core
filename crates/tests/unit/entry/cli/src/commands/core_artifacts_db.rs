@@ -13,15 +13,8 @@ use systemprompt_cli::core::artifacts::{list, show};
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId};
-use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
-};
+use systemprompt_test_fixtures::{seed_user_row, seed_user_session, test_db_pool, unique_user_id};
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn cfg() -> CliConfig {
     CliConfig::new()
@@ -119,7 +112,7 @@ async fn seed_artifact(pool: &DbPool, context_id: &ContextId, task_id: &TaskId) 
 
 #[tokio::test]
 async fn show_renders_artifact_by_full_id() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (_user, context_id, task_id) = seed_task(&pool).await;
     let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
 
@@ -139,7 +132,7 @@ async fn show_renders_artifact_by_full_id() {
 
 #[tokio::test]
 async fn show_renders_text_output_with_full_flag() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (_user, context_id, task_id) = seed_task(&pool).await;
     let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
 
@@ -157,7 +150,7 @@ async fn show_renders_text_output_with_full_flag() {
 
 #[tokio::test]
 async fn show_resolves_unique_prefix() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (_user, context_id, task_id) = seed_task(&pool).await;
     let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
 
@@ -176,7 +169,7 @@ async fn show_resolves_unique_prefix() {
 
 #[tokio::test]
 async fn show_errors_when_nothing_matches() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let err = show::execute_with_pool(
         show::ShowArgs {
             artifact: "no-such-artifact-prefix".to_owned(),
@@ -192,7 +185,7 @@ async fn show_errors_when_nothing_matches() {
 
 #[tokio::test]
 async fn list_filters_by_context_and_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, context_id, task_id) = seed_task(&pool).await;
     seed_artifact(&pool, &context_id, &task_id).await;
 

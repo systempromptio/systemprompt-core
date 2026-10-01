@@ -14,7 +14,7 @@ use systemprompt_content::{Content, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -28,11 +28,6 @@ fn parse(args: &[&str]) -> CoreCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -41,7 +36,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -64,7 +59,7 @@ async fn seed(pool: &DbPool) -> (Content, String) {
 
 #[tokio::test]
 async fn list_and_show_arms_render_seeded_content() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (content, source) = seed(&pool).await;
     let ctx = ctx(&pool);
 
@@ -78,7 +73,7 @@ async fn list_and_show_arms_render_seeded_content() {
 
 #[tokio::test]
 async fn show_arm_reports_an_unknown_identifier() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     let err = core::execute(parse(&["content", "show", "cov_absent_content"]), &ctx)
@@ -89,7 +84,7 @@ async fn show_arm_reports_an_unknown_identifier() {
 
 #[tokio::test]
 async fn search_status_and_popular_arms_run_against_a_seeded_source() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (_content, source) = seed(&pool).await;
     let ctx = ctx(&pool);
 
@@ -106,7 +101,7 @@ async fn search_status_and_popular_arms_run_against_a_seeded_source() {
 
 #[tokio::test]
 async fn profile_only_content_commands_are_refused_under_a_database_scope() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (content, source) = seed(&pool).await;
     let ctx = ctx(&pool);
 
@@ -126,7 +121,7 @@ async fn profile_only_content_commands_are_refused_under_a_database_scope() {
 
 #[tokio::test]
 async fn non_content_groups_are_refused_under_a_database_scope() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     for args in [

@@ -11,15 +11,8 @@ use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
-use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
-};
+use systemprompt_test_fixtures::{seed_user_row, seed_user_session, test_db_pool, unique_user_id};
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 async fn seeded_identity(pool: &DbPool, prefix: &str) -> (UserId, SessionId) {
     let user_id = unique_user_id(prefix);
@@ -75,7 +68,7 @@ async fn context_name(pool: &DbPool, user_id: &UserId, context_id: &ContextId) -
 
 #[tokio::test]
 async fn create_persists_named_and_default_contexts() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxcreate").await;
     let session = session_for(&user_id, session_id, ContextId::generate());
 
@@ -112,7 +105,7 @@ async fn create_persists_named_and_default_contexts() {
 
 #[tokio::test]
 async fn edit_renames_by_full_id_and_prefix() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxedit").await;
     let session = session_for(&user_id, session_id.clone(), ContextId::generate());
     let repo = ContextRepository::new(&pool).unwrap();
@@ -157,7 +150,7 @@ async fn edit_renames_by_full_id_and_prefix() {
 
 #[tokio::test]
 async fn resolve_matches_by_name_and_rejects_unknown() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxres").await;
     let repo = ContextRepository::new(&pool).unwrap();
     let context_id = repo
@@ -183,7 +176,7 @@ async fn resolve_matches_by_name_and_rejects_unknown() {
 
 #[tokio::test]
 async fn show_reports_active_flag_for_session_context() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxshow").await;
     let repo = ContextRepository::new(&pool).unwrap();
     let context_id = repo
@@ -210,7 +203,7 @@ async fn show_reports_active_flag_for_session_context() {
 
 #[tokio::test]
 async fn delete_refuses_active_context_and_removes_inactive_one() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxdel").await;
     let repo = ContextRepository::new(&pool).unwrap();
     let active = repo
@@ -269,7 +262,7 @@ async fn delete_refuses_active_context_and_removes_inactive_one() {
 
 #[tokio::test]
 async fn delete_cancellation_keeps_the_context() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxcancel").await;
     let repo = ContextRepository::new(&pool).unwrap();
     let active = repo
@@ -397,7 +390,7 @@ async fn new_execute_resolved_creates_context_and_updates_session_store() {
     use systemprompt_cli::session::CliSessionContext;
     use systemprompt_cloud::{SessionKey, SessionStore};
 
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxnew").await;
     let session_ctx = CliSessionContext {
         session: session_for(&user_id, session_id, ContextId::generate()),
@@ -452,7 +445,7 @@ async fn use_execute_resolved_switches_to_named_context() {
     use systemprompt_cli::session::CliSessionContext;
     use systemprompt_cloud::{SessionKey, SessionStore};
 
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxuse").await;
     let repo = ContextRepository::new(&pool).unwrap();
     let target = repo

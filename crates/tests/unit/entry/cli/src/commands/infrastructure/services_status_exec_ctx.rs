@@ -14,8 +14,8 @@ use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_database_url, fixture_db_pool,
-    install_test_signing_key,
+    ensure_test_bootstrap, install_test_signing_key, test_app_context, test_database_url,
+    test_db_pool,
 };
 
 #[derive(Debug, Parser)]
@@ -33,11 +33,9 @@ fn parse(args: &[&str]) -> ServicesCommands {
 async fn app() -> Arc<AppContext> {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let url = fixture_database_url().expect("a test database url");
-    let pool = fixture_db_pool(&url)
-        .await
-        .expect("the services status tests need a reachable test database");
-    fixture_app_context(&pool, &url).expect("fixture app context")
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    test_app_context(&pool, &url)
 }
 
 fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {

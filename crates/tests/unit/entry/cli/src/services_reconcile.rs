@@ -141,10 +141,8 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     const CONTENT_HASH: &str = "cli-content-hash";
     const COMPOSED_HASH: &str = "cli-composed-hash";
 
-    let database = DisposableDb::installed("cli_services_reconcile")
-        .await
-        .expect("isolated migrated database");
-    let pool = database.pool().await.expect("isolated database pool");
+    let database = DisposableDb::with_schema("cli_services_reconcile").await;
+    let pool = database.test_pool().await;
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let temp = tempfile::tempdir().expect("reconciliation fixture");
     let cache = BundleCache::new(temp.path().join("cache"));

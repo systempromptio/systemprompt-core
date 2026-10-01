@@ -10,7 +10,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_database_url, fixture_db_pool, seed_user_session,
+    seed_user_session, test_app_context, test_database_url, test_db_pool,
 };
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
@@ -27,23 +27,14 @@ fn parse(args: &[&str]) -> UsersCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool, json: bool) -> CommandContext {
-    let url = fixture_database_url().unwrap();
+    let url = test_database_url();
     let mut cli = CliConfig::new().with_interactive(false);
     if json {
         cli = cli.with_output_format(OutputFormat::Json);
     }
-    CommandContext::with_app_context(
-        cli,
-        EnvOverrides::default(),
-        fixture_app_context(pool, &url).unwrap(),
-    )
+    CommandContext::with_app_context(cli, EnvOverrides::default(), test_app_context(pool, &url))
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -56,7 +47,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn show_finds_user_by_email_with_sessions_and_activity() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (name, email) = unique("show");
     let user = service
@@ -81,7 +72,7 @@ async fn show_finds_user_by_email_with_sessions_and_activity() {
 
 #[tokio::test]
 async fn show_rejects_unknown_identifier() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let err = users::execute(
         parse(&["show", "no-such-user@show.invalid"]),
         &ctx(&pool, false),

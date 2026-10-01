@@ -7,8 +7,8 @@ use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
-    seed_user_session,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_session,
+    test_app_context,
 };
 use systemprompt_users::{UserRepository, UserService};
 
@@ -26,10 +26,8 @@ fn parse(args: &[&str]) -> UsersCommands {
 
 #[tokio::test]
 async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
-    let database = DisposableDb::installed("cli_user_merge_atomic")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
+    let database = DisposableDb::with_schema("cli_user_merge_atomic").await;
+    let pool = database.test_pool().await;
     ensure_test_bootstrap();
     install_test_signing_key();
     let repository = Arc::new(UserRepository::new(&pool).expect("user repository"));
@@ -79,7 +77,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(&pool, database.url()).expect("isolated full app context"),
+        test_app_context(&pool, database.url()),
     );
     let command = || {
         parse(&[

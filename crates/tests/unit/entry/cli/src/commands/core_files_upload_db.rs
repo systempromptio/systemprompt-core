@@ -10,12 +10,8 @@ use systemprompt_cli::core::files::upload::{self, UploadArgs};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
 use tempfile::TempDir;
-
-async fn pool(database_url: &str) -> DbPool {
-    fixture_db_pool(database_url).await.unwrap()
-}
 
 fn ctx(pool: &DbPool, database_url: &str) -> CommandContext {
     CommandContext::with_app_context(
@@ -23,7 +19,7 @@ fn ctx(pool: &DbPool, database_url: &str) -> CommandContext {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, database_url).unwrap(),
+        test_app_context(pool, database_url),
     )
 }
 
@@ -49,7 +45,7 @@ fn hex_sha256(bytes: &[u8]) -> String {
 #[tokio::test]
 async fn uploads_a_text_file_and_reports_size_mime_and_checksum() {
     let boot = ensure_test_bootstrap();
-    let pool = pool(&boot.database_url).await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool, &boot.database_url);
 
     let tmp = TempDir::new().unwrap();
@@ -94,7 +90,7 @@ async fn uploads_a_text_file_and_reports_size_mime_and_checksum() {
 #[tokio::test]
 async fn uploads_binary_content_without_corrupting_the_checksum() {
     let boot = ensure_test_bootstrap();
-    let pool = pool(&boot.database_url).await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool, &boot.database_url);
 
     // A PNG header followed by every byte value: an allowed mime type whose
@@ -131,7 +127,7 @@ async fn uploads_binary_content_without_corrupting_the_checksum() {
 #[tokio::test]
 async fn disallowed_mime_type_is_rejected() {
     let boot = ensure_test_bootstrap();
-    let pool = pool(&boot.database_url).await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool, &boot.database_url);
 
     let tmp = TempDir::new().unwrap();
@@ -153,7 +149,7 @@ async fn disallowed_mime_type_is_rejected() {
 #[tokio::test]
 async fn empty_file_uploads_with_the_empty_digest() {
     let boot = ensure_test_bootstrap();
-    let pool = pool(&boot.database_url).await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool, &boot.database_url);
 
     let tmp = TempDir::new().unwrap();
@@ -176,7 +172,7 @@ async fn empty_file_uploads_with_the_empty_digest() {
 #[tokio::test]
 async fn missing_file_reports_the_offending_path() {
     let boot = ensure_test_bootstrap();
-    let pool = pool(&boot.database_url).await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool, &boot.database_url);
 
     let context_id = ContextId::generate();
@@ -196,7 +192,7 @@ async fn missing_file_reports_the_offending_path() {
 #[tokio::test]
 async fn attaches_the_supplied_user_and_session() {
     let boot = ensure_test_bootstrap();
-    let pool = pool(&boot.database_url).await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool, &boot.database_url);
 
     let tmp = TempDir::new().unwrap();

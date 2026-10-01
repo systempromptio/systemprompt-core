@@ -28,12 +28,10 @@ fn parse(args: &[&str]) -> CoreCommands {
 
 #[tokio::test]
 async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
-    let database = DisposableDb::installed("cli_content_mutation")
-        .await
-        .expect("private content database");
+    let database = DisposableDb::with_schema("cli_content_mutation").await;
     let boot = ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = database.pool().await.expect("private content pool");
+    let pool = database.test_pool().await;
     let repository = ContentRepository::new(&pool).expect("content repository");
     let source = SourceId::new("owned-source".to_owned());
     let target = repository

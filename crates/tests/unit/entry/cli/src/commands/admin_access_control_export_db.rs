@@ -5,14 +5,9 @@
 
 use systemprompt_cli::admin::access_control::export::render_yaml_snapshot;
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 async fn seed_role_rule(pool: &DbPool, entity_id: &str, role: &str, justification: Option<&str>) {
     let raw = pool.pool_arc().unwrap();
@@ -40,7 +35,7 @@ async fn seed_role_rule(pool: &DbPool, entity_id: &str, role: &str, justificatio
 
 #[tokio::test]
 async fn snapshot_includes_seeded_role_rule() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let entity_id = format!("cov-agent-{}", Uuid::new_v4().simple());
     let role = format!("cov-role-{}", Uuid::new_v4().simple());
     seed_role_rule(&pool, &entity_id, &role, Some("granted for coverage")).await;
@@ -59,7 +54,7 @@ async fn snapshot_includes_seeded_role_rule() {
 
 #[tokio::test]
 async fn snapshot_omits_user_rules() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let entity_id = format!("cov-agent-{}", Uuid::new_v4().simple());
     let user_val = format!("cov-user-{}", Uuid::new_v4().simple());
 

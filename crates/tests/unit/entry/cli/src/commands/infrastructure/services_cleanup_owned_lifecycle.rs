@@ -15,7 +15,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat, Sc
 use systemprompt_database::CreateServiceInput;
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, SUBPROCESS_MARKER_ENV};
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
 };
 
 const HELPER: &str =
@@ -45,9 +45,7 @@ impl Drop for OwnedChild {
 #[tokio::test]
 #[ignore = "re-executed by dry_run_and_cancellation_preserve_owned_service_before_confirmed_cleanup"]
 async fn cleanup_owned_helper() {
-    let database = DisposableDb::installed("cli_services_cleanup_owned")
-        .await
-        .expect("private database");
+    let database = DisposableDb::with_schema("cli_services_cleanup_owned").await;
     // SAFETY: the ignored helper is process-isolated and configuration is not
     // initialized.
     unsafe {
@@ -89,8 +87,8 @@ async fn cleanup_owned_helper() {
         .expect("owned marked child");
     let pid = child.id();
     let mut child = OwnedChild(Some(child));
-    let pool = database.pool().await.expect("private pool");
-    let app = fixture_app_context(&pool, database.url()).expect("full app context");
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     let repo = app.service_repository().clone();
     repo.create_service(CreateServiceInput {
         name: SERVICE,

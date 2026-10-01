@@ -12,9 +12,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
-};
+use systemprompt_test_fixtures::{seed_user_row, test_database_url, test_db_pool, unique_user_id};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -28,11 +26,6 @@ fn parse(args: &[&str]) -> AdminCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -41,7 +34,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -54,7 +47,7 @@ async fn seed(pool: &DbPool) -> (UserId, String) {
 
 #[tokio::test]
 async fn read_only_user_arms_render_against_a_seeded_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, email) = seed(&pool).await;
     let ctx = ctx(&pool);
 
@@ -77,7 +70,7 @@ async fn read_only_user_arms_render_against_a_seeded_user() {
 
 #[tokio::test]
 async fn export_arm_writes_the_requested_file() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed(&pool).await;
     let ctx = ctx(&pool);
     let dir = tempfile::tempdir().unwrap();
@@ -100,7 +93,7 @@ async fn export_arm_writes_the_requested_file() {
 
 #[tokio::test]
 async fn show_arm_reports_an_unknown_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     let err = admin::execute(parse(&["users", "show", "cov_absent_user"]), &ctx)
@@ -111,7 +104,7 @@ async fn show_arm_reports_an_unknown_user() {
 
 #[tokio::test]
 async fn session_listing_is_allowed_but_role_and_session_writes_are_not() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, _email) = seed(&pool).await;
     let ctx = ctx(&pool);
 
@@ -142,7 +135,7 @@ async fn session_listing_is_allowed_but_role_and_session_writes_are_not() {
 
 #[tokio::test]
 async fn every_other_admin_group_is_refused_under_a_database_scope() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     for args in [
@@ -168,7 +161,7 @@ async fn every_other_admin_group_is_refused_under_a_database_scope() {
 
 #[tokio::test]
 async fn user_listing_honours_its_role_and_status_filters() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed(&pool).await;
     let ctx = ctx(&pool);
 
@@ -184,7 +177,7 @@ async fn user_listing_honours_its_role_and_status_filters() {
 
 #[tokio::test]
 async fn user_write_arms_are_refused_under_a_database_scope() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user_id, email) = seed(&pool).await;
     let ctx = ctx(&pool);
 

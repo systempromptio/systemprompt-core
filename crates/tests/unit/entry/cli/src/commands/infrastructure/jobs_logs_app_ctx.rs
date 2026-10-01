@@ -17,8 +17,8 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, fixture_database_url,
-    fixture_db_pool, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
+    test_database_url, test_db_pool,
 };
 
 const KNOWN_JOB: &str = "content_prerender";
@@ -50,9 +50,9 @@ fn parse_logs(args: &[&str]) -> LogsCommands {
 async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let url = fixture_database_url().unwrap();
-    let pool = fixture_db_pool(&url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &url).expect("fixture app context");
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &url);
     (pool, ctx)
 }
 
@@ -199,11 +199,11 @@ async fn logs_delete_clears_every_entry() {
     ensure_test_bootstrap();
     install_test_signing_key();
 
-    let database = DisposableDb::create("cov_cli_logsdel").await.unwrap();
+    let database = DisposableDb::empty("cov_cli_logsdel").await;
     let url = database.url().to_owned();
 
     {
-        let pool = fixture_db_pool(&url).await.unwrap();
+        let pool = test_db_pool().await;
         let raw = pool.pool_arc().unwrap().as_ref().clone();
         systemprompt_database::install_extension_schemas_full(
             &systemprompt_extension::ExtensionRegistry::discover().unwrap(),
@@ -238,7 +238,7 @@ async fn logs_delete_clears_every_entry() {
             .unwrap();
         assert_eq!(before, 3);
 
-        let app = fixture_app_context(&pool, &url).expect("app context on the disposable db");
+        let app = test_app_context(&pool, &url);
         logs::execute(parse_logs(&["delete", "-y"]), &ctx(&app, true))
             .await
             .expect("delete all logs");

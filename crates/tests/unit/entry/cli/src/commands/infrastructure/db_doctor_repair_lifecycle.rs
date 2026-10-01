@@ -37,10 +37,8 @@ fn context(pool: systemprompt_database::DbPool, url: &str, output: OutputFormat)
 #[tokio::test]
 #[ignore = "re-executed by doctor_reports_and_clears_repairable_schema_drift"]
 async fn db_doctor_repair_helper() {
-    let database = DisposableDb::installed("cli_doctor_repair")
-        .await
-        .expect("installed disposable database");
-    let pool = database.pool().await.expect("disposable pool");
+    let database = DisposableDb::with_schema("cli_doctor_repair").await;
+    let pool = database.test_pool().await;
     let raw = pool.pool_arc().expect("raw pool");
     sqlx::query("CREATE TABLE doctor_fixture_undeclared (id BIGINT PRIMARY KEY)")
         .execute(raw.as_ref())

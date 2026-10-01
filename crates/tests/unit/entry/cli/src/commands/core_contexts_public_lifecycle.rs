@@ -55,9 +55,7 @@ async fn run_marked(label: &str, args: &[&str], context: &CommandContext) {
 #[tokio::test]
 #[ignore = "re-executed by public_context_commands_switch_persist_and_protect_the_active_context"]
 async fn public_context_lifecycle_helper() {
-    let database = DisposableDb::installed("cli_public_contexts")
-        .await
-        .expect("private contexts database");
+    let database = DisposableDb::with_schema("cli_public_contexts").await;
     // SAFETY: the ignored helper is process-isolated and configuration has not been
     // initialized.
     unsafe {
@@ -77,7 +75,7 @@ async fn public_context_lifecycle_helper() {
     std::env::set_current_dir(project.path()).expect("enter owned project");
     let _cwd = CwdGuard(previous);
 
-    let pool = database.pool().await.expect("private contexts pool");
+    let pool = database.test_pool().await;
     let user = UserId::new(format!("ctx-public-{}", uuid::Uuid::new_v4().simple()));
     let session_id = SessionId::generate();
     seed_user_row(&pool, &user, "contexts-public@example.invalid")

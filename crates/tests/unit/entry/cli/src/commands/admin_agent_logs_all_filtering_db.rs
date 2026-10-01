@@ -21,10 +21,8 @@ async fn seed(repository: &LoggingRepository, actor: &LogActor, module: &str, me
 #[tokio::test]
 async fn all_agent_database_logs_match_operational_modules_strip_ansi_and_hide_profile_noise() {
     ensure_test_bootstrap();
-    let database = DisposableDb::installed("cli_agent_logs_all")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated pool");
+    let database = DisposableDb::with_schema("cli_agent_logs_all").await;
+    let pool = database.test_pool().await;
     let user = UserId::new(format!("logs-all-{}", uuid::Uuid::new_v4().simple()));
     seed_user_row(&pool, &user, &format!("{}@logs.invalid", user.as_str()))
         .await

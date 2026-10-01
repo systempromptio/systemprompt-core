@@ -218,10 +218,8 @@ async fn mixed_agent_tools_helper() {
     let boot = init_services_bootstrap(&services_yaml(&healthy.uri(), &stopped.uri()));
     install_test_signing_key();
     seed_session(&boot);
-    let database = DisposableDb::installed("cli_agent_tools_mixed")
-        .await
-        .expect("private mixed-tools database");
-    let pool = database.pool().await.expect("private mixed-tools pool");
+    let database = DisposableDb::with_schema("cli_agent_tools_mixed").await;
+    let pool = database.test_pool().await;
     let paths = PathsConfig {
         system: boot.system_path.display().to_string(),
         services: boot.services_path.display().to_string(),

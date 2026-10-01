@@ -7,15 +7,10 @@ use std::sync::Arc;
 
 use systemprompt_cli::admin::session::login_helpers::fetch_admin_user;
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_users::{User, UserRepository, UserRole, UserService};
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn service(pool: &DbPool) -> UserService {
     UserService::new(Arc::new(UserRepository::new(pool).unwrap()))
@@ -42,7 +37,7 @@ async fn seed(pool: &DbPool, name: &str, admin: bool) -> User {
 
 #[tokio::test]
 async fn an_existing_admin_is_returned_without_being_recreated() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let name = unique("login-admin");
     let seeded = seed(&pool, &name, true).await;
 
@@ -63,7 +58,7 @@ async fn an_existing_admin_is_returned_without_being_recreated() {
 
 #[tokio::test]
 async fn a_user_without_the_admin_role_is_refused_rather_than_promoted() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let name = unique("login-plain");
     seed(&pool, &name, false).await;
 
@@ -90,7 +85,7 @@ async fn a_user_without_the_admin_role_is_refused_rather_than_promoted() {
 
 #[tokio::test]
 async fn a_missing_admin_on_a_local_profile_is_told_to_bootstrap() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let name = unique("login-absent");
 
     let err = fetch_admin_user(&pool, &name, false, None)
@@ -110,7 +105,7 @@ async fn a_missing_admin_on_a_local_profile_is_told_to_bootstrap() {
 
 #[tokio::test]
 async fn a_missing_admin_on_a_cloud_profile_is_created_with_the_admin_role() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let name = unique("login-cloud");
     let email = format!("{name}@cloud.invalid");
 

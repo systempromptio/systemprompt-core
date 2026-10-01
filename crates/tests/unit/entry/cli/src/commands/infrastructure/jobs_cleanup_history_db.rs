@@ -12,14 +12,9 @@ use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn artifact_json(out: &CommandOutput) -> Value {
     serde_json::to_value(out.artifact()).unwrap()
@@ -57,7 +52,7 @@ async fn session_ended(pool: &DbPool, id: &str) -> bool {
 
 #[tokio::test]
 async fn cleanup_sessions_dry_run_counts_without_closing() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let id = seed_session(&pool, Utc::now()).await;
 
     let out = cleanup_sessions::execute_with_pool(
@@ -80,7 +75,7 @@ async fn cleanup_sessions_dry_run_counts_without_closing() {
 
 #[tokio::test]
 async fn cleanup_sessions_closes_inactive_session_for_profile_discovery() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let id = seed_session(&pool, Utc::now() - Duration::hours(48)).await;
 
     let out = cleanup_sessions::execute_with_pool(
@@ -102,7 +97,7 @@ async fn cleanup_sessions_closes_inactive_session_for_profile_discovery() {
 
 #[tokio::test]
 async fn cleanup_logs_dry_run_reports_threshold() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     let out = cleanup_logs::execute_with_pool(
         LogCleanupArgs {
@@ -121,7 +116,7 @@ async fn cleanup_logs_dry_run_reports_threshold() {
 
 #[tokio::test]
 async fn cleanup_logs_delete_reports_zero_for_future_threshold() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     let out = cleanup_logs::execute_with_pool(
         LogCleanupArgs {
@@ -158,7 +153,7 @@ async fn seed_job_run(pool: &DbPool, status: JobStatus, error: Option<&str>) -> 
 
 #[tokio::test]
 async fn history_filters_by_job_name() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let name = seed_job_run(&pool, JobStatus::Success, None).await;
 
     let out = history::execute_with_pool(
@@ -178,7 +173,7 @@ async fn history_filters_by_job_name() {
 
 #[tokio::test]
 async fn history_missing_job_yields_empty() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ghost = format!("no-such-{}", Uuid::new_v4().simple());
 
     let out = history::execute_with_pool(
@@ -197,7 +192,7 @@ async fn history_missing_job_yields_empty() {
 
 #[tokio::test]
 async fn history_status_filter_excludes_mismatch() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let failed = seed_job_run(&pool, JobStatus::Failed, Some("boom")).await;
 
     let listed = history::execute_with_pool(

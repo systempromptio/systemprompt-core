@@ -26,8 +26,8 @@ use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, Session
 use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context, fixture_db_pool, fixture_user_id, free_port_in_range,
-    init_services_bootstrap, install_test_signing_key,
+    TestBootstrap, fixture_user_id, free_port_in_range, init_services_bootstrap,
+    install_test_signing_key, test_app_context, test_db_pool,
 };
 
 const ENABLED: &str = "fixture_enabled_server";
@@ -117,10 +117,8 @@ fn parse(args: &[&str]) -> McpCommands {
 
 async fn app() -> (DbPool, Arc<AppContext>) {
     let b = boot();
-    let pool = fixture_db_pool(&b.database_url)
-        .await
-        .expect("the mcp command tests need a reachable test database");
-    let app = fixture_app_context(&pool, &b.database_url).expect("fixture app context");
+    let pool = test_db_pool().await;
+    let app = test_app_context(&pool, &b.database_url);
     (pool, app)
 }
 
@@ -262,11 +260,9 @@ async fn validate_running_external_helper() {
 
     boot();
     assert_configured();
-    let database = DisposableDb::installed("cli_mcp_validate_external")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
-    let app = fixture_app_context(&pool, database.url()).expect("fixture app context");
+    let database = DisposableDb::with_schema("cli_mcp_validate_external").await;
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     app.service_repository()
         .create_service(CreateServiceInput {
             name: ENABLED,
@@ -420,11 +416,9 @@ async fn validate_closed_database_helper() {
 
     boot();
     assert_configured();
-    let database = DisposableDb::installed("cli_mcp_validate_closed_database")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
-    let app = fixture_app_context(&pool, database.url()).expect("fixture app context");
+    let database = DisposableDb::with_schema("cli_mcp_validate_closed_database").await;
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     pool.pool_arc()
         .expect("initialized SQLx pool")
         .close()
@@ -477,11 +471,9 @@ async fn validate_stopped_outputs_helper() {
 
     boot();
     assert_configured();
-    let database = DisposableDb::installed("cli_mcp_validate_stopped_outputs")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
-    let app = fixture_app_context(&pool, database.url()).expect("fixture app context");
+    let database = DisposableDb::with_schema("cli_mcp_validate_stopped_outputs").await;
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     let context = ctx(&app);
     println!("BEGIN_VALIDATE_NAMED_STOPPED");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)

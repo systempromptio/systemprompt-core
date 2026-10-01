@@ -10,7 +10,7 @@ use systemprompt_cli::core::{self, CoreCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -24,11 +24,6 @@ fn parse(args: &[&str]) -> CoreCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -37,13 +32,13 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
 #[tokio::test]
 async fn the_journey_graph_renders_for_the_default_window() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     core::execute(parse(&["content", "analytics", "journey"]), &ctx)
@@ -59,7 +54,7 @@ async fn the_journey_graph_renders_for_the_default_window() {
 
 #[tokio::test]
 async fn click_history_for_an_unknown_link_yields_an_empty_projection() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     core::execute(
@@ -79,7 +74,7 @@ async fn click_history_for_an_unknown_link_yields_an_empty_projection() {
 
 #[tokio::test]
 async fn campaign_analytics_reject_an_unknown_campaign() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     let err = core::execute(
@@ -97,7 +92,7 @@ async fn campaign_analytics_reject_an_unknown_campaign() {
 
 #[tokio::test]
 async fn pagination_offsets_are_accepted_by_the_journey_projection() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     core::execute(

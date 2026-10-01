@@ -23,10 +23,8 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
 }
 
 async fn database() -> (DisposableDb, DbPool) {
-    let database = DisposableDb::installed("cli_cost_breakdown")
-        .await
-        .expect("cost breakdown tests need an isolated installed database");
-    let pool = database.pool().await.expect("disposable database pool");
+    let database = DisposableDb::with_schema("cli_cost_breakdown").await;
+    let pool = database.test_pool().await;
     (database, pool)
 }
 

@@ -14,7 +14,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
+    seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -30,11 +30,6 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -43,7 +38,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -123,7 +118,7 @@ fn export_lines(csv: &str) -> usize {
 
 #[tokio::test]
 async fn device_breakdown_renders_and_exports_seeded_sessions() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_traffic(&pool).await;
     let ctx = ctx(&pool);
 
@@ -150,7 +145,7 @@ async fn device_breakdown_renders_and_exports_seeded_sessions() {
 
 #[tokio::test]
 async fn including_bots_never_shrinks_the_device_breakdown() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_traffic(&pool).await;
     let ctx = ctx(&pool);
     let dir = tempfile::tempdir().unwrap();
@@ -193,7 +188,7 @@ async fn including_bots_never_shrinks_the_device_breakdown() {
 
 #[tokio::test]
 async fn geo_and_source_breakdowns_render_seeded_sessions() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_traffic(&pool).await;
     let ctx = ctx(&pool);
     let dir = tempfile::tempdir().unwrap();
@@ -216,7 +211,7 @@ async fn geo_and_source_breakdowns_render_seeded_sessions() {
 
 #[tokio::test]
 async fn bot_traffic_view_renders_with_a_seeded_bot_session() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_traffic(&pool).await;
     let ctx = ctx(&pool);
 

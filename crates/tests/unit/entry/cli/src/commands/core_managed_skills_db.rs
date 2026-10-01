@@ -11,7 +11,7 @@ use systemprompt_marketplace::managed::{
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
 };
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_db_pool, seed_user_row,
+    ensure_test_bootstrap, seed_user_row, test_app_context, test_db_pool,
 };
 use uuid::Uuid;
 
@@ -76,8 +76,8 @@ fn seed_disk_skill(key: &str) {
 
 async fn fixture() -> ManagedSkillFixture {
     let bootstrap = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&bootstrap.database_url).await.unwrap();
-    let app = fixture_app_context(&pool, &bootstrap.database_url).unwrap();
+    let pool = test_db_pool().await;
+    let app = test_app_context(&pool, &bootstrap.database_url);
     let owner = app.system_admin().id().clone();
     seed_user_row(
         &pool,

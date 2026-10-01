@@ -21,8 +21,8 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, fixture_database_url,
-    fixture_db_pool, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
+    test_database_url, test_db_pool,
 };
 
 #[derive(Debug, Parser)]
@@ -40,9 +40,9 @@ fn parse(args: &[&str]) -> ServicesCommands {
 async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let url = fixture_database_url().unwrap();
-    let pool = fixture_db_pool(&url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &url).expect("fixture app context");
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &url);
     (pool, ctx)
 }
 
@@ -130,11 +130,9 @@ async fn a_start_without_skip_migrate_runs_the_migration_phase_idempotently() {
     // nothing about the phase under test.
     ensure_test_bootstrap();
     install_test_signing_key();
-    let disp = DisposableDb::installed("cov_cli_startmig")
-        .await
-        .expect("a freshly installed disposable database");
-    let pool = disp.pool().await.expect("pool on the disposable database");
-    let app = fixture_app_context(&pool, disp.url()).expect("fixture app context");
+    let disp = DisposableDb::with_schema("cov_cli_startmig").await;
+    let pool = disp.test_pool().await;
+    let app = test_app_context(&pool, disp.url());
 
     let applied_before = applied_migration_count(&pool).await;
 

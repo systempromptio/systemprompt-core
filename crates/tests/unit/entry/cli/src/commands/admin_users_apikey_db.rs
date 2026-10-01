@@ -14,7 +14,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_database_url, fixture_db_pool, seed_user_row,
+    seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
 use uuid::Uuid;
 
@@ -30,20 +30,15 @@ fn parse(args: &[&str]) -> UsersCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().expect("DATABASE_URL"))
-        .await
-        .expect("the apikey tests need a reachable test database")
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().expect("DATABASE_URL");
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).expect("app context"),
+        test_app_context(pool, &url),
     )
 }
 
@@ -108,7 +103,7 @@ async fn stored_keys(pool: &DbPool, user: &str) -> Vec<StoredKey> {
 // database read must never yield anything a caller could authenticate with.
 #[tokio::test]
 async fn issuing_stores_a_hash_and_a_prefix_but_never_the_secret() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     run(
@@ -136,7 +131,7 @@ async fn issuing_stores_a_hash_and_a_prefix_but_never_the_secret() {
 
 #[tokio::test]
 async fn revoking_marks_the_row_rather_than_deleting_it() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     run(
@@ -170,7 +165,7 @@ async fn revoking_marks_the_row_rather_than_deleting_it() {
 // not make it pass.
 #[tokio::test]
 async fn a_key_with_a_blank_name_is_refused() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     let err = run(
@@ -212,7 +207,7 @@ async fn an_expiry_that_is_not_rfc3339_is_rejected_at_parse_time() {
 
 #[tokio::test]
 async fn an_explicit_rfc3339_expiry_is_accepted() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     run(
@@ -244,7 +239,7 @@ async fn an_explicit_rfc3339_expiry_is_accepted() {
 // credential has been withdrawn when it has not.
 #[tokio::test]
 async fn revoking_a_key_that_does_not_exist_is_reported() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     let err = run(
@@ -269,7 +264,7 @@ async fn revoking_a_key_that_does_not_exist_is_reported() {
 
 #[tokio::test]
 async fn listing_a_user_with_no_keys_is_an_empty_report_rather_than_an_error() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     run(&pool, &["api-key", "list", "--user", &user])

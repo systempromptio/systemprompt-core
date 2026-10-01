@@ -24,7 +24,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_database_url, fixture_db_pool, seed_user_row,
+    seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
 use uuid::Uuid;
 
@@ -40,20 +40,15 @@ fn parse(args: &[&str]) -> BridgeCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().expect("DATABASE_URL"))
-        .await
-        .expect("the bridge issue-code tests need a reachable test database")
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().expect("DATABASE_URL");
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).expect("app context"),
+        test_app_context(pool, &url),
     )
 }
 
@@ -99,7 +94,7 @@ async fn issue(pool: &DbPool, reference: &str) -> anyhow::Result<()> {
 // sees it can link a device later.
 #[tokio::test]
 async fn the_code_expires_rather_than_lasting_forever() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user, _email) = seeded_user(&pool).await;
 
     issue(&pool, &user).await.expect("issue code");
@@ -127,7 +122,7 @@ async fn the_code_expires_rather_than_lasting_forever() {
 // an identifier that is not a user id.
 #[tokio::test]
 async fn issuing_by_email_binds_the_code_to_the_resolved_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user, email) = seeded_user(&pool).await;
 
     issue(&pool, &email).await.expect("issue by email");
@@ -141,7 +136,7 @@ async fn issuing_by_email_binds_the_code_to_the_resolved_user() {
 
 #[tokio::test]
 async fn issuing_by_id_and_by_email_reach_the_same_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user, email) = seeded_user(&pool).await;
 
     issue(&pool, &user).await.expect("issue by id");
@@ -158,7 +153,7 @@ async fn issuing_by_id_and_by_email_reach_the_same_user() {
 // to nothing, or to a row a later user could occupy.
 #[tokio::test]
 async fn an_unknown_reference_is_refused_and_mints_nothing() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let absent = format!("nobody-{}", Uuid::new_v4().simple());
 
     let err = issue(&pool, &absent)
@@ -174,7 +169,7 @@ async fn an_unknown_reference_is_refused_and_mints_nothing() {
 
 #[tokio::test]
 async fn an_empty_reference_is_refused() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     let err = issue(&pool, "   ")
         .await
@@ -191,7 +186,7 @@ async fn an_empty_reference_is_refused() {
 // exist alongside the old one until it expires.
 #[tokio::test]
 async fn reissuing_adds_a_second_code_rather_than_replacing_the_first() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (user, _email) = seeded_user(&pool).await;
 
     issue(&pool, &user).await.expect("first issue");
@@ -276,7 +271,7 @@ mod enroll_cert {
     // device against something that is not a user id.
     #[tokio::test]
     async fn enrolling_by_email_attaches_the_cert_to_the_resolved_user() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let (user, email) = seeded_user(&pool).await;
         let fp = fingerprint();
 
@@ -299,7 +294,7 @@ mod enroll_cert {
     // was enrolled — otherwise the device authenticates once and never again.
     #[tokio::test]
     async fn an_uppercase_fingerprint_is_stored_in_its_normalised_form() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let (user, _email) = seeded_user(&pool).await;
         let upper = fingerprint().to_uppercase();
 
@@ -318,7 +313,7 @@ mod enroll_cert {
     // that can never match a real certificate is a permanent dead enrolment.
     #[tokio::test]
     async fn a_fingerprint_of_the_wrong_length_is_refused_and_stores_nothing() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let (user, _email) = seeded_user(&pool).await;
 
         let err = enroll(&pool, &user, "abc123", "short")
@@ -334,7 +329,7 @@ mod enroll_cert {
 
     #[tokio::test]
     async fn an_unknown_user_is_refused_and_enrols_nothing() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let absent = format!("nobody-{}", Uuid::new_v4().simple());
 
         let err = enroll(&pool, &absent, &fingerprint(), "ghost")

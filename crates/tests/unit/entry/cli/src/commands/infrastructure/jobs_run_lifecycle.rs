@@ -10,7 +10,7 @@ use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
 };
 
 const HELPER: &str = "commands::infrastructure::jobs_run_lifecycle::mixed_job_run_helper";
@@ -34,14 +34,12 @@ fn parse(args: &[&str]) -> JobsCommands {
 async fn mixed_job_run_helper() {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_jobs_run")
-        .await
-        .expect("private jobs database");
+    let database = DisposableDb::with_schema("cli_jobs_run").await;
     let info_path =
         std::env::var_os("JOBS_RUN_DATABASE_INFO").expect("private database info channel");
     std::fs::write(info_path, database.url()).expect("write private database info");
-    let pool = database.pool().await.expect("private jobs pool");
-    let app = fixture_app_context(&pool, database.url()).expect("full fixture app context");
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     let repository = JobRepository::new(&pool).expect("job repository");
     for name in [SUCCESS_JOB, MISSING_JOB] {
         repository

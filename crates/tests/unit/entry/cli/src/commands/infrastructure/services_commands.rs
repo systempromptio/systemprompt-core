@@ -12,7 +12,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::{DbPool, ServiceConfig};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_scheduler::{OrphanCleanupReport, OrphanDisposition, OrphanOutcome};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -26,11 +26,6 @@ fn parse(args: &[&str]) -> ServicesCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -39,7 +34,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -147,7 +142,7 @@ fn cleanup_dry_run_result_counts_services() {
 
 #[tokio::test]
 async fn start_notices_for_agents_and_mcp_only() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     services::execute(
         parse(&["start", "--agents", "--mcp", "--skip-migrate"]),
@@ -159,7 +154,7 @@ async fn start_notices_for_agents_and_mcp_only() {
 
 #[tokio::test]
 async fn lifecycle_commands_refuse_database_scope() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     for args in [

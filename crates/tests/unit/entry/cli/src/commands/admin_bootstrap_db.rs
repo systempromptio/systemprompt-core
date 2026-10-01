@@ -63,9 +63,7 @@ async fn bootstrap_refuses_a_name_that_is_not_the_configured_admin() {
 async fn inactive_existing_admin_is_refused_without_granting_a_role() {
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("cli_bootstrap_inactive")
-        .await
-        .expect("private bootstrap database");
+    let database = DisposableDb::with_schema("cli_bootstrap_inactive").await;
     // SAFETY: nextest runs this test in its own process and the bootstrap singleton
     // has not been initialized; the private URL is installed before any
     // configuration is read.
@@ -90,7 +88,7 @@ async fn inactive_existing_admin_is_refused_without_granting_a_role() {
     .await
     .expect("create initial bootstrap administrator");
 
-    let pool = database.pool().await.expect("private bootstrap pool");
+    let pool = database.test_pool().await;
     let raw = pool.pool_arc().expect("private SQL pool");
     sqlx::query("UPDATE users SET status = 'inactive', roles = ARRAY['user'] WHERE name = $1")
         .bind(&configured)

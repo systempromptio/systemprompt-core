@@ -9,7 +9,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CloudCredentials, SessionKey};
 use systemprompt_identifiers::{CloudAuthToken, Email, UserId};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_db_pool, install_test_signing_key, seed_user_row_with_roles,
+    ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles, test_db_pool,
 };
 
 struct Project {
@@ -60,9 +60,9 @@ impl Drop for Project {
 }
 
 async fn admin() -> UserId {
-    let boot = ensure_test_bootstrap();
+    ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url).await.unwrap();
+    let pool = test_db_pool().await;
     let id = UserId::new(format!("sessionflow-{}", uuid::Uuid::new_v4().simple()));
     seed_user_row_with_roles(
         &pool,

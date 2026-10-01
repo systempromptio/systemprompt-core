@@ -12,13 +12,8 @@ use systemprompt_content::models::CreateContentParams;
 use systemprompt_content::{Content, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 async fn seed(pool: &DbPool, source: &str) -> Content {
     let slug = format!("promptslug{}", uuid::Uuid::new_v4().simple());
@@ -48,7 +43,7 @@ fn args(source: &str, set_values: Vec<String>) -> edit::EditArgs {
 
 #[tokio::test]
 async fn interactive_edit_prompts_for_the_content_and_applies_the_change() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = format!("promptsrc{}", uuid::Uuid::new_v4().simple());
     let seeded = seed(&pool, &source).await;
     let prompter = ScriptedPrompter::new(vec!["0"]);
@@ -73,7 +68,7 @@ async fn interactive_edit_prompts_for_the_content_and_applies_the_change() {
 
 #[tokio::test]
 async fn interactive_edit_with_no_candidates_reports_no_content() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = format!("emptysrc{}", uuid::Uuid::new_v4().simple());
     let prompter = ScriptedPrompter::new(vec!["0"]);
 

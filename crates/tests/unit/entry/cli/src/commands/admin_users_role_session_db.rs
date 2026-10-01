@@ -10,7 +10,7 @@ use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_ses
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
 
@@ -26,20 +26,15 @@ fn parse(args: &[&str]) -> UsersCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().unwrap();
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).unwrap(),
+        test_app_context(pool, &url),
     )
 }
 
@@ -50,7 +45,7 @@ fn db_scoped_ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -64,7 +59,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn role_assign_replaces_roles() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("assign");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -89,7 +84,7 @@ async fn role_assign_replaces_roles() {
 
 #[tokio::test]
 async fn role_assign_unknown_user_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(
@@ -103,7 +98,7 @@ async fn role_assign_unknown_user_errors() {
 
 #[tokio::test]
 async fn role_promote_then_repeat_reports_already_admin() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("promote");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -129,7 +124,7 @@ async fn role_promote_then_repeat_reports_already_admin() {
 
 #[tokio::test]
 async fn role_promote_unknown_user_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["role", "promote", &missing]), &ctx)
@@ -140,7 +135,7 @@ async fn role_promote_unknown_user_errors() {
 
 #[tokio::test]
 async fn role_demote_admin_and_non_admin_paths() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("demote");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -169,7 +164,7 @@ async fn role_demote_admin_and_non_admin_paths() {
 
 #[tokio::test]
 async fn role_demote_unknown_user_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["role", "demote", &missing]), &ctx)
@@ -180,7 +175,7 @@ async fn role_demote_unknown_user_errors() {
 
 #[tokio::test]
 async fn role_commands_require_full_profile_context() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = db_scoped_ctx(&pool);
     let err = users::execute(parse(&["role", "promote", "someone"]), &ctx)
         .await
@@ -190,7 +185,7 @@ async fn role_commands_require_full_profile_context() {
 
 #[tokio::test]
 async fn delete_requires_confirmation() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("delconfirm");
@@ -217,7 +212,7 @@ async fn delete_requires_confirmation() {
 
 #[tokio::test]
 async fn delete_of_an_unknown_reference_reports_not_found() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let err = users::execute(parse(&["delete", "no-such-user-reference"]), &ctx)
         .await
@@ -230,7 +225,7 @@ async fn delete_of_an_unknown_reference_reports_not_found() {
 
 #[tokio::test]
 async fn delete_removes_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("del");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -245,7 +240,7 @@ async fn delete_removes_user() {
 
 #[tokio::test]
 async fn delete_unknown_user_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["delete", &missing, "--yes"]), &ctx)
@@ -256,7 +251,7 @@ async fn delete_unknown_user_errors() {
 
 #[tokio::test]
 async fn count_breakdown_reports_totals() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("count");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -272,7 +267,7 @@ async fn count_breakdown_reports_totals() {
 
 #[tokio::test]
 async fn session_list_recent_and_active_for_seeded_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("seslist");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -300,7 +295,7 @@ async fn session_list_recent_and_active_for_seeded_user() {
 
 #[tokio::test]
 async fn session_list_unknown_user_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["session", "list", &missing]), &ctx)
@@ -311,7 +306,7 @@ async fn session_list_unknown_user_errors() {
 
 #[tokio::test]
 async fn session_cleanup_requires_confirmation() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let err = users::execute(parse(&["session", "cleanup"]), &ctx)
         .await
@@ -321,7 +316,7 @@ async fn session_cleanup_requires_confirmation() {
 
 #[tokio::test]
 async fn session_cleanup_deletes_old_anonymous_users() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let fingerprint = format!("fp-{}", Uuid::new_v4().simple());
     let anon = service.create_anonymous(&fingerprint).await.unwrap();
@@ -344,7 +339,7 @@ async fn session_cleanup_deletes_old_anonymous_users() {
 
 #[tokio::test]
 async fn session_cleanup_requires_full_profile_context() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = db_scoped_ctx(&pool);
     let err = users::execute(parse(&["session", "cleanup", "--yes"]), &ctx)
         .await

@@ -10,7 +10,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_database_url, fixture_db_pool, unique_user_id,
+    test_app_context, test_database_url, test_db_pool, unique_user_id,
 };
 
 #[derive(Debug, Parser)]
@@ -25,18 +25,13 @@ fn parse(args: &[&str]) -> LogsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn app_ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().unwrap();
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).unwrap(),
+        test_app_context(pool, &url),
     )
 }
 
@@ -57,7 +52,7 @@ async fn seed_log(pool: &DbPool, level: LogLevel, module: &str, message: &str) {
 
 #[tokio::test]
 async fn stream_bounded_renders_recent_logs() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let module = format!("cli.stream.{}", uuid::Uuid::new_v4().simple());
     seed_log(&pool, LogLevel::Error, &module, "stream error line").await;
     seed_log(&pool, LogLevel::Info, &module, "stream info line").await;
@@ -83,7 +78,7 @@ async fn stream_bounded_renders_recent_logs() {
 
 #[tokio::test]
 async fn stream_renders_all_levels_and_plain_entries() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let module = format!("cli.stream.levels.{}", uuid::Uuid::new_v4().simple());
     seed_log(&pool, LogLevel::Warn, &module, "stream warn line").await;
     seed_log(&pool, LogLevel::Debug, &module, "stream debug line").await;
@@ -120,7 +115,7 @@ async fn stream_renders_all_levels_and_plain_entries() {
 
 #[tokio::test]
 async fn stream_clear_and_empty_filter_terminate() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = app_ctx(&pool);
     let missing = format!("cli.stream.none.{}", uuid::Uuid::new_v4().simple());
 
@@ -143,13 +138,13 @@ async fn stream_clear_and_empty_filter_terminate() {
 
 #[tokio::test]
 async fn stream_rejects_json_output() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(systemprompt_cli::OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(&pool, &fixture_database_url().unwrap()).unwrap(),
+        test_app_context(&pool, &test_database_url()),
     );
     let err = logs::execute(parse(&["stream", "--max-iterations", "1"]), &ctx)
         .await
@@ -159,7 +154,7 @@ async fn stream_rejects_json_output() {
 
 #[tokio::test]
 async fn cleanup_dry_run_reports_cutoff() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = app_ctx(&pool);
     logs::execute(
         parse(&["cleanup", "--older-than", "3650d", "--dry-run"]),
@@ -171,7 +166,7 @@ async fn cleanup_dry_run_reports_cutoff() {
 
 #[tokio::test]
 async fn cleanup_keep_last_days_deletes_with_confirmation() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = app_ctx(&pool);
     logs::execute(
         parse(&["cleanup", "--keep-last-days", "3650", "--yes"]),
@@ -183,7 +178,7 @@ async fn cleanup_keep_last_days_deletes_with_confirmation() {
 
 #[tokio::test]
 async fn cleanup_requires_a_bound() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = app_ctx(&pool);
     let err = logs::execute(parse(&["cleanup", "--yes"]), &ctx)
         .await

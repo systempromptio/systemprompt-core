@@ -11,7 +11,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
+    seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -27,11 +27,6 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -40,7 +35,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -129,7 +124,7 @@ async fn pages_csv(ctx: &CommandContext, args: &[&str]) -> String {
 
 #[tokio::test]
 async fn pages_counts_sessions_per_landing_page() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let prefix = seed_sessions(
         &pool,
         &[
@@ -175,7 +170,7 @@ async fn pages_counts_sessions_per_landing_page() {
 
 #[tokio::test]
 async fn pages_excludes_ghost_and_bot_sessions_unless_include_all() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let prefix = seed_sessions(
         &pool,
         &[
@@ -222,7 +217,7 @@ async fn pages_excludes_ghost_and_bot_sessions_unless_include_all() {
 
 #[tokio::test]
 async fn pages_filters_by_referrer_and_path_prefix() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let prefix = seed_sessions(
         &pool,
         &[
@@ -260,7 +255,7 @@ async fn pages_filters_by_referrer_and_path_prefix() {
 
 #[tokio::test]
 async fn pages_renders_without_export() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_sessions(
         &pool,
         &[Session {
@@ -289,7 +284,7 @@ async fn navigation_csv(ctx: &CommandContext, args: &[&str]) -> String {
 
 #[tokio::test]
 async fn navigation_counts_internal_transitions() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let prefix = seed_link_clicks(&pool).await;
     let ctx = ctx(&pool);
 
@@ -305,7 +300,7 @@ async fn navigation_counts_internal_transitions() {
 
 #[tokio::test]
 async fn navigation_include_external_adds_outbound_clicks() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let prefix = seed_link_clicks(&pool).await;
     let ctx = ctx(&pool);
 
@@ -320,7 +315,7 @@ async fn navigation_include_external_adds_outbound_clicks() {
 
 #[tokio::test]
 async fn navigation_filters_by_path_prefix() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let prefix = seed_link_clicks(&pool).await;
     let ctx = ctx(&pool);
 
@@ -335,7 +330,7 @@ async fn navigation_filters_by_path_prefix() {
 
 #[tokio::test]
 async fn navigation_renders_without_export() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_link_clicks(&pool).await;
     let ctx = ctx(&pool);
 

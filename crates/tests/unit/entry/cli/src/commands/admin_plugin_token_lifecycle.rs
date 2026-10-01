@@ -33,9 +33,7 @@ fn parse(args: &[&str]) -> KeysCommands {
 #[tokio::test]
 #[ignore = "re-executed by plugin_token_requires_admin_and_persists_its_backing_session"]
 async fn plugin_token_helper() {
-    let database = DisposableDb::installed("cli_plugin_token")
-        .await
-        .expect("private plugin-token database");
+    let database = DisposableDb::with_schema("cli_plugin_token").await;
     // SAFETY: nextest gives the ignored helper its own process and configuration is
     // not yet read.
     unsafe {
@@ -44,7 +42,7 @@ async fn plugin_token_helper() {
     }
     ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = database.pool().await.expect("private plugin-token pool");
+    let pool = database.test_pool().await;
     let admin = UserId::new(uuid::Uuid::new_v4().to_string());
     let member = UserId::new(uuid::Uuid::new_v4().to_string());
     let admin_email = "plugin-admin@example.invalid";

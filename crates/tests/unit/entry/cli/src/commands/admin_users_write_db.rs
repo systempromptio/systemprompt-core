@@ -8,7 +8,7 @@ use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
 
@@ -24,20 +24,15 @@ fn parse(args: &[&str]) -> UsersCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().unwrap();
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).unwrap(),
+        test_app_context(pool, &url),
     )
 }
 
@@ -51,7 +46,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn update_applies_every_field() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (name, email) = unique("upd");
     let user = service
@@ -95,7 +90,7 @@ async fn update_applies_every_field() {
 
 #[tokio::test]
 async fn update_without_fields_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (name, email) = unique("updn");
     let user = service.create(&name, &email, None, None).await.unwrap();
@@ -111,7 +106,7 @@ async fn update_without_fields_errors() {
 
 #[tokio::test]
 async fn update_missing_user_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let missing = format!("no-such-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["update", &missing, "--full-name", "x"]), &ctx)
@@ -122,7 +117,7 @@ async fn update_missing_user_errors() {
 
 #[tokio::test]
 async fn merge_transfers_and_deletes_source() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (sn, se) = unique("mrgs");
     let (tn, te) = unique("mrgt");
@@ -155,7 +150,7 @@ async fn merge_transfers_and_deletes_source() {
 
 #[tokio::test]
 async fn merge_requires_confirmation() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let err = users::execute(parse(&["merge", "--source", "a", "--target", "b"]), &ctx)
         .await
@@ -165,7 +160,7 @@ async fn merge_requires_confirmation() {
 
 #[tokio::test]
 async fn merge_same_user_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("mrgsame");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -191,7 +186,7 @@ async fn merge_same_user_errors() {
 
 #[tokio::test]
 async fn merge_missing_users_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("mrgok");
     let target = service.create(&n, &e, None, None).await.unwrap();

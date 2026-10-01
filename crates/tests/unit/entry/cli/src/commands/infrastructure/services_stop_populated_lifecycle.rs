@@ -11,7 +11,7 @@ use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::CreateServiceInput;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
 };
 
 const HELPER: &str =
@@ -44,14 +44,12 @@ fn section<'a>(card: &'a Value, heading: &str) -> &'a Value {
 async fn populated_stop_helper() {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_grouped_stop")
-        .await
-        .expect("private services database");
+    let database = DisposableDb::with_schema("cli_grouped_stop").await;
     let database_info_path =
         std::env::var_os("GROUPED_STOP_DATABASE_INFO").expect("private database info channel");
     std::fs::write(database_info_path, database.url()).expect("write private database info");
-    let pool = database.pool().await.expect("private services pool");
-    let app = fixture_app_context(&pool, database.url()).expect("full fixture app context");
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     let repository = app.service_repository().clone();
     for (name, module, port) in [
         ("owned-stop-agent", "agent", 9311),

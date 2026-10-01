@@ -92,10 +92,8 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
 
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_restart_failed")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
+    let database = DisposableDb::with_schema("cli_restart_failed").await;
+    let pool = database.test_pool().await;
     let paths = systemprompt_models::PathsConfig {
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
@@ -376,10 +374,8 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     systemprompt_test_fixtures::refresh_services_config();
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_restart_all_agents")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
+    let database = DisposableDb::with_schema("cli_restart_all_agents").await;
+    let pool = database.test_pool().await;
     let paths = systemprompt_models::PathsConfig {
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
@@ -457,10 +453,8 @@ async fn delete_all_agents_public_helper() {
     std::fs::write(&control, "control: preserved\n").expect("write unrelated control");
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_admin_delete_all")
-        .await
-        .expect("private delete-all database");
-    let pool = database.pool().await.expect("private delete-all pool");
+    let database = DisposableDb::with_schema("cli_admin_delete_all").await;
+    let pool = database.test_pool().await;
     let paths = systemprompt_models::PathsConfig {
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),

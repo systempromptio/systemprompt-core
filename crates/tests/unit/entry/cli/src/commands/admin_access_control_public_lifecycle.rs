@@ -18,9 +18,7 @@ const HELPER: &str = "commands::admin_access_control_public_lifecycle::access_co
 #[tokio::test]
 #[ignore = "re-executed by public_export_round_trips_roles_and_lint_reports_unreachable_entities"]
 async fn access_control_helper() {
-    let database = DisposableDb::installed("cli_access_control_public")
-        .await
-        .expect("private access-control database");
+    let database = DisposableDb::with_schema("cli_access_control_public").await;
     // SAFETY: this ignored helper is process-isolated and configuration is not
     // initialized.
     unsafe {
@@ -29,7 +27,7 @@ async fn access_control_helper() {
     }
     ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = database.pool().await.expect("private access-control pool");
+    let pool = database.test_pool().await;
     let raw = pool.pool_arc().expect("SQL pool");
     let admin = UserId::new(uuid::Uuid::new_v4().to_string());
     seed_user_row_with_roles(
