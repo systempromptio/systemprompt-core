@@ -82,6 +82,7 @@ RAW=$(rg -n --no-heading --color=never \
     -g '!crates/entry/api/src/routes/oauth/**' \
     -g '!crates/domain/mcp/src/middleware/session_handler/session_store.rs' \
     -g '!crates/shared/models/src/wire/**' \
+    -g '!crates/domain/*/src/models/rows.rs' \
     -e "$PATTERN" \
     "${SEARCH_DIRS[@]}" 2>/dev/null || true)
 

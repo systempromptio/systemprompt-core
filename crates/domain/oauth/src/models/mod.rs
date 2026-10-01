@@ -6,8 +6,8 @@
 pub mod cimd;
 pub mod clients;
 pub mod oauth;
+mod rows;
 
-pub(crate) use clients::OAuthClientDbRow;
 pub use clients::api::{CreateOAuthClientRequest, OAuthClientResponse, UpdateOAuthClientRequest};
 pub use clients::{ClientRelations, OAuthClient, OAuthClientRow};
 pub use oauth::api::Pagination;
@@ -16,3 +16,4 @@ pub use oauth::{
     DisplayMode, GrantType, JwtClaims, OAuthConfig, PkceMethod, Prompt, ResponseMode, ResponseType,
     TokenAuthMethod,
 };
+pub(crate) use rows::OAuthClientDbRow;

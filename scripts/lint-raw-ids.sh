@@ -46,6 +46,11 @@ PATTERN="(\bpub\s+)?\b${BANNED}\s*:\s*(Option<)?&?(\s)?(mut\s+)?(String|str)\b"
 #                                              (Anthropic SSE `message_id`,
 #                                              Gemini streaming) mirror the
 #                                              upstream JSON field by name
+#   crates/domain/*/src/models/rows.rs        private `query_as!` decode rows:
+#                                              the macro converts columns with
+#                                              `From<String>`, which checked ids
+#                                              do not implement; each row maps
+#                                              to its typed model via `X::new`
 SEARCH_DIRS=(crates/shared crates/infra crates/domain crates/app crates/entry systemprompt/src bin/bridge/src)
 
 if command -v rg >/dev/null 2>&1; then
@@ -57,6 +62,7 @@ if command -v rg >/dev/null 2>&1; then
         -g '!crates/entry/api/src/routes/oauth/**' \
         -g '!crates/domain/mcp/src/middleware/session_handler/session_store.rs' \
         -g '!crates/shared/models/src/wire/**' \
+        -g '!crates/domain/*/src/models/rows.rs' \
         -e "$PATTERN" \
         "${SEARCH_DIRS[@]}" 2>/dev/null || true)
 else
@@ -82,6 +88,7 @@ while IFS= read -r line; do
         crates/entry/api/src/routes/oauth/*) continue ;;
         crates/domain/mcp/src/middleware/session_handler/session_store.rs) continue ;;
         crates/shared/models/src/wire/*) continue ;;
+        crates/domain/*/src/models/rows.rs) continue ;;
         crates/tests/*) continue ;;
         */target/*|*/.sqlx/*) continue ;;
     esac

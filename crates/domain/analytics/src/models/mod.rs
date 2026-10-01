@@ -11,8 +11,8 @@ mod engagement;
 mod events;
 mod fingerprint;
 pub mod reporting;
+mod rows;
 
-pub(crate) use engagement::EngagementEventRow;
 pub use engagement::{CreateEngagementEventInput, EngagementEvent, EngagementOptionalMetrics};
 pub use events::{
     AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType, ConversionEventData,
@@ -21,5 +21,6 @@ pub use events::{
 };
 pub use fingerprint::{FingerprintAnalysisResult, FingerprintReputation, FlagReason};
 pub use reporting::*;
+pub(crate) use rows::EngagementEventRow;
 
 pub use systemprompt_traits::session_store::SessionSnapshot as AnalyticsSession;
