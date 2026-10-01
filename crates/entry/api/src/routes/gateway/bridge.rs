@@ -44,13 +44,13 @@ pub fn instance_enabled_hosts(
         .collect()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 pub struct EnabledHostsRequest {
     pub host_id: HostKind,
     pub enabled: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct SetHostPrefResponse {
     pub host_id: HostKind,
     pub enabled: bool,

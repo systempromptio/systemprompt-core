@@ -251,7 +251,7 @@ pub fn service_row_is_stale(
     status: ServiceStatus,
     pid: Option<i32>,
     name_key: &str,
-    name: &systemprompt_identifiers::ServiceName,
+    name: &ServiceName,
 ) -> bool {
     use systemprompt_scheduler::ProcessCleanup;
 

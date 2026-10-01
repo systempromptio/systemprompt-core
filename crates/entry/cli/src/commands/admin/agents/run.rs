@@ -70,7 +70,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
     );
 
     let provider: Arc<dyn systemprompt_models::AiProvider> = Arc::<AiService>::clone(&ai_service);
-    let served = run_standalone(agent_state, provider, args.agent_name.as_str(), args.port)
+    let served = run_standalone(agent_state, provider, &args.agent_name, args.port)
         .await
         .context("Failed to run agent server");
     ai_service.audit_tasks().close();

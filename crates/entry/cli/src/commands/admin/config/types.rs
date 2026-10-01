@@ -23,6 +23,7 @@ pub struct ConfigMutationOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ConfigOverviewOutput {
+    #[schemars(with = "String")]
     pub profile_name: ProfileName,
     pub profile_path: String,
     pub server: ServerOverview,

@@ -48,7 +48,7 @@ pub struct LogSearchItem {
     pub metadata: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LevelCount {
     pub level: LogLevel,
     pub count: i64,

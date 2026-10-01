@@ -24,7 +24,7 @@ use chrono::{DateTime, Utc};
 use rmcp::model::CallToolResult;
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{
-    AiToolCallId, ArtifactId, McpExecutionId, McpServerId, McpToolName, SkillId,
+    AiToolCallId, ArtifactId, McpExecutionId, McpServerId, McpToolName, SkillId, SkillName,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::payload_digest;
@@ -57,7 +57,7 @@ pub struct IngestRequest {
     pub ai_tool_call_id: Option<AiToolCallId>,
     pub mcp_execution_id: Option<McpExecutionId>,
     pub ctx: RequestContext,
-    pub skill: Option<(SkillId, String)>,
+    pub skill: Option<(SkillId, SkillName)>,
     pub source: ExecutionSource,
     pub started_at: Option<DateTime<Utc>>,
     // JSON: the tool's own arguments, when the vantage point had them.

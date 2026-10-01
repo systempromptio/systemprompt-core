@@ -45,7 +45,6 @@ serde_yaml = { workspace = true }
 
 # Utilities
 thiserror = { workspace = true }
-uuid = { workspace = true }
 chrono = { workspace = true }
 walkdir = { workspace = true }
 sha2 = { workspace = true }

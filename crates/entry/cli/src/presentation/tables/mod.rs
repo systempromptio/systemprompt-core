@@ -41,6 +41,6 @@ impl<T: fmt::Display> fmt::Display for OrDash<T> {
     }
 }
 
-pub(super) fn millis(value: Option<impl std::fmt::Display>) -> String {
+pub(super) fn millis(value: Option<impl fmt::Display>) -> String {
     value.map_or_else(dash, |ms| format!("{ms}ms"))
 }

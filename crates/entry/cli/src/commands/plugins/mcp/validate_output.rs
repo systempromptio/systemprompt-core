@@ -40,7 +40,7 @@ pub fn success_output(
     let message = validation_result.status_description();
 
     let server_info = validation_result.server_info.map(|info| McpServerInfo {
-        name: info.server_name,
+        name: info.implementation_name,
         version: info.version,
         protocol_version: info.protocol_version,
     });

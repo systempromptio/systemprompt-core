@@ -84,7 +84,7 @@ pub(super) async fn handle_authorization_code_grant(
     .map_err(|e| TokenError::server("Token generation failed", e))?;
 
     if let Err(e) = repo
-        .link_auth_code_to_refresh_token(&code, generated.refresh_token_id.as_str())
+        .link_auth_code_to_refresh_token(&code, &generated.refresh_token_id)
         .await
     {
         tracing::warn!(error = %e, "Failed to link auth code to refresh token");

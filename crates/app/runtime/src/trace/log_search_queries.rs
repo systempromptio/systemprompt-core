@@ -106,7 +106,7 @@ pub(super) async fn search_tool_executions(
             timestamp: r.timestamp,
             trace_id: r.trace_id,
             tool_name: McpToolName::new(r.tool_name),
-            server_name: r.server_name.map(McpServerId::new),
+            server_name: Some(McpServerId::new(r.server_name)),
             status: r.status,
             execution_time_ms: r.execution_time_ms,
         })

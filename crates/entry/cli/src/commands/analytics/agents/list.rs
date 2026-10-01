@@ -7,7 +7,6 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::AgentAnalyticsRepository;
-use systemprompt_identifiers::AgentName;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
