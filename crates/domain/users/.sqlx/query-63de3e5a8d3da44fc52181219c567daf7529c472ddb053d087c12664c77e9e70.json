@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            session_id as \"session_id: SessionId\",\n            user_id as \"user_id: UserId\",\n            expires_at\n        FROM user_sessions\n        WHERE fingerprint_hash = $1\n          AND last_activity_at > $2\n          AND ended_at IS NULL\n        ORDER BY last_activity_at DESC\n        LIMIT 1\n        ",
+  "query": "\n        SELECT\n            s.session_id as \"session_id: SessionId\",\n            s.user_id as \"user_id?: UserId\",\n            s.expires_at\n        FROM user_sessions s\n        JOIN users u ON u.id = s.user_id\n        WHERE s.fingerprint_hash = $1\n          AND s.last_activity_at > $2\n          AND s.ended_at IS NULL\n          AND s.revoked_at IS NULL\n          AND $3 = ANY(u.roles)\n        ORDER BY s.last_activity_at DESC\n        LIMIT 1\n        ",
   "describe": {
     "columns": [
       {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "user_id: UserId",
+        "name": "user_id?: UserId",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -40,7 +40,8 @@
     "parameters": {
       "Left": [
         "Text",
-        "Timestamptz"
+        "Timestamptz",
+        "Text"
       ]
     },
     "nullable": [
@@ -49,5 +50,5 @@
       true
     ]
   },
-  "hash": "5c55e7c12856c099b039f487f02bb72c082664d2a1db943dec0d48bd78a3ca54"
+  "hash": "63de3e5a8d3da44fc52181219c567daf7529c472ddb053d087c12664c77e9e70"
 }

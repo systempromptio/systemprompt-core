@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, user_id, credential_id, public_key, counter, display_name,\n                    device_type, transports, created_at, last_used_at\n             FROM webauthn_credentials WHERE user_id = $1 ORDER BY created_at DESC",
+  "query": "SELECT id, user_id, credential_id, public_key, display_name, device_type,\n                    transports, created_at, last_used_at\n             FROM webauthn_credentials WHERE user_id = $1 ORDER BY created_at DESC",
   "describe": {
     "columns": [
       {
@@ -49,17 +49,6 @@
       },
       {
         "ordinal": 4,
-        "name": "counter",
-        "type_info": "Int4",
-        "origin": {
-          "Table": {
-            "table": "webauthn_credentials",
-            "name": "counter"
-          }
-        }
-      },
-      {
-        "ordinal": 5,
         "name": "display_name",
         "type_info": "Varchar",
         "origin": {
@@ -70,7 +59,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 5,
         "name": "device_type",
         "type_info": "Text",
         "origin": {
@@ -81,7 +70,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 6,
         "name": "transports",
         "type_info": "Text",
         "origin": {
@@ -92,7 +81,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 7,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -103,7 +92,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 8,
         "name": "last_used_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -128,9 +117,8 @@
       false,
       false,
       false,
-      false,
       true
     ]
   },
-  "hash": "328b8ef817590fe56dc6bc7ea5fc43f6ce7e201c12aa3aaa9abea0d130f307c1"
+  "hash": "a727c60db4536eb1bfaa078e8005920c0cc6475dc43d9819652b86d362c9a8d4"
 }
