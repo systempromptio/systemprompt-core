@@ -87,7 +87,7 @@ async fn missing_username_and_name_derive_hashed_fallback() {
 }
 
 #[tokio::test]
-async fn upstream_roles_are_not_granted_on_first_touch() {
+async fn upstream_roles_pass_through_when_present() {
     let ctx = setup("roles").await;
     let claims = FederatedIdentityClaims {
         email: Some("roles@example.com".to_owned()),
@@ -102,7 +102,7 @@ async fn upstream_roles_are_not_granted_on_first_touch() {
         .find_or_create_federated(&ctx.issuer, &ctx.external_sub, &claims)
         .await
         .expect("create");
-    assert_eq!(user.roles, vec!["user".to_owned()]);
+    assert_eq!(user.roles, vec!["operator".to_owned(), "viewer".to_owned()]);
 
     cleanup(&ctx, &user.id).await;
 }

@@ -47,7 +47,7 @@ fn route(provider: &str) -> GatewayRoute {
     let mut extra = HashMap::new();
     extra.insert("x-custom".to_owned(), "value".to_owned());
     GatewayRoute {
-        id: RouteId::new("r1"),
+        id: Some(RouteId::new("r1"))"r1")),
         name: None,
         description: None,
         model_pattern: "*".into(),

@@ -78,14 +78,7 @@ pub async fn enforce_authz_pre_dispatch(
     context_id: &ContextId,
     hook: &SharedAuthzHook,
 ) -> Result<(), RejectionError> {
-    let route_id = if route.id.as_str().trim().is_empty() {
-        systemprompt_models::services::synthesize_route_id(
-            &route.model_pattern,
-            route.provider.as_str(),
-        )
-    } else {
-        route.id.clone()
-    };
+    let route_id = route.effective_id();
     let (roles, attributes, act_chain) = principal.authz_attributes();
     let req = build_gateway_authz_request(GatewayAuthzRequestInput {
         user_id: principal.user_id().clone(),

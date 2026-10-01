@@ -105,8 +105,8 @@ impl RouteSelectorEngine {
                 Ok(Some(route)) => {
                     tracing::info!(
                         selector = selector.name(),
-                        from_route = %matched.id,
-                        to_route = %route.id,
+                        from_route = %matched.effective_id(),
+                        to_route = %route.effective_id(),
                         "gateway route refined by selector"
                     );
                     return Some((route, selector.name()));

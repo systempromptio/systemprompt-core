@@ -158,7 +158,7 @@ pub(super) fn provider_registry(
 
 pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
     let mut route = GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: "claude-*".to_owned(),

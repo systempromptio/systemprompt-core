@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::RouteId;
+
 use crate::services::ai::ModelPricing;
 use crate::services::gateway::config::GatewayConfig;
 use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
@@ -25,14 +27,16 @@ impl GatewayConfig {
     }
 
     pub fn validate(&self, registry: &ProviderRegistry) -> GatewayResult<()> {
-        let mut route_ids: std::collections::HashSet<&str> =
+        let mut route_ids: std::collections::HashSet<RouteId> =
             std::collections::HashSet::with_capacity(self.routes.len());
         for route in &self.routes {
-            if !route_ids.insert(route.id.as_str()) {
+            let id = route.effective_id();
+            if route_ids.contains(&id) {
                 return Err(GatewayProfileError::DuplicateRouteId {
-                    id: route.id.as_str().to_owned(),
+                    id: id.to_string(),
                 });
             }
+            route_ids.insert(id);
         }
         if let Some(provider) = self.default_provider.as_ref()
             && registry.find_provider(provider.as_str()).is_none()
@@ -76,7 +80,7 @@ impl GatewayConfig {
         registry: &ProviderRegistry,
         route: &GatewayRoute,
     ) -> GatewayResult<()> {
-        let route_id = route.id.as_str().to_owned();
+        let route_id = route.effective_id().to_string();
         let Some(view) = route.fallback_view() else {
             if route.fallback_upstream_model.is_some() {
                 return Err(GatewayProfileError::RouteFallbackModelWithoutProvider {
@@ -110,7 +114,7 @@ impl GatewayConfig {
         if !self.enabled {
             return Ok(());
         }
-        let route_id = route.id.as_str().to_owned();
+        let route_id = route.effective_id().to_string();
         let provider = route.provider.as_str().to_owned();
         if let Some(pricing) = route.pricing {
             if !pricing.is_billable() {
@@ -222,7 +226,7 @@ fn validate_route_governance(
             Ok(())
         } else {
             Err(GatewayProfileError::RouteGovernanceUnsatisfied {
-                route: route.id.as_str().to_owned(),
+                route: route.effective_id().to_string(),
                 model: model_id.to_owned(),
                 requirements: unmet.join(","),
             })

@@ -114,7 +114,7 @@ async fn bind_route<'a>(
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
     let provider = route.resolve(registry).ok_or_else(|| {
         DispatchError::pre_audit(GatewayError::UndeclaredProvider {
-            route: route.id.as_str().to_owned(),
+            route: route.effective_id().to_string(),
             provider: route.provider.as_str().to_owned(),
         })
     })?;
@@ -176,14 +176,14 @@ pub fn enforce_route_requirements(
 
     tracing::warn!(
         ai_request_id = %ai_request_id,
-        route = %route.id.as_str(),
+        route = %route.effective_id(),
         model = %upstream,
         requirements = %unmet.join(","),
         "Gateway denied: route governance requirements unmet by resolved provider/model"
     );
     Err(DispatchError::pre_audit(PolicyDenied(format!(
         "route '{}' requires [{}] which provider '{}' does not satisfy for model '{}'",
-        route.id.as_str(),
+        route.effective_id(),
         unmet.join(","),
         route.provider.as_str(),
         upstream

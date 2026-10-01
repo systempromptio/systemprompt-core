@@ -26,15 +26,11 @@ use crate::services::ai::ModelPricing;
 use crate::services::providers::{ProviderEntry, ProviderRegistry};
 use crate::wire::canonical::{CanonicalContent, CanonicalRequest, ReasoningEffort, ResponseFormat};
 
-fn default_route_id() -> RouteId {
-    RouteId::new("")
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayRoute {
-    #[serde(default = "default_route_id")]
-    pub id: RouteId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<RouteId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -79,10 +75,23 @@ impl GatewayRoute {
             .unwrap_or_else(|| crate::services::providers::without_context_variant(requested))
     }
 
-    pub fn ensure_id(&mut self) {
-        if self.id.as_str().trim().is_empty() {
-            self.id = synthesize_route_id(&self.model_pattern, self.provider.as_str());
+    pub fn ensure_id(&mut self) -> bool {
+        if self.declared_id().is_some() {
+            return false;
         }
+        self.id = Some(synthesize_route_id(&self.model_pattern, self.provider.as_str()));
+        true
+    }
+
+    pub fn declared_id(&self) -> Option<&RouteId> {
+        self.id.as_ref().filter(|id| !id.as_str().trim().is_empty())
+    }
+
+    #[must_use]
+    pub fn effective_id(&self) -> RouteId {
+        self.declared_id().cloned().unwrap_or_else(|| {
+            synthesize_route_id(&self.model_pattern, self.provider.as_str())
+        })
     }
 
     pub fn resolve<'a>(&self, registry: &'a ProviderRegistry) -> Option<&'a ProviderEntry> {

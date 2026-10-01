@@ -28,7 +28,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn route() -> GatewayRoute {
     GatewayRoute {
-        id: RouteId::new("r1"),
+        id: Some(RouteId::new("r1"))"r1")),
         name: None,
         description: None,
         model_pattern: "*".into(),

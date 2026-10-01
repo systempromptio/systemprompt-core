@@ -28,7 +28,7 @@ fn spec_with(rules: Vec<SystemPromptRule>) -> GatewayConfigSpec {
 
 fn route(id: &str) -> GatewayRoute {
     GatewayRoute {
-        id: RouteId::new(id),
+        id: Some(RouteId::new(id))w(id)),
         name: None,
         description: None,
         model_pattern: "claude-*".to_owned(),
@@ -98,8 +98,8 @@ fn backfill_route_ids_fills_only_blank_ids() {
     let mutated = backfill_route_ids(&mut spec);
 
     assert!(mutated);
-    assert!(!spec.routes[0].id.as_str().trim().is_empty());
-    assert_eq!(spec.routes[1].id.as_str(), "keep-me");
+    assert!(spec.routes[0].declared_id().is_some());
+    assert_eq!(spec.routes[1].effective_id().as_str(), "keep-me");
 }
 
 #[test]
@@ -108,5 +108,5 @@ fn backfill_route_ids_no_op_when_all_ids_present() {
     spec.routes = vec![route("route-a")];
 
     assert!(!backfill_route_ids(&mut spec));
-    assert_eq!(spec.routes[0].id.as_str(), "route-a");
+    assert_eq!(spec.routes[0].effective_id().as_str(), "route-a");
 }

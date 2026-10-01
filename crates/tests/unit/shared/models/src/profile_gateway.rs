@@ -42,8 +42,7 @@ fn req(model: &str) -> CanonicalRequest {
 
 fn route(pattern: &str) -> GatewayRoute {
     GatewayRoute {
-        id: RouteId::new(""),
-        name: None,
+        id: Noneme: None,
         description: None,
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new("test"),
@@ -79,7 +78,7 @@ fn route_finds_matching_model() {
     let config = GatewayConfig {
         enabled: true,
         routes: vec![GatewayRoute {
-            id: RouteId::new(""),
+            id: None,
             name: None,
             description: None,
             model_pattern: "kimi-*".to_owned(),
@@ -219,9 +218,9 @@ fn synthesize_route_id_matches_golden_fnv1a_digests() {
 #[test]
 fn ensure_id_backfills_empty_id() {
     let mut r = route("claude-*");
-    assert!(r.id.as_str().is_empty());
+    assert!(r.id.is_none());
     r.ensure_id();
-    assert_eq!(r.id, synthesize_route_id("claude-*", "test"));
+    assert_eq!(r.id, Some(synthesize_route_id("claude-*", "test")));
     let preserved = r.id.clone();
     r.ensure_id();
     assert_eq!(r.id, preserved, "ensure_id must be idempotent");
@@ -320,9 +319,9 @@ fn registry_validate_rejects_non_http_scheme_and_plain_http_to_remote() {
 #[test]
 fn validate_rejects_duplicate_route_id() {
     let mut a = route("claude-*");
-    a.id = RouteId::new("dup");
+    a.id = Some(RouteId::new("dup"));
     let mut b = route("gpt-*");
-    b.id = RouteId::new("dup");
+    b.id = Some(RouteId::new("dup"));
     let config = GatewayConfig {
         enabled: true,
         routes: vec![a, b],
@@ -401,8 +400,7 @@ fn two_provider_config(default_provider: Option<&str>) -> GatewayConfig {
 
 fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
     let mut r = GatewayRoute {
-        id: RouteId::new(""),
-        name: None,
+        id: Noneme: None,
         description: None,
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new(provider),
@@ -526,9 +524,7 @@ fn validate_rejects_default_provider_absent_from_registry() {
 }
 
 fn route_id(route: Cow<'_, GatewayRoute>) -> RouteId {
-    let mut route = route.into_owned();
-    route.ensure_id();
-    route.id
+    route.effective_id()
 }
 
 #[test]
@@ -1244,7 +1240,7 @@ fn requires_no_retain() -> RouteRequirements {
 fn validate_rejects_governance_route_over_unannotated_provider() {
     let registry = priced_registry(vec![priced_model("claude-opus-5", token_rates(5.0, 25.0))]);
     let mut r = route("claude-*");
-    r.id = RouteId::new("gov");
+    r.id = Some(RouteId::new("gov"));
     r.requires = Some(requires_no_retain());
     match enabled_gateway(vec![r]).validate(&registry) {
         Err(GatewayProfileError::RouteGovernanceUnsatisfied {

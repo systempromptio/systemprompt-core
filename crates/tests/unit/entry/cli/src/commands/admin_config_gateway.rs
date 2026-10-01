@@ -61,14 +61,16 @@ fn add_route_mints_an_id_and_upserts_by_pattern() {
     let mut f = file();
     let msg = add_route(&mut f, &route_args("claude-*", "anthropic")).unwrap();
     assert_eq!(msg, "Route claude-* -> anthropic added");
-    let first_id = spec(&f).routes[0].id.clone();
-    assert!(!first_id.as_str().is_empty());
+    let first_id = spec(&f).routes[0]
+        .declared_id()
+        .cloned()
+        .expect("add_route mints an id");
 
     add_route(&mut f, &route_args("claude-*", "openai")).unwrap();
     let routes = &spec(&f).routes;
     assert_eq!(routes.len(), 1);
     assert_eq!(routes[0].provider.as_str(), "openai");
-    assert_ne!(routes[0].id, first_id);
+    assert_ne!(routes[0].declared_id(), Some(&first_id));
 }
 
 #[test]

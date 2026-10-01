@@ -86,10 +86,9 @@ impl GatewayConfig {
         let mut ids: Vec<RouteId> = Vec::new();
         let mut seen: std::collections::HashSet<RouteId> = std::collections::HashSet::new();
         for route in self.candidate_routes(registry) {
-            let mut route = route.into_owned();
-            route.ensure_id();
-            if seen.insert(route.id.clone()) {
-                ids.push(route.id);
+            let id = route.effective_id();
+            if seen.insert(id.clone()) {
+                ids.push(id);
             }
         }
         ids
@@ -99,7 +98,7 @@ impl GatewayConfig {
         let provider = self.default_provider.as_ref()?;
         registry.find_provider(provider.as_str())?;
         let mut route = GatewayRoute {
-            id: RouteId::new(""),
+            id: None,
             name: None,
             description: None,
             model_pattern: DEFAULT_ROUTE_PATTERN.to_owned(),

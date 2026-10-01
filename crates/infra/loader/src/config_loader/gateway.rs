@@ -18,10 +18,7 @@ use crate::error::{ConfigLoadError, ConfigLoadResult};
 pub fn backfill_route_ids(spec: &mut GatewayConfigSpec) -> bool {
     let mut mutated = false;
     for route in &mut spec.routes {
-        if route.id.as_str().trim().is_empty() {
-            route.ensure_id();
-            mutated = true;
-        }
+        mutated |= route.ensure_id();
     }
     mutated
 }

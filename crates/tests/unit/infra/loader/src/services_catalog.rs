@@ -84,7 +84,7 @@ fn catalog_and_gateway_merge_from_includes_and_resolve_relative_to_their_file() 
         .expect("route matches the catalog model");
     assert_eq!(route.provider.as_str(), "anthropic");
     assert!(
-        !route.id.as_str().trim().is_empty(),
+        route.declared_id().is_some(),
         "loader backfills route ids"
     );
     assert_eq!(

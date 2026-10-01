@@ -466,7 +466,7 @@ fn two_provider_registry() -> ProviderRegistry {
 
 fn routed(pattern: &str, provider: &str) -> GatewayConfig {
     let mut route = GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: pattern.to_owned(),

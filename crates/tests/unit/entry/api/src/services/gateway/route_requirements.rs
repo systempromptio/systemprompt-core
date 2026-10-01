@@ -19,7 +19,7 @@ use systemprompt_models::services::{
 
 fn route(requires: Option<RouteRequirements>) -> GatewayRoute {
     GatewayRoute {
-        id: RouteId::new("eu-route"),
+        id: Some(RouteId::new("eu-route"))ute")),
         name: None,
         description: None,
         model_pattern: "model-*".to_owned(),

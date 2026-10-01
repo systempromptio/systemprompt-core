@@ -44,7 +44,7 @@ fn vertex_call(endpoint: &str) -> UpstreamCall {
 
 fn route() -> GatewayRoute {
     GatewayRoute {
-        id: RouteId::new("claude-vertex"),
+        id: Some(RouteId::new("claude-vertex"))tex")),
         name: None,
         description: None,
         model_pattern: "claude-*".into(),

@@ -10,8 +10,7 @@ use systemprompt_models::wire::canonical::CanonicalRequest;
 
 fn route(pattern: &str, provider: &str) -> GatewayRoute {
     let mut r = GatewayRoute {
-        id: RouteId::new(""),
-        name: None,
+        id: Noneme: None,
         description: None,
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new(provider),

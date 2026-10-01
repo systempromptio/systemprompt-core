@@ -73,7 +73,7 @@ fn wire(
 }
 fn config() -> GatewayConfig {
     let mut route = GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: "*".to_owned(),

@@ -63,7 +63,7 @@ fn config() -> GatewayConfig {
     GatewayConfig {
         enabled: true,
         routes: vec![GatewayRoute {
-            id: RouteId::new("gemini-pro"),
+            id: Some(RouteId::new("gemini-pro")),
             name: None,
             description: None,
             model_pattern: "gemini-2.5-*".to_owned(),
