@@ -25,7 +25,7 @@ struct WireApiError<'a> {
     trace_id: Option<&'a str>,
 }
 
-fn no_validation_errors(errors: &&[ValidationError]) -> bool {
+const fn no_validation_errors(errors: &&[ValidationError]) -> bool {
     errors.is_empty()
 }
 

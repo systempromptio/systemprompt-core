@@ -201,7 +201,7 @@ impl From<systemprompt_security::AuthError> for OauthError {
 }
 
 impl OauthError {
-    pub fn is_unique_violation(&self) -> bool {
+    pub const fn is_unique_violation(&self) -> bool {
         matches!(
             self,
             Self::Repository(RepositoryError::Constraint {

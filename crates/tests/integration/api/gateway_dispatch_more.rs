@@ -60,7 +60,7 @@ fn classify_upstream_status_maps_through() {
         provider: "openai".to_owned(),
         status: 429,
         message: "slow down".to_owned(),
-        body: bytes::Bytes::new(),
+        body: Box::new(bytes::Bytes::new()),
         retry_after: None,
         request_id: None,
     });

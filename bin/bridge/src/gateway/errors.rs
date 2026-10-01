@@ -69,7 +69,7 @@ pub enum GatewayError {
     Rejected {
         endpoint: &'static str,
         status: reqwest::StatusCode,
-        rejection: GatewayRejection,
+        rejection: Box<GatewayRejection>,
     },
     #[error("release manifest fetch failed: {0}")]
     ReleaseFetch(Box<reqwest::Error>),
@@ -137,7 +137,7 @@ impl GatewayRejection {
         }
     }
 
-    pub async fn read(resp: reqwest::Response) -> (reqwest::StatusCode, Self) {
+    pub async fn read(resp: reqwest::Response) -> (reqwest::StatusCode, Box<Self>) {
         let status = resp.status();
         let body = match resp.text().await {
             Ok(body) => body,
@@ -146,7 +146,7 @@ impl GatewayRejection {
                 String::new()
             },
         };
-        (status, Self::parse(&body))
+        (status, Box::new(Self::parse(&body)))
     }
 }
 

@@ -126,7 +126,7 @@ enum CommsError {
     #[error("gateway answered {status}: {rejection}")]
     Status {
         status: reqwest::StatusCode,
-        rejection: crate::gateway::GatewayRejection,
+        rejection: Box<crate::gateway::GatewayRejection>,
     },
 }
 

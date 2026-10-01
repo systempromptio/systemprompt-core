@@ -24,9 +24,9 @@ fn checksum_mismatch_reports_both_digests() {
 fn download_status_reports_the_rejecting_code() {
     let message = UpdateError::DownloadStatus {
         status: reqwest::StatusCode::FORBIDDEN,
-        rejection: systemprompt_bridge::gateway::GatewayRejection::parse(
+        rejection: Box::new(systemprompt_bridge::gateway::GatewayRejection::parse(
             r#"{"code":"forbidden","message":"device not enrolled"}"#,
-        ),
+        )),
     }
     .to_string();
     assert_eq!(

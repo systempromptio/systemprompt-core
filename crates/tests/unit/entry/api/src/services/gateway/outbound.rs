@@ -354,7 +354,7 @@ fn upstream_status_error_carries_real_provider_name() {
         provider: "cerebras".to_owned(),
         status: 429,
         message: "rate limited".to_owned(),
-        body: bytes::Bytes::new(),
+        body: Box::new(bytes::Bytes::new()),
         retry_after: None,
         request_id: None,
     };

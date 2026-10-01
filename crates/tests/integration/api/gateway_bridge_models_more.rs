@@ -11,6 +11,7 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
 use systemprompt_ai::SafetyConfig;
+use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_api::routes::gateway::models::{humanize_model_id, surfaces_from_header};
@@ -118,6 +119,8 @@ fn surfaces_from_header_parses_known_tags() {
 fn surfaces_from_header_rejects_unknown_tag() {
     let h = header_map(&[(INFERENCE_PROTOCOL, "quantum")]);
     let err = surfaces_from_header(&h).expect_err("unknown must fail");
+    assert_eq!(err.tag, "quantum");
+    let err = ApiHttpError::from(err).into_inner();
     assert_eq!(err.code, ErrorCode::BadRequest);
     assert!(err.message.contains("unknown"), "{}", err.message);
 }
@@ -126,6 +129,7 @@ fn surfaces_from_header_rejects_unknown_tag() {
 fn surfaces_from_header_rejects_backend_surface() {
     let h = header_map(&[(INFERENCE_PROTOCOL, "backend")]);
     let err = surfaces_from_header(&h).expect_err("backend is not a client surface");
+    let err = ApiHttpError::from(err).into_inner();
     assert_eq!(err.code, ErrorCode::BadRequest);
 }
 

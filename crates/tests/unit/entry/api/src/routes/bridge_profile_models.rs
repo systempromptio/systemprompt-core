@@ -10,6 +10,7 @@
 use std::collections::HashMap;
 
 use axum::http::HeaderMap;
+use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
 use systemprompt_api::routes::gateway::models::{model_entries, surfaces_from_header};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
@@ -295,7 +296,7 @@ fn header_helper_rejects_backend_and_garbage() {
     for bad in ["backend", "not-a-protocol"] {
         let mut headers = HeaderMap::new();
         headers.insert(INFERENCE_PROTOCOL, bad.parse().unwrap());
-        let err = surfaces_from_header(&headers).unwrap_err();
+        let err = ApiHttpError::from(surfaces_from_header(&headers).unwrap_err()).into_inner();
         assert_eq!(err.code, ErrorCode::BadRequest, "{bad}");
     }
 }

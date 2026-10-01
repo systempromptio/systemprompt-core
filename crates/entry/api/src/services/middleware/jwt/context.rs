@@ -169,9 +169,11 @@ impl JwtContextExtractor {
         let context_source = PayloadSource::extract_context_source(&body_bytes)?;
         let (context_id, task_id_from_payload) = match context_source {
             ContextIdSource::Direct(id) => (
-                ContextId::try_new(id).map_err(|_| ContextExtractionError::InvalidHeaderValue {
-                    header: "contextId".to_owned(),
-                    reason: "not a valid context id".to_owned(),
+                ContextId::try_new(id).map_err(|_invalid_id| {
+                    ContextExtractionError::InvalidHeaderValue {
+                        header: "contextId".to_owned(),
+                        reason: "not a valid context id".to_owned(),
+                    }
                 })?,
                 None,
             ),

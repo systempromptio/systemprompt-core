@@ -32,9 +32,11 @@ use thiserror::Error;
 use super::canonical::CanonicalRequest;
 use super::canonical_response::{CanonicalEvent, CanonicalResponse};
 
-/// Upstream provider failure: the real HTTP status a provider answered, or the
-/// transport failure that kept it from answering, so the route layer can relay
-/// the status instead of flattening every failure to 502.
+/// Upstream provider failure.
+///
+/// Carries the real HTTP status a provider answered, or the transport failure
+/// that kept it from answering, so the route layer can relay the status instead
+/// of flattening every failure to 502.
 #[derive(Debug, Error)]
 pub enum UpstreamError {
     #[error("{provider} returned {status}: {message}")]
@@ -42,7 +44,7 @@ pub enum UpstreamError {
         provider: String,
         status: u16,
         message: String,
-        body: bytes::Bytes,
+        body: Box<bytes::Bytes>,
         retry_after: Option<String>,
         request_id: Option<String>,
     },
@@ -110,7 +112,7 @@ impl UpstreamError {
             provider: provider.to_owned(),
             status,
             message: extract_upstream_message(&String::from_utf8_lossy(&body)),
-            body,
+            body: Box::new(body),
             retry_after,
             request_id,
         }
@@ -219,7 +221,7 @@ pub(in crate::services::gateway) fn reject_defective_body(
         provider: provider.to_owned(),
         status: DEFECTIVE_BODY_STATUS,
         message: format!("{defect}: {excerpt}"),
-        body: body.clone(),
+        body: Box::new(body.clone()),
         retry_after: None,
         request_id: None,
     })
@@ -243,7 +245,7 @@ pub(in crate::services::gateway) fn reject_unparsable_body(
         provider: provider.to_owned(),
         status: DEFECTIVE_BODY_STATUS,
         message: format!("{error}: {excerpt}"),
-        body: body.clone(),
+        body: Box::new(body.clone()),
         retry_after: None,
         request_id: None,
     })

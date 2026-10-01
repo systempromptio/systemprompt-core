@@ -153,7 +153,7 @@ fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {
         GatewayError::MissingSession => {
             RejectionError::server(status, "dispatch without an authenticated session")
         },
-        GatewayError::Internal { context, .. } => RejectionError::server(status, *context),
+        GatewayError::Internal { context, .. } => RejectionError::server(status, context),
     }
 }
 
@@ -188,7 +188,7 @@ fn build_upstream_passthrough(e: &UpstreamError) -> Option<Response<Body>> {
     if let Some(request_id) = request_id {
         builder = builder.header("x-upstream-request-id", request_id.as_str());
     }
-    builder.body(Body::from(body.clone())).ok()
+    builder.body(Body::from(bytes::Bytes::clone(body))).ok()
 }
 
 pub fn map_upstream_error(e: &UpstreamError) -> RejectionError {

@@ -275,10 +275,11 @@ async fn insert_turn(
 }
 
 fn tokens(value: u32) -> Result<i32, RepositoryError> {
-    i32::try_from(value).map_err(|_| {
-        RepositoryError::invalid_argument(format!(
-            "token count {value} exceeds the i32 column range"
-        ))
+    i32::try_from(value).map_err(|error| {
+        RepositoryError::decode(
+            format!("token count {value} exceeds the i32 column range"),
+            error,
+        )
     })
 }
 

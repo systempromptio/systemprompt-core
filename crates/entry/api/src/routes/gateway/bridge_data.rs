@@ -36,7 +36,7 @@ pub async fn load_revocations(
 
 pub async fn load_enabled_hosts(ctx: &AppContext, user_id: &UserId) -> OauthResult<Vec<String>> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    Ok(repo.list_enabled(user_id).await?)
+    repo.list_enabled(user_id).await
 }
 
 pub async fn upsert_host_pref(
@@ -55,7 +55,7 @@ pub async fn load_host_model_protocols(
     user_id: &UserId,
 ) -> OauthResult<Vec<(String, Vec<String>)>> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    Ok(repo.load_model_protocols(user_id).await?)
+    repo.load_model_protocols(user_id).await
 }
 
 pub async fn set_host_model_protocols(

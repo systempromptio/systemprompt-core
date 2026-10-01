@@ -217,7 +217,7 @@ async fn exhausted_budget_relays_the_final_429_verbatim() {
             ..
         } => {
             assert_eq!(*status, 429);
-            assert_eq!(body.as_ref(), br#"{"error":{"message":"capacity"}}"#);
+            assert_eq!(&body[..], br#"{"error":{"message":"capacity"}}"#);
             assert_eq!(retry_after.as_deref(), Some("7"));
             assert_eq!(message, "capacity");
         },

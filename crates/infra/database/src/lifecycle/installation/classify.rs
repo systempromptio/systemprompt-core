@@ -49,7 +49,7 @@ pub(super) enum Classified {
     CreateTable(SplitCreateTable),
 }
 
-fn node_phase(node: &pg_query::NodeEnum) -> Option<StatementPhase> {
+const fn node_phase(node: &pg_query::NodeEnum) -> Option<StatementPhase> {
     use pg_query::NodeEnum;
 
     Some(match node {

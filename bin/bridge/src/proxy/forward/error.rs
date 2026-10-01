@@ -64,6 +64,16 @@ pub enum ForwardError {
 }
 
 impl ForwardError {
+    pub fn hook_token(
+        plugin_id: &systemprompt_identifiers::PluginId,
+        source: crate::auth::plugin_oauth::PluginOAuthError,
+    ) -> Self {
+        Self::HookToken {
+            plugin_id: plugin_id.clone(),
+            source,
+        }
+    }
+
     pub const fn status(&self) -> StatusCode {
         match self {
             Self::Auth(_)

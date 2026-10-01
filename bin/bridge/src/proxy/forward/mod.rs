@@ -113,10 +113,7 @@ pub(crate) async fn forward(
                 &plugin_id,
             )
             .await
-            .map_err(|source| ForwardError::HookToken {
-                plugin_id: plugin_id.clone(),
-                source,
-            })?;
+            .map_err(|source| ForwardError::hook_token(&plugin_id, source))?;
             hook_plugin = Some(plugin_id);
             (
                 Route {

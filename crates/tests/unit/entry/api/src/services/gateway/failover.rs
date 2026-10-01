@@ -17,7 +17,7 @@ fn status_error(status: u16) -> GatewayError {
         provider: "anthropic".to_owned(),
         status,
         message: "upstream said no".to_owned(),
-        body: bytes::Bytes::new(),
+        body: Box::new(bytes::Bytes::new()),
         retry_after: None,
         request_id: None,
     })

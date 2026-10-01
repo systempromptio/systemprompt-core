@@ -28,7 +28,7 @@ pub enum UpdateError {
     #[error("gateway rejected the download: status={status}: {rejection}")]
     DownloadStatus {
         status: reqwest::StatusCode,
-        rejection: crate::gateway::GatewayRejection,
+        rejection: Box<crate::gateway::GatewayRejection>,
     },
     #[error("checksum mismatch: expected {expected}, got {actual}")]
     ChecksumMismatch { expected: String, actual: String },
@@ -53,7 +53,7 @@ pub enum UpdateError {
         backup.display()
     )]
     RollbackRemove {
-        failure: Box<UpdateError>,
+        failure: Box<Self>,
         target: PathBuf,
         backup: PathBuf,
         #[source]
@@ -61,7 +61,7 @@ pub enum UpdateError {
     },
     #[error("{failure}; rollback failed: {source}; previous app remains at {}", backup.display())]
     RollbackRestore {
-        failure: Box<UpdateError>,
+        failure: Box<Self>,
         backup: PathBuf,
         #[source]
         source: std::io::Error,

@@ -48,7 +48,7 @@ pub enum FeedbackError {
     #[error("feedback request rejected with status {status}: {rejection}")]
     Rejected {
         status: u16,
-        rejection: crate::gateway::GatewayRejection,
+        rejection: Box<crate::gateway::GatewayRejection>,
     },
     #[error("device enrolment failed: {0}")]
     Gateway(#[from] crate::gateway::errors::GatewayError),

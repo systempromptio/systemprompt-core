@@ -68,9 +68,11 @@ impl HostWarning {
     }
 }
 
-/// What a host sync that completed reports back: the warnings it raised
-/// without failing. It is the return value of [`HostSync::apply`], so a
-/// degraded sync cannot report success without the caller seeing why.
+/// What a host sync that completed reports back.
+///
+/// It carries the warnings the sync raised without failing and is the return
+/// value of [`HostSync::apply`], so a degraded sync cannot report success
+/// without the caller seeing why.
 #[derive(Debug, Default)]
 pub struct HostSyncReport {
     pub warnings: Vec<HostWarning>,

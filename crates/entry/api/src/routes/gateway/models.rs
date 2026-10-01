@@ -149,7 +149,21 @@ pub async fn list(
     )))
 }
 
-pub fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, ApiError> {
+#[derive(Debug, thiserror::Error)]
+#[error("unknown {INFERENCE_PROTOCOL} value: {tag}")]
+pub struct UnknownInferenceProtocol {
+    pub tag: String,
+}
+
+impl From<UnknownInferenceProtocol> for ApiHttpError {
+    fn from(err: UnknownInferenceProtocol) -> Self {
+        Self::from(ApiError::bad_request(err.to_string()))
+    }
+}
+
+pub fn surfaces_from_header(
+    headers: &HeaderMap,
+) -> Result<Vec<ApiSurface>, UnknownInferenceProtocol> {
     let Some(raw) = headers
         .get(INFERENCE_PROTOCOL)
         .and_then(|v| v.to_str().ok())
@@ -160,8 +174,8 @@ pub fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, ApiE
     for tag in raw.split(',').map(str::trim).filter(|t| !t.is_empty()) {
         let surface = ApiSurface::from_tag(tag)
             .filter(|s| *s != ApiSurface::Backend)
-            .ok_or_else(|| {
-                ApiError::bad_request(format!("unknown {INFERENCE_PROTOCOL} value: {tag}"))
+            .ok_or_else(|| UnknownInferenceProtocol {
+                tag: tag.to_owned(),
             })?;
         surfaces.push(surface);
     }

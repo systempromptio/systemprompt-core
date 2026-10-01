@@ -13,7 +13,7 @@ fn status(code: u16) -> UpstreamError {
         provider: "openai".to_owned(),
         status: code,
         message: "boom detail".to_owned(),
-        body: bytes::Bytes::new(),
+        body: Box::new(bytes::Bytes::new()),
         retry_after: None,
         request_id: None,
     }

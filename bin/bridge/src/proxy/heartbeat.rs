@@ -171,6 +171,6 @@ enum HeartbeatError {
     #[error("upstream rejected heartbeat: status {status}: {rejection}")]
     Upstream {
         status: reqwest::StatusCode,
-        rejection: crate::gateway::GatewayRejection,
+        rejection: Box<crate::gateway::GatewayRejection>,
     },
 }
