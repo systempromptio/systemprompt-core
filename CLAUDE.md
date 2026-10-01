@@ -12,7 +12,7 @@ entry (api, cli) → app (runtime, scheduler, generator) → domain → infra �
 
 - **shared** — models, traits, identifiers (typed IDs), extension framework, provider-contracts, client, template-provider
 - **infra** — database (SQLx), events, security (JWT/authz), config, logging, loader, cloud, storage
-- **domain** — users, oauth, files, analytics, content, ai, mcp, agent, templates, marketplace, slack, teams, evaluation. Domain crates are **peers**: no domain→domain deps (see Rust Standards)
+- **domain** — users, oauth, files, analytics, content, ai, mcp, agent, templates, marketplace, slack, teams. Domain crates are **peers**: no domain→domain deps (see Rust Standards)
 - **app** — runtime (`AppContext`), scheduler, generator
 - **entry** — api (HTTP server), cli
 - `systemprompt/` — facade crate re-exporting everything behind feature flags (`core`, `database`, `api`, `cli`, `full`)
@@ -96,8 +96,7 @@ day of serial 40-minute promotion rounds.
 
 Public, code-only repository. In git: source, `Cargo.toml`/`build.rs`, `README.md`, `CHANGELOG.md`, schema/migration `*.sql`, legitimate test fixtures. **Never committed**: status/plan/report/summary/guide/progress/findings docs, coverage trackers, scratch notes, build output. `ci/` and `internal/` are gitignored.
 
-No new folders or process docs enter git without explicit user approval. Before any commit, sweep the staged tree:
-`git ls-files | grep -iE '(status|plan|report|summary|guide|progress|findings)'` and `git ls-files 'crates/**/*.md' | grep -vE '/(README|CHANGELOG)\.md$'`.
+No new folders or process docs enter git without explicit user approval. Before any commit, run `just lint-repo-hygiene` (also a `check-gates`/Quality gate). It fails on a tracked prose file (`.md`/`.txt`/`.org`/`.rst`/`.adoc`/`.pdf`/`.docx`) outside the sanctioned set — `README.md`/`CHANGELOG.md`, root `AGENTS.md`/`CLAUDE.md`/`SECURITY.md`, `documentation/`, the `scripts/*.txt` allowlists, `crates/tests/**` fixtures and the vendored A2A spec — and on a status/plan/report/summary/progress/findings-named prose file anywhere; a clean tree prints only its OK line.
 
 ## Rust Standards
 
@@ -106,7 +105,7 @@ No new folders or process docs enter git without explicit user approval. Before 
 - **Inline `//` comments**: banned for WHAT-comments. Use `// Why:` only for an externally imposed protocol, vendor, platform or toolchain constraint that code cannot express. Preserve required `// SAFETY:` and `// JSON:` annotations. The default is no inline comment; follow AGENTS.md.
 - **`///` rustdoc**: uniform across all production crates incl. `entry/*`. `//!` blocks on `lib.rs` and significant `pub mod` files; per-item `///` only on **pub traits, top-level types, and `mod` declarations** (and only for non-obvious value) — banned on fns, methods, consts, fields, variants, and macros (gate: `scripts/lint-inline-comments.sh`). `///` is banned inside `crates/tests/**`.
 - **Typed identifiers**: no raw String IDs in struct fields or service args — use `systemprompt_identifiers` wrappers. Construct via `Id::new(s)` / `Id::try_new(s)?` / `Id::generate()`; never `.into()` or `::from()` at call sites (convention, reviewer-enforced).
-- **Repository pattern**: services never run SQL directly; all queries via compile-time macros (`sqlx::query!` family). Runtime `sqlx::query(_)` only where the SQL text is necessarily dynamic: `infra/database/src/admin/**`, `infra/database/src/services/postgres/**`, `infra/database/src/repository/entity.rs`, the table-driven analytics projector (`domain/analytics/src/projection/{mod,snapshot}.rs`), the inventory-driven user purge (`domain/users/src/repository/user/purge.rs`), `entry/cli/src/commands/admin/setup/**` (bootstrap DDL) and `entry/cli/src/commands/infrastructure/jobs/cleanup_logs.rs`. The list is `scripts/check-sqlx.sh`'s allowlist; a turbofish (`query_scalar::<_, T>(`) is a runtime query too.
+- **Repository pattern**: services never run SQL directly; all queries via compile-time macros (`sqlx::query!` family). Runtime `sqlx::query(_)` only where the SQL text is necessarily dynamic: `infra/database/src/admin/**`, `infra/database/src/services/postgres/**`, the inventory-driven user purge (`domain/users/src/repository/user/purge.rs`) and `entry/cli/src/commands/admin/setup/**` (bootstrap DDL). The list is `scripts/check-sqlx.sh`'s allowlist, and an entry whose path is gone or holds no runtime query fails the gate; a turbofish (`query_scalar::<_, T>(`) is a runtime query too.
 - **Repository construction**: repositories are built once at composition roots (the `AppContext` builder, router-scoped state, or an owning service's ctor that stores them as fields) and injected. Consumers use the `AppContext` repository accessors (`a2a_repositories()`, `content_repositories()`, … — see `crates/app/runtime/src/context/mod.rs`) or the owning struct's field. Ad-hoc `Repo::new(&pool)` in handler/method bodies is gated by `just lint-repo-construction` (CLI one-shot commands and job bodies are exempt).
 - **Errors**: `thiserror` enums in library crates; `anyhow` only in `entry/cli`, `entry/api`, `build.rs`, and tests.
 - **Async traits**: native `async fn`; `#[async_trait]` only for `dyn`-compatibility, documented on the trait.
@@ -129,7 +128,7 @@ Follow `internal/guides/rust.md` §6. Logging does not turn a failed operation i
 
 ## Extension Framework
 
-Extensions register at compile time via `inventory` (`register_extension!`); implement `Extension` (`metadata()`, `schemas()`, `router()`, `migrations()`). Key traits: `Extension`, `SchemaExtensionTyped`, `ApiExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`.
+Extensions register at compile time via `inventory` (`register_extension!`); implement `Extension` (`crates/shared/extension/src/traits/extension.rs`): `metadata()` is required; `schemas()`, `migrations()`, `router()`, `jobs()` and the provider hooks (`tool_providers()`, `page_prerenderers()`, …) are defaulted methods on that one trait — there are no typed sub-traits. Companion traits: `ExtensionContext` (handed to `router()`) and `GatewayRequestGuard` (`register_gateway_guard!`).
 
 ## Configuration
 
