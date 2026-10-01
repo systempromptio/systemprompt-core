@@ -23,7 +23,7 @@ async fn tool_provider_list_tools_unknown_agent_returns_error_or_empty() {
     let db = test_db_pool().await;
     let registry = RegistryService::new(fixture_user_id());
     let provider = McpToolProvider::new(db, registry, &ResilienceSettings::default());
-    let ctx = ToolContext::new(Actor::user(fixture_user_id()), "");
+    let ctx = ToolContext::new(Actor::user(fixture_user_id()));
     let res = provider
         .list_tools(
             &AgentName::try_new(format!("no-agent-{}", uuid::Uuid::new_v4().simple()))

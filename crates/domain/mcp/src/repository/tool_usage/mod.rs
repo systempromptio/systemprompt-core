@@ -16,7 +16,6 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiToolCallId, McpExecutionId};
 use systemprompt_models::mcp::Correlation;
-use uuid::Uuid;
 
 use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
@@ -65,8 +64,8 @@ impl ToolUsageRepository {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             "#,
             id,
-            request.tool_name,
-            request.server_name,
+            request.tool_name.as_str(),
+            request.server_name.as_str(),
             context_id,
             ai_tool_call_id,
             user_id,
@@ -134,7 +133,7 @@ impl ToolUsageRepository {
         request: &ToolExecutionRequest,
         result: &ToolExecutionResult,
     ) -> McpDomainResult<McpExecutionId> {
-        let id = McpExecutionId::new(Uuid::new_v4().to_string());
+        let id = McpExecutionId::generate();
         self.log_execution_sync_with_id(&id, request, result, Correlation::Exact)
             .await?;
         Ok(id)
@@ -177,8 +176,8 @@ impl ToolUsageRepository {
                     $18, $19, $20, $21, $22)
             "#,
             mcp_execution_id.as_str(),
-            request.tool_name,
-            request.server_name,
+            request.tool_name.as_str(),
+            request.server_name.as_str(),
             context_id,
             user_id,
             task_id,

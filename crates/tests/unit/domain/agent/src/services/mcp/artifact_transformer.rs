@@ -17,6 +17,7 @@ use systemprompt_agent::services::mcp::artifact_transformer::{
     BuildMetadataParams, build_metadata, build_parts, calculate_fingerprint, infer_type,
     parse_wire_result,
 };
+use systemprompt_identifiers::{ContextId, McpExecutionId, McpToolName, TaskId};
 use systemprompt_models::artifacts::types::ArtifactType;
 use systemprompt_models::artifacts::{CliArtifact, EXECUTION_META_KEY, TextArtifact};
 
@@ -56,7 +57,10 @@ fn parse_wire_result_valid_complete() {
         Some("skill-1")
     );
     assert_eq!(parsed.metadata.skill_name, Some("test-skill".to_string()));
-    assert_eq!(parsed.metadata.execution_id, Some("exec-ref".to_string()));
+    assert_eq!(
+        parsed.metadata.execution_id.as_ref().map(|id| id.as_str()),
+        Some("exec-ref")
+    );
 }
 
 #[test]
@@ -123,48 +127,48 @@ fn parse_wire_result_non_object_meta_errors() {
 
 #[test]
 fn calculate_fingerprint_deterministic_same_inputs() {
-    let fp1 = calculate_fingerprint("my-tool", Some(&json!({"a": 1})));
-    let fp2 = calculate_fingerprint("my-tool", Some(&json!({"a": 1})));
+    let fp1 = calculate_fingerprint(&McpToolName::new("my-tool"), Some(&json!({"a": 1})));
+    let fp2 = calculate_fingerprint(&McpToolName::new("my-tool"), Some(&json!({"a": 1})));
     assert_eq!(fp1, fp2);
 }
 
 #[test]
 fn calculate_fingerprint_different_tool_names_same_args() {
-    let fp1 = calculate_fingerprint("tool-a", Some(&json!({"x": 1})));
-    let fp2 = calculate_fingerprint("tool-b", Some(&json!({"x": 1})));
+    let fp1 = calculate_fingerprint(&McpToolName::new("tool-a"), Some(&json!({"x": 1})));
+    let fp2 = calculate_fingerprint(&McpToolName::new("tool-b"), Some(&json!({"x": 1})));
     assert_ne!(fp1, fp2);
 }
 
 #[test]
 fn calculate_fingerprint_same_tool_different_args() {
-    let fp1 = calculate_fingerprint("tool", Some(&json!({"x": 1})));
-    let fp2 = calculate_fingerprint("tool", Some(&json!({"x": 2})));
+    let fp1 = calculate_fingerprint(&McpToolName::new("tool"), Some(&json!({"x": 1})));
+    let fp2 = calculate_fingerprint(&McpToolName::new("tool"), Some(&json!({"x": 2})));
     assert_ne!(fp1, fp2);
 }
 
 #[test]
 fn calculate_fingerprint_none_arguments() {
-    let fp = calculate_fingerprint("tool", None);
+    let fp = calculate_fingerprint(&McpToolName::new("tool"), None);
     assert!(fp.starts_with("tool-"));
     assert!(fp.len() > 5);
 }
 
 #[test]
 fn calculate_fingerprint_empty_object_arguments() {
-    let fp = calculate_fingerprint("tool", Some(&json!({})));
+    let fp = calculate_fingerprint(&McpToolName::new("tool"), Some(&json!({})));
     assert!(fp.starts_with("tool-"));
 }
 
 #[test]
 fn calculate_fingerprint_none_vs_empty_object_differ() {
-    let fp_none = calculate_fingerprint("tool", None);
-    let fp_empty = calculate_fingerprint("tool", Some(&json!({})));
+    let fp_none = calculate_fingerprint(&McpToolName::new("tool"), None);
+    let fp_empty = calculate_fingerprint(&McpToolName::new("tool"), Some(&json!({})));
     assert_ne!(fp_none, fp_empty);
 }
 
 #[test]
 fn calculate_fingerprint_contains_tool_name_prefix() {
-    let fp = calculate_fingerprint("lookup-user", Some(&json!({"id": 42})));
+    let fp = calculate_fingerprint(&McpToolName::new("lookup-user"), Some(&json!({"id": 42})));
     assert!(fp.starts_with("lookup-user-"));
 }
 
@@ -175,7 +179,7 @@ fn calculate_fingerprint_complex_arguments() {
         "params": [1, 2, 3],
         "nested": {"deep": true}
     });
-    let fp = calculate_fingerprint("db-query", Some(&args));
+    let fp = calculate_fingerprint(&McpToolName::new("db-query"), Some(&args));
     assert!(fp.starts_with("db-query-"));
     assert!(fp.len() > "db-query-".len());
 }
@@ -184,7 +188,8 @@ fn calculate_fingerprint_complex_arguments() {
 fn infer_type_from_schema_x_artifact_type() {
     let schema = json!({"x-artifact-type": "chart"});
     let artifact = json!({"data": []});
-    let result = infer_type(&artifact, Some(&schema), "my-tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("my-tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Chart));
 }
 
@@ -198,7 +203,8 @@ fn infer_type_from_schema_nested_artifact_property() {
         }
     });
     let artifact = json!({"some": "data"});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Form));
 }
 
@@ -209,7 +215,8 @@ fn infer_type_tabular_schema() {
         "items": {"type": "object", "properties": {"id": {"type": "integer"}}}
     });
     let artifact = json!({"rows": []});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Table));
 }
 
@@ -221,7 +228,8 @@ fn infer_type_form_schema() {
         }
     });
     let artifact = json!({"fields": []});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Form));
 }
 
@@ -234,14 +242,15 @@ fn infer_type_chart_schema() {
         }
     });
     let artifact = json!({"labels": [], "datasets": []});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Chart));
 }
 
 #[test]
 fn infer_type_from_data_x_artifact_type() {
     let artifact = json!({"x-artifact-type": "dashboard", "panels": []});
-    let result = infer_type(&artifact, None, "tool").expect("should infer");
+    let result = infer_type(&artifact, None, &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Dashboard));
 }
 
@@ -252,7 +261,7 @@ fn infer_type_from_nested_artifact_data() {
             "x-artifact-type": "list"
         }
     });
-    let result = infer_type(&artifact, None, "tool").expect("should infer");
+    let result = infer_type(&artifact, None, &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::List));
 }
 
@@ -265,7 +274,7 @@ fn infer_type_from_nested_card_data() {
             }
         }
     });
-    let result = infer_type(&artifact, None, "tool").expect("should infer");
+    let result = infer_type(&artifact, None, &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::PresentationCard));
 }
 
@@ -275,14 +284,14 @@ fn infer_type_tabular_data_array_of_objects() {
         {"id": 1, "name": "Alice"},
         {"id": 2, "name": "Bob"}
     ]);
-    let result = infer_type(&artifact, None, "tool").expect("should infer");
+    let result = infer_type(&artifact, None, &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Table));
 }
 
 #[test]
 fn infer_type_returns_error_when_no_type_found() {
     let artifact = json!({"unknown": "structure"});
-    let result = infer_type(&artifact, None, "mystery-tool");
+    let result = infer_type(&artifact, None, &McpToolName::new("mystery-tool"));
     assert!(result.is_err());
 }
 
@@ -290,7 +299,8 @@ fn infer_type_returns_error_when_no_type_found() {
 fn infer_type_custom_type_from_schema() {
     let schema = json!({"x-artifact-type": "sparkline"});
     let artifact = json!({"points": [1, 2, 3]});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Custom(ref s) if s == "sparkline"));
 }
 
@@ -298,21 +308,22 @@ fn infer_type_custom_type_from_schema() {
 fn infer_type_schema_takes_priority_over_data() {
     let schema = json!({"x-artifact-type": "text"});
     let artifact = json!({"x-artifact-type": "chart"});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Text));
 }
 
 #[test]
 fn infer_type_empty_array_not_tabular() {
     let artifact = json!([]);
-    let result = infer_type(&artifact, None, "tool");
+    let result = infer_type(&artifact, None, &McpToolName::new("tool"));
     assert!(result.is_err());
 }
 
 #[test]
 fn infer_type_array_of_primitives_not_tabular() {
     let artifact = json!([1, 2, 3]);
-    let result = infer_type(&artifact, None, "tool");
+    let result = infer_type(&artifact, None, &McpToolName::new("tool"));
     assert!(result.is_err());
 }
 
@@ -320,7 +331,8 @@ fn infer_type_array_of_primitives_not_tabular() {
 fn infer_type_envelope_schema_tag_falls_through_to_data_x_artifact_type() {
     let schema = json!({"x-artifact-type": "cli"});
     let artifact = json!({"artifact_type": "table", "x-artifact-type": "table", "data": []});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Table));
 }
 
@@ -328,7 +340,8 @@ fn infer_type_envelope_schema_tag_falls_through_to_data_x_artifact_type() {
 fn infer_type_envelope_schema_tag_falls_through_to_embedded_variant_tag() {
     let schema = json!({"x-artifact-type": "cli"});
     let artifact = json!({"artifact_type": "list", "items": []});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::List));
 }
 
@@ -337,7 +350,8 @@ fn infer_type_envelope_schema_tag_resolves_message_variant() {
     let schema = json!({"x-artifact-type": "cli"});
     let artifact =
         json!({"artifact_type": "message", "x-artifact-type": "message", "messages": []});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Message));
 }
 
@@ -346,7 +360,8 @@ fn infer_type_serialized_cli_envelope_resolves_variant() {
     let cli = CliArtifact::text(TextArtifact::new("hi"));
     let artifact = serde_json::to_value(&cli).expect("should serialize");
     let schema = json!({"x-artifact-type": "cli"});
-    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    let result =
+        infer_type(&artifact, Some(&schema), &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Text));
 }
 
@@ -354,21 +369,21 @@ fn infer_type_serialized_cli_envelope_resolves_variant() {
 fn infer_type_envelope_schema_without_data_tag_errors() {
     let schema = json!({"x-artifact-type": "cli"});
     let artifact = json!({"unknown": "structure"});
-    let result = infer_type(&artifact, Some(&schema), "tool");
+    let result = infer_type(&artifact, Some(&schema), &McpToolName::new("tool"));
     assert!(result.is_err());
 }
 
 #[test]
 fn infer_type_envelope_data_tag_is_never_final() {
     let artifact = json!({"x-artifact-type": "cli"});
-    let result = infer_type(&artifact, None, "tool");
+    let result = infer_type(&artifact, None, &McpToolName::new("tool"));
     assert!(result.is_err());
 }
 
 #[test]
 fn infer_type_message_from_data() {
     let artifact = json!({"x-artifact-type": "message", "messages": []});
-    let result = infer_type(&artifact, None, "tool").expect("should infer");
+    let result = infer_type(&artifact, None, &McpToolName::new("tool")).expect("should infer");
     assert!(matches!(result, ArtifactType::Message));
 }
 
@@ -378,9 +393,10 @@ fn build_metadata_text_type_no_hints() {
         artifact_type: &ArtifactType::Text,
         schema: None,
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-1",
-        tool_name: "summarize",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-1"),
+        tool_name: &McpToolName::new("summarize"),
     });
     let meta = result.expect("text metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("summarize"));
@@ -397,10 +413,11 @@ fn build_metadata_table_with_schema_hints() {
     let result = build_metadata(BuildMetadataParams {
         artifact_type: &ArtifactType::Table,
         schema: Some(&schema),
-        mcp_execution_id: Some("exec-1".to_string()),
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-2",
-        tool_name: "list-users",
+        mcp_execution_id: Some(McpExecutionId::new("exec-1")),
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-2"),
+        tool_name: &McpToolName::new("list-users"),
     });
     let meta = result.expect("table metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("list-users"));
@@ -429,9 +446,10 @@ fn build_metadata_table_infers_hints_from_items() {
         artifact_type: &ArtifactType::Table,
         schema: Some(&schema),
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-3",
-        tool_name: "query-table",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-3"),
+        tool_name: &McpToolName::new("query-table"),
     });
     let meta = result.expect("table metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("query-table"));
@@ -455,9 +473,10 @@ fn build_metadata_form_with_schema_hints() {
         artifact_type: &ArtifactType::Form,
         schema: Some(&schema),
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-4",
-        tool_name: "create-form",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-4"),
+        tool_name: &McpToolName::new("create-form"),
     });
     let meta = result.expect("form metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("create-form"));
@@ -479,9 +498,10 @@ fn build_metadata_form_infers_fields_from_properties() {
         artifact_type: &ArtifactType::Form,
         schema: Some(&schema),
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-5",
-        tool_name: "edit-profile",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-5"),
+        tool_name: &McpToolName::new("edit-profile"),
     });
     let meta = result.expect("form metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("edit-profile"));
@@ -496,9 +516,10 @@ fn build_metadata_chart_has_no_rendering_hints() {
         artifact_type: &ArtifactType::Chart,
         schema: None,
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-6",
-        tool_name: "chart-tool",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-6"),
+        tool_name: &McpToolName::new("chart-tool"),
     });
     let meta = result.expect("chart metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("chart-tool"));
@@ -511,9 +532,10 @@ fn build_metadata_presentation_card_default_hints() {
         artifact_type: &ArtifactType::PresentationCard,
         schema: None,
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-7",
-        tool_name: "card-tool",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-7"),
+        tool_name: &McpToolName::new("card-tool"),
     });
     let meta = result.expect("presentation card metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("card-tool"));
@@ -526,9 +548,10 @@ fn build_metadata_dashboard_has_no_rendering_hints() {
         artifact_type: &ArtifactType::Dashboard,
         schema: None,
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-8",
-        tool_name: "dashboard-tool",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-8"),
+        tool_name: &McpToolName::new("dashboard-tool"),
     });
     let meta = result.expect("dashboard metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("dashboard-tool"));
@@ -540,10 +563,11 @@ fn build_metadata_with_mcp_execution_id() {
     let result = build_metadata(BuildMetadataParams {
         artifact_type: &ArtifactType::Text,
         schema: None,
-        mcp_execution_id: Some("exec-abc".to_string()),
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-9",
-        tool_name: "text-tool",
+        mcp_execution_id: Some(McpExecutionId::new("exec-abc")),
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-9"),
+        tool_name: &McpToolName::new("text-tool"),
     })
     .expect("should build");
     assert!(format!("{result:?}").contains("exec-abc"));
@@ -556,9 +580,10 @@ fn build_metadata_with_schema_attaches_mcp_schema() {
         artifact_type: &ArtifactType::Text,
         schema: Some(&schema),
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-10",
-        tool_name: "text-tool",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-10"),
+        tool_name: &McpToolName::new("text-tool"),
     });
     let meta = result.expect("text metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("text-tool"));
@@ -575,9 +600,10 @@ fn build_metadata_image_type_no_special_hints() {
         artifact_type: &ArtifactType::Image,
         schema: None,
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-11",
-        tool_name: "gen-image",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-11"),
+        tool_name: &McpToolName::new("gen-image"),
     });
     let meta = result.expect("image metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("gen-image"));
@@ -591,9 +617,10 @@ fn build_metadata_custom_type() {
         artifact_type: &custom,
         schema: None,
         mcp_execution_id: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-12",
-        tool_name: "heatmap-tool",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-12"),
+        tool_name: &McpToolName::new("heatmap-tool"),
     });
     let meta = result.expect("custom metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("heatmap-tool"));

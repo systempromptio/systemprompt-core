@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::Value as JsonValue;
-use systemprompt_identifiers::{ArtifactId, McpExecutionId};
+use systemprompt_identifiers::{ArtifactId, McpExecutionId, McpServerId};
 use systemprompt_models::artifacts::{ExecutionMetadata, PayloadDigest, ToolResponse};
 
 use super::IngestRequest;
@@ -51,7 +51,7 @@ pub(super) fn create_record(new: &NewArtifact<'_>) -> McpDomainResult<CreateMcpA
         request
             .server_name
             .clone()
-            .unwrap_or_else(|| request.source.to_string()),
+            .unwrap_or_else(|| McpServerId::new(request.source.to_string())),
         classified.artifact_type.clone(),
         envelope,
     );

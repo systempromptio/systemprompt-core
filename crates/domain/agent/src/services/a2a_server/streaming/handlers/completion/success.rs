@@ -19,7 +19,7 @@ pub(super) struct BroadcastTaskSuccessParams<'a> {
     pub webhook_context: &'a WebhookContext,
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
-    pub message_id: &'a str,
+    pub message_id: &'a MessageId,
     pub full_text: &'a str,
     pub artifact_count: usize,
     pub task_with_timing: &'a Task,
@@ -33,7 +33,7 @@ pub(super) async fn broadcast_task_success(params: BroadcastTaskSuccessParams<'_
             parts: vec![Part::Text(TextPart {
                 text: params.full_text.to_owned(),
             })],
-            message_id: MessageId::new(params.message_id.to_owned()),
+            message_id: params.message_id.clone(),
             task_id: Some(params.task_id.clone()),
             context_id: params.context_id.clone(),
             metadata: None,

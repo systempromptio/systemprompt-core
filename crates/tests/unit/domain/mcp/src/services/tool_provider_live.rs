@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, McpServerId, SessionId, TraceId, UserId,
+    Actor, AgentName, ContextId, JwtToken, McpServerId, SessionId, TraceId, UserId,
 };
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
@@ -32,7 +32,8 @@ fn tool_context() -> ToolContext {
     );
     headers.insert("x-task-id".to_owned(), "task-tp".to_owned());
 
-    let mut context = ToolContext::new(Actor::user(UserId::new("user-tp")), "token-tp");
+    let mut context = ToolContext::new(Actor::user(UserId::new("user-tp")))
+        .with_auth_token(JwtToken::new("token-tp"));
     context.session_id = Some(SessionId::new("s-tp"));
     context.trace_id = Some(TraceId::new("t-tp"));
     context.headers = headers;
@@ -151,7 +152,8 @@ async fn call_tool_requires_context_headers() {
         arguments: serde_json::json!({}),
     };
 
-    let bare = ToolContext::new(Actor::user(UserId::new("user-bare")), "token");
+    let bare = ToolContext::new(Actor::user(UserId::new("user-bare")))
+        .with_auth_token(JwtToken::new("token"));
     let err = provider
         .call_tool(&request, &server, &bare)
         .await

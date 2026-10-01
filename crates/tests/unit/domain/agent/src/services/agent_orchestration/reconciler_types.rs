@@ -1,4 +1,5 @@
 use systemprompt_agent::services::agent_orchestration::reconciler::ConsistencyReport;
+use systemprompt_identifiers::AgentName;
 
 #[test]
 fn test_consistency_report_new() {
@@ -27,8 +28,8 @@ fn test_consistency_report_no_inconsistencies_when_empty() {
 #[test]
 fn test_consistency_report_no_inconsistencies_with_consistent_running() {
     let mut report = ConsistencyReport::new();
-    report.consistent_running.push("agent-1".to_string());
-    report.consistent_running.push("agent-2".to_string());
+    report.consistent_running.push(AgentName::new("agent-1"));
+    report.consistent_running.push(AgentName::new("agent-2"));
 
     assert!(!report.has_inconsistencies());
 }
@@ -38,7 +39,7 @@ fn test_consistency_report_has_inconsistencies_with_inconsistent_running() {
     let mut report = ConsistencyReport::new();
     report
         .inconsistent_running
-        .push(("agent-1".to_string(), 1234));
+        .push((AgentName::new("agent-1"), 1234));
 
     assert!(report.has_inconsistencies());
 }
@@ -46,7 +47,7 @@ fn test_consistency_report_has_inconsistencies_with_inconsistent_running() {
 #[test]
 fn test_consistency_report_no_inconsistencies_with_failed_only() {
     let mut report = ConsistencyReport::new();
-    report.failed.push("agent-1".to_string());
+    report.failed.push(AgentName::new("agent-1"));
 
     assert!(!report.has_inconsistencies());
 }
@@ -60,11 +61,11 @@ fn test_consistency_report_total_agents_empty() {
 #[test]
 fn test_consistency_report_total_agents_mixed() {
     let mut report = ConsistencyReport::new();
-    report.consistent_running.push("a".to_string());
-    report.consistent_running.push("b".to_string());
-    report.inconsistent_running.push(("c".to_string(), 100));
-    report.failed.push("d".to_string());
-    report.failed.push("e".to_string());
+    report.consistent_running.push(AgentName::new("a"));
+    report.consistent_running.push(AgentName::new("b"));
+    report.inconsistent_running.push((AgentName::new("c"), 100));
+    report.failed.push(AgentName::new("d"));
+    report.failed.push(AgentName::new("e"));
 
     assert_eq!(report.total_agents(), 5);
 }
@@ -72,9 +73,9 @@ fn test_consistency_report_total_agents_mixed() {
 #[test]
 fn test_consistency_report_total_agents_only_consistent() {
     let mut report = ConsistencyReport::new();
-    report.consistent_running.push("a".to_string());
-    report.consistent_running.push("b".to_string());
-    report.consistent_running.push("c".to_string());
+    report.consistent_running.push(AgentName::new("a"));
+    report.consistent_running.push(AgentName::new("b"));
+    report.consistent_running.push(AgentName::new("c"));
 
     assert_eq!(report.total_agents(), 3);
 }
@@ -82,8 +83,8 @@ fn test_consistency_report_total_agents_only_consistent() {
 #[test]
 fn test_consistency_report_total_agents_only_inconsistent() {
     let mut report = ConsistencyReport::new();
-    report.inconsistent_running.push(("a".to_string(), 1));
-    report.inconsistent_running.push(("b".to_string(), 2));
+    report.inconsistent_running.push((AgentName::new("a"), 1));
+    report.inconsistent_running.push((AgentName::new("b"), 2));
 
     assert_eq!(report.total_agents(), 2);
 }
@@ -101,7 +102,7 @@ fn test_consistency_report_log_summary_with_inconsistencies() {
     let mut report = ConsistencyReport::new();
     report
         .inconsistent_running
-        .push(("agent-1".to_string(), 42));
+        .push((AgentName::new("agent-1"), 42));
     report.log_summary();
 
     assert!(report.has_inconsistencies());

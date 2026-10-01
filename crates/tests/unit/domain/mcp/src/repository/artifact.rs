@@ -5,8 +5,8 @@
 
 use chrono::Utc;
 use systemprompt_identifiers::{
-    Actor, AgentName, AiToolCallId, ArtifactId, ContextId, McpExecutionId, SessionId, TraceId,
-    UserId,
+    Actor, AgentName, AiToolCallId, ArtifactId, ContextId, McpExecutionId, McpServerId,
+    McpToolName, SessionId, TraceId, UserId,
 };
 use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_mcp::repository::{
@@ -31,8 +31,8 @@ pub async fn seed_execution(db: &systemprompt_database::DbPool, server: &str) ->
     );
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
-        tool_name: "seed_tool".to_owned(),
-        server_name: server.to_owned(),
+        tool_name: McpToolName::new("seed_tool"),
+        server_name: McpServerId::new(server),
         input: serde_json::json!({}),
         started_at,
         context: ctx,
@@ -64,7 +64,7 @@ async fn full_artifact(
     let mut create = CreateMcpArtifact::new(
         id.clone(),
         exec,
-        server,
+        McpServerId::new(server),
         "document",
         serde_json::json!({"body": "hello"}),
     );
@@ -98,7 +98,10 @@ async fn find_by_id_random_returns_none() {
 async fn list_by_server_returns_vec() {
     let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db);
-    let r = repo.list_by_server(&unique("none"), 10).await.unwrap();
+    let r = repo
+        .list_by_server(&McpServerId::new(unique("none")), 10)
+        .await
+        .unwrap();
     assert!(r.is_empty());
 }
 
@@ -144,7 +147,7 @@ async fn save_then_find_round_trips_all_fields() {
         .expect("saved artifact is found");
     assert_eq!(found.artifact_id, id);
     assert_eq!(found.mcp_execution_id, create.mcp_execution_id);
-    assert_eq!(found.server_name, server);
+    assert_eq!(found.server_name.as_str(), server);
     assert_eq!(found.artifact_type, "document");
     assert_eq!(found.title.as_deref(), Some("Report"));
     assert_eq!(found.data, serde_json::json!({"body": "hello"}));
@@ -265,7 +268,10 @@ async fn list_by_server_returns_saved_rows() {
         .await
         .unwrap();
 
-    let rows = repo.list_by_server(&server, 10).await.unwrap();
+    let rows = repo
+        .list_by_server(&McpServerId::new(server.as_str()), 10)
+        .await
+        .unwrap();
     assert_eq!(rows.len(), 2);
     let ids: Vec<&ArtifactId> = rows.iter().map(|r| &r.artifact_id).collect();
     assert!(ids.contains(&&id_a));

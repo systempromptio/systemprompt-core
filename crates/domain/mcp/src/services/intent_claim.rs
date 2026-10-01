@@ -16,7 +16,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{AiToolCallId, McpExecutionId, SessionId};
+use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpToolName, SessionId};
 use systemprompt_traits::DynToolCallIntentClaims;
 
 use crate::error::McpDomainResult;
@@ -61,7 +61,7 @@ impl IntentClaimService {
     pub async fn claim_inferred(
         &self,
         session_id: &SessionId,
-        tool_name: &str,
+        tool_name: &McpToolName,
         execution: &McpExecutionId,
         window_seconds: i64,
     ) -> McpDomainResult<Option<AiToolCallId>> {
@@ -102,7 +102,7 @@ impl IntentClaimService {
         tracing::warn!(
             %execution,
             %session_id,
-            tool = tool_name,
+            tool = %tool_name,
             attempts = MAX_STALE_INTENTS,
             "Every claimed intent was already held by another execution"
         );

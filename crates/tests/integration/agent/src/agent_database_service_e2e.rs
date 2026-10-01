@@ -1,18 +1,19 @@
 use anyhow::Result;
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
+use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 use uuid::Uuid;
 
 use crate::common::Fixture;
 
-fn unique_name(suffix: &str) -> String {
-    format!("dbsvc_{}_{}", suffix, Uuid::new_v4().simple())
+fn unique_name(suffix: &str) -> AgentName {
+    AgentName::new(format!("dbsvc_{}_{}", suffix, Uuid::new_v4().simple()))
 }
 
-async fn cleanup_agent(pool: &sqlx::PgPool, name: &str) {
+async fn cleanup_agent(pool: &sqlx::PgPool, name: &AgentName) {
     let _ = sqlx::query("DELETE FROM services WHERE name = $1")
-        .bind(name)
+        .bind(name.as_str())
         .execute(pool)
         .await;
 }
@@ -111,7 +112,7 @@ async fn agent_database_service_get_agent_config_unknown_errors() -> Result<()> 
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance());
     let svc = AgentDatabaseService::new(repo).expect("svc");
-    let result = svc.get_agent_config("__unknown_xyz").await;
+    let result = svc.get_agent_config(&AgentName::new("__unknown_xyz")).await;
     assert!(result.is_err());
     fx.cleanup().await?;
     Ok(())

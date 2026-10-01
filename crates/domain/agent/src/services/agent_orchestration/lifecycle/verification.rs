@@ -5,6 +5,7 @@
 
 use std::time::Duration;
 
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::net::AGENT_READINESS_TCP_TIMEOUT;
 
 use super::AgentLifecycle;
@@ -35,13 +36,17 @@ impl AgentLifecycle {
 
     pub(super) fn spawn_detached_process(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         port: u16,
     ) -> OrchestrationResult<u32> {
         process::spawn_detached(&self.app_paths, agent_name, port)
     }
 
-    pub async fn verify_startup(&self, agent_name: &str, port: u16) -> OrchestrationResult<()> {
+    pub async fn verify_startup(
+        &self,
+        agent_name: &AgentName,
+        port: u16,
+    ) -> OrchestrationResult<()> {
         const MAX_ATTEMPTS: u32 = 5;
         const SLEEP_MS: u64 = 1000;
 
@@ -77,7 +82,7 @@ impl AgentLifecycle {
 
         self.log_startup_failure(agent_name, port).await;
         Err(OrchestrationError::HealthCheckTimeout(
-            agent_name.to_owned(),
+            agent_name.to_string(),
         ))
     }
 
@@ -105,7 +110,7 @@ impl AgentLifecycle {
         }
     }
 
-    pub async fn log_startup_failure(&self, agent_name: &str, port: u16) {
+    pub async fn log_startup_failure(&self, agent_name: &AgentName, port: u16) {
         let log_path = match systemprompt_models::Config::get() {
             Ok(config) => format!("{}/agent-{}.log", config.logs_path(), agent_name),
             Err(e) => {

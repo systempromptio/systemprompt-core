@@ -20,9 +20,12 @@ impl ProxyHealthCheck {
         Self { service_repo }
     }
 
-    pub async fn can_route_traffic(&self, service_name: &str, port: u16) -> McpDomainResult<bool> {
-        let name = ServiceName::new(service_name);
-        let Some(service) = self.service_repo.find_service_by_name(&name).await? else {
+    pub async fn can_route_traffic(
+        &self,
+        service_name: &ServiceName,
+        port: u16,
+    ) -> McpDomainResult<bool> {
+        let Some(service) = self.service_repo.find_service_by_name(service_name).await? else {
             return Ok(false);
         };
 
@@ -32,14 +35,14 @@ impl ProxyHealthCheck {
 
         if !Self::is_port_responsive(port).await {
             self.service_repo
-                .update_service_status(&name, ServiceStatus::Stopped)
+                .update_service_status(service_name, ServiceStatus::Stopped)
                 .await?;
             return Ok(false);
         }
 
         if !Self::can_connect_mcp(port).await {
             self.service_repo
-                .update_service_status(&name, ServiceStatus::Error)
+                .update_service_status(service_name, ServiceStatus::Error)
                 .await?;
             return Ok(false);
         }
@@ -59,7 +62,7 @@ impl ProxyHealthCheck {
 
         match tokio::time::timeout(
             Duration::from_millis(500),
-            validate_connection("proxy_check", "127.0.0.1", port),
+            validate_connection(&ServiceName::new("proxy_check"), "127.0.0.1", port),
         )
         .await
         {
@@ -77,7 +80,7 @@ impl ProxyHealthCheck {
             let port = Self::parse_port_from_service(&service);
             if Self::is_port_responsive(port).await {
                 routable.push(RoutableService {
-                    name: service.name.as_str().to_owned(),
+                    name: service.name,
                     port,
                     pid: service.pid,
                     health: "healthy".to_owned(),
@@ -99,7 +102,7 @@ impl ProxyHealthCheck {
 
 #[derive(Debug, Clone)]
 pub struct RoutableService {
-    pub name: String,
+    pub name: ServiceName,
     pub port: u16,
     pub pid: Option<i32>,
     pub health: String,

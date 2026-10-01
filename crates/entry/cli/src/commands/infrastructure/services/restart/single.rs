@@ -8,6 +8,7 @@ use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ProcessCleanup;
@@ -126,14 +127,14 @@ pub async fn execute_mcp(
 
     if build {
         let restarted = manager
-            .build_and_restart_services(Some(server_name.to_owned()))
+            .build_and_restart_services(Some(ServiceName::try_new(server_name)?))
             .await?;
         if restarted == 0 {
             anyhow::bail!("{server_name} is not a managed MCP server");
         }
     } else {
         let outcomes = manager
-            .restart_services(Some(server_name.to_owned()))
+            .restart_services(Some(ServiceName::try_new(server_name)?))
             .await?;
         if outcomes.is_empty() {
             anyhow::bail!("{server_name} is not a managed MCP server");

@@ -4,11 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::ai::{AiRequest, AiResponse};
+use systemprompt_identifiers::AiRequestId;
 use tracing::{error, info, warn};
-use uuid::Uuid;
 
 pub(super) fn log_request_start(
-    request_id: Uuid,
+    request_id: &AiRequestId,
     request: &AiRequest,
     provider_name: &str,
     model: &str,
@@ -35,7 +35,7 @@ pub(super) fn log_request_success(response: &AiResponse) {
 }
 
 pub(super) fn log_request_error(
-    request_id: Uuid,
+    request_id: &AiRequestId,
     provider_name: &str,
     latency_ms: u64,
     error: &dyn std::fmt::Display,
@@ -50,7 +50,7 @@ pub(super) fn log_request_error(
 }
 
 pub(super) fn log_tooled_request_start(
-    request_id: Uuid,
+    request_id: &AiRequestId,
     request: &AiRequest,
     provider_name: &str,
     model: &str,

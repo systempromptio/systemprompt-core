@@ -8,13 +8,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::shared::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use async_trait::async_trait;
 use rmcp::model::ContentBlock;
 use serde_json::Value;
 use std::time::Instant;
 
-use systemprompt_identifiers::AiToolCallId;
+use systemprompt_identifiers::{AiToolCallId, McpToolName};
 use systemprompt_models::ai::{ExecutionState, PlannedToolCall, TemplateResolver, ToolCallResult};
 use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
@@ -28,7 +28,7 @@ pub trait ToolExecutorTrait: Send + Sync {
     // spec.
     async fn execute_tool(
         &self,
-        tool_name: &str,
+        tool_name: &McpToolName,
         arguments: Value,
         tools: &[McpTool],
         ctx: &RequestContext,
@@ -68,14 +68,19 @@ pub async fn execute_tools(
             "Executing tool"
         );
 
-        let result = tool_executor
-            .execute_tool(&call.tool_name, resolved_arguments.clone(), tools, ctx)
-            .await;
+        let result = match McpToolName::try_new(call.tool_name.as_str()) {
+            Ok(tool_name) => {
+                tool_executor
+                    .execute_tool(&tool_name, resolved_arguments.clone(), tools, ctx)
+                    .await
+            },
+            Err(e) => Err(AgentServiceError::validation("tool_name", e)),
+        };
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
         state.add_result(finish_tool_call(
-            &call.tool_name,
+            call,
             resolved_arguments,
             result,
             duration_ms,
@@ -122,11 +127,12 @@ fn resolve_call_arguments(call: &PlannedToolCall, state: &ExecutionState) -> Val
 // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
 // spec.
 fn finish_tool_call(
-    tool_name: &str,
+    call: &PlannedToolCall,
     arguments: Value,
     result: Result<ToolOutcome>,
     duration_ms: u64,
 ) -> ToolCallResult {
+    let tool_name = call.tool_name.as_str();
     match result {
         Ok(outcome) => {
             tracing::info!(

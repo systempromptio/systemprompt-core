@@ -4,7 +4,9 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use systemprompt_identifiers::{Actor, ContextId, McpServerId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, ContextId, JwtToken, McpServerId, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
@@ -32,7 +34,8 @@ fn tool_context() -> ToolContext {
     );
     headers.insert("x-task-id".to_owned(), "task-res".to_owned());
 
-    let mut context = ToolContext::new(Actor::user(UserId::new("user-res")), "token-res");
+    let mut context = ToolContext::new(Actor::user(UserId::new("user-res")))
+        .with_auth_token(JwtToken::new("token-res"));
     context.session_id = Some(SessionId::new("s-res"));
     context.trace_id = Some(TraceId::new("t-res"));
     context.headers = headers;

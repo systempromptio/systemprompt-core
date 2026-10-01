@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use serde_json::json;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{AgentName, TaskId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::methods;
 use systemprompt_traits::BoxedSource;
@@ -106,7 +106,7 @@ pub(super) async fn handle_non_streaming_request(
     context: &RequestContext,
 ) -> Result<Task, RequestFailure> {
     let config = state.config.read().await;
-    let agent_name = config.name.clone();
+    let agent_name = AgentName::new(config.name.clone());
     drop(config);
 
     match request {
@@ -116,7 +116,7 @@ pub(super) async fn handle_non_streaming_request(
         },
         A2aRequestParams::GetTask(params) => {
             tracing::info!(task_id = %params.id, "Handling GetTask request");
-            let task_id = TaskId::new(&params.id);
+            let task_id = params.id.clone();
             let task_repo = &state.agent_state.repositories().tasks;
             validate_task_owner(task_repo, &task_id, context.user_id()).await?;
             owned_task(task_repo, &task_id).await
@@ -136,7 +136,7 @@ pub(super) async fn handle_non_streaming_request(
 
 async fn send_message(
     message: crate::models::a2a::Message,
-    agent_name: &str,
+    agent_name: &AgentName,
     state: &AgentHandlerState,
     context: &RequestContext,
 ) -> Result<Task, RequestFailure> {

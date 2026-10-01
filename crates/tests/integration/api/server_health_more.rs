@@ -108,22 +108,27 @@ fn service_row_is_stale_across_statuses() {
         ServiceStatus::Error,
         None,
         MCP_SERVICE_ID_ENV,
-        "svc"
+        &ServiceName::new("svc")
     ));
     assert!(service_row_is_stale(
         ServiceStatus::Stopped,
         Some(1),
         MCP_SERVICE_ID_ENV,
-        "svc"
+        &ServiceName::new("svc")
     ));
     assert!(!service_row_is_stale(
         ServiceStatus::Starting,
         None,
         MCP_SERVICE_ID_ENV,
-        "svc"
+        &ServiceName::new("svc")
     ));
     assert!(
-        service_row_is_stale(ServiceStatus::Running, None, MCP_SERVICE_ID_ENV, "svc"),
+        service_row_is_stale(
+            ServiceStatus::Running,
+            None,
+            MCP_SERVICE_ID_ENV,
+            &ServiceName::new("svc")
+        ),
         "running with no pid is stale"
     );
     assert!(
@@ -131,7 +136,7 @@ fn service_row_is_stale_across_statuses() {
             ServiceStatus::Running,
             Some(dead_pid()),
             MCP_SERVICE_ID_ENV,
-            "svc"
+            &ServiceName::new("svc")
         ),
         "running with a dead pid is stale"
     );
@@ -140,7 +145,7 @@ fn service_row_is_stale_across_statuses() {
             ServiceStatus::Running,
             Some(std::process::id() as i32),
             MCP_SERVICE_ID_ENV,
-            "not-our-child"
+            &ServiceName::new("not-our-child")
         ),
         "a live but unrelated pid is stale (recycled)"
     );

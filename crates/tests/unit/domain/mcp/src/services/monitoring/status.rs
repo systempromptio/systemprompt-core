@@ -1,182 +1,15 @@
-//! Unit tests for ServiceStatus model
+//! Unit tests for the MCP service status model and its roll-up
 
-use systemprompt_mcp::services::monitoring::status::ServiceStatus;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
 use systemprompt_models::mcp::McpServerType;
-
-fn create_test_status() -> ServiceStatus {
-    ServiceStatus {
-        state: "running".to_string(),
-        pid: Some(1234),
-        health: "healthy".to_string(),
-        uptime_seconds: Some(3600),
-        tools_count: Some(5),
-        latency_ms: Some(100),
-        auth_required: false,
-    }
-}
-
-#[test]
-fn test_service_status_fields() {
-    let status = create_test_status();
-
-    assert_eq!(status.state, "running");
-    assert_eq!(status.pid, Some(1234));
-    assert_eq!(status.health, "healthy");
-    assert_eq!(status.uptime_seconds, Some(3600));
-    assert_eq!(status.tools_count, Some(5));
-    assert_eq!(status.latency_ms, Some(100));
-    assert!(!status.auth_required);
-}
-
-#[test]
-fn test_service_status_running() {
-    let status = ServiceStatus {
-        state: "running".to_string(),
-        pid: Some(5678),
-        health: "healthy".to_string(),
-        uptime_seconds: Some(7200),
-        tools_count: Some(10),
-        latency_ms: Some(50),
-        auth_required: false,
-    };
-
-    assert_eq!(status.state, "running");
-    status.pid.expect("expected Some value");
-}
-
-#[test]
-fn test_service_status_stopped() {
-    let status = ServiceStatus {
-        state: "stopped".to_string(),
-        pid: None,
-        health: "unhealthy".to_string(),
-        uptime_seconds: None,
-        tools_count: None,
-        latency_ms: None,
-        auth_required: false,
-    };
-
-    assert_eq!(status.state, "stopped");
-    assert!(status.pid.is_none());
-    assert!(status.uptime_seconds.is_none());
-    assert!(status.latency_ms.is_none());
-}
-
-#[test]
-fn test_service_status_error() {
-    let status = ServiceStatus {
-        state: "error".to_string(),
-        pid: None,
-        health: "unreachable".to_string(),
-        uptime_seconds: None,
-        tools_count: None,
-        latency_ms: None,
-        auth_required: true,
-    };
-
-    assert_eq!(status.state, "error");
-    assert_eq!(status.health, "unreachable");
-}
-
-#[test]
-fn test_service_status_auth_required() {
-    let status = ServiceStatus {
-        state: "running".to_string(),
-        pid: Some(9999),
-        health: "healthy".to_string(),
-        uptime_seconds: Some(1800),
-        tools_count: None,
-        latency_ms: Some(200),
-        auth_required: true,
-    };
-
-    assert!(status.auth_required);
-}
-
-#[test]
-fn test_service_status_degraded() {
-    let status = ServiceStatus {
-        state: "running".to_string(),
-        pid: Some(4567),
-        health: "degraded".to_string(),
-        uptime_seconds: Some(900),
-        tools_count: Some(3),
-        latency_ms: Some(2000),
-        auth_required: false,
-    };
-
-    assert_eq!(status.health, "degraded");
-    assert!(status.latency_ms.unwrap() > 1000);
-}
-
-#[test]
-fn test_service_status_no_tools() {
-    let status = ServiceStatus {
-        state: "running".to_string(),
-        pid: Some(1111),
-        health: "healthy".to_string(),
-        uptime_seconds: Some(600),
-        tools_count: Some(0),
-        latency_ms: Some(75),
-        auth_required: true,
-    };
-
-    assert_eq!(status.tools_count, Some(0));
-}
-
-
-#[test]
-fn test_service_status_starting() {
-    let status = ServiceStatus {
-        state: "starting".to_string(),
-        pid: None,
-        health: "unknown".to_string(),
-        uptime_seconds: None,
-        tools_count: None,
-        latency_ms: None,
-        auth_required: false,
-    };
-
-    assert_eq!(status.state, "starting");
-    assert_eq!(status.health, "unknown");
-}
-
-#[test]
-fn test_service_status_long_uptime() {
-    let status = ServiceStatus {
-        state: "running".to_string(),
-        pid: Some(2222),
-        health: "healthy".to_string(),
-        uptime_seconds: Some(86400 * 30), // 30 days
-        tools_count: Some(15),
-        latency_ms: Some(25),
-        auth_required: false,
-    };
-
-    assert!(status.uptime_seconds.unwrap() > 86400);
-}
-
-#[test]
-fn test_service_status_high_latency() {
-    let status = ServiceStatus {
-        state: "running".to_string(),
-        pid: Some(3333),
-        health: "degraded".to_string(),
-        uptime_seconds: Some(100),
-        tools_count: Some(2),
-        latency_ms: Some(5000),
-        auth_required: false,
-    };
-
-    assert!(status.latency_ms.unwrap() > 1000);
-}
+use systemprompt_models::services::ServiceStatus;
 
 #[tokio::test]
 async fn test_get_all_service_status_empty() {
     use systemprompt_mcp::services::monitoring::status::get_all_service_status;
-    let map = get_all_service_status(&[]).await.unwrap();
-    assert!(map.is_empty());
+    let statuses = get_all_service_status(&[]).await.unwrap();
+    assert!(statuses.is_empty());
 }
 
 #[tokio::test]
@@ -219,15 +52,16 @@ async fn test_get_all_service_status_unreachable() {
         external_auth: None,
         headers: Default::default(),
     };
-    let map = get_all_service_status(&[config]).await.unwrap();
-    assert_eq!(map.len(), 1);
-    assert!(map.contains_key("unreach"));
+    let statuses = get_all_service_status(&[config]).await.unwrap();
+    assert_eq!(statuses.len(), 1);
+    assert_eq!(statuses[0].name, "unreach");
+    assert_eq!(statuses[0].observed_state(), ServiceStatus::Stopped);
 }
 
 #[test]
 fn mcp_service_status_managed_row_carries_pid_and_port() {
     let status = McpServiceStatus {
-        name: "local".to_owned(),
+        name: McpServerId::new("local"),
         server_type: McpServerType::Internal,
         port: Some(3010),
         endpoint: None,
@@ -243,12 +77,13 @@ fn mcp_service_status_managed_row_carries_pid_and_port() {
     assert_eq!(status.pid, Some(4242));
     assert!(status.endpoint.is_none());
     assert_eq!(status.health, HealthStatus::Healthy);
+    assert_eq!(status.observed_state(), ServiceStatus::Running);
 }
 
 #[test]
 fn mcp_service_status_external_row_carries_endpoint_not_pid() {
     let status = McpServiceStatus {
-        name: "remote".to_owned(),
+        name: McpServerId::new("remote"),
         server_type: McpServerType::External,
         port: None,
         endpoint: Some("https://example.com/mcp".to_owned()),
@@ -268,10 +103,7 @@ fn mcp_service_status_external_row_carries_endpoint_not_pid() {
 
 #[test]
 fn test_display_service_status_smoke() {
-    use std::collections::HashMap;
     use systemprompt_mcp::services::monitoring::status::display_service_status;
 
-    let servers = vec![];
-    let data: HashMap<String, ServiceStatus> = HashMap::new();
-    display_service_status(&servers, &data);
+    display_service_status(&[]);
 }

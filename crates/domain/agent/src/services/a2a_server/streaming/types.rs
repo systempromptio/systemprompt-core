@@ -5,7 +5,7 @@
 
 use axum::response::sse::Event;
 use std::sync::Arc;
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 use tokio::sync::mpsc::Sender;
 
@@ -21,7 +21,7 @@ use crate::services::registry::AgentRegistry;
 #[derive(Debug)]
 pub struct StreamInput {
     pub message: Message,
-    pub agent_name: String,
+    pub agent_name: AgentName,
     pub state: Arc<AgentHandlerState>,
     pub request_id: NumberOrString,
     pub context: RequestContext,
@@ -34,7 +34,7 @@ pub struct StreamSetupResult {
     pub context_id: ContextId,
     pub message_id: MessageId,
     pub message: Message,
-    pub agent_name: String,
+    pub agent_name: AgentName,
     pub context: RequestContext,
     pub task_repo: TaskRepository,
     pub agent_runtime: AgentRuntimeInfo,
@@ -46,7 +46,7 @@ pub struct StreamSetupResult {
 pub struct PersistTaskInput<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub context: &'a RequestContext,
     pub state: &'a Arc<AgentHandlerState>,
     pub tx: &'a Sender<Event>,

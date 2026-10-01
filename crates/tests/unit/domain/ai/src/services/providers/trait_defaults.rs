@@ -15,7 +15,7 @@ use systemprompt_ai::services::providers::{
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
-use systemprompt_identifiers::AiToolCallId;
+use systemprompt_identifiers::{AiRequestId, AiToolCallId};
 
 #[derive(Default)]
 struct MinimalProvider {
@@ -25,7 +25,7 @@ struct MinimalProvider {
 impl MinimalProvider {
     fn response(text: &str) -> AiResponse {
         let mut resp = AiResponse::new(
-            uuid::Uuid::new_v4(),
+            AiRequestId::generate(),
             String::new(),
             String::new(),
             String::new(),

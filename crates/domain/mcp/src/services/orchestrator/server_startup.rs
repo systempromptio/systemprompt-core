@@ -110,7 +110,7 @@ async fn publish_start_success(
     duration_ms: u64,
 ) -> McpDomainResult<()> {
     let service_info = database
-        .get_service_by_name(&server.name)
+        .get_service_by_name(&server.service_name())
         .await?
         .ok_or_else(|| {
             McpDomainError::Internal(format!(
@@ -121,7 +121,7 @@ async fn publish_start_success(
     let pid = stored_pid(service_info.pid);
     event_bus
         .publish(McpEvent::ServiceStartCompleted {
-            service_name: server.name.clone(),
+            service_name: server.service_name(),
             success: true,
             pid,
             port: server.port,
@@ -132,7 +132,7 @@ async fn publish_start_success(
 
     event_bus
         .publish(McpEvent::ServiceStarted {
-            service_name: server.name.clone(),
+            service_name: server.service_name(),
             process_id: pid,
             port: server.spawn_port()?,
         })
@@ -148,7 +148,7 @@ async fn publish_start_failure(
 ) -> McpDomainResult<()> {
     event_bus
         .publish(McpEvent::ServiceStartCompleted {
-            service_name: server.name.clone(),
+            service_name: server.service_name(),
             success: false,
             pid: None,
             port: server.port,
@@ -159,7 +159,7 @@ async fn publish_start_failure(
 
     event_bus
         .publish(McpEvent::ServiceFailed {
-            service_name: server.name.clone(),
+            service_name: server.service_name(),
             error: error_msg.to_owned(),
         })
         .await?;

@@ -2,6 +2,7 @@
 
 use serde_json::json;
 use systemprompt_ai::services::schema::{ToolNameMapper, TransformedTool};
+use systemprompt_identifiers::McpToolName;
 
 fn create_transformed_tool(
     name: &str,
@@ -23,7 +24,7 @@ mod new_tests {
     #[test]
     fn creates_empty_mapper() {
         let mapper = ToolNameMapper::new();
-        assert!(!mapper.is_variant("any_name"));
+        assert!(!mapper.is_variant(&McpToolName::new("any_name")));
     }
 
     #[test]
@@ -31,8 +32,8 @@ mod new_tests {
         let mapper1 = ToolNameMapper::new();
         let mapper2 = ToolNameMapper::default();
 
-        assert!(!mapper1.is_variant("test"));
-        assert!(!mapper2.is_variant("test"));
+        assert!(!mapper1.is_variant(&McpToolName::new("test")));
+        assert!(!mapper2.is_variant(&McpToolName::new("test")));
     }
 }
 
@@ -46,7 +47,7 @@ mod register_transformation_tests {
 
         mapper.register_transformation(&tool, Some("action".to_string()));
 
-        assert!(mapper.is_variant("action_tool_create"));
+        assert!(mapper.is_variant(&McpToolName::new("action_tool_create")));
     }
 
     #[test]
@@ -58,8 +59,8 @@ mod register_transformation_tests {
         mapper.register_transformation(&tool1, Some("action".to_string()));
         mapper.register_transformation(&tool2, Some("action".to_string()));
 
-        assert!(mapper.is_variant("action_tool_create"));
-        assert!(mapper.is_variant("action_tool_delete"));
+        assert!(mapper.is_variant(&McpToolName::new("action_tool_create")));
+        assert!(mapper.is_variant(&McpToolName::new("action_tool_delete")));
     }
 
     #[test]
@@ -69,7 +70,7 @@ mod register_transformation_tests {
 
         mapper.register_transformation(&tool, None);
 
-        assert!(mapper.is_variant("tool_variant"));
+        assert!(mapper.is_variant(&McpToolName::new("tool_variant")));
     }
 
     #[test]
@@ -79,7 +80,7 @@ mod register_transformation_tests {
 
         mapper.register_transformation(&tool, None);
 
-        assert!(mapper.is_variant("simple_tool"));
+        assert!(mapper.is_variant(&McpToolName::new("simple_tool")));
     }
 }
 
@@ -225,13 +226,13 @@ mod is_variant_tests {
 
         mapper.register_transformation(&tool, None);
 
-        assert!(mapper.is_variant("variant_name"));
+        assert!(mapper.is_variant(&McpToolName::new("variant_name")));
     }
 
     #[test]
     fn returns_false_for_unregistered_name() {
         let mapper = ToolNameMapper::new();
-        assert!(!mapper.is_variant("unknown"));
+        assert!(!mapper.is_variant(&McpToolName::new("unknown")));
     }
 
     #[test]
@@ -241,7 +242,7 @@ mod is_variant_tests {
 
         mapper.register_transformation(&tool, None);
 
-        assert!(!mapper.is_variant("original_name"));
+        assert!(!mapper.is_variant(&McpToolName::new("original_name")));
     }
 }
 

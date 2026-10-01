@@ -7,7 +7,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::error::IdValidationError;
+use systemprompt_identifiers::TaskId;
+use systemprompt_models::StepId;
 use systemprompt_traits::{BoxedSource, MetadataValidationError, RepositoryError};
 use thiserror::Error;
 
@@ -24,14 +25,28 @@ pub enum ArtifactError {
         source: serde_json::Error,
     },
 
-    #[error("Invalid artifact context id: {0}")]
-    InvalidContextId(#[source] IdValidationError),
-
     #[error("Metadata validation error: {0}")]
     MetadataValidation(#[from] MetadataValidationError),
 
     #[error("Transform error: {0}")]
     Transform(String),
+}
+
+/// The execution-step row(s) a failed write was addressing: one step, or
+/// every in-progress step of a task.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExecutionStepTarget {
+    Step(StepId),
+    Task(TaskId),
+}
+
+impl std::fmt::Display for ExecutionStepTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Step(step_id) => write!(f, "step {step_id}"),
+            Self::Task(task_id) => write!(f, "steps of task {task_id}"),
+        }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -41,6 +56,13 @@ pub enum AgentError {
 
     #[error("repository: {0}")]
     Repository(#[from] RepositoryError),
+
+    #[error("execution {target} could not be written: {source}")]
+    ExecutionStepWrite {
+        target: ExecutionStepTarget,
+        #[source]
+        source: RepositoryError,
+    },
 
     #[error("config: {0}")]
     Config(String),
@@ -72,6 +94,20 @@ pub enum AgentError {
 }
 
 impl AgentError {
+    pub fn step_write(step_id: &StepId, source: impl Into<RepositoryError>) -> Self {
+        Self::ExecutionStepWrite {
+            target: ExecutionStepTarget::Step(step_id.clone()),
+            source: source.into(),
+        }
+    }
+
+    pub fn task_steps_write(task_id: &TaskId, source: impl Into<RepositoryError>) -> Self {
+        Self::ExecutionStepWrite {
+            target: ExecutionStepTarget::Task(task_id.clone()),
+            source: source.into(),
+        }
+    }
+
     pub fn invalid_config<E>(context: impl Into<String>, source: E) -> Self
     where
         E: std::error::Error + Send + Sync + 'static,

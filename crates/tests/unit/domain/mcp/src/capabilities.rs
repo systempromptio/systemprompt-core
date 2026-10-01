@@ -1,5 +1,6 @@
 //! Unit tests for capabilities module (re-exports at crate root).
 
+use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::{
     WEBSITE_URL, build_extension_capabilities, default_tool_visibility, mcp_apps_ui_extension,
     model_only_visibility, tool_ui_meta, visibility_to_json,
@@ -61,13 +62,13 @@ fn test_visibility_to_json_empty() {
 
 #[test]
 fn test_tool_ui_meta_contains_ui_key() {
-    let meta = tool_ui_meta("my-server", &default_tool_visibility());
+    let meta = tool_ui_meta(&McpServerId::new("my-server"), &default_tool_visibility());
     assert!(meta.contains_key("ui"));
 }
 
 #[test]
 fn test_tool_ui_meta_resource_uri_includes_server_name() {
-    let meta = tool_ui_meta("my-server", &default_tool_visibility());
+    let meta = tool_ui_meta(&McpServerId::new("my-server"), &default_tool_visibility());
     let ui = meta.get("ui").expect("ui");
     let uri = ui
         .get("resourceUri")
@@ -80,20 +81,9 @@ fn test_tool_ui_meta_resource_uri_includes_server_name() {
 
 #[test]
 fn test_tool_ui_meta_visibility_serializes() {
-    let meta = tool_ui_meta("srv", &model_only_visibility());
+    let meta = tool_ui_meta(&McpServerId::new("srv"), &model_only_visibility());
     let ui = meta.get("ui").expect("ui");
     let vis = ui.get("visibility").expect("visibility");
     assert!(vis.is_array());
     assert_eq!(vis.as_array().expect("array").len(), 1);
-}
-
-#[test]
-fn test_tool_ui_meta_empty_server_name() {
-    let meta = tool_ui_meta("", &default_tool_visibility());
-    let uri = meta
-        .get("ui")
-        .and_then(|u| u.get("resourceUri"))
-        .and_then(|v| v.as_str())
-        .expect("uri");
-    assert_eq!(uri, "ui:///artifact-viewer");
 }

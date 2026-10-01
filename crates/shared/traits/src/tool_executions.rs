@@ -16,7 +16,7 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
-use systemprompt_identifiers::{AiToolCallId, McpExecutionId, SessionId};
+use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpToolName, SessionId};
 
 use crate::repository::RepositoryError;
 
@@ -46,7 +46,7 @@ pub trait ToolCallIntentClaims: Send + Sync {
     async fn claim_newest_unclaimed(
         &self,
         session_id: &SessionId,
-        tool_name: &str,
+        tool_name: &McpToolName,
         execution: &McpExecutionId,
         window_seconds: i64,
     ) -> Result<Option<AiToolCallId>, RepositoryError>;

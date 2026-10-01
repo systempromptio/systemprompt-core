@@ -14,6 +14,7 @@ mod verification;
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_identifiers::AgentName;
 use systemprompt_traits::StartupEventSender;
 
 use crate::repository::agent_service::AgentServiceRepository;
@@ -43,7 +44,7 @@ impl AgentLifecycle {
 pub async fn start_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
-    agent_name: &str,
+    agent_name: &AgentName,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
     let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
@@ -53,7 +54,7 @@ pub async fn start_agent(
 pub async fn enable_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
-    agent_name: &str,
+    agent_name: &AgentName,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
     let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
@@ -63,7 +64,7 @@ pub async fn enable_agent(
 pub async fn disable_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
-    agent_name: &str,
+    agent_name: &AgentName,
 ) -> OrchestrationResult<()> {
     let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
     lifecycle.disable_agent(agent_name).await
@@ -72,7 +73,7 @@ pub async fn disable_agent(
 pub async fn restart_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
-    agent_name: &str,
+    agent_name: &AgentName,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
     let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;

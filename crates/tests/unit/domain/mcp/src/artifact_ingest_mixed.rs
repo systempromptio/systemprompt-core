@@ -2,7 +2,9 @@
 
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject, Resource, ResourceContents};
 use serde_json::json;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::{
     ArtifactIngest, IngestRequest, from_canonical_tool_result, from_hook_response, from_wire_value,
 };
@@ -26,8 +28,8 @@ fn context(session: &str) -> RequestContext {
 fn request(result: CallToolResult, session: &str) -> IngestRequest {
     IngestRequest {
         result,
-        tool_name: "mixed_result".to_owned(),
-        server_name: Some("fixture-server".to_owned()),
+        tool_name: McpToolName::new("mixed_result"),
+        server_name: Some(McpServerId::new("fixture-server")),
         ai_tool_call_id: None,
         mcp_execution_id: None,
         ctx: context(session),

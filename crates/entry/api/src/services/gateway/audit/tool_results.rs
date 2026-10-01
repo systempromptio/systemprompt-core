@@ -13,7 +13,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::{Actor, AgentName, AiToolCallId};
+use systemprompt_identifiers::{Actor, AgentName, AiToolCallId, McpToolName};
 use systemprompt_mcp::{ArtifactIngest, CallToolResult, IngestRequest, from_canonical_tool_result};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
@@ -115,7 +115,7 @@ async fn ingest_one(
         },
     };
     let (tool_name, input) = intent.map_or_else(
-        || ("unknown".to_owned(), None),
+        || (McpToolName::new("unknown"), None),
         |row| (row.tool_name, serde_json::from_str(&row.tool_input).ok()),
     );
     let request = IngestRequest {

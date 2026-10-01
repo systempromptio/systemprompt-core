@@ -41,7 +41,7 @@ async fn is_process_running(
     let Some(pid) = ProcessService::find_pid_by_port(config.spawn_port()?)? else {
         manager
             .database()
-            .update_service_status(&config.name, ServiceStatus::Stopped)
+            .update_service_status(&config.service_name(), ServiceStatus::Stopped)
             .await?;
         return Ok(false);
     };
@@ -49,7 +49,7 @@ async fn is_process_running(
     if !ProcessService::is_running(pid) {
         manager
             .database()
-            .update_service_status(&config.name, ServiceStatus::Stopped)
+            .update_service_status(&config.service_name(), ServiceStatus::Stopped)
             .await?;
         return Ok(false);
     }
@@ -64,7 +64,7 @@ async fn mark_service_error(
 ) -> McpDomainResult<()> {
     manager
         .database()
-        .update_service_status(&config.name, ServiceStatus::Error)
+        .update_service_status(&config.service_name(), ServiceStatus::Error)
         .await?;
 
     if let Some(ref error) = health_result.details.error_message {

@@ -13,7 +13,7 @@ impl ServiceRepository {
             r#"
             DELETE FROM services
             WHERE instance_id = $1
-              AND (status IN ('error', 'crashed')
+              AND (status = 'error'
                    OR (status = 'running' AND pid IS NULL))
             "#,
             self.instance_id.as_str()

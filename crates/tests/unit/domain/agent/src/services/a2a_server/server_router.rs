@@ -4,6 +4,7 @@
 // — no listener, and therefore none of `run`/`start_server`.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -24,7 +25,7 @@ async fn server_for_registered_agent(port: u16) -> Server {
         Arc::clone(&pool),
         agent_state,
         Arc::new(StubAiProvider::new()),
-        Some(systemprompt_test_fixtures::test_messaging_agent().to_owned()),
+        &AgentName::new(systemprompt_test_fixtures::test_messaging_agent()),
         port,
     )
     .await

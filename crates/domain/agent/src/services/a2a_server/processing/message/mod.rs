@@ -30,7 +30,7 @@ use crate::repository::A2ARepositories;
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
 use crate::services::{ArtifactPublishingService, ContextService, SkillService};
-use systemprompt_identifiers::{AiToolCallId, TaskId};
+use systemprompt_identifiers::{AgentName, AiToolCallId, TaskId};
 use systemprompt_models::{AiProvider, CallToolResult, RequestContext, ToolCall};
 
 #[derive(Debug)]
@@ -81,7 +81,7 @@ pub struct PersistCompletedTaskOnProcessorParams<'a> {
     pub user_message: &'a Message,
     pub agent_message: &'a Message,
     pub context: &'a RequestContext,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub artifacts_already_published: bool,
 }
 
@@ -89,7 +89,7 @@ pub struct PersistCompletedTaskOnProcessorParams<'a> {
 pub struct ProcessMessageStreamParams<'a> {
     pub a2a_message: &'a Message,
     pub agent_runtime: &'a AgentRuntimeInfo,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub context: &'a RequestContext,
     pub task_id: TaskId,
     pub cancel: CancellationToken,
@@ -144,11 +144,11 @@ impl MessageProcessor {
         Arc::clone(&self.webhooks)
     }
 
-    pub async fn load_agent_runtime(&self, agent_name: &str) -> Result<AgentRuntimeInfo> {
+    pub async fn load_agent_runtime(&self, agent_name: &AgentName) -> Result<AgentRuntimeInfo> {
         use crate::services::registry::AgentRegistry;
 
         let registry = AgentRegistry::new()?;
-        let agent_config = registry.get_agent(agent_name).await?;
+        let agent_config = registry.get_agent(agent_name.as_str()).await?;
 
         Ok(agent_config.into())
     }

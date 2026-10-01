@@ -1,54 +1,33 @@
 use super::{make_task, repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::models::context::ContextKind;
-use systemprompt_agent::repository::task::{
-    RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams, task_state_to_db_string,
-};
-use systemprompt_identifiers::{ContextId, MessageId, TaskId, TraceId, UserId};
+use systemprompt_agent::repository::task::{RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams};
+use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId, TraceId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 
 #[test]
-fn task_state_to_db_string_all_variants() {
-    assert_eq!(
-        task_state_to_db_string(TaskState::Pending),
-        "TASK_STATE_PENDING"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Submitted),
-        "TASK_STATE_SUBMITTED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Working),
-        "TASK_STATE_WORKING"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::InputRequired),
-        "TASK_STATE_INPUT_REQUIRED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Completed),
-        "TASK_STATE_COMPLETED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Canceled),
-        "TASK_STATE_CANCELED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Failed),
-        "TASK_STATE_FAILED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Rejected),
-        "TASK_STATE_REJECTED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::AuthRequired),
-        "TASK_STATE_AUTH_REQUIRED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Unknown),
-        "TASK_STATE_UNKNOWN"
-    );
+fn task_state_as_str_is_the_stored_and_wire_form_of_every_variant() {
+    let cases = [
+        (TaskState::Pending, "TASK_STATE_PENDING"),
+        (TaskState::Submitted, "TASK_STATE_SUBMITTED"),
+        (TaskState::Working, "TASK_STATE_WORKING"),
+        (TaskState::InputRequired, "TASK_STATE_INPUT_REQUIRED"),
+        (TaskState::Completed, "TASK_STATE_COMPLETED"),
+        (TaskState::Canceled, "TASK_STATE_CANCELED"),
+        (TaskState::Failed, "TASK_STATE_FAILED"),
+        (TaskState::Rejected, "TASK_STATE_REJECTED"),
+        (TaskState::AuthRequired, "TASK_STATE_AUTH_REQUIRED"),
+        (TaskState::Unknown, "TASK_STATE_UNKNOWN"),
+    ];
+    for (state, stored) in cases {
+        assert_eq!(state.as_str(), stored);
+        assert_eq!(
+            serde_json::to_value(state).expect("serialize"),
+            serde_json::json!(stored),
+            "the DB string and the serde wire name are one mapping"
+        );
+        assert_eq!(stored.parse::<TaskState>().expect("parse"), state);
+    }
 }
 
 fn make_message(
@@ -343,11 +322,11 @@ async fn track_agent_in_context_is_idempotent() {
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
     r.tasks
-        .track_agent_in_context(&context_id, "agent-x")
+        .track_agent_in_context(&context_id, &AgentName::new("agent-x"))
         .await
         .expect("track");
     r.tasks
-        .track_agent_in_context(&context_id, "agent-x")
+        .track_agent_in_context(&context_id, &AgentName::new("agent-x"))
         .await
         .expect("track again");
 
@@ -463,7 +442,7 @@ async fn create_task_returns_id_string() {
             user_id: &user_id,
             session_id: &session_id,
             trace_id: &trace_id,
-            agent_name: "a",
+            agent_name: &AgentName::new("a"),
         })
         .await
         .expect("create");

@@ -9,23 +9,23 @@ use async_trait::async_trait;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::{
     DynWebhookBroadcaster, LifecycleEvent, WebhookBroadcaster, WebhookError,
 };
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_models::{A2AEvent, AgUiEvent};
 
 #[derive(Debug, Clone)]
 pub enum RecordedBroadcast {
     AgUi {
         user_id: UserId,
-        auth_token: String,
+        auth_token: Option<String>,
         event: AgUiEvent,
     },
     A2A {
         user_id: UserId,
-        auth_token: String,
+        auth_token: Option<String>,
         event: A2AEvent,
     },
     Lifecycle {
-        auth_token: String,
+        auth_token: Option<String>,
         event: LifecycleEvent,
     },
 }
@@ -90,14 +90,14 @@ impl WebhookBroadcaster for RecordingWebhookBroadcaster {
         &self,
         user_id: &UserId,
         event: AgUiEvent,
-        auth_token: &str,
+        auth_token: Option<&JwtToken>,
     ) -> Result<usize, WebhookError> {
         self.records
             .lock()
             .expect("lock poisoned")
             .push(RecordedBroadcast::AgUi {
                 user_id: user_id.clone(),
-                auth_token: auth_token.to_owned(),
+                auth_token: auth_token.map(|t| t.as_str().to_owned()),
                 event,
             });
         Ok(self.connection_count)
@@ -107,14 +107,14 @@ impl WebhookBroadcaster for RecordingWebhookBroadcaster {
         &self,
         user_id: &UserId,
         event: A2AEvent,
-        auth_token: &str,
+        auth_token: Option<&JwtToken>,
     ) -> Result<usize, WebhookError> {
         self.records
             .lock()
             .expect("lock poisoned")
             .push(RecordedBroadcast::A2A {
                 user_id: user_id.clone(),
-                auth_token: auth_token.to_owned(),
+                auth_token: auth_token.map(|t| t.as_str().to_owned()),
                 event,
             });
         Ok(self.connection_count)
@@ -123,13 +123,13 @@ impl WebhookBroadcaster for RecordingWebhookBroadcaster {
     async fn broadcast_lifecycle(
         &self,
         event: LifecycleEvent,
-        auth_token: &str,
+        auth_token: Option<&JwtToken>,
     ) -> Result<(), WebhookError> {
         self.records
             .lock()
             .expect("lock poisoned")
             .push(RecordedBroadcast::Lifecycle {
-                auth_token: auth_token.to_owned(),
+                auth_token: auth_token.map(|t| t.as_str().to_owned()),
                 event,
             });
         if self.lifecycle_down {

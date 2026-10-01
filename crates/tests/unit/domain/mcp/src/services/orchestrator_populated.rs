@@ -98,7 +98,9 @@ async fn validate_external_server_probe_succeeds_against_scripted_endpoint() {
     )
     .await;
 
-    o.validate_service(&name).await.expect("probe succeeds");
+    o.validate_service(&ServiceName::new(name.as_str()))
+        .await
+        .expect("probe succeeds");
     let received = mock.received_requests().await.expect("requests recorded");
     assert!(
         received
@@ -122,7 +124,7 @@ async fn validate_external_server_unreachable_endpoint_is_reported_not_fatal() {
     )
     .await;
 
-    o.validate_service(&name)
+    o.validate_service(&ServiceName::new(name.as_str()))
         .await
         .expect("a failed probe logs but does not error");
 }
@@ -141,7 +143,9 @@ async fn validate_external_server_with_accessor_skips_the_probe() {
     )
     .await;
 
-    o.validate_service(&name).await.expect("accessor skip");
+    o.validate_service(&ServiceName::new(name.as_str()))
+        .await
+        .expect("accessor skip");
     let received = mock.received_requests().await.expect("requests recorded");
     assert!(
         received.is_empty(),
@@ -155,7 +159,7 @@ async fn validate_internal_server_without_running_row_is_ok() {
     let name = unique("valint");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
-    o.validate_service(&name)
+    o.validate_service(&ServiceName::new(name.as_str()))
         .await
         .expect("not-running internal service validates as a no-op");
 }
@@ -185,7 +189,7 @@ async fn validate_internal_running_server_probes_local_port() {
     .await
     .unwrap();
 
-    let result = o.validate_service(&name).await;
+    let result = o.validate_service(&ServiceName::new(name.as_str())).await;
     repo.delete_service(&name_id).await.unwrap();
     result.expect("running internal service probes 127.0.0.1:<port>");
 
@@ -206,7 +210,7 @@ async fn start_services_named_with_missing_binary_fails_and_publishes_failure() 
     let mut rx = o.subscribe_events();
 
     let err = o
-        .start_services(Some(name.clone()))
+        .start_services(Some(ServiceName::new(name.as_str())))
         .await
         .expect_err("missing binary fails startup");
     match &err {
@@ -221,10 +225,10 @@ async fn start_services_named_with_missing_binary_fails_and_publishes_failure() 
     let mut saw_failed = false;
     while let Ok(event) = rx.try_recv() {
         match event {
-            McpEvent::ServiceStartRequested { service_name } if service_name == name => {
+            McpEvent::ServiceStartRequested { service_name } if service_name.as_str() == name => {
                 saw_requested = true;
             },
-            McpEvent::ServiceFailed { service_name, .. } if service_name == name => {
+            McpEvent::ServiceFailed { service_name, .. } if service_name.as_str() == name => {
                 saw_failed = true;
             },
             _ => {},
@@ -240,7 +244,7 @@ async fn start_services_unknown_name_matches_nothing_and_succeeds() {
     let name = unique("startnone");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
-    o.start_services(Some(unique("absent")))
+    o.start_services(Some(ServiceName::new(unique("absent"))))
         .await
         .expect("an unmatched name filter starts nothing");
 }
@@ -287,11 +291,11 @@ async fn restart_services_missing_binary_reports_a_failed_outcome() {
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
     let outcomes = o
-        .restart_services(Some("all".to_owned()))
+        .restart_services(None)
         .await
         .expect("listing the DB running set succeeds");
     assert!(
-        outcomes.iter().all(|o| o.service_name != name),
+        outcomes.iter().all(|o| o.service_name.as_str() != name),
         "restart of 'all' covers only the DB running set, which lacks {name}"
     );
 
@@ -310,12 +314,14 @@ async fn restart_services_missing_binary_reports_a_failed_outcome() {
     .await
     .unwrap();
 
-    let result = o.restart_services(Some(name.clone())).await;
+    let result = o
+        .restart_services(Some(ServiceName::new(name.as_str())))
+        .await;
     repo.delete_service(&name_id).await.ok();
     let outcomes = result.expect("target listing succeeds");
     assert_eq!(outcomes.len(), 1);
     let outcome = &outcomes[0];
-    assert_eq!(outcome.service_name, name);
+    assert_eq!(outcome.service_name.as_str(), name);
     assert!(
         !outcome.is_restarted(),
         "a missing binary is not reported as restarted"
@@ -334,14 +340,14 @@ async fn stop_services_named_internal_without_row_publishes_stopped() {
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     let mut rx = o.subscribe_events();
 
-    o.stop_services(Some(name.clone()))
+    o.stop_services(Some(ServiceName::new(name.as_str())))
         .await
         .expect("stopping a not-running service is a clean no-op");
 
     let mut saw_stopped = false;
     while let Ok(event) = rx.try_recv() {
         if let McpEvent::ServiceStopped { service_name, .. } = event
-            && service_name == name
+            && service_name.as_str() == name
         {
             saw_stopped = true;
         }

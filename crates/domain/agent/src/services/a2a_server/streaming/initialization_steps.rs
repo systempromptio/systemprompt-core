@@ -75,7 +75,7 @@ pub(super) async fn persist_initial_task(
     } = input;
 
     let task_repo = state.agent_state.repositories().tasks.clone();
-    let metadata = TaskMetadata::new_agent_message(agent_name.to_owned());
+    let metadata = TaskMetadata::new_agent_message(agent_name.to_string());
 
     let task = Task {
         id: task_id.clone(),

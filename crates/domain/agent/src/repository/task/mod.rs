@@ -19,9 +19,7 @@ mod task_messages;
 mod task_updates;
 
 pub use constructor::TaskConstructor;
-pub use mutations::{
-    CreateTaskParams, create_task, task_state_to_db_string, track_agent_in_context,
-};
+pub use mutations::{CreateTaskParams, create_task, track_agent_in_context};
 pub use queries::{
     TaskContextInfo, get_task, get_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
 };
@@ -32,7 +30,7 @@ use crate::models::a2a::{Task, TaskState};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
 use systemprompt_traits::{DynSessionUsageCounters, RepositoryError};
 
 #[expect(
@@ -44,7 +42,7 @@ pub struct RepoCreateTaskParams<'a> {
     pub user_id: &'a UserId,
     pub session_id: &'a SessionId,
     pub trace_id: &'a TraceId,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
 }
 
 #[derive(Clone)]
@@ -123,7 +121,7 @@ impl TaskRepository {
     pub async fn track_agent_in_context(
         &self,
         context_id: &systemprompt_identifiers::ContextId,
-        agent_name: &str,
+        agent_name: &AgentName,
     ) -> Result<(), RepositoryError> {
         track_agent_in_context(&self.write_pool, context_id, agent_name).await
     }

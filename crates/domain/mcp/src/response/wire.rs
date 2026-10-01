@@ -5,7 +5,7 @@
 
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject, ResourceContents};
 use serde_json::Value as JsonValue;
-use systemprompt_identifiers::{ArtifactId, McpExecutionId};
+use systemprompt_identifiers::{ArtifactId, McpExecutionId, McpServerId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{EXECUTION_META_KEY, ExecutionMetadata};
 use systemprompt_models::mcp::{ClientProfile, McpResourceUiMeta};
@@ -18,7 +18,7 @@ use crate::services::ui_renderer::{
 pub(super) struct RenderedArtifact {
     pub(super) artifact_id: ArtifactId,
     pub(super) mcp_execution_id: McpExecutionId,
-    pub(super) server_name: String,
+    pub(super) server_name: McpServerId,
     pub(super) artifact_type: String,
     pub(super) title: Option<String>,
     // JSON: the stored (scanned, redacted) artifact body.

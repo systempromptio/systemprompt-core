@@ -214,7 +214,8 @@ pub async fn stop_agent_process(
     agent_port: Option<u16>,
     orchestrator: &AgentOrchestrator,
 ) -> bool {
-    let recorded_pid = match orchestrator.get_status(agent_name).await {
+    let typed_name = systemprompt_identifiers::AgentName::new(agent_name);
+    let recorded_pid = match orchestrator.get_status(&typed_name).await {
         Ok(AgentStatus::Running { pid, .. }) => Some(pid),
         Ok(AgentStatus::Failed { .. }) => None,
         Err(e) => {
@@ -227,7 +228,7 @@ pub async fn stop_agent_process(
         },
     };
 
-    match orchestrator.delete_agent(agent_name).await {
+    match orchestrator.delete_agent(&typed_name).await {
         Ok(()) => {
             tracing::debug!(agent = %agent_name, "Agent stopped via orchestrator");
             true

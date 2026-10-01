@@ -3,7 +3,7 @@
 
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::RegistryService;
-use systemprompt_models::mcp::{McpRegistry, McpServerStatus};
+use systemprompt_models::mcp::McpRegistry;
 use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_traits::McpRegistryProvider;
 use wiremock::MockServer;
@@ -39,7 +39,6 @@ async fn registry_find_server_returns_state_for_known_server() {
         .expect("registry reachable")
         .expect("server known");
     assert_eq!(state.name, name);
-    assert_eq!(state.status, McpServerStatus::Unknown);
 
     let servers = McpRegistry::list_servers(&registry)
         .await

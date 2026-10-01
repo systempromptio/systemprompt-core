@@ -8,6 +8,7 @@ use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{RestartPlan, RestartScope, RestartTarget, ServiceType};
@@ -180,20 +181,27 @@ async fn restart_mcp_target(
     failed: &mut usize,
     quiet: bool,
 ) {
-    let results: Vec<(String, Result<()>)> =
-        match orchestrator.restart_services(Some(target.id.clone())).await {
-            Ok(outcomes) if outcomes.is_empty() => {
-                vec![(
-                    target.name.clone(),
-                    Err(anyhow!("not a managed MCP server")),
-                )]
-            },
-            Ok(outcomes) => outcomes
-                .into_iter()
-                .map(|o| (o.service_name, o.result.map_err(anyhow::Error::from)))
-                .collect(),
-            Err(e) => vec![(target.name.clone(), Err(e.into()))],
-        };
+    let results: Vec<(String, Result<()>)> = match orchestrator
+        .restart_services(Some(ServiceName::new(target.id.as_str())))
+        .await
+    {
+        Ok(outcomes) if outcomes.is_empty() => {
+            vec![(
+                target.name.clone(),
+                Err(anyhow!("not a managed MCP server")),
+            )]
+        },
+        Ok(outcomes) => outcomes
+            .into_iter()
+            .map(|o| {
+                (
+                    o.service_name.to_string(),
+                    o.result.map_err(anyhow::Error::from),
+                )
+            })
+            .collect(),
+        Err(e) => vec![(target.name.clone(), Err(e.into()))],
+    };
     for (name, result) in results {
         match result {
             Ok(()) => {
@@ -219,7 +227,10 @@ async fn restart_agent_target(
     failed: &mut usize,
     quiet: bool,
 ) {
-    match orchestrator.restart_agent(&target.id, None).await {
+    match orchestrator
+        .restart_agent(&systemprompt_identifiers::AgentName::new(&target.id), None)
+        .await
+    {
         Ok(_) => {
             *restarted += 1;
             if !quiet {

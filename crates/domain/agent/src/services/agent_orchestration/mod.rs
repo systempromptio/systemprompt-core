@@ -19,8 +19,6 @@ pub mod port_service;
 pub mod process;
 pub mod reconciler;
 
-use systemprompt_identifiers::AgentId;
-
 pub use orchestrator::{AgentInfo, AgentOrchestrator};
 pub use port_service::PortService;
 
@@ -35,13 +33,6 @@ pub enum AgentStatus {
         last_attempt: Option<String>,
         retry_count: u32,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct AgentRuntimeConfig {
-    pub id: AgentId,
-    pub name: String,
-    pub port: u16,
 }
 
 #[derive(Debug, Clone)]

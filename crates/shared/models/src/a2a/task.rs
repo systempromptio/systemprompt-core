@@ -82,6 +82,21 @@ pub enum TaskState {
 }
 
 impl TaskState {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "TASK_STATE_PENDING",
+            Self::Submitted => "TASK_STATE_SUBMITTED",
+            Self::Working => "TASK_STATE_WORKING",
+            Self::Completed => "TASK_STATE_COMPLETED",
+            Self::Failed => "TASK_STATE_FAILED",
+            Self::Canceled => "TASK_STATE_CANCELED",
+            Self::Rejected => "TASK_STATE_REJECTED",
+            Self::InputRequired => "TASK_STATE_INPUT_REQUIRED",
+            Self::AuthRequired => "TASK_STATE_AUTH_REQUIRED",
+            Self::Unknown => "TASK_STATE_UNKNOWN",
+        }
+    }
+
     pub const fn is_terminal(&self) -> bool {
         matches!(
             self,

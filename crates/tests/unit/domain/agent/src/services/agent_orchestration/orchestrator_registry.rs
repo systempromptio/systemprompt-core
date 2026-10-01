@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -23,8 +24,8 @@ use systemprompt_test_fixtures::test_db_pool;
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4().simple())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
 }
 
 fn app_paths() -> Arc<AppPaths> {
@@ -40,12 +41,12 @@ fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
     AgentDatabaseService::new(repo).expect("db service")
 }
 
-fn registry_with(names_and_ports: &[(&str, u16)]) -> AgentRegistry {
+fn registry_with(names_and_ports: &[(&AgentName, u16)]) -> AgentRegistry {
     let mut agents = HashMap::new();
     for (name, port) in names_and_ports {
-        let mut config = agent_config(name);
+        let mut config = agent_config(name.as_str());
         config.port = *port;
-        agents.insert((*name).to_owned(), config);
+        agents.insert(name.to_string(), config);
     }
     AgentRegistry::from_config(ServicesConfig {
         agents,
@@ -55,7 +56,7 @@ fn registry_with(names_and_ports: &[(&str, u16)]) -> AgentRegistry {
 
 async fn make_orchestrator(
     pool: &systemprompt_database::DbPool,
-    names_and_ports: &[(&str, u16)],
+    names_and_ports: &[(&AgentName, u16)],
 ) -> AgentOrchestrator {
     let agent_state = make_agent_state(pool);
     let mut orchestrator = AgentOrchestrator::new(agent_state, app_paths(), None)
@@ -80,7 +81,7 @@ async fn detailed_status_reports_configured_agents() {
     let info = orchestrator.get_detailed_status().await.expect("status");
     let entry = info
         .iter()
-        .find(|i| i.id.as_str() == name)
+        .find(|i| i.name == name)
         .expect("configured agent listed");
     assert_eq!(entry.port, 9450);
     assert!(matches!(entry.status, AgentStatus::Failed { .. }));
@@ -99,7 +100,7 @@ async fn validate_agent_reports_missing_and_failed() {
     let orchestrator = make_orchestrator(&pool, &[(&name, 9451)]).await;
 
     let missing = orchestrator
-        .validate_agent("__no_such_agent")
+        .validate_agent(&AgentName::new("__no_such_agent"))
         .await
         .expect("report");
     assert!(

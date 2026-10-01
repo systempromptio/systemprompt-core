@@ -129,7 +129,7 @@ impl OwnedMarkedAgent {
             systemprompt_loader::subprocess::live_pid_is_subprocess(
                 owned.pid(),
                 systemprompt_models::subprocess::AGENT_NAME_ENV,
-                name,
+                &systemprompt_identifiers::ServiceName::new(name),
             ),
             "owned child carries the exact agent identity"
         );

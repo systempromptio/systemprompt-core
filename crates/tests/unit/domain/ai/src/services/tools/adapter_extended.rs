@@ -239,3 +239,37 @@ mod trait_result_roundtrip_tests {
         }
     }
 }
+
+mod request_context_to_tool_context_tests {
+    use systemprompt_ai::services::tools::request_context_to_tool_context;
+    use systemprompt_identifiers::{
+        Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId,
+    };
+    use systemprompt_models::execution::context::RequestContext;
+
+    fn context() -> RequestContext {
+        RequestContext::new(
+            SessionId::new("sess-adapter"),
+            TraceId::new("trace-adapter"),
+            ContextId::try_new("00000000-0000-4000-8000-0000000000ad").expect("valid ContextId"),
+            AgentName::try_new("adapter-agent").expect("valid AgentName"),
+            Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
+        )
+    }
+
+    #[test]
+    fn request_without_bearer_has_no_tool_token() {
+        let tool_ctx = request_context_to_tool_context(&context());
+        assert!(tool_ctx.auth_token.is_none());
+    }
+
+    #[test]
+    fn request_bearer_is_forwarded_to_tool_context() {
+        let ctx = context().with_auth_token(JwtToken::new("bearer-1"));
+        let tool_ctx = request_context_to_tool_context(&ctx);
+        assert_eq!(
+            tool_ctx.auth_token.as_ref().map(JwtToken::as_str),
+            Some("bearer-1")
+        );
+    }
+}

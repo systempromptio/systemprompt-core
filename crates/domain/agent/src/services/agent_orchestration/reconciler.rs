@@ -10,6 +10,7 @@
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
 use crate::services::agent_orchestration::{OrchestrationResult, process};
+use systemprompt_identifiers::AgentName;
 
 #[derive(Debug)]
 pub struct AgentReconciler {
@@ -34,16 +35,16 @@ impl AgentReconciler {
         let all_agents = self.db_service.list_all_agents().await?;
         let mut reconciled = 0;
 
-        for (agent_id, status) in all_agents {
+        for (agent_name, status) in all_agents {
             match status {
                 crate::services::agent_orchestration::AgentStatus::Running { pid, .. } => {
                     if !process::process_exists(pid) {
                         tracing::warn!(
-                            agent_id = %agent_id,
+                            agent_name = %agent_name,
                             pid = %pid,
                             "Agent marked as running but process not found - marking as failed"
                         );
-                        self.db_service.mark_failed(&agent_id).await?;
+                        self.db_service.mark_failed(&agent_name).await?;
                         reconciled += 1;
                     }
                 },
@@ -66,17 +67,17 @@ impl AgentReconciler {
         let mut report = ConsistencyReport::new();
         let all_agents = self.db_service.list_all_agents().await?;
 
-        for (agent_id, status) in all_agents {
+        for (agent_name, status) in all_agents {
             match status {
                 crate::services::agent_orchestration::AgentStatus::Running { pid, .. } => {
                     if process::process_exists(pid) {
-                        report.consistent_running.push(agent_id);
+                        report.consistent_running.push(agent_name);
                     } else {
-                        report.inconsistent_running.push((agent_id, pid));
+                        report.inconsistent_running.push((agent_name, pid));
                     }
                 },
                 crate::services::agent_orchestration::AgentStatus::Failed { .. } => {
-                    report.failed.push(agent_id);
+                    report.failed.push(agent_name);
                 },
             }
         }
@@ -91,9 +92,9 @@ impl AgentReconciler {
     ) -> OrchestrationResult<u32> {
         let mut fixed = 0;
 
-        for (agent_id, pid) in &report.inconsistent_running {
-            tracing::warn!(agent_id = %agent_id, pid = %pid, "Fixing inconsistent agent");
-            self.db_service.mark_failed(agent_id).await?;
+        for (agent_name, pid) in &report.inconsistent_running {
+            tracing::warn!(agent_name = %agent_name, pid = %pid, "Fixing inconsistent agent");
+            self.db_service.mark_failed(agent_name).await?;
             fixed += 1;
         }
 
@@ -107,9 +108,9 @@ impl AgentReconciler {
 
 #[derive(Debug)]
 pub struct ConsistencyReport {
-    pub consistent_running: Vec<String>,
-    pub inconsistent_running: Vec<(String, u32)>,
-    pub failed: Vec<String>,
+    pub consistent_running: Vec<AgentName>,
+    pub inconsistent_running: Vec<(AgentName, u32)>,
+    pub failed: Vec<AgentName>,
 }
 
 impl Default for ConsistencyReport {

@@ -6,7 +6,7 @@
 use crate::services::shared::{AgentServiceError, Result};
 use async_trait::async_trait;
 use serde_json::Value;
-use systemprompt_identifiers::AiToolCallId;
+use systemprompt_identifiers::{AiToolCallId, McpToolName};
 use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
 use super::ExecutionContext;
@@ -23,14 +23,14 @@ impl ToolExecutorTrait for ContextToolExecutor {
     // spec.
     async fn execute_tool(
         &self,
-        tool_name: &str,
+        tool_name: &McpToolName,
         arguments: Value,
         tools: &[McpTool],
         ctx: &RequestContext,
     ) -> Result<ToolOutcome> {
         let tool_call = ToolCall {
             ai_tool_call_id: AiToolCallId::new(format!("call_{}", tool_name)),
-            name: tool_name.to_owned(),
+            name: tool_name.to_string(),
             arguments,
         };
 

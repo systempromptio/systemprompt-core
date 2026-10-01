@@ -109,7 +109,7 @@ mod tooled_executor_tests {
     use systemprompt_ai::models::tools::McpTool;
     use systemprompt_ai::services::tooled::TooledExecutor;
     use systemprompt_identifiers::{
-        Actor, AgentName, ContextId, McpServerId, SessionId, TraceId, UserId,
+        Actor, AgentName, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
     };
     use systemprompt_models::execution::context::RequestContext;
     use systemprompt_traits::{
@@ -175,7 +175,7 @@ mod tooled_executor_tests {
         async fn find_tool(
             &self,
             _agent_name: &AgentName,
-            _tool_name: &str,
+            _tool_name: &McpToolName,
             _context: &ToolContext,
         ) -> ToolProviderResult<Option<ToolDefinition>> {
             Ok(None)

@@ -1,4 +1,4 @@
-//! Task creation and the `agent_tasks` -> DB status string mapping.
+//! Task creation and context-agent tracking for `agent_tasks`.
 //!
 //! State transitions (with optimistic-concurrency guards) live in the
 //! sibling `state` submodule.
@@ -8,24 +8,10 @@
 
 use sqlx::PgPool;
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 use systemprompt_traits::RepositoryError;
 
-use crate::models::a2a::{Task, TaskState};
-
-pub const fn task_state_to_db_string(state: TaskState) -> &'static str {
-    match state {
-        TaskState::Pending => "TASK_STATE_PENDING",
-        TaskState::Submitted => "TASK_STATE_SUBMITTED",
-        TaskState::Working => "TASK_STATE_WORKING",
-        TaskState::InputRequired => "TASK_STATE_INPUT_REQUIRED",
-        TaskState::Completed => "TASK_STATE_COMPLETED",
-        TaskState::Canceled => "TASK_STATE_CANCELED",
-        TaskState::Failed => "TASK_STATE_FAILED",
-        TaskState::Rejected => "TASK_STATE_REJECTED",
-        TaskState::AuthRequired => "TASK_STATE_AUTH_REQUIRED",
-        TaskState::Unknown => "TASK_STATE_UNKNOWN",
-    }
-}
+use crate::models::a2a::Task;
 
 #[expect(
     missing_debug_implementations,
@@ -37,7 +23,7 @@ pub struct CreateTaskParams<'a> {
     pub user_id: &'a systemprompt_identifiers::UserId,
     pub session_id: &'a systemprompt_identifiers::SessionId,
     pub trace_id: &'a systemprompt_identifiers::TraceId,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
 }
 
 pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, RepositoryError> {
@@ -54,7 +40,7 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
         None => serde_json::json!({}),
     };
 
-    let status = task_state_to_db_string(task.status.state);
+    let status = task.status.state.as_str();
     let task_id_str = task.id.as_str();
     let context_id_str = task.context_id.as_str();
     let user_id_str = user_id.as_ref();
@@ -72,7 +58,7 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
         session_id_str,
         trace_id_str,
         metadata_json,
-        agent_name
+        agent_name.as_str()
     )
     .execute(pool.as_ref())
     .await?;
@@ -83,14 +69,14 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
 pub async fn track_agent_in_context(
     pool: &Arc<PgPool>,
     context_id: &systemprompt_identifiers::ContextId,
-    agent_name: &str,
+    agent_name: &AgentName,
 ) -> Result<(), RepositoryError> {
     let context_id_str = context_id.as_str();
     sqlx::query!(
         r#"INSERT INTO context_agents (context_id, agent_name) VALUES ($1, $2)
         ON CONFLICT (context_id, agent_name) DO NOTHING"#,
         context_id_str,
-        agent_name
+        agent_name.as_str()
     )
     .execute(pool.as_ref())
     .await?;

@@ -4,7 +4,7 @@ use systemprompt_models::wire::origin::RequestOrigin;
 
 use systemprompt_ai::models::{AiRequestRecord, RequestStatus};
 use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
-use systemprompt_identifiers::{AiRequestId, AiToolCallId, ContextId};
+use systemprompt_identifiers::{AiRequestId, AiToolCallId, ContextId, McpToolName};
 use uuid::Uuid;
 
 use super::{bootstrapped_pool, completed_record, seed_request, user};
@@ -299,7 +299,7 @@ async fn insert_and_get_tool_calls() {
         .insert_tool_call(InsertToolCallParams {
             request_id: &id,
             ai_tool_call_id: &call_id,
-            tool_name: "search",
+            tool_name: &McpToolName::new("search"),
             tool_input: r#"{"q":"rust"}"#,
             sequence_number: 0,
         })

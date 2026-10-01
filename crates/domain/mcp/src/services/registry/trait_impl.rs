@@ -8,9 +8,7 @@ use async_trait::async_trait;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_models::ServicesConfig;
 use systemprompt_models::errors::{McpRegistryError, McpRegistryResult};
-use systemprompt_models::mcp::{
-    McpDeploymentProvider, McpRegistry, McpServerState, McpServerStatus,
-};
+use systemprompt_models::mcp::{McpDeploymentProvider, McpRegistry, McpServerState};
 use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig};
 
 use super::RegistryService;
@@ -56,7 +54,6 @@ impl McpRegistry for RegistryService {
             name: name.clone(),
             host: config.host,
             port: config.port,
-            status: McpServerStatus::Unknown,
         }))
     }
 

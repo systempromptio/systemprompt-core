@@ -1,5 +1,6 @@
 //! DB-backed tests for [`ProxyHealthCheck`].
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::monitoring::proxy_health::{ProxyHealthCheck, RoutableService};
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -11,7 +12,10 @@ async fn can_route_traffic_missing_service_returns_false() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     ));
     let r = p
-        .can_route_traffic(&format!("missing-{}", uuid::Uuid::new_v4().simple()), 65530)
+        .can_route_traffic(
+            &ServiceName::new(format!("missing-{}", uuid::Uuid::new_v4().simple())),
+            65530,
+        )
         .await
         .unwrap();
     assert!(!r);
@@ -47,7 +51,7 @@ async fn list_routable_services_excludes_service_with_unresponsive_port() {
 
     let routable = p.list_routable_services().await.unwrap();
     assert!(
-        !routable.iter().any(|s| s.name == name),
+        !routable.iter().any(|s| s.name == name_id),
         "a running service on an unresponsive port is not routable"
     );
     let after = repo.find_service_by_name(&name_id).await.unwrap().unwrap();
@@ -86,7 +90,7 @@ async fn can_route_traffic_running_service_unreachable_port_returns_false() {
     })
     .await
     .unwrap();
-    let r = p.can_route_traffic(&name, port).await.unwrap();
+    let r = p.can_route_traffic(&name_id, port).await.unwrap();
     assert!(!r);
     repo.delete_service(&name_id).await.unwrap();
 }
@@ -118,7 +122,7 @@ async fn can_route_traffic_stopped_service_returns_false() {
     })
     .await
     .unwrap();
-    let r = p.can_route_traffic(&name, port).await.unwrap();
+    let r = p.can_route_traffic(&name_id, port).await.unwrap();
     assert!(!r);
     repo.delete_service(&name_id).await.unwrap();
 }
@@ -126,7 +130,7 @@ async fn can_route_traffic_stopped_service_returns_false() {
 #[test]
 fn routable_service_value_type() {
     let s = RoutableService {
-        name: "n".to_owned(),
+        name: ServiceName::new("n"),
         port: 1,
         pid: Some(123),
         health: "healthy".to_owned(),

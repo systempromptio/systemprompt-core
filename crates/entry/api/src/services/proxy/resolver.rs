@@ -143,7 +143,9 @@ impl ServiceResolver {
         })?;
 
         orchestrator
-            .start_services(Some(service_name.to_owned()))
+            .start_services(Some(systemprompt_identifiers::ServiceName::new(
+                service_name,
+            )))
             .await
             .map_err(|source| ProxyError::RestartFailed {
                 service: service_name.to_owned(),

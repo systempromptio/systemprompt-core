@@ -7,7 +7,7 @@ use std::path::Path;
 use systemprompt_agent::services::config_authoring::{
     AgentConfigAuthoringService, AgentCreateRequest, AgentEditRequest, ConfigAuthoringError,
 };
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::AgentConfig;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::services::ServicesConfig;
@@ -179,7 +179,7 @@ fn create_writes_agent_yaml_with_defaults() {
     assert!(agent.enabled);
     assert_eq!(
         agent.endpoint,
-        ApiPaths::agent_endpoint(&AgentId::new("demo_agent"))
+        ApiPaths::agent_endpoint(&AgentName::new("demo_agent"))
     );
     assert_eq!(
         agent.card.protocol_version,

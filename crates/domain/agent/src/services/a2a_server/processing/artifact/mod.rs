@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{ContextId, McpToolName, TaskId};
 use systemprompt_models::{CallToolResult, McpTool, ToolCall};
 
 use crate::models::a2a::Artifact;
@@ -41,10 +41,10 @@ impl ArtifactBuilder {
     }
 
     // JSON: MCP tool output schema — arbitrary JSON Schema.
-    fn get_output_schema(&self, tool_name: &str) -> Option<&serde_json::Value> {
+    fn get_output_schema(&self, tool_name: &McpToolName) -> Option<&serde_json::Value> {
         self.tools
             .iter()
-            .find(|t| t.name == tool_name)
+            .find(|t| t.name == tool_name.as_str())
             .and_then(|t| t.output_schema.as_ref())
     }
 
@@ -58,15 +58,24 @@ impl ArtifactBuilder {
                 .is_some_and(|v| !v.is_null())
                 && let Some(tool_call) = self.tool_calls.get(index)
             {
-                let output_schema = self.get_output_schema(&tool_call.name);
+                let tool_name = McpToolName::try_new(tool_call.name.as_str()).map_err(|e| {
+                    AgentServiceError::operation(
+                        format!(
+                            "Tool call {} has no usable tool name",
+                            tool_call.ai_tool_call_id
+                        ),
+                        e,
+                    )
+                })?;
+                let output_schema = self.get_output_schema(&tool_name);
 
                 let mut artifact = McpToA2aTransformer::transform(
                     &crate::services::mcp::artifact_transformer::TransformParams {
-                        tool_name: &tool_call.name,
+                        tool_name: &tool_name,
                         tool_result: result,
                         output_schema,
-                        context_id: self.context_id.as_str(),
-                        task_id: self.task_id.as_str(),
+                        context_id: &self.context_id,
+                        task_id: &self.task_id,
                         tool_arguments: Some(&tool_call.arguments),
                     },
                 )

@@ -13,6 +13,7 @@ use crate::error::McpDomainResult;
 use std::net::SocketAddr;
 use std::process::Command;
 use std::time::Duration;
+use systemprompt_identifiers::ServiceName;
 use tokio::net::TcpStream;
 
 pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
@@ -23,7 +24,7 @@ pub const POST_KILL_DELAY_MS: u64 = 500;
 // connect waiting for the operating system's TCP timeout.
 const PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 
-pub async fn prepare_port(port: u16, service_name: &str) -> McpDomainResult<()> {
+pub async fn prepare_port(port: u16, service_name: &ServiceName) -> McpDomainResult<()> {
     tracing::debug!(port = port, service = %service_name, "Preparing port");
 
     if is_port_in_use(port).await {
@@ -42,7 +43,7 @@ enum PortHolder {
     Unverifiable,
 }
 
-fn classify_port_holder(pid: u32, service_name: &str) -> PortHolder {
+fn classify_port_holder(pid: u32, service_name: &ServiceName) -> PortHolder {
     if pid == std::process::id() {
         return PortHolder::Caller;
     }
@@ -90,7 +91,7 @@ pub async fn is_port_responsive(port: u16) -> bool {
 }
 
 #[cfg(unix)]
-pub async fn cleanup_port_processes(port: u16, service_name: &str) -> McpDomainResult<()> {
+pub async fn cleanup_port_processes(port: u16, service_name: &ServiceName) -> McpDomainResult<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
@@ -123,14 +124,14 @@ pub async fn cleanup_port_processes(port: u16, service_name: &str) -> McpDomainR
                 return Err(crate::error::McpDomainError::PortOwnedByForeignProcess {
                     port,
                     pid,
-                    service: service_name.to_owned(),
+                    service: service_name.to_string(),
                 });
             },
             PortHolder::Unverifiable => {
                 return Err(crate::error::McpDomainError::PortHolderUnverifiable {
                     port,
                     pid,
-                    service: service_name.to_owned(),
+                    service: service_name.to_string(),
                 });
             },
             PortHolder::Ours => {},
@@ -158,7 +159,7 @@ pub async fn cleanup_port_processes(port: u16, service_name: &str) -> McpDomainR
 }
 
 #[cfg(windows)]
-pub async fn cleanup_port_processes(port: u16, service_name: &str) -> McpDomainResult<()> {
+pub async fn cleanup_port_processes(port: u16, service_name: &ServiceName) -> McpDomainResult<()> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
         .output()
@@ -189,14 +190,14 @@ pub async fn cleanup_port_processes(port: u16, service_name: &str) -> McpDomainR
                 return Err(crate::error::McpDomainError::PortOwnedByForeignProcess {
                     port,
                     pid,
-                    service: service_name.to_owned(),
+                    service: service_name.to_string(),
                 });
             },
             PortHolder::Unverifiable => {
                 return Err(crate::error::McpDomainError::PortHolderUnverifiable {
                     port,
                     pid,
-                    service: service_name.to_owned(),
+                    service: service_name.to_string(),
                 });
             },
             PortHolder::Ours => {},
@@ -247,7 +248,7 @@ pub async fn wait_for_port_release(port: u16) -> McpDomainResult<()> {
 
 pub async fn wait_for_port_release_with_retry(
     port: u16,
-    service_name: &str,
+    service_name: &ServiceName,
     max_cleanup_attempts: u32,
 ) -> McpDomainResult<()> {
     for cleanup_attempt in 1..=max_cleanup_attempts {

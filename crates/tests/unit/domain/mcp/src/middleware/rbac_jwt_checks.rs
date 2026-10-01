@@ -53,7 +53,7 @@ fn requirement(audience: JwtAudience, scopes: Vec<Permission>) -> OAuthRequireme
 #[test]
 fn a_token_carrying_the_servers_audience_is_accepted() {
     validate_audience(
-        "srv",
+        &McpServerId::new("srv"),
         &claims_for(vec![JwtAudience::Mcp]),
         &requirement(JwtAudience::Mcp, vec![Permission::User]),
     )
@@ -66,7 +66,7 @@ fn a_token_carrying_the_servers_audience_is_accepted() {
 #[test]
 fn a_token_minted_for_a_different_audience_is_refused() {
     let err = validate_audience(
-        "srv",
+        &McpServerId::new("srv"),
         &claims_for(vec![JwtAudience::A2a]),
         &requirement(JwtAudience::Mcp, vec![Permission::User]),
     )
@@ -89,7 +89,7 @@ fn a_token_minted_for_a_different_audience_is_refused() {
 #[test]
 fn a_token_listing_several_audiences_is_accepted_when_one_of_them_matches() {
     validate_audience(
-        "srv",
+        &McpServerId::new("srv"),
         &claims_for(vec![JwtAudience::A2a, JwtAudience::Mcp]),
         &requirement(JwtAudience::Mcp, vec![Permission::User]),
     )
@@ -99,7 +99,7 @@ fn a_token_listing_several_audiences_is_accepted_when_one_of_them_matches() {
 #[test]
 fn a_token_with_no_audience_at_all_is_refused() {
     validate_audience(
-        "srv",
+        &McpServerId::new("srv"),
         &claims_for(Vec::new()),
         &requirement(JwtAudience::Mcp, vec![Permission::User]),
     )
@@ -112,7 +112,7 @@ fn a_token_with_no_audience_at_all_is_refused() {
 #[test]
 fn a_higher_permission_satisfies_a_lower_requirement() {
     validate_scopes_for_permissions(
-        "srv",
+        &McpServerId::new("srv"),
         &[Permission::Admin],
         &requirement(JwtAudience::Mcp, vec![Permission::User]),
     )
@@ -124,7 +124,7 @@ fn a_higher_permission_satisfies_a_lower_requirement() {
 #[test]
 fn a_lower_permission_does_not_satisfy_a_higher_requirement() {
     let err = validate_scopes_for_permissions(
-        "srv",
+        &McpServerId::new("srv"),
         &[Permission::Anonymous],
         &requirement(JwtAudience::Mcp, vec![Permission::User]),
     )
@@ -141,7 +141,7 @@ fn a_lower_permission_does_not_satisfy_a_higher_requirement() {
 #[test]
 fn holding_one_of_several_accepted_scopes_is_enough() {
     validate_scopes_for_permissions(
-        "srv",
+        &McpServerId::new("srv"),
         &[Permission::User],
         &requirement(JwtAudience::Mcp, vec![Permission::Admin, Permission::User]),
     )
@@ -154,7 +154,7 @@ fn holding_one_of_several_accepted_scopes_is_enough() {
 #[test]
 fn a_requirement_listing_no_scopes_is_not_satisfiable() {
     validate_scopes_for_permissions(
-        "srv",
+        &McpServerId::new("srv"),
         &[Permission::Admin],
         &requirement(JwtAudience::Mcp, Vec::new()),
     )
@@ -164,7 +164,7 @@ fn a_requirement_listing_no_scopes_is_not_satisfiable() {
 #[test]
 fn a_caller_holding_no_permissions_is_refused() {
     validate_scopes_for_permissions(
-        "srv",
+        &McpServerId::new("srv"),
         &[],
         &requirement(JwtAudience::Mcp, vec![Permission::User]),
     )

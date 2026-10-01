@@ -5,6 +5,7 @@
 
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
+use systemprompt_identifiers::McpToolName;
 use systemprompt_models::artifacts::CliArtifact;
 use systemprompt_models::artifacts::types::ArtifactType;
 
@@ -12,7 +13,7 @@ use systemprompt_models::artifacts::types::ArtifactType;
 pub fn infer_type(
     artifact: &JsonValue,
     schema: Option<&JsonValue>,
-    tool_name: &str,
+    tool_name: &McpToolName,
 ) -> Result<ArtifactType, ArtifactError> {
     if let Some(schema) = schema {
         if let Some(artifact_type) = extract_artifact_type_from_schema(schema)

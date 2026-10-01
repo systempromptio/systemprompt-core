@@ -209,7 +209,7 @@ pub async fn cleanup_stale_service_entries(
             service.status,
             service.pid,
             MCP_SERVICE_ID_ENV,
-            service.name.as_str(),
+            &service.name,
         ) {
             continue;
         }
@@ -228,12 +228,7 @@ pub async fn cleanup_stale_service_entries(
     let agent_service_names = repo.list_all_agent_service_names().await?;
     for service_name in agent_service_names {
         if let Ok(Some(service)) = repo.find_service_by_name(&service_name).await {
-            if !service_row_is_stale(
-                service.status,
-                service.pid,
-                AGENT_NAME_ENV,
-                service_name.as_str(),
-            ) {
+            if !service_row_is_stale(service.status, service.pid, AGENT_NAME_ENV, &service_name) {
                 continue;
             }
             if repo.delete_service(&service_name).await.is_ok() {
@@ -256,7 +251,7 @@ pub fn service_row_is_stale(
     status: ServiceStatus,
     pid: Option<i32>,
     name_key: &str,
-    name: &str,
+    name: &systemprompt_identifiers::ServiceName,
 ) -> bool {
     use systemprompt_scheduler::ProcessCleanup;
 

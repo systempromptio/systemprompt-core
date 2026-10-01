@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, UserId};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
@@ -31,7 +31,8 @@ fn tool_context() -> ToolContext {
         "00000000-0000-4000-8000-0000000007f3".to_owned(),
     );
 
-    let mut context = ToolContext::new(Actor::user(UserId::new("user-tph")), "token-tph");
+    let mut context = ToolContext::new(Actor::user(UserId::new("user-tph")))
+        .with_auth_token(JwtToken::new("token-tph"));
     context.session_id = Some(SessionId::new("s-tph"));
     context.headers = headers;
     context

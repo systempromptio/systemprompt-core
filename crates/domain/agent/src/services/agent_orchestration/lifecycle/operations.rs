@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
+use systemprompt_identifiers::AgentName;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use super::AgentLifecycle;
@@ -14,7 +15,7 @@ use crate::services::agent_orchestration::{
 impl AgentLifecycle {
     pub async fn start_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         let start = Instant::now();
@@ -30,7 +31,7 @@ impl AgentLifecycle {
             match current_status {
                 AgentStatus::Running { .. } => {
                     return Err(OrchestrationError::AgentAlreadyRunning(
-                        agent_name.to_owned(),
+                        agent_name.to_string(),
                     ));
                 },
                 AgentStatus::Failed { .. } => {
@@ -44,7 +45,7 @@ impl AgentLifecycle {
                 .spawn_detached_process(agent_name, agent_config.port)?;
 
             if let Err(e) = self
-                .confirm_spawned(agent_name, &agent_config.name, pid, agent_config.port)
+                .confirm_spawned(agent_name, pid, agent_config.port)
                 .await
             {
                 self.reap_failed_spawn(agent_name, pid).await;
@@ -72,7 +73,7 @@ impl AgentLifecycle {
         result
     }
 
-    pub async fn disable_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn disable_agent(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         tracing::debug!(agent_name = %agent_name, "disabling agent");
 
         let status = self.db_service.get_status(agent_name).await?;
@@ -93,7 +94,7 @@ impl AgentLifecycle {
 
     pub async fn enable_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         tracing::debug!(agent_name = %agent_name, "enabling agent");
@@ -102,7 +103,7 @@ impl AgentLifecycle {
 
     pub async fn restart_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         tracing::debug!(agent_name = %agent_name, "Restarting agent");
@@ -126,19 +127,18 @@ impl AgentLifecycle {
 
     async fn confirm_spawned(
         &self,
-        agent_name: &str,
-        registered_name: &str,
+        agent_name: &AgentName,
         pid: u32,
         port: u16,
     ) -> OrchestrationResult<()> {
         self.db_service
-            .register_agent_starting(registered_name, pid, port)
+            .register_agent_starting(agent_name, pid, port)
             .await?;
         self.verify_startup(agent_name, port).await?;
         self.db_service.mark_running(agent_name).await
     }
 
-    async fn reap_failed_spawn(&self, agent_name: &str, pid: u32) {
+    async fn reap_failed_spawn(&self, agent_name: &AgentName, pid: u32) {
         match process::terminate_gracefully_verified(pid, agent_name, 5).await {
             Ok(()) => {
                 if let Err(e) = self.db_service.mark_failed(agent_name).await {
@@ -160,7 +160,7 @@ impl AgentLifecycle {
         }
     }
 
-    pub async fn cleanup_crashed_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn cleanup_crashed_agent(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         let status = self.db_service.get_status(agent_name).await?;
 
         if let AgentStatus::Running { pid, .. } = status

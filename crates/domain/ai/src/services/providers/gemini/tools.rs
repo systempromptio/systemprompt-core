@@ -12,11 +12,11 @@ use std::time::Instant;
 
 use rmcp::model::ContentBlock;
 use serde_json::Value;
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalToolChoice, Role, SearchConfig,
 };
 use systemprompt_models::wire::gemini;
-use uuid::Uuid;
 
 use crate::error::Result;
 use crate::models::ai::AiResponse;
@@ -34,7 +34,7 @@ pub(super) async fn generate_with_tools(
     params: ToolRequestParams<'_>,
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let mut mapper = ToolNameMapper::new();
     let canonical_tools = convert_tools(&mut mapper, params.tools.to_vec())?;
     let has_tools = !canonical_tools.is_empty();
@@ -75,7 +75,7 @@ pub(super) async fn generate_with_tool_results(
     params: ToolResultParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let mut canonical = CanonicalBuild::new(
         BridgeProvider::Gemini,
         params.conversation_history,

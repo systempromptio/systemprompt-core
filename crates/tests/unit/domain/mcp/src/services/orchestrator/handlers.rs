@@ -1,3 +1,4 @@
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::orchestrator::McpEvent;
 use systemprompt_mcp::services::orchestrator::handlers::{EventHandler, MonitoringHandler};
 
@@ -11,7 +12,7 @@ fn monitoring_handler_name_returns_monitoring() {
 fn monitoring_handler_handles_all_events_by_default() {
     let handler = MonitoringHandler;
     let event = McpEvent::ServiceStarted {
-        service_name: "svc".to_string(),
+        service_name: ServiceName::new("svc"),
         process_id: Some(1),
         port: 80,
     };

@@ -7,6 +7,7 @@ use systemprompt_cli::plugins::mcp::validate::{
     FailureDetail, failure_output, prompt_server_selection, run_connection_validation,
     success_output,
 };
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
 use systemprompt_models::{Deployment, ServicesConfig};
 
@@ -51,12 +52,12 @@ fn failure_output_maps_detail_fields() {
 #[test]
 fn success_output_copies_connection_result_and_server_info() {
     let result = McpConnectionResult {
-        service_name: "svc".to_owned(),
+        service_name: ServiceName::new("svc"),
         success: true,
         error_message: None,
         connection_time_ms: 12,
         server_info: Some(McpProtocolInfo {
-            server_name: "demo".to_owned(),
+            implementation_name: "demo".to_owned(),
             version: "1.2.3".to_owned(),
             protocol_version: "2025-06-18".to_owned(),
         }),
@@ -80,7 +81,7 @@ fn success_output_copies_connection_result_and_server_info() {
 #[test]
 fn success_output_surfaces_error_message_as_issue() {
     let result = McpConnectionResult {
-        service_name: "svc".to_owned(),
+        service_name: ServiceName::new("svc"),
         success: false,
         error_message: Some("handshake refused".to_owned()),
         connection_time_ms: 3,
@@ -99,7 +100,7 @@ fn success_output_surfaces_error_message_as_issue() {
 #[test]
 fn success_output_ignores_empty_error_message() {
     let result = McpConnectionResult {
-        service_name: "svc".to_owned(),
+        service_name: ServiceName::new("svc"),
         success: true,
         error_message: Some(String::new()),
         connection_time_ms: 1,

@@ -37,7 +37,7 @@ async fn can_route_traffic_true_for_running_service_with_live_mcp_endpoint() {
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     ));
-    let routable = p.can_route_traffic(&name, port).await.unwrap();
+    let routable = p.can_route_traffic(&name_id, port).await.unwrap();
     let status = repo
         .find_service_by_name(&name_id)
         .await
@@ -80,7 +80,7 @@ async fn can_route_traffic_responsive_non_mcp_port_marks_service_error() {
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     ));
-    let routable = p.can_route_traffic(&name, port).await.unwrap();
+    let routable = p.can_route_traffic(&name_id, port).await.unwrap();
     let status = repo
         .find_service_by_name(&name_id)
         .await
@@ -132,7 +132,7 @@ async fn list_routable_services_includes_service_with_responsive_port() {
 
     let entry = routable
         .iter()
-        .find(|s| s.name == name)
+        .find(|s| s.name == name_id)
         .expect("responsive service is listed as routable");
     assert_eq!(entry.port, port);
     assert_eq!(entry.health, "healthy");

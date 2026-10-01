@@ -4,6 +4,7 @@
 //! onto running / stopped / error.
 
 use std::path::PathBuf;
+use systemprompt_models::services::ServiceStatus;
 
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::monitoring::health::{HealthStatus, perform_health_check};
@@ -156,16 +157,26 @@ async fn status_for_all_maps_each_health_verdict_onto_a_service_state() {
         .await
         .expect("status roll-up runs");
 
-    assert_eq!(statuses["mon_all_up"].state, "running");
-    assert_eq!(statuses["mon_all_up"].tools_count, Some(2));
-    assert!(!statuses["mon_all_up"].auth_required);
+    let entry = |name: &str| {
+        statuses
+            .iter()
+            .find(|s| s.name == name)
+            .unwrap_or_else(|| panic!("{name} has a status"))
+    };
+    assert_eq!(entry("mon_all_up").observed_state(), ServiceStatus::Running);
+    assert_eq!(entry("mon_all_up").tools_count, Some(2));
+    assert!(!entry("mon_all_up").auth_required);
 
     assert_eq!(
-        statuses["mon_all_empty"].state, "error",
+        entry("mon_all_empty").observed_state(),
+        ServiceStatus::Error,
         "an unknown verdict is an error state, not a stopped one"
     );
-    assert_eq!(statuses["mon_all_down"].state, "stopped");
+    assert_eq!(
+        entry("mon_all_down").observed_state(),
+        ServiceStatus::Stopped
+    );
 
-    display_service_status(&servers, &statuses);
-    display_service_status(&[], &statuses);
+    display_service_status(&statuses);
+    display_service_status(&[]);
 }

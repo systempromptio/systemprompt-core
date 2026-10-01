@@ -1,16 +1,17 @@
 //! Unit tests for McpConnectionResult health checks
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
 
 #[test]
 fn test_mcp_connection_result_healthy() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         error_message: None,
         connection_time_ms: 100,
         server_info: Some(McpProtocolInfo {
-            server_name: "test-server".to_string(),
+            implementation_name: "test-server".to_string(),
             version: "1.0.0".to_string(),
             protocol_version: "2024-11-05".to_string(),
         }),
@@ -24,7 +25,7 @@ fn test_mcp_connection_result_healthy() {
 #[test]
 fn test_mcp_connection_result_unhealthy_slow() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         error_message: None,
         connection_time_ms: 2500,
@@ -39,7 +40,7 @@ fn test_mcp_connection_result_unhealthy_slow() {
 #[test]
 fn test_mcp_connection_result_unhealthy_failed() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: Some("Connection failed".to_string()),
         connection_time_ms: 100,
@@ -54,7 +55,7 @@ fn test_mcp_connection_result_unhealthy_failed() {
 #[test]
 fn test_mcp_connection_result_health_status_healthy() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         error_message: None,
         connection_time_ms: 100,
@@ -69,7 +70,7 @@ fn test_mcp_connection_result_health_status_healthy() {
 #[test]
 fn test_mcp_connection_result_health_status_slow() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         error_message: None,
         connection_time_ms: 1500,
@@ -84,7 +85,7 @@ fn test_mcp_connection_result_health_status_slow() {
 #[test]
 fn test_mcp_connection_result_health_status_auth_required() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         error_message: None,
         connection_time_ms: 100,
@@ -99,7 +100,7 @@ fn test_mcp_connection_result_health_status_auth_required() {
 #[test]
 fn test_mcp_connection_result_health_status_no_tools() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: None,
         connection_time_ms: 100,
@@ -122,7 +123,7 @@ fn test_mcp_connection_result_health_status_unhealthy_variants() {
 
     for variant in variants {
         let result = McpConnectionResult {
-            service_name: "test-service".to_string(),
+            service_name: ServiceName::new("test-service"),
             success: false,
             error_message: None,
             connection_time_ms: 100,
@@ -138,7 +139,7 @@ fn test_mcp_connection_result_health_status_unhealthy_variants() {
 #[test]
 fn test_mcp_connection_result_health_status_unknown() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: None,
         connection_time_ms: 100,
@@ -154,7 +155,7 @@ fn test_mcp_connection_result_health_status_unknown() {
 #[test]
 fn test_mcp_connection_result_serialize() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         error_message: None,
         connection_time_ms: 100,

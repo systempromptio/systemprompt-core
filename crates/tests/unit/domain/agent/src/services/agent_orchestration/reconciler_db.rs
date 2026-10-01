@@ -5,6 +5,7 @@
 // `failed`, while fix_inconsistencies is driven with an explicit report.
 
 use std::collections::HashMap;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -21,20 +22,20 @@ use systemprompt_test_fixtures::test_db_pool;
 
 const DEAD_PID: u32 = 2_000_000_001;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4().simple())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
 }
 
 fn db_service_with(
     pool: &systemprompt_database::DbPool,
-    names_and_ports: &[(&str, u16)],
+    names_and_ports: &[(&AgentName, u16)],
 ) -> AgentDatabaseService {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let mut agents = HashMap::new();
     for (name, port) in names_and_ports {
-        let mut config = agent_config(name);
+        let mut config = agent_config(name.as_str());
         config.port = *port;
-        agents.insert((*name).to_owned(), config);
+        agents.insert(name.to_string(), config);
     }
     let registry = AgentRegistry::from_config(ServicesConfig {
         agents,

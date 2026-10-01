@@ -8,6 +8,7 @@ use crate::services::shared::Result;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::{CliPaths, Config, Secrets};
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
@@ -24,7 +25,7 @@ pub fn rotate_log_if_needed(log_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn prepare_agent_log_file(agent_name: &str, log_dir: &Path) -> OrchestrationResult<File> {
+pub fn prepare_agent_log_file(agent_name: &AgentName, log_dir: &Path) -> OrchestrationResult<File> {
     if let Err(e) = fs::create_dir_all(log_dir) {
         tracing::error!(
             error = %e,
@@ -57,7 +58,7 @@ pub fn prepare_agent_log_file(agent_name: &str, log_dir: &Path) -> Orchestration
 #[derive(Debug)]
 pub struct BuildAgentCommandParams<'a> {
     pub binary_path: &'a PathBuf,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub port: u16,
     pub profile_path: &'a str,
     pub secrets: &'a Secrets,
@@ -66,7 +67,7 @@ pub struct BuildAgentCommandParams<'a> {
 }
 
 pub struct AgentEnvironmentParams<'a> {
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub port: u16,
     pub profile_path: &'a str,
     pub database_type: &'a str,
@@ -104,7 +105,7 @@ pub fn build_agent_environment(
     ));
     env.push((
         systemprompt_models::subprocess::AGENT_NAME_ENV.to_owned(),
-        agent_name.to_owned(),
+        agent_name.as_str().to_owned(),
     ));
     env.push(("AGENT_PORT".to_owned(), port.to_string()));
     env.push(("DATABASE_TYPE".to_owned(), database_type.to_owned()));
@@ -129,7 +130,7 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
     }
     command
         .arg("--agent-name")
-        .arg(agent_name)
+        .arg(agent_name.as_str())
         .arg("--port")
         .arg(port.to_string())
         .env_clear();

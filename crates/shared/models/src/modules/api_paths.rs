@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AgentId, ClientId, TenantId};
+use systemprompt_identifiers::{AgentName, ClientId, TenantId};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ApiPaths;
@@ -126,7 +126,7 @@ impl ApiPaths {
         format!("{}/{}", Self::WELLKNOWN_AGENT_CARDS, agent_name)
     }
 
-    pub fn agent_endpoint(agent_id: &AgentId) -> String {
-        format!("{}/{}/", Self::AGENTS_BASE, agent_id.as_str())
+    pub fn agent_endpoint(agent_name: &AgentName) -> String {
+        format!("{}/{}/", Self::AGENTS_BASE, agent_name.as_str())
     }
 }

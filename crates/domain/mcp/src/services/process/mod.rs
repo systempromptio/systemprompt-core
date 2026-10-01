@@ -14,6 +14,7 @@ pub mod utils;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_identifiers::ServiceName;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ProcessService;
@@ -57,7 +58,7 @@ impl ProcessService {
 
     pub async fn terminate_gracefully_verified(
         pid: u32,
-        service_name: &str,
+        service_name: &ServiceName,
     ) -> McpDomainResult<()> {
         cleanup::terminate_gracefully_verified(pid, service_name).await
     }

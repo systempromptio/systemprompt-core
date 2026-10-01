@@ -6,12 +6,12 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{Actor, AiToolCallId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AiToolCallId, JwtToken, SessionId, TraceId};
 
 #[derive(Debug, Clone)]
 pub struct ToolContext {
     pub actor: Actor,
-    pub auth_token: String,
+    pub auth_token: Option<JwtToken>,
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
     pub ai_tool_call_id: Option<AiToolCallId>,
@@ -20,15 +20,21 @@ pub struct ToolContext {
 
 impl ToolContext {
     #[must_use]
-    pub fn new(actor: Actor, auth_token: impl Into<String>) -> Self {
+    pub fn new(actor: Actor) -> Self {
         Self {
             actor,
-            auth_token: auth_token.into(),
+            auth_token: None,
             session_id: None,
             trace_id: None,
             ai_tool_call_id: None,
             headers: HashMap::new(),
         }
+    }
+
+    #[must_use]
+    pub fn with_auth_token(mut self, auth_token: JwtToken) -> Self {
+        self.auth_token = Some(auth_token);
+        self
     }
 
     #[must_use]

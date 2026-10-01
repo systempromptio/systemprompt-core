@@ -1,4 +1,5 @@
 use rmcp::model::ReadResourceRequestParams;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::{
     ArtifactViewerConfig, WEBSITE_URL, build_artifact_viewer_resource, default_server_icons,
     read_artifact_viewer_resource,
@@ -7,7 +8,7 @@ use systemprompt_mcp::{
 #[test]
 fn build_artifact_viewer_empty_icons() {
     let config = ArtifactViewerConfig {
-        server_name: "no-icons",
+        server_name: &McpServerId::new("no-icons"),
         title: "T",
         description: "D",
         template: "HTML",
@@ -22,7 +23,7 @@ fn build_artifact_viewer_empty_icons() {
 #[test]
 fn build_artifact_viewer_none_icons() {
     let config = ArtifactViewerConfig {
-        server_name: "srv",
+        server_name: &McpServerId::new("srv"),
         title: "T",
         description: "D",
         template: "X",
@@ -35,7 +36,7 @@ fn build_artifact_viewer_none_icons() {
 #[test]
 fn build_artifact_viewer_size_zero_for_empty_template() {
     let config = ArtifactViewerConfig {
-        server_name: "srv",
+        server_name: &McpServerId::new("srv"),
         title: "T",
         description: "D",
         template: "",
@@ -49,7 +50,7 @@ fn build_artifact_viewer_size_zero_for_empty_template() {
 fn build_artifact_viewer_large_template_size() {
     let large = "x".repeat(100_000);
     let config = ArtifactViewerConfig {
-        server_name: "srv",
+        server_name: &McpServerId::new("srv"),
         title: "T",
         description: "D",
         template: &large,
@@ -62,7 +63,7 @@ fn build_artifact_viewer_large_template_size() {
 #[test]
 fn build_artifact_viewer_uri_scheme_is_ui() {
     let config = ArtifactViewerConfig {
-        server_name: "my-srv",
+        server_name: &McpServerId::new("my-srv"),
         title: "T",
         description: "D",
         template: "content",
@@ -76,7 +77,8 @@ fn build_artifact_viewer_uri_scheme_is_ui() {
 #[test]
 fn read_artifact_viewer_content_has_correct_mime() {
     let request = ReadResourceRequestParams::new("ui://svc/artifact-viewer");
-    let result = read_artifact_viewer_resource(&request, "svc", "content").expect("ok");
+    let result =
+        read_artifact_viewer_resource(&request, &McpServerId::new("svc"), "content").expect("ok");
     let serialized = serde_json::to_string(&result.contents).expect("serialize");
     assert!(serialized.contains("mcp-app"));
 }
@@ -84,7 +86,7 @@ fn read_artifact_viewer_content_has_correct_mime() {
 #[test]
 fn read_artifact_viewer_wrong_path_errors() {
     let request = ReadResourceRequestParams::new("ui://svc/different-path");
-    let result = read_artifact_viewer_resource(&request, "svc", "content");
+    let result = read_artifact_viewer_resource(&request, &McpServerId::new("svc"), "content");
     assert!(result.is_err());
 }
 
@@ -92,7 +94,8 @@ fn read_artifact_viewer_wrong_path_errors() {
 fn read_artifact_viewer_unicode_template() {
     let request = ReadResourceRequestParams::new("ui://test/artifact-viewer");
     let template = "<html>こんにちは</html>";
-    let result = read_artifact_viewer_resource(&request, "test", template).expect("ok");
+    let result =
+        read_artifact_viewer_resource(&request, &McpServerId::new("test"), template).expect("ok");
     let serialized = serde_json::to_string(&result.contents).expect("serialize");
     assert!(serialized.contains("こんにちは"));
 }
@@ -138,7 +141,7 @@ fn default_server_icons_have_32_and_96_sizes() {
 #[test]
 fn build_artifact_viewer_next_cursor_none() {
     let config = ArtifactViewerConfig {
-        server_name: "srv",
+        server_name: &McpServerId::new("srv"),
         title: "T",
         description: "D",
         template: "x",

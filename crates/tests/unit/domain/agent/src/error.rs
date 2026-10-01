@@ -7,7 +7,6 @@
 use std::error::Error as _;
 
 use systemprompt_agent::{AgentError, ArtifactError};
-use systemprompt_identifiers::ContextId;
 use systemprompt_traits::{MetadataValidationError, RepositoryError};
 
 #[test]
@@ -31,13 +30,6 @@ fn test_artifact_error_metadata_validation_keeps_the_cause() {
     let error: ArtifactError = MetadataValidationError::new("context_id", "is empty").into();
     assert!(matches!(error, ArtifactError::MetadataValidation(_)));
     assert!(error.to_string().contains("Metadata validation error"));
-    assert!(error.source().is_some());
-}
-
-#[test]
-fn test_artifact_error_invalid_context_id_keeps_the_cause() {
-    let cause = ContextId::try_new("").expect_err("empty context id is rejected");
-    let error = ArtifactError::InvalidContextId(cause);
     assert!(error.source().is_some());
 }
 

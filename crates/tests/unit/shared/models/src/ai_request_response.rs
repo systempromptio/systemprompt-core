@@ -5,7 +5,7 @@
 
 use serde_json::{Value, json};
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, McpServerId, SessionId, TraceId, UserId,
+    Actor, AgentName, AiRequestId, ContextId, McpServerId, SessionId, TraceId, UserId,
 };
 use systemprompt_models::ai::execution_plan::ToolCallResult;
 use systemprompt_models::ai::{
@@ -13,7 +13,6 @@ use systemprompt_models::ai::{
     StructuredOutputOptions, TemplateResolver, ToolCall, ToolModelConfig,
 };
 use systemprompt_models::execution::context::RequestContext;
-use uuid::Uuid;
 
 fn request_context() -> RequestContext {
     RequestContext::new(
@@ -128,17 +127,22 @@ fn has_tools_is_false_for_empty_tool_list() {
 
 #[test]
 fn response_builders_populate_fields() {
-    let id = Uuid::new_v4();
-    let response = AiResponse::new(id, "out".to_owned(), "anthropic".to_owned(), "m".to_owned())
-        .with_tokens(42)
-        .with_latency(17)
-        .with_streaming(true)
-        .with_tool_calls(vec![ToolCall {
-            ai_tool_call_id: systemprompt_identifiers::AiToolCallId::new("tc-1"),
-            name: "lookup".to_owned(),
-            arguments: json!({}),
-        }])
-        .with_tool_results(vec![]);
+    let id = AiRequestId::generate();
+    let response = AiResponse::new(
+        id.clone(),
+        "out".to_owned(),
+        "anthropic".to_owned(),
+        "m".to_owned(),
+    )
+    .with_tokens(42)
+    .with_latency(17)
+    .with_streaming(true)
+    .with_tool_calls(vec![ToolCall {
+        ai_tool_call_id: systemprompt_identifiers::AiToolCallId::new("tc-1"),
+        name: "lookup".to_owned(),
+        arguments: json!({}),
+    }])
+    .with_tool_results(vec![]);
 
     assert_eq!(response.request_id, id);
     assert_eq!(response.tokens_used, Some(42));
@@ -151,7 +155,7 @@ fn response_builders_populate_fields() {
 #[test]
 fn response_default_omits_optional_fields_on_the_wire() {
     let response = AiResponse::new(
-        uuid::Uuid::new_v4(),
+        AiRequestId::generate(),
         String::new(),
         String::new(),
         String::new(),

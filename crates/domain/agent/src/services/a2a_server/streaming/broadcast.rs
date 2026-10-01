@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{AgentName, ContextId, TaskId};
 use systemprompt_models::TaskMetadata;
 
 use super::webhook_client::{LifecycleEvent, WebhookContext, WebhookError};
@@ -19,7 +19,7 @@ pub struct BroadcastTaskCreatedParams<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
     pub user_message: &'a Message,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
 }
 
 pub async fn broadcast_task_created(params: BroadcastTaskCreatedParams<'_>) {
@@ -65,7 +65,7 @@ fn build_event_task(
     task_id: &TaskId,
     context_id: &ContextId,
     user_message: &Message,
-    agent_name: &str,
+    agent_name: &AgentName,
 ) -> Task {
     Task {
         id: task_id.clone(),
@@ -77,7 +77,7 @@ fn build_event_task(
         },
         history: Some(vec![user_message.clone()]),
         artifacts: None,
-        metadata: Some(TaskMetadata::new_agent_message(agent_name.to_owned())),
+        metadata: Some(TaskMetadata::new_agent_message(agent_name.to_string())),
         created_at: Some(chrono::Utc::now()),
         last_modified: Some(chrono::Utc::now()),
     }

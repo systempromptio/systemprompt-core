@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
-use systemprompt_identifiers::{Actor, McpServerId, UserId};
+use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
@@ -33,19 +33,13 @@ pub use proxy::try_proxy_verified_auth;
 #[derive(Debug, Clone)]
 pub struct AuthenticatedRequestContext {
     pub context: RequestContext,
-    pub auth_token: String,
 }
 
 impl AuthenticatedRequestContext {
-    pub const fn new(context: RequestContext, auth_token: String) -> Self {
+    pub fn new(context: RequestContext, auth_token: JwtToken) -> Self {
         Self {
-            context,
-            auth_token,
+            context: context.with_auth_token(auth_token),
         }
-    }
-
-    pub fn token(&self) -> &str {
-        &self.auth_token
     }
 }
 
@@ -89,7 +83,7 @@ impl AuthResult {
 #[tracing::instrument(name = "mcp_rbac", skip_all)]
 pub async fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,
-    server_name: &str,
+    server_id: &McpServerId,
     hook: &SharedAuthzHook,
 ) -> Result<AuthResult, McpError> {
     let header_dump = mcp_context
@@ -98,17 +92,17 @@ pub async fn enforce_rbac_from_registry(
         .map(diagnostic_headers);
 
     let services_config = ConfigLoader::load().map_err(|e| {
-        tracing::error!(server = %server_name, headers = ?header_dump, error = %e, "Failed to load services config");
+        tracing::error!(server = %server_id, headers = ?header_dump, error = %e, "Failed to load services config");
         McpError::internal_error("Failed to load services config", None)
     })?;
 
     let deployment = services_config
         .mcp_servers
-        .get(server_name)
+        .get(server_id.as_str())
         .ok_or_else(|| {
-            tracing::error!(server = %server_name, headers = ?header_dump, "MCP server not found in registry");
+            tracing::error!(server = %server_id, headers = ?header_dump, "MCP server not found in registry");
             McpError::internal_error(
-                format!("MCP server '{server_name}' not found in registry"),
+                format!("MCP server '{server_id}' not found in registry"),
                 None,
             )
         })?;
@@ -120,52 +114,48 @@ pub async fn enforce_rbac_from_registry(
         return Ok(AuthResult::Anonymous(request_context));
     }
 
-    let server_id = McpServerId::try_new(server_name).map_err(|error| {
-        tracing::warn!(server = %server_name, %error, "Rejected invalid MCP server name");
-        McpError::invalid_request(format!("invalid MCP server name '{server_name}'"), None)
-    })?;
-    let floor = member_attribute_floor(&services_config, EntityKind::McpServer, server_name);
+    let floor = member_attribute_floor(&services_config, EntityKind::McpServer, server_id.as_str());
 
     if let Some(proxy_auth) = try_proxy_verified_auth(
         mcp_context.extensions.get::<http::request::Parts>(),
         request_context.clone(),
         oauth_config,
-        server_name,
+        server_id,
     )? {
         let authz_request =
-            proxy::build_proxy_authz_request(&server_id, &proxy_auth.context, floor.as_ref());
-        enforce_authz_for_server(server_name, authz_request, hook).await?;
+            proxy::build_proxy_authz_request(server_id, &proxy_auth.context, floor.as_ref());
+        enforce_authz_for_server(server_id, authz_request, hook).await?;
         return Ok(AuthResult::Authenticated(proxy_auth));
     }
 
     let token = extract_bearer_token(mcp_context)?.ok_or_else(|| {
-        tracing::error!(server = %server_name, headers = ?header_dump, "Authentication required: No Bearer token provided");
+        tracing::error!(server = %server_id, headers = ?header_dump, "Authentication required: No Bearer token provided");
         McpError::invalid_request(
             format!(
-                "Authentication required. Server '{server_name}' requires OAuth but no Bearer \
+                "Authentication required. Server '{server_id}' requires OAuth but no Bearer \
                  token provided."
             ),
             None,
         )
     })?;
 
-    let claims = validate_and_extract_claims(server_name, &token)?;
-    validate_audience(server_name, &claims, oauth_config)?;
-    validate_scopes_for_permissions(server_name, &claims.get_permissions(), oauth_config)?;
+    let claims = validate_and_extract_claims(server_id, &token)?;
+    validate_audience(server_id, &claims, oauth_config)?;
+    validate_scopes_for_permissions(server_id, &claims.get_permissions(), oauth_config)?;
 
     let act_chain = extract_act_chain(&claims);
 
     let authz_request = build_mcp_authz_request(
-        &server_id,
+        server_id,
         &claims,
         act_chain.clone(),
         &request_context.execution,
         floor.as_ref(),
     );
-    enforce_authz_for_server(server_name, authz_request, hook).await?;
+    enforce_authz_for_server(server_id, authz_request, hook).await?;
 
     let authenticated_context =
-        build_authenticated_context(request_context, &claims, token, act_chain)?;
+        build_authenticated_context(request_context, &claims, JwtToken::new(token), act_chain)?;
     Ok(AuthResult::Authenticated(authenticated_context))
 }
 
@@ -229,14 +219,14 @@ pub fn build_mcp_authz_request(
 }
 
 async fn enforce_authz_for_server(
-    server_name: &str,
+    server_id: &McpServerId,
     req: AuthzRequest,
     hook: &SharedAuthzHook,
 ) -> Result<(), McpError> {
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
         AuthzDecision::Deny { reason, policy } => {
-            tracing::warn!(server = %server_name, reason = %reason, policy = %policy, "authz hook denied MCP request");
+            tracing::warn!(server = %server_id, reason = %reason, policy = %policy, "authz hook denied MCP request");
             Err(McpError::invalid_request(
                 format!("authz denied [{policy}]: {reason}"),
                 None,
@@ -248,16 +238,16 @@ async fn enforce_authz_for_server(
 fn build_authenticated_context(
     request_context: RequestContext,
     claims: &JwtClaims,
-    token: String,
+    token: JwtToken,
     act_chain: Vec<Actor>,
 ) -> Result<AuthenticatedRequestContext, McpError> {
-    let user_id = claims.sub.parse().map_err(|e| {
+    let user_id = UserId::try_new(claims.sub.clone()).map_err(|e| {
         tracing::error!(error = %e, "Invalid user ID in JWT");
         McpError::internal_error("Invalid user ID in JWT", None)
     })?;
 
     let authenticated_user = AuthenticatedUser::new_with_roles(
-        user_id,
+        user_id.clone(),
         claims.username.clone(),
         claims.email.clone(),
         claims.get_permissions(),
@@ -266,7 +256,7 @@ fn build_authenticated_context(
 
     let context = request_context
         .with_user(authenticated_user)
-        .with_actor(Actor::user(UserId::new(claims.sub.clone())))
+        .with_actor(Actor::user(user_id))
         .with_act_chain(act_chain)
         .with_user_type(claims.user_type);
 

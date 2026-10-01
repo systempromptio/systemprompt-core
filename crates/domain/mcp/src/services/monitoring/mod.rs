@@ -12,7 +12,6 @@ pub mod status;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MonitoringService;
@@ -32,14 +31,11 @@ impl MonitoringService {
     pub async fn get_status_for_all(
         &self,
         servers: &[McpServerConfig],
-    ) -> McpDomainResult<HashMap<String, status::ServiceStatus>> {
+    ) -> McpDomainResult<Vec<status::McpServiceStatus>> {
         status::get_all_service_status(servers).await
     }
 
-    pub fn display_status(
-        servers: &[McpServerConfig],
-        status_data: &HashMap<String, status::ServiceStatus>,
-    ) {
-        status::display_service_status(servers, status_data);
+    pub fn display_status(statuses: &[status::McpServiceStatus]) {
+        status::display_service_status(statuses);
     }
 }

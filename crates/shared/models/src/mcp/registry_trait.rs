@@ -19,20 +19,11 @@ use crate::ai::tools::McpTool;
 use crate::execution::context::RequestContext;
 use systemprompt_identifiers::McpServerId;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum McpServerStatus {
-    Unknown,
-    Running,
-    Stopped,
-}
-
 #[derive(Debug, Clone)]
 pub struct McpServerState {
     pub name: McpServerId,
     pub host: String,
     pub port: Option<u16>,
-    pub status: McpServerStatus,
 }
 
 #[async_trait]

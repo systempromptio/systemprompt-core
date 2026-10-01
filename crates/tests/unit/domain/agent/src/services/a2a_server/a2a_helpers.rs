@@ -11,7 +11,9 @@ use systemprompt_agent::models::AgentRuntimeInfo;
 use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, AiRequestId, ContextId, JwtToken, SessionId, TraceId, UserId,
+};
 use systemprompt_models::AiMessage;
 use systemprompt_models::ai::provider_trait::GenerateResponseParams;
 use systemprompt_models::ai::tools::{CallToolResult, ToolCall};
@@ -26,7 +28,6 @@ use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
 use tokio::sync::{RwLock, Semaphore};
-use uuid::Uuid;
 
 // A JWT provider that rejects every token; sufficient for state construction.
 struct RejectingJwtProvider;
@@ -91,7 +92,7 @@ impl StubAiProvider {
             .get_mut()
             .expect("lock")
             .push(Ok(AiResponse::new(
-                Uuid::new_v4(),
+                AiRequestId::generate(),
                 content.to_owned(),
                 self.provider.clone(),
                 self.model.clone(),
@@ -180,7 +181,7 @@ impl StubAiProvider {
             .pop()
             .unwrap_or_else(|| {
                 Ok(AiResponse::new(
-                    Uuid::new_v4(),
+                    AiRequestId::generate(),
                     "default".to_owned(),
                     self.provider.clone(),
                     self.model.clone(),

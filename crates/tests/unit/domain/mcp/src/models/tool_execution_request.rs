@@ -3,7 +3,7 @@
 use chrono::Utc;
 use serde_json::json;
 use systemprompt_identifiers::{
-    Actor, AgentName, AiToolCallId, ContextId, SessionId, TraceId, UserId,
+    Actor, AgentName, AiToolCallId, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
 };
 use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
@@ -23,8 +23,8 @@ fn create_test_context() -> RequestContext {
 
 fn create_test_request() -> ToolExecutionRequest {
     ToolExecutionRequest {
-        tool_name: "test-tool".to_string(),
-        server_name: "test-server".to_string(),
+        tool_name: McpToolName::new("test-tool"),
+        server_name: McpServerId::new("test-server"),
         input: json!({"param": "value"}),
         started_at: Utc::now(),
         context: create_test_context(),
@@ -60,8 +60,8 @@ fn test_tool_execution_request_creation() {
 #[test]
 fn test_tool_execution_request_without_optionals() {
     let request = ToolExecutionRequest {
-        tool_name: "minimal-tool".to_string(),
-        server_name: "minimal-server".to_string(),
+        tool_name: McpToolName::new("minimal-tool"),
+        server_name: McpServerId::new("minimal-server"),
         input: json!(null),
         started_at: Utc::now(),
         context: create_test_context(),
@@ -102,8 +102,8 @@ fn test_tool_execution_request_with_complex_input() {
     });
 
     let request = ToolExecutionRequest {
-        tool_name: "complex-tool".to_string(),
-        server_name: "server".to_string(),
+        tool_name: McpToolName::new("complex-tool"),
+        server_name: McpServerId::new("server"),
         input: complex_input.clone(),
         started_at: Utc::now(),
         context: create_test_context(),
@@ -117,10 +117,10 @@ fn test_tool_execution_request_with_complex_input() {
 }
 
 #[test]
-fn test_tool_execution_request_with_empty_strings() {
+fn test_tool_execution_request_with_empty_optional_strings() {
     let request = ToolExecutionRequest {
-        tool_name: String::new(),
-        server_name: String::new(),
+        tool_name: McpToolName::new("t"),
+        server_name: McpServerId::new("s"),
         input: json!({}),
         started_at: Utc::now(),
         context: create_test_context(),
@@ -130,8 +130,8 @@ fn test_tool_execution_request_with_empty_strings() {
         source: ExecutionSource::InProcess,
     };
 
-    assert!(request.tool_name.is_empty());
-    assert!(request.server_name.is_empty());
+    assert_eq!(request.request_method.as_deref(), Some(""));
+    assert_eq!(request.request_source.as_deref(), Some(""));
 }
 
 #[test]

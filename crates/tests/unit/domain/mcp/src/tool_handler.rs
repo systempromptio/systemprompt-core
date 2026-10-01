@@ -4,6 +4,7 @@
 // behind the fixture skip-guard; the schema/trait parts are pure.
 
 use std::sync::Arc;
+use systemprompt_identifiers::McpServerId;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolRequestParams;
@@ -140,7 +141,12 @@ async fn execute_success_records_and_returns_result() {
     let db = test_db_pool().await;
     let tool_repo = Arc::new(ToolUsageRepository::new(&db));
     let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
-    let exec = McpToolExecutor::new(tool_repo, intents(&db), art_repo, "srv-echo");
+    let exec = McpToolExecutor::new(
+        tool_repo,
+        intents(&db),
+        art_repo,
+        McpServerId::new("srv-echo"),
+    );
 
     let ctx = test_ctx();
     let request = echo_request("hi there");
@@ -159,7 +165,12 @@ async fn execute_handler_error_propagates() {
     let db = test_db_pool().await;
     let tool_repo = Arc::new(ToolUsageRepository::new(&db));
     let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
-    let exec = McpToolExecutor::new(tool_repo, intents(&db), art_repo, "srv-fail");
+    let exec = McpToolExecutor::new(
+        tool_repo,
+        intents(&db),
+        art_repo,
+        McpServerId::new("srv-fail"),
+    );
 
     let ctx = test_ctx();
     let mut map = serde_json::Map::new();
@@ -181,7 +192,12 @@ async fn execute_input_parse_error_returns_invalid_params() {
     let db = test_db_pool().await;
     let tool_repo = Arc::new(ToolUsageRepository::new(&db));
     let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
-    let exec = McpToolExecutor::new(tool_repo, intents(&db), art_repo, "srv-bad");
+    let exec = McpToolExecutor::new(
+        tool_repo,
+        intents(&db),
+        art_repo,
+        McpServerId::new("srv-bad"),
+    );
 
     let ctx = test_ctx();
     // Missing required "message" field -> parse_input fails.
@@ -233,7 +249,7 @@ fn tagged_enum_input_still_declares_an_object_root() {
         raw.get("type").is_none(),
         "and gives it no root type: {raw}"
     );
-    let tool = TaggedHandler.tool_definition("srv");
+    let tool = TaggedHandler.tool_definition(&McpServerId::new("srv"));
     assert_eq!(
         tool.input_schema.get("type"),
         Some(&serde_json::json!("object"))

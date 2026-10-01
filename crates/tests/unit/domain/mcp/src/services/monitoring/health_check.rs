@@ -3,6 +3,7 @@
 //! endpoints.
 
 use std::path::PathBuf;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
 use systemprompt_mcp::services::monitoring::health::{
     HealthCheckResult, HealthStatus, check_service_health, perform_health_check,
@@ -62,12 +63,12 @@ fn make_config(
 fn from_connection_result_success_under_1s_is_healthy() {
     let config = make_config("h1", McpServerType::Internal, 9000, "");
     let result = McpConnectionResult {
-        service_name: "h1".to_owned(),
+        service_name: ServiceName::new("h1"),
         success: true,
         error_message: None,
         connection_time_ms: 100,
         server_info: Some(McpProtocolInfo {
-            server_name: "h1".to_owned(),
+            implementation_name: "h1".to_owned(),
             version: "1.0".to_owned(),
             protocol_version: "2024-11-05".to_owned(),
         }),
@@ -84,7 +85,7 @@ fn from_connection_result_success_under_1s_is_healthy() {
 fn from_connection_result_slow_is_degraded() {
     let config = make_config("h2", McpServerType::Internal, 9001, "");
     let result = McpConnectionResult {
-        service_name: "h2".to_owned(),
+        service_name: ServiceName::new("h2"),
         success: true,
         error_message: None,
         connection_time_ms: 2500,
@@ -100,7 +101,7 @@ fn from_connection_result_slow_is_degraded() {
 fn from_connection_result_auth_required_is_healthy() {
     let config = make_config("h3", McpServerType::Internal, 9002, "");
     let result = McpConnectionResult {
-        service_name: "h3".to_owned(),
+        service_name: ServiceName::new("h3"),
         success: false,
         error_message: Some("auth".to_owned()),
         connection_time_ms: 50,
@@ -116,7 +117,7 @@ fn from_connection_result_auth_required_is_healthy() {
 fn from_connection_result_connection_failed_is_unhealthy() {
     let config = make_config("h4", McpServerType::Internal, 9003, "");
     let result = McpConnectionResult {
-        service_name: "h4".to_owned(),
+        service_name: ServiceName::new("h4"),
         success: false,
         error_message: Some("nope".to_owned()),
         connection_time_ms: 5000,
@@ -132,7 +133,7 @@ fn from_connection_result_connection_failed_is_unhealthy() {
 fn from_connection_result_port_unavailable_is_unhealthy() {
     let config = make_config("h5", McpServerType::Internal, 9004, "");
     let result = McpConnectionResult {
-        service_name: "h5".to_owned(),
+        service_name: ServiceName::new("h5"),
         success: false,
         error_message: Some("port".to_owned()),
         connection_time_ms: 0,
@@ -148,7 +149,7 @@ fn from_connection_result_port_unavailable_is_unhealthy() {
 fn from_connection_result_unknown_type_is_unknown() {
     let config = make_config("h6", McpServerType::Internal, 9005, "");
     let result = McpConnectionResult {
-        service_name: "h6".to_owned(),
+        service_name: ServiceName::new("h6"),
         success: false,
         error_message: None,
         connection_time_ms: 0,

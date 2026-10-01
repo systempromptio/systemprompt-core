@@ -24,10 +24,10 @@ pub fn get_binary_mtime(binary_path: &Path) -> Option<i64> {
         .map(|d| d.as_secs() as i64)
 }
 
-pub fn get_binary_mtime_for_service(paths: &AppPaths, service_name: &str) -> Option<i64> {
+pub fn get_binary_mtime_for_service(paths: &AppPaths, service_name: &ServiceName) -> Option<i64> {
     paths
         .build()
-        .resolve_binary(service_name)
+        .resolve_binary(service_name.as_str())
         .ok()
         .and_then(|path| get_binary_mtime(path.as_path()))
 }
@@ -37,8 +37,9 @@ pub async fn register_service(
     paths: &AppPaths,
     config: &McpServerConfig,
     pid: u32,
-) -> McpDomainResult<String> {
-    let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
+) -> McpDomainResult<ServiceName> {
+    let service_name = config.service_name();
+    let binary_mtime = get_binary_mtime_for_service(paths, &service_name);
 
     let port = config.spawn_port()?;
     tracing::debug!(
@@ -49,7 +50,6 @@ pub async fn register_service(
         "Registering MCP service"
     );
 
-    let service_name = ServiceName::new(config.name.as_str());
     repo.create_service(CreateServiceInput {
         name: &service_name,
         module_name: ServiceModule::Mcp,
@@ -69,27 +69,25 @@ pub async fn register_service(
         })?;
 
     tracing::debug!(service = %config.name, pid = pid, "Service registered in database");
-    Ok(config.name.clone())
+    Ok(service_name)
 }
 
 pub async fn unregister_service(
     repo: &ServiceRepository,
-    service_name: &str,
+    service_name: &ServiceName,
 ) -> McpDomainResult<()> {
-    repo.delete_service(&ServiceName::new(service_name))
-        .await
-        .map_err(Into::into)
+    repo.delete_service(service_name).await.map_err(Into::into)
 }
 
 pub async fn get_service_by_name(
     repo: &ServiceRepository,
-    name: &str,
+    name: &ServiceName,
 ) -> McpDomainResult<Option<ServiceInfo>> {
-    let result = repo.find_service_by_name(&ServiceName::new(name)).await?;
+    let result = repo.find_service_by_name(name).await?;
 
     Ok(result.map(|r| ServiceInfo {
-        name: r.name.as_str().to_owned(),
-        status: r.status.as_str().to_owned(),
+        name: r.name,
+        status: r.status,
         pid: r.pid,
         port: r.port as u16,
         binary_mtime: r.binary_mtime,
@@ -121,10 +119,10 @@ pub async fn register_existing_process(
     paths: &AppPaths,
     config: &McpServerConfig,
     pid: u32,
-) -> McpDomainResult<String> {
-    let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
+) -> McpDomainResult<ServiceName> {
+    let service_name = config.service_name();
+    let binary_mtime = get_binary_mtime_for_service(paths, &service_name);
 
-    let service_name = ServiceName::new(config.name.as_str());
     repo.create_service(CreateServiceInput {
         name: &service_name,
         module_name: ServiceModule::Mcp,
@@ -136,5 +134,5 @@ pub async fn register_existing_process(
 
     repo.update_service_pid(&service_name, pid as i32).await?;
 
-    Ok(config.name.clone())
+    Ok(service_name)
 }

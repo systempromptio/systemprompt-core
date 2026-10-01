@@ -6,8 +6,9 @@
 
 use super::{McpArtifactRecord, McpArtifactRepository};
 use crate::error::McpDomainResult;
+use crate::models::rows::McpArtifactRow;
 use systemprompt_identifiers::{
-    AiToolCallId, ArtifactId, ContextId, McpExecutionId, SessionId, TraceId, UserId,
+    AiToolCallId, ArtifactId, ContextId, McpExecutionId, McpServerId, SessionId, TraceId, UserId,
 };
 
 impl McpArtifactRepository {
@@ -16,7 +17,7 @@ impl McpArtifactRepository {
         artifact_id: &ArtifactId,
     ) -> McpDomainResult<Option<McpArtifactRecord>> {
         Ok(sqlx::query_as!(
-            McpArtifactRecord,
+            McpArtifactRow,
             r#"
             SELECT
                 id as "id!",
@@ -50,7 +51,8 @@ impl McpArtifactRepository {
             artifact_id.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await?)
+        .await?
+        .map(McpArtifactRecord::from))
     }
 
     pub async fn find_by_execution_id(
@@ -58,7 +60,7 @@ impl McpArtifactRepository {
         mcp_execution_id: &McpExecutionId,
     ) -> McpDomainResult<Option<McpArtifactRecord>> {
         Ok(sqlx::query_as!(
-            McpArtifactRecord,
+            McpArtifactRow,
             r#"
             SELECT
                 id as "id!",
@@ -92,7 +94,8 @@ impl McpArtifactRepository {
             mcp_execution_id.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await?)
+        .await?
+        .map(McpArtifactRecord::from))
     }
 
     pub async fn find_by_ai_tool_call_id(
@@ -100,7 +103,7 @@ impl McpArtifactRepository {
         ai_tool_call_id: &AiToolCallId,
     ) -> McpDomainResult<Option<McpArtifactRecord>> {
         Ok(sqlx::query_as!(
-            McpArtifactRecord,
+            McpArtifactRow,
             r#"
             SELECT
                 id as "id!",
@@ -136,16 +139,17 @@ impl McpArtifactRepository {
             ai_tool_call_id.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await?)
+        .await?
+        .map(McpArtifactRecord::from))
     }
 
     pub async fn list_by_server(
         &self,
-        server_name: &str,
+        server_name: &McpServerId,
         limit: i64,
     ) -> McpDomainResult<Vec<McpArtifactRecord>> {
         Ok(sqlx::query_as!(
-            McpArtifactRecord,
+            McpArtifactRow,
             r#"
             SELECT
                 id as "id!",
@@ -178,11 +182,14 @@ impl McpArtifactRepository {
             ORDER BY created_at DESC
             LIMIT $2
             "#,
-            server_name,
+            server_name.as_str(),
             limit
         )
         .fetch_all(&*self.pool)
-        .await?)
+        .await?
+        .into_iter()
+        .map(McpArtifactRecord::from)
+        .collect())
     }
 
     pub async fn list_by_session(
@@ -191,7 +198,7 @@ impl McpArtifactRepository {
         limit: i64,
     ) -> McpDomainResult<Vec<McpArtifactRecord>> {
         Ok(sqlx::query_as!(
-            McpArtifactRecord,
+            McpArtifactRow,
             r#"
             SELECT
                 id as "id!",
@@ -228,6 +235,9 @@ impl McpArtifactRepository {
             limit
         )
         .fetch_all(&*self.pool)
-        .await?)
+        .await?
+        .into_iter()
+        .map(McpArtifactRecord::from)
+        .collect())
     }
 }

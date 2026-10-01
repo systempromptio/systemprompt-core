@@ -8,3 +8,13 @@
 crate::define_id!(ServiceName, checked, |value| {
     crate::macros::validate_non_empty("ServiceName", value)
 });
+
+impl ServiceName {
+    pub fn of_agent(agent: &crate::AgentName) -> Self {
+        Self(agent.as_str().to_owned())
+    }
+
+    pub fn of_mcp_server(server: &crate::McpServerId) -> Self {
+        Self(server.as_str().to_owned())
+    }
+}

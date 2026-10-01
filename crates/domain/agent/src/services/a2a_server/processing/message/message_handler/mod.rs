@@ -34,13 +34,13 @@ use crate::services::a2a_server::streaming::broadcast::{
 };
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 use crate::services::shared::{AgentServiceError, Result};
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{AgentName, ContextId, TaskId};
 use systemprompt_models::RequestContext;
 
 struct PersistAndAnnounceParams<'a> {
     task: &'a Task,
     message: &'a Message,
-    agent_name: &'a str,
+    agent_name: &'a AgentName,
     context: &'a RequestContext,
     webhooks: &'a WebhookContext,
 }
@@ -49,7 +49,7 @@ impl MessageProcessor {
     pub(in crate::services::a2a_server) async fn handle_message(
         &self,
         message: Message,
-        agent_name: &str,
+        agent_name: &AgentName,
         context: &RequestContext,
         active_tasks: &ActiveTasks,
     ) -> Result<Task> {

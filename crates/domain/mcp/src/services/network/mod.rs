@@ -11,6 +11,7 @@ pub mod proxy;
 pub mod routing;
 
 use crate::error::McpDomainResult;
+use systemprompt_identifiers::ServiceName;
 
 #[derive(Debug, Clone, Copy)]
 pub struct NetworkService;
@@ -26,7 +27,7 @@ impl NetworkService {
         Self
     }
 
-    pub async fn prepare_port(&self, port: u16, service_name: &str) -> McpDomainResult<()> {
+    pub async fn prepare_port(&self, port: u16, service_name: &ServiceName) -> McpDomainResult<()> {
         port::prepare_port(port, service_name).await
     }
 
@@ -41,7 +42,7 @@ impl NetworkService {
     pub async fn wait_for_port_release_with_retry(
         &self,
         port: u16,
-        service_name: &str,
+        service_name: &ServiceName,
         max_attempts: u32,
     ) -> McpDomainResult<()> {
         port::wait_for_port_release_with_retry(port, service_name, max_attempts).await

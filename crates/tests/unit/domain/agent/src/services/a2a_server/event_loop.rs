@@ -6,6 +6,7 @@
 // exactly one `final: true` status frame.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use axum::response::sse::Event;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
@@ -124,7 +125,7 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
         context_id: ctx.clone(),
         message_id: MessageId::generate(),
         original_message: user_message(&ctx, &task_id),
-        agent_name: spec.agent_name.to_owned(),
+        agent_name: AgentName::new(spec.agent_name),
         context: request,
         task_repo,
         processor,

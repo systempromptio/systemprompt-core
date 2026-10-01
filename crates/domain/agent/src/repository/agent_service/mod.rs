@@ -8,26 +8,22 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod status;
-
 use systemprompt_database::{DbPool, ServiceRepository, UpsertServiceProcessInput};
-use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_models::services::ServiceModule;
+use systemprompt_identifiers::{AgentName, InstanceId, ServiceName};
+use systemprompt_models::services::{ServiceModule, ServiceStatus};
 use systemprompt_traits::RepositoryError;
-
-pub use status::AgentServiceStatus;
 
 #[derive(Debug)]
 pub struct AgentServiceRow {
-    pub name: String,
+    pub name: AgentName,
     pub pid: Option<i32>,
     pub port: i32,
-    pub status: AgentServiceStatus,
+    pub status: ServiceStatus,
 }
 
 #[derive(Debug)]
 pub struct AgentServerIdRow {
-    pub name: String,
+    pub name: AgentName,
 }
 
 #[derive(Debug, Clone)]
@@ -43,61 +39,58 @@ impl AgentServiceRepository {
 
     pub async fn register_agent(
         &self,
-        name: &str,
+        name: &AgentName,
         pid: u32,
         port: u16,
     ) -> Result<(), RepositoryError> {
-        self.register_process(name, pid, port, AgentServiceStatus::Running)
+        self.register_process(name, pid, port, ServiceStatus::Running)
             .await
     }
 
     pub async fn register_agent_starting(
         &self,
-        name: &str,
+        name: &AgentName,
         pid: u32,
         port: u16,
     ) -> Result<(), RepositoryError> {
-        self.register_process(name, pid, port, AgentServiceStatus::Starting)
+        self.register_process(name, pid, port, ServiceStatus::Starting)
             .await
     }
 
     async fn register_process(
         &self,
-        name: &str,
+        name: &AgentName,
         pid: u32,
         port: u16,
-        status: AgentServiceStatus,
+        status: ServiceStatus,
     ) -> Result<(), RepositoryError> {
         self.remove_agent_service(name).await?;
         self.services
             .upsert_service_process(UpsertServiceProcessInput {
-                name: &ServiceName::new(name),
+                name: &ServiceName::of_agent(name),
                 module_name: ServiceModule::Agent,
                 pid: db_pid(pid)?,
                 port,
-                status: status.service_status(),
+                status,
             })
             .await?;
         Ok(())
     }
 
-    pub async fn mark_running(&self, agent_name: &str) -> Result<(), RepositoryError> {
+    pub async fn mark_running(&self, agent_name: &AgentName) -> Result<(), RepositoryError> {
         self.services
-            .update_service_status(
-                &ServiceName::new(agent_name),
-                AgentServiceStatus::Running.service_status(),
-            )
+            .update_service_status(&ServiceName::of_agent(agent_name), ServiceStatus::Running)
             .await?;
         Ok(())
     }
 
     pub async fn get_agent_status(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
     ) -> Result<Option<AgentServiceRow>, RepositoryError> {
         let Some(row) = self
             .services
-            .find_service_by_name(&ServiceName::new(agent_name))
+            .find_service_by_name(&ServiceName::of_agent(agent_name))
             .await?
         else {
             return Ok(None);
@@ -106,23 +99,23 @@ impl AgentServiceRepository {
             return Ok(None);
         }
         Ok(Some(AgentServiceRow {
-            status: AgentServiceStatus::from_service_status(row.status)?,
-            name: row.name.as_str().to_owned(),
+            status: row.status,
+            name: AgentName::new(row.name.as_str()),
             pid: row.pid,
             port: row.port,
         }))
     }
 
-    pub async fn mark_stopped(&self, agent_name: &str) -> Result<(), RepositoryError> {
+    pub async fn mark_stopped(&self, agent_name: &AgentName) -> Result<(), RepositoryError> {
         self.services
-            .update_service_stopped(&ServiceName::new(agent_name))
+            .update_service_stopped(&ServiceName::of_agent(agent_name))
             .await?;
         Ok(())
     }
 
-    pub async fn mark_error(&self, agent_name: &str) -> Result<(), RepositoryError> {
+    pub async fn mark_error(&self, agent_name: &AgentName) -> Result<(), RepositoryError> {
         self.services
-            .mark_service_crashed(&ServiceName::new(agent_name))
+            .mark_service_crashed(&ServiceName::of_agent(agent_name))
             .await?;
         Ok(())
     }
@@ -135,14 +128,17 @@ impl AgentServiceRepository {
         Ok(rows
             .into_iter()
             .map(|r| AgentServerIdRow {
-                name: r.name.as_str().to_owned(),
+                name: AgentName::new(r.name.as_str()),
             })
             .collect())
     }
 
-    pub async fn remove_agent_service(&self, agent_name: &str) -> Result<(), RepositoryError> {
+    pub async fn remove_agent_service(
+        &self,
+        agent_name: &AgentName,
+    ) -> Result<(), RepositoryError> {
         self.services
-            .delete_service(&ServiceName::new(agent_name))
+            .delete_service(&ServiceName::of_agent(agent_name))
             .await?;
         Ok(())
     }

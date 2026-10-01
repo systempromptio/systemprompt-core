@@ -8452,6 +8452,7 @@ dependencies = [
  "axum",
  "rmcp",
  "serde_json",
+ "systemprompt-identifiers",
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-test-fixtures",
@@ -8553,7 +8554,6 @@ dependencies = [
  "systemprompt-traits",
  "tempfile",
  "tokio",
- "uuid",
 ]
 
 [[package]]

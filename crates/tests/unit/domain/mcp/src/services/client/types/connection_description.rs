@@ -1,11 +1,12 @@
 //! Unit tests for McpConnectionResult status_description
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::client::McpConnectionResult;
 
 #[test]
 fn test_mcp_connection_result_status_description_mcp_validated() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         error_message: None,
         connection_time_ms: 100,
@@ -22,7 +23,7 @@ fn test_mcp_connection_result_status_description_mcp_validated() {
 #[test]
 fn test_mcp_connection_result_status_description_auth_required() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         error_message: None,
         connection_time_ms: 100,
@@ -38,7 +39,7 @@ fn test_mcp_connection_result_status_description_auth_required() {
 #[test]
 fn test_mcp_connection_result_status_description_no_tools() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: None,
         connection_time_ms: 100,
@@ -54,7 +55,7 @@ fn test_mcp_connection_result_status_description_no_tools() {
 #[test]
 fn test_mcp_connection_result_status_description_tools_request_failed() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: Some("RPC error".to_string()),
         connection_time_ms: 100,
@@ -71,7 +72,7 @@ fn test_mcp_connection_result_status_description_tools_request_failed() {
 #[test]
 fn test_mcp_connection_result_status_description_connection_failed() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: Some("Network error".to_string()),
         connection_time_ms: 100,
@@ -88,7 +89,7 @@ fn test_mcp_connection_result_status_description_connection_failed() {
 #[test]
 fn test_mcp_connection_result_status_description_port_unavailable() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: None,
         connection_time_ms: 100,
@@ -104,7 +105,7 @@ fn test_mcp_connection_result_status_description_port_unavailable() {
 #[test]
 fn test_mcp_connection_result_status_description_timeout() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: None,
         connection_time_ms: 100,
@@ -120,7 +121,7 @@ fn test_mcp_connection_result_status_description_timeout() {
 #[test]
 fn test_mcp_connection_result_status_description_unknown() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: None,
         connection_time_ms: 100,
@@ -136,7 +137,7 @@ fn test_mcp_connection_result_status_description_unknown() {
 #[test]
 fn test_mcp_connection_result_status_description_no_error_message() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: false,
         error_message: Some(String::new()),
         connection_time_ms: 100,
@@ -152,7 +153,7 @@ fn test_mcp_connection_result_status_description_no_error_message() {
 #[test]
 fn mcp_validated_without_a_measured_count_omits_the_number() {
     let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         error_message: None,
         connection_time_ms: 100,

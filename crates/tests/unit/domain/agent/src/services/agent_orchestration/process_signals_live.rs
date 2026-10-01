@@ -16,6 +16,7 @@
 
 use std::process::Command;
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::services::agent_orchestration::process::{
     force_kill_process, kill_process_verified, process_exists, terminate_gracefully,
@@ -35,7 +36,7 @@ fn marker_helper() {
     std::thread::sleep(Duration::from_secs(600));
 }
 
-fn spawn_orphan(service_name: &str, wrap: impl FnOnce(&str) -> String) -> Option<u32> {
+fn spawn_orphan(service_name: &AgentName, wrap: impl FnOnce(&str) -> String) -> Option<u32> {
     let helper = systemprompt_test_fixtures::helper(MARKER_HELPER);
 
     let output = Command::new("sh")
@@ -51,7 +52,7 @@ fn spawn_orphan(service_name: &str, wrap: impl FnOnce(&str) -> String) -> Option
         .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
         .env(
             systemprompt_models::subprocess::AGENT_NAME_ENV,
-            service_name,
+            service_name.as_str(),
         )
         .output()
         .ok()?;
@@ -73,17 +74,17 @@ fn spawn_orphan(service_name: &str, wrap: impl FnOnce(&str) -> String) -> Option
     None
 }
 
-fn spawn_marked_agent(service_name: &str) -> Option<u32> {
+fn spawn_marked_agent(service_name: &AgentName) -> Option<u32> {
     spawn_orphan(service_name, str::to_owned)
 }
 
 // SIG_IGN survives exec, so the exec'd helper inherits the ignored TERM.
-fn spawn_term_deaf_agent(service_name: &str) -> Option<u32> {
+fn spawn_term_deaf_agent(service_name: &AgentName) -> Option<u32> {
     spawn_orphan(service_name, |cmd| format!("( trap '' TERM; exec {cmd} )"))
 }
 
-fn unique_service(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
+fn unique_service(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}_{}", uuid::Uuid::new_v4().simple()))
 }
 
 fn reap(pid: u32) {
@@ -218,7 +219,7 @@ fn kill_process_verified_kills_a_process_that_still_names_this_agent() {
 #[test]
 fn kill_process_verified_treats_a_dead_pid_as_already_gone() {
     assert!(
-        kill_process_verified(u32::MAX, "anything"),
+        kill_process_verified(u32::MAX, &AgentName::new("anything")),
         "a pid with no process is already gone"
     );
 }

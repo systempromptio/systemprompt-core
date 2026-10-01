@@ -10,6 +10,7 @@
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::{AgentStatus, OrchestrationError};
+use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
@@ -21,8 +22,8 @@ use systemprompt_test_fixtures::test_db_pool;
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}-{}", Uuid::new_v4())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}-{}", Uuid::new_v4()))
 }
 
 async fn service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
@@ -143,12 +144,12 @@ async fn lifecycle_register_starting_mark_running_then_stopped() {
     svc.remove_agent_service(&name).await.ok();
 }
 
-async fn status_and_stamp(raw: &sqlx::PgPool, name: &str) -> (String, String) {
+async fn status_and_stamp(raw: &sqlx::PgPool, name: &AgentName) -> (String, String) {
     sqlx::query_as::<_, (String, String)>(
         "SELECT status, updated_at::text FROM services WHERE instance_id = $1 AND name = $2",
     )
     .bind("test-instance")
-    .bind(name)
+    .bind(name.as_str())
     .fetch_one(raw)
     .await
     .expect("row")
@@ -230,7 +231,7 @@ async fn agent_exists_false_for_unconfigured() {
     let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let exists = svc
-        .agent_exists("__no_such_configured_agent")
+        .agent_exists(&AgentName::new("__no_such_configured_agent"))
         .await
         .expect("exists");
     assert!(!exists);
@@ -241,7 +242,7 @@ async fn get_agent_config_unknown_errors() {
     let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let err = svc
-        .get_agent_config("__no_such_agent_cfg")
+        .get_agent_config(&AgentName::new("__no_such_agent_cfg"))
         .await
         .expect_err("not found");
     assert!(format!("{err}").contains("not found"));
@@ -277,7 +278,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
 
     sqlx::query("UPDATE services SET pid = -1 WHERE instance_id = $1 AND name = $2")
         .bind("test-instance")
-        .bind(&name)
+        .bind(name.as_str())
         .execute(raw.as_ref())
         .await
         .expect("inject negative persisted pid");
@@ -297,7 +298,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
         "SELECT pid, port, status FROM services WHERE instance_id = $1 AND name = $2",
     )
     .bind("test-instance")
-    .bind(&name)
+    .bind(name.as_str())
     .fetch_one(raw.as_ref())
     .await
     .expect("persisted corrupt row");
@@ -306,7 +307,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
     sqlx::query("UPDATE services SET pid = $1, port = 70000 WHERE instance_id = $2 AND name = $3")
         .bind(i32::try_from(std::process::id()).expect("current pid fits database"))
         .bind("test-instance")
-        .bind(&name)
+        .bind(name.as_str())
         .execute(raw.as_ref())
         .await
         .expect("inject out-of-range persisted port");
@@ -326,7 +327,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
         "SELECT pid, port, status FROM services WHERE instance_id = $1 AND name = $2",
     )
     .bind("test-instance")
-    .bind(&name)
+    .bind(name.as_str())
     .fetch_one(raw.as_ref())
     .await
     .expect("persisted corrupt row");

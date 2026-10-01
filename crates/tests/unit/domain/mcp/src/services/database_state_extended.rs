@@ -3,6 +3,7 @@
 
 use std::fs;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::state::get_binary_mtime_for_service;
 use systemprompt_models::profile::PathsConfig;
 
@@ -26,7 +27,10 @@ fn paths_with_bin(bin_dir: &str) -> AppPaths {
 #[test]
 fn get_binary_mtime_for_service_unknown_binary_returns_none() {
     let paths = paths_with_bin("/tmp");
-    let result = get_binary_mtime_for_service(&paths, "no-such-binary-xyzzy-never-exists");
+    let result = get_binary_mtime_for_service(
+        &paths,
+        &ServiceName::new("no-such-binary-xyzzy-never-exists"),
+    );
     assert!(result.is_none());
 }
 
@@ -39,7 +43,7 @@ fn get_binary_mtime_for_service_with_created_file_returns_some() {
     fs::write(dir.join(&bin_name), b"fake binary").expect("write");
 
     let paths = paths_with_bin(dir.to_str().expect("utf8"));
-    let result = get_binary_mtime_for_service(&paths, svc_name);
+    let result = get_binary_mtime_for_service(&paths, &ServiceName::new(svc_name));
     let _ = fs::remove_dir_all(&dir);
 
     result.expect("created binary file should have mtime");
@@ -48,6 +52,6 @@ fn get_binary_mtime_for_service_with_created_file_returns_some() {
 #[test]
 fn get_binary_mtime_for_service_wrong_dir_returns_none() {
     let paths = paths_with_bin("/nonexistent/bin/dir");
-    let result = get_binary_mtime_for_service(&paths, "any-service");
+    let result = get_binary_mtime_for_service(&paths, &ServiceName::new("any-service"));
     assert!(result.is_none());
 }

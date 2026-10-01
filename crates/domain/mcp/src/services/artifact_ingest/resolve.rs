@@ -15,7 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
-use systemprompt_identifiers::McpExecutionId;
+use systemprompt_identifiers::{McpExecutionId, McpServerId};
 use systemprompt_models::mcp::Correlation;
 
 use super::classify::Classified;
@@ -67,7 +67,7 @@ pub(super) async fn resolve_execution(
     } else {
         Correlation::Inferred
     };
-    let id = McpExecutionId::new(uuid::Uuid::new_v4().to_string());
+    let id = McpExecutionId::generate();
     let (execution, result) = new_execution(request, classified);
     ingest
         .executions
@@ -146,7 +146,7 @@ async fn find_by_proximity(
     if request.ctx.is_anonymous() {
         return Ok(None);
     }
-    let Some(server_name) = request.server_name.as_deref() else {
+    let Some(server_name) = request.server_name.as_ref() else {
         return Ok(None);
     };
     ingest
@@ -220,7 +220,7 @@ fn new_execution(
         server_name: request
             .server_name
             .clone()
-            .unwrap_or_else(|| request.source.to_string()),
+            .unwrap_or_else(|| McpServerId::new(request.source.to_string())),
         input: request.input.clone().unwrap_or(serde_json::Value::Null),
         started_at,
         context: request.ctx.clone(),

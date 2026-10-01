@@ -17,7 +17,7 @@ use systemprompt_ai::services::providers::{
     ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{AiRequestId, McpServerId};
 use systemprompt_models::services::{ResilienceSettings, WireProtocol};
 
 fn settings() -> ResilienceSettings {
@@ -334,7 +334,7 @@ impl AiProvider for SequencedStreamProvider {
 
     async fn generate(&self, _: GenerationParams<'_>) -> Result<AiResponse> {
         Ok(AiResponse::new(
-            uuid::Uuid::new_v4(),
+            AiRequestId::generate(),
             String::new(),
             String::new(),
             String::new(),
@@ -347,7 +347,7 @@ impl AiProvider for SequencedStreamProvider {
     ) -> Result<(AiResponse, Vec<ToolCall>)> {
         Ok((
             AiResponse::new(
-                uuid::Uuid::new_v4(),
+                AiRequestId::generate(),
                 String::new(),
                 String::new(),
                 String::new(),
@@ -358,7 +358,7 @@ impl AiProvider for SequencedStreamProvider {
 
     async fn generate_with_schema(&self, _: SchemaGenerationParams<'_>) -> Result<AiResponse> {
         Ok(AiResponse::new(
-            uuid::Uuid::new_v4(),
+            AiRequestId::generate(),
             String::new(),
             String::new(),
             String::new(),

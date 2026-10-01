@@ -24,7 +24,8 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    AiToolCallId, ArtifactId, ContextId, McpExecutionId, SessionId, TraceId, UserId,
+    AiToolCallId, ArtifactId, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId,
+    TraceId, UserId,
 };
 use systemprompt_models::mcp::ExecutionSource;
 
@@ -38,8 +39,8 @@ pub struct McpArtifactRecord {
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
     pub ai_tool_call_id: Option<AiToolCallId>,
-    pub server_name: String,
-    pub tool_name: Option<String>,
+    pub server_name: McpServerId,
+    pub tool_name: Option<McpToolName>,
     pub artifact_type: String,
     pub title: Option<String>,
     pub source: String,
@@ -84,8 +85,8 @@ pub struct CreateMcpArtifact {
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
     pub ai_tool_call_id: Option<AiToolCallId>,
-    pub server_name: String,
-    pub tool_name: Option<String>,
+    pub server_name: McpServerId,
+    pub tool_name: Option<McpToolName>,
     pub artifact_type: String,
     pub title: Option<String>,
     pub source: ExecutionSource,
@@ -106,7 +107,7 @@ impl CreateMcpArtifact {
     pub fn new(
         artifact_id: ArtifactId,
         mcp_execution_id: McpExecutionId,
-        server_name: impl Into<String>,
+        server_name: McpServerId,
         artifact_type: impl Into<String>,
         data: serde_json::Value,
     ) -> Self {
@@ -118,7 +119,7 @@ impl CreateMcpArtifact {
             session_id: None,
             trace_id: None,
             ai_tool_call_id: None,
-            server_name: server_name.into(),
+            server_name,
             tool_name: None,
             artifact_type: artifact_type.into(),
             title: None,

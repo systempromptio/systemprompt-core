@@ -5,7 +5,6 @@
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, McpExecutionId, SessionId, TraceId, UserId};
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ImageResolution {
@@ -118,8 +117,8 @@ pub struct ImageGenerationResponse {
 impl ImageGenerationResponse {
     pub fn new(params: NewImageGenerationResponse) -> Self {
         Self {
-            id: AiRequestId::new(Uuid::new_v4().to_string()),
-            request_id: AiRequestId::new(Uuid::new_v4().to_string()),
+            id: AiRequestId::generate(),
+            request_id: AiRequestId::generate(),
             provider: params.provider,
             model: params.model,
             image_data: params.image_data,

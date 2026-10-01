@@ -6,7 +6,8 @@
 
 use rmcp::model::{CallToolResult, ProtocolVersion};
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId,
+    Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
+    UserId,
 };
 use systemprompt_mcp::{
     ArtifactIngest, ClientProfile, McpOutputSchema, McpResponseBuilder, McpToolHandler,
@@ -88,7 +89,10 @@ async fn build(client: &ClientProfile, artifact: CliArtifact) -> CallToolResult 
 
     McpResponseBuilder::new(
         artifact,
-        ToolIdentity::new("systemprompt", "conformance_tool"),
+        ToolIdentity::new(
+            McpServerId::new("systemprompt"),
+            McpToolName::new("conformance_tool"),
+        ),
         &context,
         &exec_id,
         client,
@@ -348,7 +352,7 @@ fn assert_validates(json: &serde_json::Value, definition: &str) {
 
 #[test]
 fn stamped_tool_list_result_validates_against_all_schemas() {
-    let tool = ConformanceTool.tool_definition("systemprompt");
+    let tool = ConformanceTool.tool_definition(&McpServerId::new("systemprompt"));
     let result = systemprompt_mcp::build_tool_list_result(vec![tool]);
     let json = serde_json::to_value(&result).expect("serializes");
 
@@ -360,7 +364,7 @@ fn stamped_tool_list_result_validates_against_all_schemas() {
 
 #[test]
 fn unstamped_tool_list_result_is_rejected_by_2026_07_28_schema() {
-    let tool = ConformanceTool.tool_definition("systemprompt");
+    let tool = ConformanceTool.tool_definition(&McpServerId::new("systemprompt"));
     let bare = rmcp::model::ListToolsResult::with_all_items(vec![tool]);
     let json = serde_json::to_value(&bare).expect("serializes");
 
@@ -375,7 +379,7 @@ fn unstamped_tool_list_result_is_rejected_by_2026_07_28_schema() {
 fn artifact_viewer_resource_list_validates_against_all_schemas() {
     let result =
         systemprompt_mcp::build_artifact_viewer_resource(&systemprompt_mcp::ArtifactViewerConfig {
-            server_name: "systemprompt",
+            server_name: &McpServerId::new("systemprompt"),
             title: "Viewer",
             description: "Conformance fixture viewer",
             template: "<html></html>",
@@ -402,9 +406,12 @@ fn resource_template_list_result_validates_against_all_schemas() {
 #[test]
 fn read_viewer_resource_result_validates_against_all_schemas() {
     let request = rmcp::model::ReadResourceRequestParams::new("ui://systemprompt/artifact-viewer");
-    let result =
-        systemprompt_mcp::read_artifact_viewer_resource(&request, "systemprompt", "<html></html>")
-            .expect("viewer resource reads");
+    let result = systemprompt_mcp::read_artifact_viewer_resource(
+        &request,
+        &McpServerId::new("systemprompt"),
+        "<html></html>",
+    )
+    .expect("viewer resource reads");
     let json = serde_json::to_value(&result).expect("serializes");
 
     assert_eq!(json["resultType"], "complete");

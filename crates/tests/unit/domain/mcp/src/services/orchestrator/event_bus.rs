@@ -1,5 +1,6 @@
 //! Unit tests for MCP EventBus
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::orchestrator::{EventBus, McpEvent};
 
 
@@ -16,7 +17,7 @@ async fn test_event_bus_publish() {
     let mut receiver = event_bus.subscribe();
 
     let event = McpEvent::ServiceStarted {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         process_id: Some(1234),
         port: 8080,
     };
@@ -26,7 +27,10 @@ async fn test_event_bus_publish() {
 
     let received = receiver.try_recv();
     let val = received.expect("expected success");
-    assert_eq!(val.service_name(), "test-service");
+    assert_eq!(
+        val.service_name().map(ServiceName::as_str),
+        Some("test-service")
+    );
 }
 
 #[tokio::test]
@@ -36,15 +40,15 @@ async fn test_event_bus_publish_multiple_events() {
 
     let events = vec![
         McpEvent::ServiceStartRequested {
-            service_name: "service1".to_string(),
+            service_name: ServiceName::new("service1"),
         },
         McpEvent::ServiceStarted {
-            service_name: "service1".to_string(),
+            service_name: ServiceName::new("service1"),
             process_id: Some(1234),
             port: 8080,
         },
         McpEvent::ServiceStopped {
-            service_name: "service1".to_string(),
+            service_name: ServiceName::new("service1"),
             exit_code: Some(0),
         },
     ];
@@ -66,7 +70,7 @@ async fn test_event_bus_publish_without_subscribers() {
     let event_bus = EventBus::new(100);
 
     let event = McpEvent::ServiceStarted {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         process_id: Some(1234),
         port: 8080,
     };
@@ -82,7 +86,7 @@ async fn test_event_bus_publish_to_multiple_subscribers() {
     let mut receiver2 = event_bus.subscribe();
 
     let event = McpEvent::ServiceStarted {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         process_id: Some(1234),
         port: 8080,
     };

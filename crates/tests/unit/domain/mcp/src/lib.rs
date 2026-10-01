@@ -1,8 +1,7 @@
 //! Unit tests for systemprompt-core-mcp crate
 //!
 //! Tests cover:
-//! - Models: ExecutionStatus, ValidationResultType, MCPService, ToolExecution,
-//!   ToolStats
+//! - Models: ExecutionStatus, ValidationResultType, ToolExecution, ToolStats
 //! - Client types: McpConnectionResult, McpProtocolInfo, ValidationResult
 //! - Monitoring: HealthStatus, HealthCheckResult, HealthCheckDetails,
 //!   ServiceStatus

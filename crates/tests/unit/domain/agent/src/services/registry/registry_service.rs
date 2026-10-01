@@ -1,4 +1,5 @@
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 
@@ -46,7 +47,9 @@ async fn agent_registry_get_mcp_servers_unknown_errors() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new().expect("registry");
-    let result = registry.get_mcp_servers("__no_agent_for_mcp").await;
+    let result = registry
+        .get_mcp_servers(&AgentName::new("__no_agent_for_mcp"))
+        .await;
     assert!(result.is_err());
 }
 

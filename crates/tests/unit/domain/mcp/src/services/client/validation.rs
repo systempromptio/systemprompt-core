@@ -4,6 +4,7 @@
 //! without needing a real MCP server. Successful-path coverage is left to the
 //! orchestrator integration tests.
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::client::{
     validate_connection, validate_connection_by_url, validate_connection_with_auth,
 };
@@ -18,9 +19,12 @@ async fn validate_connection_by_url_live_endpoint_is_mcp_validated() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
 
-    let result = validate_connection_by_url("val-live", &format!("{}/mcp", mock.uri()))
-        .await
-        .expect("validation runs");
+    let result = validate_connection_by_url(
+        &ServiceName::new("val-live"),
+        &format!("{}/mcp", mock.uri()),
+    )
+    .await
+    .expect("validation runs");
 
     assert!(result.success);
     assert_eq!(result.validation_type, "mcp_validated");
@@ -33,9 +37,12 @@ async fn validate_connection_by_url_empty_tools_reports_no_tools() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, serde_json::json!([])).await;
 
-    let result = validate_connection_by_url("val-empty", &format!("{}/mcp", mock.uri()))
-        .await
-        .expect("validation runs");
+    let result = validate_connection_by_url(
+        &ServiceName::new("val-empty"),
+        &format!("{}/mcp", mock.uri()),
+    )
+    .await
+    .expect("validation runs");
 
     assert!(!result.success);
     assert_eq!(result.validation_type, "no_tools");
@@ -57,7 +64,7 @@ fn unused_port() -> u16 {
 
 #[tokio::test]
 async fn validate_connection_by_url_invalid_uri_returns_failure() {
-    let result = validate_connection_by_url("svc", "not://a/valid uri").await;
+    let result = validate_connection_by_url(&ServiceName::new("svc"), "not://a/valid uri").await;
     let r = result.expect("returns Ok with failure result");
     assert!(!r.success);
     assert_eq!(r.service_name, "svc");
@@ -73,7 +80,7 @@ async fn validate_connection_by_url_invalid_uri_returns_failure() {
 #[tokio::test]
 async fn validate_connection_unreachable_port_returns_failure() {
     let port = unused_port();
-    let r = validate_connection("svc-unreach", UNREACHABLE_HOST, port)
+    let r = validate_connection(&ServiceName::new("svc-unreach"), UNREACHABLE_HOST, port)
         .await
         .expect("returns Ok with failure result");
     assert!(!r.success);
@@ -84,9 +91,14 @@ async fn validate_connection_unreachable_port_returns_failure() {
 async fn validate_connection_with_auth_requires_oauth_port_open() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().unwrap().port();
-    let r = validate_connection_with_auth("svc-oauth-up", UNREACHABLE_HOST, port, true)
-        .await
-        .expect("returns Ok with auth-required result");
+    let r = validate_connection_with_auth(
+        &ServiceName::new("svc-oauth-up"),
+        UNREACHABLE_HOST,
+        port,
+        true,
+    )
+    .await
+    .expect("returns Ok with auth-required result");
     assert!(r.success);
     assert_eq!(r.validation_type, "auth_required");
     assert!(
@@ -100,9 +112,14 @@ async fn validate_connection_with_auth_requires_oauth_port_open() {
 #[tokio::test]
 async fn validate_connection_with_auth_requires_oauth_port_closed() {
     let port = unused_port();
-    let r = validate_connection_with_auth("svc-oauth-down", UNREACHABLE_HOST, port, true)
-        .await
-        .expect("returns Ok with port-unavailable");
+    let r = validate_connection_with_auth(
+        &ServiceName::new("svc-oauth-down"),
+        UNREACHABLE_HOST,
+        port,
+        true,
+    )
+    .await
+    .expect("returns Ok with port-unavailable");
     assert!(!r.success);
     assert_eq!(r.validation_type, "port_unavailable");
     assert!(r.tools_count.is_none());
@@ -111,8 +128,13 @@ async fn validate_connection_with_auth_requires_oauth_port_closed() {
 #[tokio::test]
 async fn validate_connection_with_auth_no_oauth_routes_to_validate_connection() {
     let port = unused_port();
-    let r = validate_connection_with_auth("svc-noauth", UNREACHABLE_HOST, port, false)
-        .await
-        .expect("returns Ok");
+    let r = validate_connection_with_auth(
+        &ServiceName::new("svc-noauth"),
+        UNREACHABLE_HOST,
+        port,
+        false,
+    )
+    .await
+    .expect("returns Ok");
     assert!(!r.success);
 }

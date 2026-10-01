@@ -1,5 +1,6 @@
 //! Unit tests for HealthCheckResult and HealthCheckDetails
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::monitoring::health::{
     HealthCheckDetails, HealthCheckResult, HealthStatus,
 };
@@ -7,7 +8,7 @@ use systemprompt_mcp::services::monitoring::health::{
 #[test]
 fn test_health_check_details_new() {
     let details = HealthCheckDetails {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         tools_available: Some(5),
         requires_auth: false,
         validation_type: "mcp_validated".to_string(),
@@ -26,7 +27,7 @@ fn test_health_check_details_new() {
 #[test]
 fn test_health_check_details_with_error() {
     let details = HealthCheckDetails {
-        service_name: "failing-service".to_string(),
+        service_name: ServiceName::new("failing-service"),
         tools_available: None,
         requires_auth: true,
         validation_type: "connection_failed".to_string(),
@@ -48,7 +49,7 @@ fn test_health_check_details_with_error() {
 #[test]
 fn test_health_check_details_auth_required() {
     let details = HealthCheckDetails {
-        service_name: "oauth-service".to_string(),
+        service_name: ServiceName::new("oauth-service"),
         tools_available: None,
         requires_auth: true,
         validation_type: "auth_required".to_string(),
@@ -64,7 +65,7 @@ fn test_health_check_details_auth_required() {
 #[test]
 fn test_health_check_details_debug() {
     let details = HealthCheckDetails {
-        service_name: "debug-service".to_string(),
+        service_name: ServiceName::new("debug-service"),
         tools_available: Some(3),
         requires_auth: true,
         validation_type: "success".to_string(),
@@ -80,7 +81,7 @@ fn test_health_check_details_debug() {
 #[test]
 fn test_health_check_result_healthy() {
     let details = HealthCheckDetails {
-        service_name: "healthy-service".to_string(),
+        service_name: ServiceName::new("healthy-service"),
         tools_available: Some(5),
         requires_auth: false,
         validation_type: "mcp_validated".to_string(),
@@ -103,7 +104,7 @@ fn test_health_check_result_healthy() {
 #[test]
 fn test_health_check_result_degraded() {
     let details = HealthCheckDetails {
-        service_name: "slow-service".to_string(),
+        service_name: ServiceName::new("slow-service"),
         tools_available: Some(3),
         requires_auth: false,
         validation_type: "mcp_validated".to_string(),
@@ -125,7 +126,7 @@ fn test_health_check_result_degraded() {
 #[test]
 fn test_health_check_result_unhealthy() {
     let details = HealthCheckDetails {
-        service_name: "dead-service".to_string(),
+        service_name: ServiceName::new("dead-service"),
         tools_available: None,
         requires_auth: false,
         validation_type: "connection_failed".to_string(),
@@ -147,7 +148,7 @@ fn test_health_check_result_unhealthy() {
 #[test]
 fn test_health_check_result_unknown() {
     let details = HealthCheckDetails {
-        service_name: "mystery-service".to_string(),
+        service_name: ServiceName::new("mystery-service"),
         tools_available: None,
         requires_auth: false,
         validation_type: "error".to_string(),

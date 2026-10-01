@@ -209,7 +209,7 @@ fn stored_pid(service: &ServiceConfig) -> Option<u32> {
 fn pid_is_our_service(pid: u32, service: &ServiceConfig) -> bool {
     let name_key = subprocess_name_key(service.module_name);
 
-    if live_pid_is_subprocess(pid, name_key, service.name.as_str()) {
+    if live_pid_is_subprocess(pid, name_key, &service.name) {
         return true;
     }
     warn!(

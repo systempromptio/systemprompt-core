@@ -44,7 +44,7 @@ pub use models::a2a::{
     TextPart,
 };
 
-pub use error::{AgentError, AgentResult, ArtifactError};
+pub use error::{AgentError, AgentResult, ArtifactError, ExecutionStepTarget};
 
 pub const A2A_PROTOCOL_VERSION: &str = "0.3.0";
 

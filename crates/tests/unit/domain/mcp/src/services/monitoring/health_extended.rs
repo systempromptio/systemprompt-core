@@ -2,6 +2,7 @@
 //! `HealthCheckResult` clone/debug, and timeout/unknown status transitions.
 
 use std::path::PathBuf;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
 use systemprompt_mcp::services::monitoring::health::{HealthCheckResult, HealthStatus};
 use systemprompt_models::auth::JwtAudience;
@@ -51,7 +52,7 @@ fn conn(
     info: Option<McpProtocolInfo>,
 ) -> McpConnectionResult {
     McpConnectionResult {
-        service_name: "test".to_owned(),
+        service_name: ServiceName::new("test"),
         success,
         error_message: if success {
             None
@@ -79,7 +80,7 @@ fn health_check_result_clone_and_debug() {
 fn health_check_details_fields_populated_from_connection_result() {
     let cfg = config("details-test");
     let proto = McpProtocolInfo {
-        server_name: "details-test".to_owned(),
+        implementation_name: "details-test".to_owned(),
         version: "2.5.0".to_owned(),
         protocol_version: "2025-01-01".to_owned(),
     };

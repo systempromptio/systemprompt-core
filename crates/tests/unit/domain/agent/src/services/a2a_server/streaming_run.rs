@@ -16,7 +16,7 @@ use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, create_sse_stream_with_registry,
 };
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
 use systemprompt_models::ServicesConfig;
 
 use super::a2a_helpers::{StubAiProvider, agent_config, make_handler_state, request_context};
@@ -105,7 +105,7 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
     let stream = create_sse_stream_with_registry(
         CreateSseStreamParams {
             message: message(&ctx, &task_id, "run"),
-            agent_name: "test_agent".to_owned(),
+            agent_name: AgentName::new("test_agent"),
             state,
             request_id: RequestId::Number(11),
             context,
@@ -169,7 +169,7 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
     let stream = create_sse_stream_with_registry(
         CreateSseStreamParams {
             message: message(&ctx, &task_id, "run"),
-            agent_name: "test_agent".to_owned(),
+            agent_name: AgentName::new("test_agent"),
             state,
             request_id: RequestId::Number(12),
             context,
@@ -227,7 +227,7 @@ async fn run_stream_with_failing_model_stream_fails_task() {
     let stream = create_sse_stream_with_registry(
         CreateSseStreamParams {
             message: message(&ctx, &task_id, "run"),
-            agent_name: "test_agent".to_owned(),
+            agent_name: AgentName::new("test_agent"),
             state,
             request_id: RequestId::Number(13),
             context,

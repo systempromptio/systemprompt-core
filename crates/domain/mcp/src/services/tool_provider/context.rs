@@ -4,9 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
-use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, JwtToken, SessionId, TaskId, TraceId, UserId,
-};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_traits::{ToolContext, ToolProviderError};
@@ -73,8 +71,8 @@ pub(super) fn create_request_context(
         agent_name,
         Actor::mcp(actor_user_id, server_config.name.clone()),
     );
-    if !ctx.auth_token.is_empty() {
-        request_ctx = request_ctx.with_auth_token(JwtToken::new(ctx.auth_token.clone()));
+    if let Some(auth_token) = &ctx.auth_token {
+        request_ctx = request_ctx.with_auth_token(auth_token.clone());
     }
 
     if let Some(task_id) = ctx.headers.get("x-task-id").filter(|s| !s.is_empty()) {

@@ -258,7 +258,7 @@ async fn spawned_server_receives_service_environment_and_verified_termination_st
                 && systemprompt_loader::subprocess::live_pid_is_subprocess(
                     pid,
                     systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
-                    &self.service_name,
+                    &systemprompt_identifiers::ServiceName::new(&self.service_name),
                 )
             {
                 let _ = kill_process(pid);
@@ -301,7 +301,7 @@ async fn spawned_server_receives_service_environment_and_verified_termination_st
         format!("1|{}|65431", config.name)
     );
 
-    ProcessService::terminate_gracefully_verified(pid, &config.name)
+    ProcessService::terminate_gracefully_verified(pid, &config.service_name())
         .await
         .expect("verified termination");
     let fixture_is_running = || {
@@ -309,7 +309,7 @@ async fn spawned_server_receives_service_environment_and_verified_termination_st
             && systemprompt_loader::subprocess::live_pid_is_subprocess(
                 pid,
                 systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
-                &config.name,
+                &systemprompt_identifiers::ServiceName::new(&config.name),
             )
     };
     for _ in 0..80 {

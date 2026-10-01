@@ -10,6 +10,7 @@ use crate::error::McpDomainResult;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_traits::StartupEventSender;
 
 pub mod event_bus;
@@ -105,8 +106,8 @@ impl McpOrchestrator {
 
     pub async fn list_services(&self) -> McpDomainResult<()> {
         let servers = self.registry.get_enabled_servers()?;
-        let status_data = self.monitoring.get_status_for_all(&servers).await?;
-        MonitoringService::display_status(&servers, &status_data);
+        let statuses = self.monitoring.get_status_for_all(&servers).await?;
+        MonitoringService::display_status(&statuses);
         Ok(())
     }
 
@@ -118,29 +119,15 @@ impl McpOrchestrator {
 
         for server in &servers {
             let health = perform_health_check(server).await?;
-
-            let (port, endpoint, pid) = if server.is_external() {
-                (None, Some(server.remote_endpoint.clone()), None)
+            let pid = if server.is_external() {
+                None
             } else {
-                let pid = self
-                    .database
-                    .get_service_by_name(&server.name)
+                self.database
+                    .get_service_by_name(&server.service_name())
                     .await?
-                    .and_then(|info| info.pid.map(|p| p as u32));
-                (server.port, None, pid)
+                    .and_then(|info| super::database::stored_pid(info.pid))
             };
-
-            statuses.push(McpServiceStatus {
-                name: server.name.clone(),
-                server_type: server.server_type,
-                port,
-                endpoint,
-                health: health.status,
-                pid,
-                tools_count: health.details.tools_available,
-                latency_ms: Some(health.latency_ms),
-                auth_required: server.oauth.required,
-            });
+            statuses.push(McpServiceStatus::observed(server, &health, pid));
         }
 
         Ok(statuses)
@@ -174,7 +161,7 @@ impl McpOrchestrator {
         .await
     }
 
-    pub async fn validate_service(&self, service_name: &str) -> McpDomainResult<()> {
+    pub async fn validate_service(&self, service_name: &ServiceName) -> McpDomainResult<()> {
         service_validation::validate_service(service_name, &self.database, &self.registry).await
     }
 
@@ -184,7 +171,7 @@ impl McpOrchestrator {
 
     pub async fn get_service_info(
         &self,
-        service_name: &str,
+        service_name: &ServiceName,
     ) -> McpDomainResult<Option<super::database::ServiceInfo>> {
         self.database.get_service_by_name(service_name).await
     }

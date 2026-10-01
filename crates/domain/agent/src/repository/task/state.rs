@@ -13,7 +13,6 @@ use sqlx::PgPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_traits::RepositoryError;
 
-use super::mutations::task_state_to_db_string;
 use crate::models::a2a::TaskState;
 
 pub async fn update_task_state(
@@ -86,7 +85,7 @@ async fn execute_state_update(
     task_id_str: &str,
     expected_version: i64,
 ) -> Result<u64, RepositoryError> {
-    let status = task_state_to_db_string(state);
+    let status = state.as_str();
 
     let result = if state == TaskState::Completed {
         sqlx::query!(

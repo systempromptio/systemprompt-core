@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::mcp::{
     McpAppsUiConfig, McpExtensionId, McpUiToolMeta, ToolVisibility, UI_META_KEY,
 };
@@ -47,7 +48,7 @@ pub fn visibility_to_json(visibility: &[ToolVisibility]) -> serde_json::Value {
 
 // JSON: MCP tool `_meta` — the spec types it as an open object.
 pub fn tool_ui_meta(
-    server_name: &str,
+    server_name: &McpServerId,
     visibility: &[ToolVisibility],
 ) -> serde_json::Map<String, serde_json::Value> {
     let resource_uri = format!("ui://{server_name}/artifact-viewer");

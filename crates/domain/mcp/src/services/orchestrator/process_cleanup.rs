@@ -5,6 +5,7 @@
 
 use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
+use systemprompt_models::services::ServiceStatus;
 use tracing::Instrument;
 
 use crate::McpServerConfig;
@@ -40,7 +41,8 @@ async fn kill_orphaned_process(
         return Ok(false);
     };
 
-    if database.get_service_by_name(&server.name).await?.is_some() {
+    let service_name = server.service_name();
+    if database.get_service_by_name(&service_name).await?.is_some() {
         return Ok(false);
     }
 
@@ -51,7 +53,7 @@ async fn kill_orphaned_process(
         "Found orphaned process"
     );
 
-    ProcessService::terminate_gracefully_verified(orphaned_pid, &server.name).await?;
+    ProcessService::terminate_gracefully_verified(orphaned_pid, &service_name).await?;
 
     tracing::info!(
         service_name = %server.name,
@@ -85,13 +87,13 @@ async fn restart_stale_binary(
     server: &McpServerConfig,
     database: &DatabaseService,
 ) -> McpDomainResult<bool> {
-    let service_info = match database.get_service_by_name(&server.name).await? {
-        Some(info) if info.status == "running" => info,
+    let service_info = match database.get_service_by_name(&server.service_name()).await? {
+        Some(info) if info.status == ServiceStatus::Running => info,
         _ => return Ok(false),
     };
 
     let Some((stored_mtime, current_mtime)) =
-        get_stale_binary_mtimes(database.app_paths(), &server.name, &service_info)
+        get_stale_binary_mtimes(database.app_paths(), &service_info)
     else {
         return Ok(false);
     };
@@ -103,7 +105,7 @@ async fn restart_stale_binary(
         "Binary rebuilt, restarting"
     );
 
-    kill_and_unregister(server, database, &service_info).await?;
+    kill_and_unregister(database, &service_info).await?;
 
     tracing::info!(
         service_name = %server.name,
@@ -118,22 +120,20 @@ async fn restart_stale_binary(
 
 fn get_stale_binary_mtimes(
     paths: &systemprompt_config::paths::AppPaths,
-    name: &str,
     service_info: &ServiceInfo,
 ) -> Option<(i64, i64)> {
     let stored_mtime = service_info.binary_mtime?;
-    let current_mtime = get_binary_mtime_for_service(paths, name)?;
+    let current_mtime = get_binary_mtime_for_service(paths, &service_info.name)?;
 
     (current_mtime != stored_mtime).then_some((stored_mtime, current_mtime))
 }
 
 async fn kill_and_unregister(
-    server: &McpServerConfig,
     database: &DatabaseService,
     service_info: &ServiceInfo,
 ) -> McpDomainResult<()> {
     if let Some(pid) = service_info.pid {
-        ProcessService::terminate_gracefully_verified(pid as u32, &server.name).await?;
+        ProcessService::terminate_gracefully_verified(pid as u32, &service_info.name).await?;
     }
-    database.unregister_service(&server.name).await
+    database.unregister_service(&service_info.name).await
 }

@@ -1,5 +1,6 @@
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId,
+    Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
+    UserId,
 };
 use systemprompt_mcp::{ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
@@ -45,7 +46,7 @@ fn builder_new_exec_id_in_debug() {
     let t = TextArtifact::new("data");
     let builder = McpResponseBuilder::new(
         t,
-        ToolIdentity::new("server-x", "tool-x"),
+        ToolIdentity::new(McpServerId::new("server-x"), McpToolName::new("tool-x")),
         &c,
         &exec_id,
         &ClientProfile::unknown(),
@@ -79,7 +80,10 @@ fn builder_debug_contains_tool_name() {
     let t = TextArtifact::new("payload");
     let builder = McpResponseBuilder::new(
         t,
-        ToolIdentity::new("custom-server", "my-custom-tool"),
+        ToolIdentity::new(
+            McpServerId::new("custom-server"),
+            McpToolName::new("my-custom-tool"),
+        ),
         &c,
         &exec_id,
         &ClientProfile::unknown(),
@@ -119,7 +123,10 @@ fn builder_new_with_owned_string_tool() {
     let tool_name = "dynamic-tool".to_owned();
     let builder = McpResponseBuilder::new(
         t,
-        ToolIdentity::new("dynamic-server", tool_name),
+        ToolIdentity::new(
+            McpServerId::new("dynamic-server"),
+            McpToolName::new(tool_name),
+        ),
         &c,
         &exec_id,
         &ClientProfile::unknown(),

@@ -5,11 +5,11 @@
 
 use super::tools::{CallToolResult, ToolCall};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use systemprompt_identifiers::AiRequestId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiResponse {
-    pub request_id: Uuid,
+    pub request_id: AiRequestId,
     pub content: String,
     pub provider: String,
     pub model: String,
@@ -37,7 +37,12 @@ pub struct AiResponse {
 }
 
 impl AiResponse {
-    pub const fn new(request_id: Uuid, content: String, provider: String, model: String) -> Self {
+    pub const fn new(
+        request_id: AiRequestId,
+        content: String,
+        provider: String,
+        model: String,
+    ) -> Self {
         Self {
             request_id,
             content,

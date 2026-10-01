@@ -6,6 +6,7 @@
 use crate::services::shared::{AgentServiceError, Result};
 #[cfg(windows)]
 use std::process::Command;
+use systemprompt_identifiers::{AgentName, ServiceName};
 
 #[cfg(unix)]
 pub fn process_exists(pid: u32) -> bool {
@@ -159,27 +160,27 @@ pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
 }
 
 // Why: The kernel can recycle a recorded PID for an unrelated process.
-fn pid_is_agent_child(pid: u32, service_name: &str) -> bool {
+fn pid_is_agent_child(pid: u32, agent_name: &AgentName) -> bool {
     systemprompt_loader::subprocess::live_pid_is_subprocess(
         pid,
         systemprompt_models::subprocess::AGENT_NAME_ENV,
-        service_name,
+        &ServiceName::of_agent(agent_name),
     )
 }
 
 pub async fn terminate_gracefully_verified(
     pid: u32,
-    service_name: &str,
+    agent_name: &AgentName,
     timeout_secs: u64,
 ) -> Result<()> {
     if !process_exists(pid) {
         return Ok(());
     }
 
-    if !pid_is_agent_child(pid, service_name) {
+    if !pid_is_agent_child(pid, agent_name) {
         tracing::warn!(
             pid,
-            service = %service_name,
+            service = %agent_name,
             "Recorded PID is alive but is not our child (recycled/stale); skipping signal"
         );
         return Ok(());
@@ -192,15 +193,15 @@ pub fn kill_process(pid: u32) -> bool {
     terminate_process(pid).is_ok()
 }
 
-pub fn kill_process_verified(pid: u32, service_name: &str) -> bool {
+pub fn kill_process_verified(pid: u32, agent_name: &AgentName) -> bool {
     if !process_exists(pid) {
         return true;
     }
 
-    if !pid_is_agent_child(pid, service_name) {
+    if !pid_is_agent_child(pid, agent_name) {
         tracing::warn!(
             pid,
-            service = %service_name,
+            service = %agent_name,
             "Recorded PID is alive but is not our child (recycled/stale); skipping signal"
         );
         return true;

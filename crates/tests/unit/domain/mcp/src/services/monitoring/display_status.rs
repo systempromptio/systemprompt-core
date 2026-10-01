@@ -1,9 +1,9 @@
 //! Tests for `display_service_status` with non-empty data, covering the
 //! running/error counting branches and the per-server iteration loop.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_mcp::services::monitoring::status::{ServiceStatus, display_service_status};
+use systemprompt_mcp::services::monitoring::health::HealthStatus;
+use systemprompt_mcp::services::monitoring::status::{McpServiceStatus, display_service_status};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
@@ -43,70 +43,45 @@ fn make_config(name: &str) -> McpServerConfig {
     }
 }
 
-fn status(state: &str) -> ServiceStatus {
-    ServiceStatus {
-        state: state.to_owned(),
-        pid: None,
-        health: state.to_owned(),
-        uptime_seconds: None,
-        tools_count: None,
-        latency_ms: None,
-        auth_required: false,
+fn status(name: &str, health: HealthStatus) -> McpServiceStatus {
+    McpServiceStatus {
+        health,
+        ..McpServiceStatus::unreachable(&make_config(name))
     }
 }
 
 #[test]
 fn display_service_status_single_running() {
-    let servers = vec![make_config("svc-a")];
-    let mut data = HashMap::new();
-    data.insert("svc-a".to_owned(), status("running"));
-    display_service_status(&servers, &data);
+    display_service_status(&[status("svc-a", HealthStatus::Healthy)]);
 }
 
 #[test]
 fn display_service_status_mixed_states() {
-    let servers = vec![
-        make_config("alpha"),
-        make_config("beta"),
-        make_config("gamma"),
-    ];
-    let mut data = HashMap::new();
-    data.insert("alpha".to_owned(), status("running"));
-    data.insert("beta".to_owned(), status("error"));
-    data.insert("gamma".to_owned(), status("stopped"));
-    display_service_status(&servers, &data);
+    display_service_status(&[
+        status("alpha", HealthStatus::Healthy),
+        status("beta", HealthStatus::Unknown),
+        status("gamma", HealthStatus::Unhealthy),
+    ]);
 }
 
 #[test]
 fn display_service_status_all_error() {
-    let servers = vec![make_config("err1"), make_config("err2")];
-    let mut data = HashMap::new();
-    data.insert("err1".to_owned(), status("error"));
-    data.insert("err2".to_owned(), status("error"));
-    display_service_status(&servers, &data);
-}
-
-#[test]
-fn display_service_status_server_not_in_data() {
-    let servers = vec![make_config("known"), make_config("unknown-svc")];
-    let mut data = HashMap::new();
-    data.insert("known".to_owned(), status("running"));
-    display_service_status(&servers, &data);
+    display_service_status(&[
+        status("err1", HealthStatus::Unknown),
+        status("err2", HealthStatus::Unknown),
+    ]);
 }
 
 #[test]
 fn display_service_status_empty_servers() {
-    let data: HashMap<String, ServiceStatus> = HashMap::new();
-    display_service_status(&[], &data);
+    display_service_status(&[]);
 }
 
 #[test]
 fn display_service_status_many_running() {
-    let names = ["s1", "s2", "s3", "s4", "s5"];
-    let servers: Vec<_> = names.iter().map(|n| make_config(n)).collect();
-    let mut data = HashMap::new();
-    for n in names {
-        data.insert(n.to_owned(), status("running"));
-    }
-    display_service_status(&servers, &data);
+    let statuses: Vec<_> = ["s1", "s2", "s3", "s4", "s5"]
+        .iter()
+        .map(|n| status(n, HealthStatus::Healthy))
+        .collect();
+    display_service_status(&statuses);
 }

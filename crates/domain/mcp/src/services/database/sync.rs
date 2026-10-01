@@ -12,7 +12,6 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::process::utils;
 use systemprompt_database::ServiceRepository;
-use systemprompt_identifiers::ServiceName;
 use systemprompt_models::services::ServiceStatus;
 use tokio::net::TcpStream;
 use tokio::time::{Duration, timeout};
@@ -72,7 +71,7 @@ pub async fn sync_database_state(
     servers: &[McpServerConfig],
 ) -> McpDomainResult<()> {
     for server in servers {
-        let server_name = ServiceName::new(server.name.as_str());
+        let server_name = server.service_name();
         if let Some(service) = repository.find_service_by_name(&server_name).await? {
             let port = service.port as u16;
             let pid = service.pid;
@@ -101,7 +100,7 @@ pub async fn delete_disabled_services(
             if let Some(pid) = service.pid {
                 crate::services::process::ProcessService::terminate_gracefully_verified(
                     pid as u32,
-                    service.name.as_str(),
+                    &service.name,
                 )
                 .await?;
             }

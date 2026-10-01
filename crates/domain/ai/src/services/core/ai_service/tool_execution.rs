@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
-use uuid::Uuid;
+use systemprompt_identifiers::AiRequestId;
 
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
@@ -20,7 +20,7 @@ use systemprompt_models::RequestContext;
 
 struct FinalizeTooledParams<'a> {
     ai_result: Result<(AiResponse, Vec<ToolCall>)>,
-    request_id: Uuid,
+    request_id: AiRequestId,
     latency_ms: u64,
     request: &'a AiRequest,
     model: &'a str,
@@ -39,13 +39,13 @@ struct SynthesizeIfNeededParams<'a> {
 
 impl AiService {
     pub async fn generate_with_tools(&self, request: &AiRequest) -> Result<AiResponse> {
-        let request_id = Uuid::new_v4();
+        let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
         let model = request.model();
         let tools = request.tools.as_deref().unwrap_or(&[]);
 
-        request_logging::log_tooled_request_start(request_id, request, request.provider(), model);
+        request_logging::log_tooled_request_start(&request_id, request, request.provider(), model);
 
         let base = GenerationParams::new(&request.messages, model, request.max_output_tokens());
         let base = request
@@ -113,7 +113,7 @@ impl AiService {
 
         let cost = self.estimate_cost(&response)?;
         let mut storage_response = response.clone();
-        storage_response.request_id = request_id;
+        storage_response.request_id = request_id.clone();
         storage_response.latency_ms = latency_ms;
         storage_response.tool_calls.clone_from(&tool_calls);
         storage_response.tool_results.clone_from(&tool_results);
@@ -197,7 +197,7 @@ impl AiService {
         &self,
         request: &AiRequest,
     ) -> Result<(AiResponse, Vec<ToolCall>)> {
-        let request_id = Uuid::new_v4();
+        let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
         let model = request.model();

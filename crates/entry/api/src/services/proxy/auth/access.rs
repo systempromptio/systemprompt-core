@@ -177,7 +177,9 @@ fn enforce_required_audience(
 fn resource_path_for(module_name: &str, service_name: &str) -> String {
     match module_name {
         "mcp" => ApiPaths::mcp_server_endpoint(service_name),
-        "agent" => ApiPaths::agent_endpoint(&systemprompt_identifiers::AgentId::new(service_name)),
+        "agent" => {
+            ApiPaths::agent_endpoint(&systemprompt_identifiers::AgentName::new(service_name))
+        },
         _ => String::new(),
     }
 }

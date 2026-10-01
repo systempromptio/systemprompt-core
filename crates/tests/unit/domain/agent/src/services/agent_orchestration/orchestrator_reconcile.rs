@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -25,8 +26,8 @@ use systemprompt_test_fixtures::test_db_pool;
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4().simple())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
 }
 
 fn app_paths() -> Arc<AppPaths> {
@@ -42,12 +43,12 @@ fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
     AgentDatabaseService::new(repo).expect("db service")
 }
 
-fn registry_from(entries: &[(&str, &str, u16)]) -> AgentRegistry {
+fn registry_from(entries: &[(&AgentName, &AgentName, u16)]) -> AgentRegistry {
     let mut agents = HashMap::new();
     for (key, name, port) in entries {
-        let mut config = agent_config(name);
+        let mut config = agent_config(name.as_str());
         config.port = *port;
-        agents.insert((*key).to_owned(), config);
+        agents.insert(key.to_string(), config);
     }
     AgentRegistry::from_config(ServicesConfig {
         agents,
@@ -57,7 +58,7 @@ fn registry_from(entries: &[(&str, &str, u16)]) -> AgentRegistry {
 
 async fn make_orchestrator(
     pool: &systemprompt_database::DbPool,
-    entries: &[(&str, &str, u16)],
+    entries: &[(&AgentName, &AgentName, u16)],
 ) -> AgentOrchestrator {
     let agent_state = make_agent_state(pool);
     let mut orchestrator = AgentOrchestrator::new(agent_state, app_paths(), None)
@@ -125,13 +126,9 @@ async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name(
     let info = orchestrator.get_detailed_status().await.expect("status");
     let entry = info
         .iter()
-        .find(|i| i.id.as_str() == declared)
+        .find(|i| i.name == declared)
         .expect("status is keyed by the declared agent name");
 
-    assert_eq!(
-        entry.name, "Unknown",
-        "a name that is not a registry key resolves no config"
-    );
     assert_eq!(entry.port, 8000, "the failed-status fallback port is used");
     assert!(matches!(entry.status, AgentStatus::Failed { .. }));
 }
@@ -200,7 +197,7 @@ async fn enable_agent_for_an_unregistered_name_is_rejected() {
     let orchestrator = make_orchestrator(&pool, &[]).await;
 
     let err = orchestrator
-        .enable_agent("__no_such_agent", None)
+        .enable_agent(&AgentName::new("__no_such_agent"), None)
         .await
         .expect_err("an agent absent from the registry cannot be enabled");
     assert!(
