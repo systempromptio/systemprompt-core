@@ -19,7 +19,9 @@ use systemprompt_api::services::gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role, SystemBlock,
 };
 use systemprompt_api::services::gateway::service::{DispatchError, GatewayService};
-use systemprompt_api::services::gateway::{DispatchInputs, GatewayRequestContext};
+use systemprompt_api::services::gateway::{
+    DispatchInputs, GatewayRepositories, GatewayRequestContext,
+};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, RouteId, SecretName,
@@ -337,21 +339,19 @@ fn streaming_sse_body() -> String {
     .concat()
 }
 
-async fn poll_completion(pool: &DbPool, id: &AiRequestId) -> Option<i32> {
-    let pg = pool.pool();
-    for _ in 0..50 {
-        let row: Option<(Option<i32>,)> =
-            sqlx::query_as("SELECT tokens_used FROM ai_requests WHERE id = $1")
-                .bind(id.as_str())
-                .fetch_optional(pg.as_ref())
-                .await
-                .expect("query ai_requests");
-        if let Some((Some(tokens),)) = row {
-            return Some(tokens);
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    None
+async fn settled_tokens(
+    repos: &GatewayRepositories,
+    pool: &DbPool,
+    id: &AiRequestId,
+) -> Option<i32> {
+    repos.background.drain().await;
+    let row: Option<(Option<i32>,)> =
+        sqlx::query_as("SELECT tokens_used FROM ai_requests WHERE id = $1")
+            .bind(id.as_str())
+            .fetch_optional(pool.pool().as_ref())
+            .await
+            .expect("query ai_requests");
+    row.and_then(|(tokens,)| tokens)
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -385,7 +385,8 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("buffered dispatch succeeds");
     assert_eq!(resp.status(), http::StatusCode::OK);
@@ -396,7 +397,7 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
     let rendered = body.to_string();
     assert!(rendered.contains("hello from upstream"), "body: {rendered}");
 
-    let tokens = poll_completion(&pool, &request_id).await;
+    let tokens = settled_tokens(&repos, &pool, &request_id).await;
     assert_eq!(
         tokens,
         Some(18),
@@ -530,7 +531,10 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
         GatewayService::dispatch(&config, &registry, &pool, &repositories, retry).await?;
     assert_eq!(response.status(), http::StatusCode::OK);
     to_bytes(response.into_body(), 1024 * 1024).await?;
-    assert_eq!(poll_completion(&pool, &retry_id).await, Some(18));
+    assert_eq!(
+        settled_tokens(&repositories, &pool, &retry_id).await,
+        Some(18)
+    );
 
     drop(repositories);
     drop(raw);
@@ -567,7 +571,8 @@ async fn streaming_dispatch_taps_events_and_completes_audit() -> anyhow::Result<
     let di = inputs(&cred, request, true);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("streaming dispatch succeeds");
     assert_eq!(resp.status(), http::StatusCode::OK);
@@ -586,7 +591,7 @@ async fn streaming_dispatch_taps_events_and_completes_audit() -> anyhow::Result<
         "tapped stream body: {text}"
     );
 
-    let tokens = poll_completion(&pool, &request_id).await;
+    let tokens = settled_tokens(&repos, &pool, &request_id).await;
     assert!(
         tokens.is_some(),
         "streaming completion must record a token count"
@@ -915,27 +920,20 @@ async fn remove_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn poll_findings(
+async fn settled_findings(
+    repos: &GatewayRepositories,
     pool: &DbPool,
     id: &AiRequestId,
-    want: usize,
 ) -> Vec<(String, String, String)> {
-    let pg = pool.pool();
-    for _ in 0..100 {
-        let rows: Vec<(String, String, String)> = sqlx::query_as(
-            "SELECT phase, category, severity FROM ai_safety_findings WHERE ai_request_id = $1 \
-             ORDER BY phase, category",
-        )
-        .bind(id.as_str())
-        .fetch_all(pg.as_ref())
-        .await
-        .expect("query findings");
-        if rows.len() >= want {
-            return rows;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    Vec::new()
+    repos.background.drain().await;
+    sqlx::query_as(
+        "SELECT phase, category, severity FROM ai_safety_findings WHERE ai_request_id = $1 \
+         ORDER BY phase, category",
+    )
+    .bind(id.as_str())
+    .fetch_all(pool.pool().as_ref())
+    .await
+    .expect("query findings")
 }
 
 #[tokio::test]
@@ -975,12 +973,13 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("scanned-but-unblocked dispatch succeeds");
     assert_eq!(resp.status(), http::StatusCode::OK);
 
-    let findings = poll_findings(&pool, &request_id, 2).await;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
     remove_safety_policy(&pool, &policy_name).await?;
     assert!(
         findings
@@ -1054,12 +1053,13 @@ async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -
     // Why: a jailbreak finding is in this policy's block_categories, so if the
     // prose matched, dispatch would be refused rather than merely flagged --
     // the failure would arrive here, not at the assertions.
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("a request carrying only identifiers and prose is not blocked");
     assert_eq!(resp.status(), http::StatusCode::OK);
 
-    let findings = poll_findings(&pool, &request_id, 1).await;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
     remove_safety_policy(&pool, &policy_name).await?;
 
     assert!(
@@ -1106,10 +1106,11 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let err = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect_err("blocked category must reject the dispatch");
-    let findings = poll_findings(&pool, &request_id, 1).await;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
     remove_safety_policy(&pool, &policy_name).await?;
 
     match err {
@@ -1170,7 +1171,11 @@ fn jailbreak_response_json() -> serde_json::Value {
 async fn dispatch_against_jailbreak_upstream(
     pool: &DbPool,
     cred: &AuthedFixture,
-) -> anyhow::Result<(AiRequestId, http::Response<axum::body::Body>)> {
+) -> anyhow::Result<(
+    AiRequestId,
+    http::Response<axum::body::Body>,
+    GatewayRepositories,
+)> {
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/messages"))
@@ -1187,22 +1192,11 @@ async fn dispatch_against_jailbreak_upstream(
     );
     let di = inputs(cred, canonical_request(MODEL, false), false);
     let request_id = di.ctx.ai_request_id.clone();
-    let resp = GatewayService::dispatch(
-        &config,
-        &registry,
-        pool,
-        &systemprompt_api::services::gateway::GatewayRepositories::new(
-            pool,
-            gateway_journal(),
-            std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-                systemprompt_agent::repository::ContextRepository::new(pool),
-            )),
-        ),
-        di,
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("dispatch failed: {e:?}"))?;
-    Ok((request_id, resp))
+    let repos = gw_repos(pool);
+    let resp = GatewayService::dispatch(&config, &registry, pool, &repos, di)
+        .await
+        .map_err(|e| anyhow::anyhow!("dispatch failed: {e:?}"))?;
+    Ok((request_id, resp, repos))
 }
 
 #[tokio::test]
@@ -1213,10 +1207,10 @@ async fn buffered_response_in_a_blocked_category_is_not_served() -> anyhow::Resu
     let policy_name = format!("gw-resp-block-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &["jailbreak"]).await?;
 
-    let (request_id, resp) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
+    let (request_id, resp, repos) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
     let status = resp.status();
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    let findings = poll_findings(&pool, &request_id, 1).await;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
     remove_safety_policy(&pool, &policy_name).await?;
 
     assert_eq!(status, http::StatusCode::FORBIDDEN);
@@ -1243,10 +1237,10 @@ async fn the_same_response_is_served_intact_when_no_category_blocks() -> anyhow:
     let policy_name = format!("gw-resp-audit-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &[]).await?;
 
-    let (request_id, resp) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
+    let (request_id, resp, repos) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
     let status = resp.status();
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    let findings = poll_findings(&pool, &request_id, 1).await;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
     remove_safety_policy(&pool, &policy_name).await?;
 
     assert_eq!(status, http::StatusCode::OK);
@@ -1287,14 +1281,15 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
     );
     let di = inputs(&cred, canonical_request(MODEL, true), true);
     let request_id = di.ctx.ai_request_id.clone();
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("streaming dispatch succeeds");
 
     assert_eq!(resp.status(), http::StatusCode::OK);
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
     let body = String::from_utf8_lossy(&bytes).into_owned();
-    let findings = poll_findings(&pool, &request_id, 1).await;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
     remove_safety_policy(&pool, &policy_name).await?;
 
     assert!(
@@ -1349,6 +1344,7 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
     .await?;
     assert_eq!(first.status(), http::StatusCode::OK);
     to_bytes(first.into_body(), 1024 * 1024).await?;
+    repositories.background.drain().await;
     let second = inputs(&cred, canonical_request(MODEL, false), false);
     let request_id = second.ctx.ai_request_id.clone();
     let result = GatewayService::dispatch(&config, &registry, &pool, &repositories, second).await;
@@ -1371,6 +1367,7 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         assert!(quota.message.contains("used 2/1"), "{}", quota.message);
     }
     upstream.verify().await;
+    repositories.background.drain().await;
     drop(repositories);
     raw.close().await;
     database.drop_now().await;
@@ -1615,7 +1612,6 @@ async fn recovery_quarantines_a_truncated_receipt_and_removes_interrupted_temp_f
     database.drop_now().await;
     Ok(())
 }
-// Append after owned_gateway_repos in gateway_pipeline.rs.
 #[tokio::test(flavor = "current_thread")]
 async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exactly_once()
 -> anyhow::Result<()> {
@@ -1669,6 +1665,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         .await
         .expect("provider response remains available when accounting is retained for recovery");
     assert_eq!(response.status(), http::StatusCode::OK);
+    repositories.background.drain().await;
     assert_eq!(
         upstream
             .received_requests()

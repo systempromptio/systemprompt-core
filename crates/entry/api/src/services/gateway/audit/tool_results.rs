@@ -40,7 +40,7 @@ impl GatewayAudit {
             return;
         };
         let requests = Arc::clone(&self.requests);
-        tokio::spawn(async move {
+        self.background.spawn(async move {
             for replayed in results {
                 ingest_one(&ingest, &requests, &ctx, replayed).await;
             }

@@ -71,7 +71,8 @@ impl Drop for AbandonGuard {
         let audit = Arc::clone(&self.audit);
         audit.mark_upstream_end();
         log_terminal(&audit, CLIENT_CLOSED_REQUEST, Some(ABANDONED_REASON));
-        tokio::spawn(async move {
+        let background = audit.background().clone();
+        background.spawn(async move {
             if let Err(e) = audit.fail(ABANDONED_REASON).await {
                 tracing::warn!(error = %e, "abandoned dispatch audit fail failed");
             }

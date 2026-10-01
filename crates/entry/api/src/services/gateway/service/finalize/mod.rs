@@ -199,7 +199,7 @@ fn spawn_buffered_completion(
     tap_ctx: stream_tap::TapFinalizeCtx,
     response_scanned: bool,
 ) {
-    tokio::spawn(buffered_completion(
+    audit.background().spawn(buffered_completion(
         canonical,
         body,
         Arc::clone(audit),
