@@ -161,10 +161,14 @@ fn auth_provider_insufficient_permissions_maps_to_access_denied() {
 }
 
 #[test]
-fn anyhow_error_maps_to_server_error() {
+fn anyhow_error_maps_to_server_error_without_its_text() {
     let e: OAuthHttpError = anyhow::anyhow!("boom").into();
     assert_eq!(e.code(), OAuthErrorCode::ServerError);
-    assert!(e.description().contains("boom"));
+    assert!(
+        !e.description().contains("boom"),
+        "the cause rides as the logged source, never as description text: {}",
+        e.description()
+    );
 }
 
 #[test]
