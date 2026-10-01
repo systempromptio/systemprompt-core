@@ -231,10 +231,7 @@ async fn a_degraded_request_runs_as_a_fresh_anonymous_principal() -> Result<()> 
             "Mozilla/5.0 (X11; Linux x86_64) degraded/{}",
             uuid::Uuid::new_v4()
         );
-        let resp = app
-            .clone()
-            .oneshot(get_page(&[("user-agent", ua)]))
-            .await?;
+        let resp = app.clone().oneshot(get_page(&[("user-agent", ua)])).await?;
         assert!(resp.status().is_success(), "{}", resp.status());
         let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await?;
         principals.push(String::from_utf8(body.to_vec())?);

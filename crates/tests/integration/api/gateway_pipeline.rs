@@ -24,8 +24,7 @@ use systemprompt_api::services::gateway::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, SecretName,
-    TraceId,
+    AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, SecretName, TraceId,
 };
 use systemprompt_models::services::{
     ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,

@@ -1,5 +1,5 @@
-use systemprompt_identifiers::AgentName;
 use systemprompt_api::services::server::lifecycle::agents::reconcile_agents;
+use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::{
     init_services_bootstrap, install_test_signing_key, test_app_context, test_db_pool,
 };

@@ -64,7 +64,12 @@ async fn a_successful_tool_call_returns_its_structured_content() {
     let ctx = executor.context.request_ctx.clone();
 
     let value = executor
-        .execute_tool(&McpToolName::new("lookup"), serde_json::json!({"q": "x"}), &[], &ctx)
+        .execute_tool(
+            &McpToolName::new("lookup"),
+            serde_json::json!({"q": "x"}),
+            &[],
+            &ctx,
+        )
         .await
         .expect("the tool succeeded");
 
@@ -81,7 +86,12 @@ async fn a_tool_that_returns_no_result_is_an_error_naming_the_tool() {
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
-        .execute_tool(&McpToolName::new("absent"), serde_json::json!({}), &[], &ctx)
+        .execute_tool(
+            &McpToolName::new("absent"),
+            serde_json::json!({}),
+            &[],
+            &ctx,
+        )
         .await
         .expect_err("no result came back");
 
@@ -102,7 +112,12 @@ async fn a_tool_reporting_an_error_surfaces_its_message() {
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
-        .execute_tool(&McpToolName::new("broken"), serde_json::json!({}), &[], &ctx)
+        .execute_tool(
+            &McpToolName::new("broken"),
+            serde_json::json!({}),
+            &[],
+            &ctx,
+        )
         .await
         .expect_err("the tool reported failure");
 
@@ -123,7 +138,12 @@ async fn a_tool_error_without_text_content_falls_back_to_unknown() {
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
-        .execute_tool(&McpToolName::new("silent"), serde_json::json!({}), &[], &ctx)
+        .execute_tool(
+            &McpToolName::new("silent"),
+            serde_json::json!({}),
+            &[],
+            &ctx,
+        )
         .await
         .expect_err("the tool reported failure");
 

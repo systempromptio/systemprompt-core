@@ -488,8 +488,7 @@ fn build_rejection_record_without_a_context_gets_a_fresh_context_not_the_legacy_
     partial.context_id = None;
     partial.session_id = None;
     let first = build_rejection_record(&AiRequestId::generate(), &partial).expect("record built");
-    let second =
-        build_rejection_record(&AiRequestId::generate(), &partial).expect("record built");
+    let second = build_rejection_record(&AiRequestId::generate(), &partial).expect("record built");
     let legacy = systemprompt_identifiers::ContextId::legacy_context_row();
     assert_ne!(first.context_id, legacy);
     assert_ne!(second.context_id, legacy);

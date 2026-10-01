@@ -248,21 +248,21 @@ pub(super) async fn list_logs_after(
             },
         };
         tail.rows.push(LogRow {
-                provider_request_id,
-                gateway_conversation_id,
-                id: row.id,
-                timestamp: row.timestamp,
-                level: row.level,
-                module: row.module,
-                message: row.message,
-                metadata: row.metadata,
-                user_id: row.user_id,
-                session_id: row.session_id,
-                trace_id: row.trace_id,
-                context_id: row.context_id,
-                client_id: row.client_id,
-                instance_id: row.instance_id.map(InstanceId::new),
-            });
+            provider_request_id,
+            gateway_conversation_id,
+            id: row.id,
+            timestamp: row.timestamp,
+            level: row.level,
+            module: row.module,
+            message: row.message,
+            metadata: row.metadata,
+            user_id: row.user_id,
+            session_id: row.session_id,
+            trace_id: row.trace_id,
+            context_id: row.context_id,
+            client_id: row.client_id,
+            instance_id: row.instance_id.map(InstanceId::new),
+        });
     }
     Ok(tail)
 }

@@ -83,10 +83,7 @@ fn catalog_and_gateway_merge_from_includes_and_resolve_relative_to_their_file() 
         .find_route("claude-sonnet-4-5")
         .expect("route matches the catalog model");
     assert_eq!(route.provider.as_str(), "anthropic");
-    assert!(
-        route.declared_id().is_some(),
-        "loader backfills route ids"
-    );
+    assert!(route.declared_id().is_some(), "loader backfills route ids");
     assert_eq!(
         gateway.system_prompt_overrides[0].prompt.as_deref(),
         Some(OVERRIDE_PROMPT),

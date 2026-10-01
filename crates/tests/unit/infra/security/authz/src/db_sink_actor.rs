@@ -134,11 +134,18 @@ async fn sink_without_a_context_or_session_mints_a_fresh_context_not_the_legacy_
     }
 
     for context in &contexts {
-        assert_ne!(context, legacy.as_str(), "no row lands in the legacy context");
+        assert_ne!(
+            context,
+            legacy.as_str(),
+            "no row lands in the legacy context"
+        );
         assert!(
             systemprompt_identifiers::ContextId::try_new(context.as_str()).is_ok(),
             "{context}"
         );
     }
-    assert_ne!(contexts[0], contexts[1], "each context-less row gets its own context");
+    assert_ne!(
+        contexts[0], contexts[1],
+        "each context-less row gets its own context"
+    );
 }

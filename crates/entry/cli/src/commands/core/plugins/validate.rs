@@ -157,9 +157,7 @@ fn validate_skill_refs(
                 )),
                 Some(skill) => {
                     if let Some(unknown) = &skill.unknown_host {
-                        errors.push(format!(
-                            "Referenced skill '{skill_id}' lists an {unknown}"
-                        ));
+                        errors.push(format!("Referenced skill '{skill_id}' lists an {unknown}"));
                     }
                     if !skill.enabled {
                         warnings.push(format!(

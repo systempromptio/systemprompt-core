@@ -112,8 +112,14 @@ fn execution_metadata_builder_copies_request_identity() {
     assert_eq!(meta.trace_id.as_str(), "trace-1");
     assert_eq!(meta.session_id.as_str(), "sess-1");
     assert_eq!(meta.agent_name.as_str(), "agent_one");
-    assert_eq!(meta.tool_name.as_ref().map(McpToolName::as_str), Some("my_tool"));
-    assert_eq!(meta.skill_name.as_ref().map(SkillName::as_str), Some("Skill One"));
+    assert_eq!(
+        meta.tool_name.as_ref().map(McpToolName::as_str),
+        Some("my_tool")
+    );
+    assert_eq!(
+        meta.skill_name.as_ref().map(SkillName::as_str),
+        Some("Skill One")
+    );
     assert_eq!(meta.execution_id.as_deref(), Some("exec-1"));
     assert!(meta.task_id.is_none());
 }

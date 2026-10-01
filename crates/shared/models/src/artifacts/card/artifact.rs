@@ -103,11 +103,7 @@ impl PresentationCardArtifact {
         self
     }
 
-    pub fn with_skill(
-        mut self,
-        skill_id: SkillId,
-        skill_name: SkillName,
-    ) -> Self {
+    pub fn with_skill(mut self, skill_id: SkillId, skill_name: SkillName) -> Self {
         self.skill_id = Some(skill_id.clone());
         self.skill_name = Some(skill_name.clone());
         self.metadata.set_skill(skill_id, skill_name);

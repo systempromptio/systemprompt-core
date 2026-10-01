@@ -194,12 +194,8 @@ pub async fn run_connection_validation(
     port: u16,
     timeout_secs: u64,
 ) -> McpValidateOutput {
-    let validation_future = validate_connection_with_auth(
-        service_name,
-        "127.0.0.1",
-        port,
-        server.oauth.required,
-    );
+    let validation_future =
+        validate_connection_with_auth(service_name, "127.0.0.1", port, server.oauth.required);
 
     let validation_result =
         match tokio::time::timeout(Duration::from_secs(timeout_secs), validation_future).await {

@@ -150,7 +150,10 @@ async fn managed_context(
     ))
 }
 
-pub async fn show_resolved_skill(skill_id: &SkillId, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn show_resolved_skill(
+    skill_id: &SkillId,
+    ctx: &CommandContext,
+) -> Result<CommandOutput> {
     if let Some((resolver, owner)) = managed_context(ctx).await {
         match resolver.resolve_skill(&owner, skill_id.as_str()).await? {
             ManagedSkillResolution::Withheld(reason) => {

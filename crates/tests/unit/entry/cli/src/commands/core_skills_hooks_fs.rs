@@ -7,8 +7,8 @@ use std::path::Path;
 
 use clap::Parser;
 use systemprompt_cli::core::skills::list::{execute_with_path, show_skill_detail};
-use systemprompt_identifiers::SkillId;
 use systemprompt_cli::core::{hooks, skills};
+use systemprompt_identifiers::SkillId;
 
 #[derive(Debug, Parser)]
 struct SkillsListHarness {

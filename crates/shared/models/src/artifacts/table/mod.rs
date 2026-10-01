@@ -115,11 +115,7 @@ impl TableArtifact {
         self
     }
 
-    pub fn with_skill(
-        mut self,
-        skill_id: SkillId,
-        skill_name: SkillName,
-    ) -> Self {
+    pub fn with_skill(mut self, skill_id: SkillId, skill_name: SkillName) -> Self {
         self.metadata.set_skill(skill_id, skill_name);
         self
     }

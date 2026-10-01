@@ -448,7 +448,8 @@ mod reconciler_seeded {
             .expect("reconcile must succeed");
 
         assert!(
-            result.cleaned_up.contains(&ServiceName::new(name.as_str())) || result.failed.iter().any(|(n, _)| n.as_str() == name),
+            result.cleaned_up.contains(&ServiceName::new(name.as_str()))
+                || result.failed.iter().any(|(n, _)| n.as_str() == name),
             "a Disabled+Stopped DB row must be cleaned up or recorded as failed"
         );
     }
@@ -607,7 +608,8 @@ mod reconciler_seeded {
             .expect("reconcile must succeed");
 
         assert!(
-            result.started.contains(&ServiceName::new(name.as_str())) || result.failed.iter().any(|(n, _)| n.as_str() == name),
+            result.started.contains(&ServiceName::new(name.as_str()))
+                || result.failed.iter().any(|(n, _)| n.as_str() == name),
             "a newly enabled service absent from DB must be started or recorded as failed"
         );
     }

@@ -79,7 +79,10 @@ impl GatewayRoute {
         if self.declared_id().is_some() {
             return false;
         }
-        self.id = Some(synthesize_route_id(&self.model_pattern, self.provider.as_str()));
+        self.id = Some(synthesize_route_id(
+            &self.model_pattern,
+            self.provider.as_str(),
+        ));
         true
     }
 
@@ -89,9 +92,9 @@ impl GatewayRoute {
 
     #[must_use]
     pub fn effective_id(&self) -> RouteId {
-        self.declared_id().cloned().unwrap_or_else(|| {
-            synthesize_route_id(&self.model_pattern, self.provider.as_str())
-        })
+        self.declared_id()
+            .cloned()
+            .unwrap_or_else(|| synthesize_route_id(&self.model_pattern, self.provider.as_str()))
     }
 
     pub fn resolve<'a>(&self, registry: &'a ProviderRegistry) -> Option<&'a ProviderEntry> {

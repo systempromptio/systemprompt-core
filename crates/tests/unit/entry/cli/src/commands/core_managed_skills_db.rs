@@ -207,8 +207,8 @@ async fn published_managed_skill_detail_replaces_same_named_filesystem_content()
         &systemprompt_identifiers::SkillId::new(fixture.key.as_str()),
         &fixture.ctx,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     let wire = serde_json::to_value(output.artifact()).unwrap().to_string();
     assert!(wire.contains("managed://"), "{wire}");
     assert!(wire.contains(&fixture.key), "{wire}");

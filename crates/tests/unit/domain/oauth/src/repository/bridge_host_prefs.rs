@@ -152,7 +152,11 @@ async fn model_protocols_do_not_perturb_enabled_state() {
         .await
         .expect("set filter");
     assert!(
-        !repo.list_enabled(&user_id).await.expect("list").any_enabled_row,
+        !repo
+            .list_enabled(&user_id)
+            .await
+            .expect("list")
+            .any_enabled_row,
         "model-filter override must not register an enable-state row"
     );
 }
