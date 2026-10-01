@@ -20,9 +20,7 @@ use systemprompt_provider_contracts::{
     ProviderError, ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider,
     RssFeedSpec,
 };
-use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
 
@@ -68,11 +66,6 @@ fn install_content_config(boot: &TestBootstrap, key: &str, source_id: &str, bran
     .expect("write content config");
 }
 
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
-
 async fn seed_post(db: &DbPool, source_id: &SourceId, slug: &str) {
     let repo = ContentRepository::new(db).expect("content repository");
     let params = CreateContentParams::new(
@@ -95,9 +88,7 @@ async fn cleanup(db: &DbPool, source_id: &SourceId) {
 async fn generate_feed_writes_xml_with_seeded_item() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("rssgendb");
     cleanup(&db, &source_id).await;
@@ -142,9 +133,7 @@ async fn generate_feed_writes_xml_with_seeded_item() {
 async fn rss_provider_branding_falls_back_to_web_branding() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     install_web_config(boot);
     install_content_config(boot, "blog", "rssbrandingnone", "");
@@ -166,9 +155,7 @@ async fn rss_provider_branding_falls_back_to_web_branding() {
 async fn rss_provider_partial_branding_mixes_source_and_web_defaults() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     install_web_config(boot);
     install_content_config(
@@ -197,9 +184,7 @@ async fn rss_provider_partial_branding_mixes_source_and_web_defaults() {
 async fn rss_provider_feed_specs_skip_sources_without_enabled_sitemap() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     install_web_config(boot);
     install_content_config(boot, "blog", "rssspecs", "");
@@ -221,9 +206,7 @@ async fn rss_provider_feed_specs_skip_sources_without_enabled_sitemap() {
 async fn rss_provider_fetch_items_maps_slug_through_url_pattern() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("rssfetchdb");
     cleanup(&db, &source_id).await;
@@ -368,9 +351,7 @@ fn tempdir_paths(tmp: &tempfile::TempDir) -> systemprompt_config::paths::AppPath
 #[tokio::test]
 async fn rss_provider_missing_content_config_is_read_error() {
     let _boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let tmp = tempfile::TempDir::new().unwrap();
     let err = DefaultRssFeedProvider::new(content_repo(&db), &tempdir_paths(&tmp))
         .await
@@ -384,9 +365,7 @@ async fn rss_provider_missing_content_config_is_read_error() {
 #[tokio::test]
 async fn rss_provider_malformed_content_config_is_parse_error() {
     let _boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let tmp = tempfile::TempDir::new().unwrap();
     let paths = tempdir_paths(&tmp);
     let cfg = paths.system().content_config().to_path_buf();
@@ -405,9 +384,6 @@ async fn rss_provider_malformed_content_config_is_parse_error() {
 async fn rss_provider_fetch_items_with_closed_pool_is_render_failed() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    if fixture_database_url().is_err() {
-        return;
-    }
 
     install_web_config(boot);
     install_content_config(boot, "blog", "rssclosedsrc", "");
@@ -431,9 +407,7 @@ async fn rss_provider_fetch_items_with_closed_pool_is_render_failed() {
 async fn rss_provider_fetch_items_defaults_url_pattern_without_sitemap() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("rssnositemap-off");
     cleanup(&db, &source_id).await;

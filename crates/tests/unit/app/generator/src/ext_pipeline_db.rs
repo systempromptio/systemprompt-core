@@ -10,20 +10,16 @@ use std::sync::Mutex;
 
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
-use systemprompt_database::DbPool;
 use systemprompt_extension::AssetPaths;
 use systemprompt_generator::{
     execute_copy_extension_assets, generate_sitemap, get_templates_path, load_web_config,
     prerender_content, prerender_pages,
 };
 use systemprompt_identifiers::SourceId;
-use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 
 use crate::config_error_db::web_config_yaml_with_templates_path;
 use crate::ext_fixtures::{GEN_REQUIRED_ASSET_DEST, GEN_REQUIRED_ASSET_SOURCE};
-
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
 
@@ -58,11 +54,6 @@ fn install_config(boot: &TestBootstrap, source_id: &str) {
     .expect("write content config");
     fs::create_dir_all(boot.app_paths.web().dist()).expect("mkdir dist");
     fs::create_dir_all(boot.app_paths.web().root().join("templates")).expect("mkdir templates");
-}
-
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
 }
 
 #[tokio::test]
@@ -135,9 +126,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
 async fn prerender_runs_fixture_components_extenders_and_enrichment() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("extpipesrc");
     let repo = ContentRepository::new(&db).expect("content repository");
@@ -205,9 +194,7 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
 async fn prerender_pages_renders_fixture_page_with_provider_data() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     install_config(boot, "extpipepages");
     let tmpl_dir = boot.app_paths.web().root().join("templates");
@@ -250,9 +237,7 @@ async fn prerender_pages_renders_fixture_page_with_provider_data() {
 async fn prerender_empty_source_retries_then_renders_nothing() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("extpipeempty");
     let repo = ContentRepository::new(&db).expect("content repository");
@@ -278,9 +263,7 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
 async fn generate_sitemap_chunks_into_index_when_over_url_limit() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let pool = db.pool_arc().expect("pg pool");
     sqlx::query("DELETE FROM markdown_content WHERE source_id = 'extpipebulk'")

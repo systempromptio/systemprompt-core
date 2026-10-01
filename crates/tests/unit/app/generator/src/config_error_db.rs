@@ -7,14 +7,13 @@ use std::fs;
 use std::sync::Mutex;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::DbPool;
 use systemprompt_generator::{
     DefaultSitemapProvider, PublishError, generate_sitemap, get_templates_path, load_web_config,
     prerender_content,
 };
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
-    TestBootstrap, closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
+    TestBootstrap, closed_db_pool, ensure_test_bootstrap, test_db_pool,
 };
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
@@ -92,7 +91,6 @@ touchTargets: {{ default: "44px", sm: "32px", lg: "56px" }}
     )
 }
 
-
 const MINIMAL_SOURCES_YAML: &str = "content_sources: {}\n";
 
 fn write_content_config(boot: &TestBootstrap, yaml: &str) {
@@ -101,11 +99,6 @@ fn write_content_config(boot: &TestBootstrap, yaml: &str) {
 
 fn write_web_config(boot: &TestBootstrap, yaml: &str) {
     fs::write(boot.services_path.join("web/config.yaml"), yaml).expect("write web config");
-}
-
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
 }
 
 fn tempdir_paths(tmp: &tempfile::TempDir) -> AppPaths {
@@ -158,9 +151,7 @@ async fn sitemap_provider_malformed_content_config_is_parse_error() {
 async fn generate_sitemap_malformed_content_config_is_parse_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     write_content_config(boot, ": not yaml [");
     let err = generate_sitemap(content_repo(&db), &boot.app_paths)
@@ -177,9 +168,7 @@ async fn generate_sitemap_malformed_content_config_is_parse_error() {
 async fn prerender_content_malformed_content_config_is_parse_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     write_content_config(boot, "content_sources: [broken");
     let err = prerender_content(
@@ -201,9 +190,7 @@ async fn prerender_content_malformed_content_config_is_parse_error() {
 async fn prerender_content_missing_content_config_is_read_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let cfg = boot.services_path.join("content/config.yaml");
     let _ = fs::remove_file(&cfg);
@@ -226,9 +213,7 @@ async fn prerender_content_missing_content_config_is_read_error() {
 async fn prerender_content_malformed_web_config_is_web_config_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     write_content_config(boot, MINIMAL_SOURCES_YAML);
     write_web_config(boot, "branding: [not a map");
@@ -307,9 +292,7 @@ async fn get_templates_path_falls_back_to_web_root_when_unconfigured() {
 async fn prerender_content_missing_templates_dir_is_config_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     write_content_config(boot, MINIMAL_SOURCES_YAML);
     write_web_config(boot, &web_config_yaml_with_templates_path(""));
@@ -333,9 +316,6 @@ async fn prerender_content_missing_templates_dir_is_config_error() {
 async fn prerender_content_with_closed_pool_is_fetch_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    if fixture_database_url().is_err() {
-        return;
-    }
 
     write_web_config(boot, &web_config_yaml_with_templates_path(""));
     write_content_config(

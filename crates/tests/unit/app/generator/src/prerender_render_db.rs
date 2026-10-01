@@ -15,9 +15,7 @@ use systemprompt_content::models::CreateContentParams;
 use systemprompt_database::DbPool;
 use systemprompt_generator::{PublishError, prerender_content, prerender_pages};
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 
 // Serialises this module's tests when run under plain `cargo test` (nextest
 // gives each test its own process, so the lock is then uncontended).
@@ -199,11 +197,6 @@ fn install_templates(boot: &TestBootstrap, item: bool, list: bool) {
     }
 }
 
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
-
 async fn seed_post(db: &DbPool, source_id: &SourceId, slug: &str, locale: &str, body: &str) {
     let repo = ContentRepository::new(db).expect("content repository");
     let params = CreateContentParams::new(
@@ -231,9 +224,7 @@ fn dist_page(boot: &TestBootstrap, rel: &str) -> std::path::PathBuf {
 async fn prerender_renders_item_html_with_toc_for_both_locales() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("renderdbitems");
     cleanup(&db, &source_id).await;
@@ -289,9 +280,7 @@ async fn prerender_renders_item_html_with_toc_for_both_locales() {
 async fn prerender_renders_parent_list_route_with_index_content() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("renderdblist");
     cleanup(&db, &source_id).await;
@@ -335,9 +324,7 @@ async fn prerender_renders_parent_list_route_with_index_content() {
 async fn prerender_list_route_without_index_content_sets_flag_false() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("renderdbnoindex");
     cleanup(&db, &source_id).await;
@@ -369,9 +356,7 @@ async fn prerender_list_route_without_index_content_sets_flag_false() {
 async fn prerender_errors_with_template_not_found_for_item() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("renderdbnotmpl");
     cleanup(&db, &source_id).await;
@@ -402,9 +387,7 @@ async fn prerender_errors_with_template_not_found_for_item() {
 async fn prerender_errors_with_template_not_found_for_list_route() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("renderdbnolist");
     cleanup(&db, &source_id).await;
@@ -435,9 +418,7 @@ async fn prerender_errors_with_template_not_found_for_list_route() {
 async fn prerender_pages_renders_homepage_when_template_exists() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     install_config(boot, "renderdbpages", false);
     let tmpl_dir = boot.app_paths.web().root().join("templates");

@@ -8,16 +8,9 @@ use std::sync::{Arc, Mutex};
 use systemprompt_database::DbPool;
 use systemprompt_generator::{ContentPrerenderJob, PagePrerenderJob};
 use systemprompt_provider_contracts::{Job, JobContext, JobScope, ProviderError};
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_actor, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_actor, test_db_pool};
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
-
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn empty_ctx() -> JobContext {
     JobContext::new(fixture_actor(), Arc::new(()), Arc::new(()), Arc::new(()))
@@ -71,9 +64,7 @@ async fn page_prerender_job_without_db_pool_is_configuration_error() {
 
 #[tokio::test]
 async fn content_prerender_job_without_app_paths_is_configuration_error() {
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let ctx = JobContext::new(fixture_actor(), Arc::new(db), Arc::new(()), Arc::new(()));
     let err = ContentPrerenderJob
         .execute(&ctx)
@@ -87,9 +78,7 @@ async fn content_prerender_job_without_app_paths_is_configuration_error() {
 
 #[tokio::test]
 async fn page_prerender_job_without_app_paths_is_configuration_error() {
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let ctx = JobContext::new(fixture_actor(), Arc::new(db), Arc::new(()), Arc::new(()));
     let err = PagePrerenderJob
         .execute(&ctx)
@@ -105,9 +94,7 @@ async fn page_prerender_job_without_app_paths_is_configuration_error() {
 async fn prerender_jobs_run_to_success_with_empty_sources() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     fs::write(
         boot.services_path.join("web/config.yaml"),
