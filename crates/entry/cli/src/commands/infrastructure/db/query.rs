@@ -18,6 +18,12 @@ pub(super) struct QueryParams<'a> {
     pub offset: Option<u32>,
 }
 
+impl<'a> QueryParams<'a> {
+    pub(super) const fn new(sql: &'a str, limit: Option<u32>, offset: Option<u32>) -> Self {
+        Self { sql, limit, offset }
+    }
+}
+
 pub(super) async fn execute_query(
     executor: &QueryExecutor,
     admin_service: &DatabaseAdminService,

@@ -14,24 +14,22 @@ use systemprompt_traits::{DynSessionStore, SessionStore};
 
 const BEHAVIORAL_FINGERPRINT_WINDOW_DAYS: i64 = 45;
 
+#[derive(Debug, Clone)]
+pub struct DetectionSubject {
+    pub session_id: SessionId,
+    pub fingerprint_hash: Option<String>,
+    pub user_agent: Option<String>,
+    pub request_count: i64,
+}
+
 pub(super) fn spawn_behavioral_detection_task(
     sessions: DynSessionStore,
     signals: Arc<SessionSignalsRepository>,
-    session_id: SessionId,
-    fingerprint_hash: Option<String>,
-    user_agent: Option<String>,
-    request_count: i64,
+    subject: DetectionSubject,
 ) {
     tokio::spawn(async move {
-        let input = collect_analysis_input(
-            &*sessions,
-            &signals,
-            session_id.clone(),
-            fingerprint_hash,
-            user_agent,
-            request_count,
-        )
-        .await;
+        let session_id = subject.session_id.clone();
+        let input = collect_analysis_input(&*sessions, &signals, subject).await;
 
         let result = BehavioralBotDetector::analyze(&input);
 
@@ -53,11 +51,14 @@ pub(super) fn spawn_behavioral_detection_task(
 pub async fn collect_analysis_input(
     sessions: &dyn SessionStore,
     signals: &SessionSignalsRepository,
-    session_id: SessionId,
-    fingerprint_hash: Option<String>,
-    user_agent: Option<String>,
-    request_count: i64,
+    subject: DetectionSubject,
 ) -> BehavioralAnalysisInput {
+    let DetectionSubject {
+        session_id,
+        fingerprint_hash,
+        user_agent,
+        request_count,
+    } = subject;
     let fingerprint = fingerprint_stats(sessions, signals, fingerprint_hash.as_deref()).await;
 
     let endpoints_accessed = signals

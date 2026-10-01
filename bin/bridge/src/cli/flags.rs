@@ -48,10 +48,6 @@ pub fn command_flags(command: Option<&str>) -> Option<CommandFlags> {
             positionals: 2,
             ..NONE
         },
-        "__apply-policy-task" => CommandFlags {
-            positionals: 1,
-            ..NONE
-        },
         "sync" => CommandFlags {
             switches: &[
                 "--watch",
@@ -67,7 +63,7 @@ pub fn command_flags(command: Option<&str>) -> Option<CommandFlags> {
             switches: &["--check", "--yes", "-y"],
             ..NONE
         },
-        "oauth-client" => CommandFlags {
+        "__apply-policy-task" | "oauth-client" => CommandFlags {
             positionals: 1,
             ..NONE
         },

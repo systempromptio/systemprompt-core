@@ -159,10 +159,12 @@ impl AnalyticsMiddleware {
         detection::spawn_behavioral_detection_task(
             Arc::clone(&self.sessions),
             Arc::clone(&self.signals),
-            req_ctx.request.session_id.clone(),
-            req_ctx.request.fingerprint_hash.clone(),
-            user_agent.clone(),
-            1,
+            detection::DetectionSubject {
+                session_id: req_ctx.request.session_id.clone(),
+                fingerprint_hash: req_ctx.request.fingerprint_hash.clone(),
+                user_agent: user_agent.clone(),
+                request_count: 1,
+            },
         );
 
         events::spawn_analytics_event_task(

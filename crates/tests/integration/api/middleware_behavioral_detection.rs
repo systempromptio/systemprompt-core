@@ -7,7 +7,9 @@
 //! with an unknown session and no fingerprint (the early-return / fallback
 //! paths).
 
-use systemprompt_api::services::middleware::analytics::detection::collect_analysis_input;
+use systemprompt_api::services::middleware::analytics::detection::{
+    DetectionSubject, collect_analysis_input,
+};
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session};
 
@@ -26,10 +28,12 @@ async fn collect_input_with_seeded_session_and_fingerprint() -> anyhow::Result<(
     let input = collect_analysis_input(
         &*repositories.session_store,
         &repositories.session_signals,
-        session.clone(),
-        Some(format!("fp-{}", uuid::Uuid::new_v4())),
-        Some("Mozilla/5.0 test".to_owned()),
-        7,
+        DetectionSubject {
+            session_id: session.clone(),
+            fingerprint_hash: Some(format!("fp-{}", uuid::Uuid::new_v4())),
+            user_agent: Some("Mozilla/5.0 test".to_owned()),
+            request_count: 7,
+        },
     )
     .await;
 
@@ -47,10 +51,12 @@ async fn collect_input_unknown_session_no_fingerprint_uses_fallbacks() -> anyhow
     let input = collect_analysis_input(
         &*repositories.session_store,
         &repositories.session_signals,
-        session.clone(),
-        None,
-        None,
-        3,
+        DetectionSubject {
+            session_id: session.clone(),
+            fingerprint_hash: None,
+            user_agent: None,
+            request_count: 3,
+        },
     )
     .await;
 

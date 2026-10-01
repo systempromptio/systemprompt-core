@@ -179,13 +179,11 @@ impl From<BundleError> for ApiHttpError {
         let message = err.to_string();
         let api = match err {
             BundleError::Auth { .. } => ApiError::forbidden(message),
-            BundleError::Verify(_) | BundleError::Ownership { .. } => {
-                ApiError::bad_request(message)
-            },
+            BundleError::Verify(_)
+            | BundleError::Ownership { .. }
+            | BundleError::Policy { .. }
+            | BundleError::TooLarge { .. } => ApiError::bad_request(message),
             BundleError::SourceMissing { .. } => ApiError::not_found(message),
-            BundleError::Policy { .. } | BundleError::TooLarge { .. } => {
-                ApiError::bad_request(message)
-            },
             BundleError::Fetch { .. } | BundleError::Extract { .. } | BundleError::Io(_) => {
                 internal_api_error("Services bundle operation failed", &message)
             },

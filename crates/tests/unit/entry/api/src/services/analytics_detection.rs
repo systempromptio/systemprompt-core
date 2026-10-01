@@ -8,7 +8,9 @@
 //! lookup at once, which is the shape of the outage the fallbacks exist for.
 
 use systemprompt_analytics::repository::AnalyticsRepositories;
-use systemprompt_api::services::middleware::analytics::detection::collect_analysis_input;
+use systemprompt_api::services::middleware::analytics::detection::{
+    DetectionSubject, collect_analysis_input,
+};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
 
@@ -32,10 +34,12 @@ async fn every_lookup_failing_yields_a_neutral_input_rather_than_no_analysis() {
     let input = collect_analysis_input(
         &*repo.session_store,
         &repo.session_signals,
-        session_id.clone(),
-        Some("fp-unreachable".to_owned()),
-        Some("curl/8".to_owned()),
-        7,
+        DetectionSubject {
+            session_id: session_id.clone(),
+            fingerprint_hash: Some("fp-unreachable".to_owned()),
+            user_agent: Some("curl/8".to_owned()),
+            request_count: 7,
+        },
     )
     .await;
 
@@ -71,10 +75,12 @@ async fn a_request_carrying_no_fingerprint_skips_the_fingerprint_queries_entirel
     let input = collect_analysis_input(
         &*repo.session_store,
         &repo.session_signals,
-        SessionId::generate(),
-        None,
-        None,
-        1,
+        DetectionSubject {
+            session_id: SessionId::generate(),
+            fingerprint_hash: None,
+            user_agent: None,
+            request_count: 1,
+        },
     )
     .await;
 
@@ -90,10 +96,12 @@ async fn a_session_with_no_row_is_timed_from_the_request_count_it_was_given() {
     let input = collect_analysis_input(
         &*repo.session_store,
         &repo.session_signals,
-        SessionId::generate(),
-        None,
-        None,
-        42,
+        DetectionSubject {
+            session_id: SessionId::generate(),
+            fingerprint_hash: None,
+            user_agent: None,
+            request_count: 42,
+        },
     )
     .await;
 

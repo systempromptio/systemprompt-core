@@ -55,7 +55,8 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
 
     match cmd {
         DbCommands::Query { sql, limit, offset } => {
-            run_query(&query_executor, &admin_service, &sql, limit, offset, config).await
+            let params = query::QueryParams::new(&sql, limit, offset);
+            run_query(&query_executor, &admin_service, &params, config).await
         },
         DbCommands::Execute { sql, yes } => {
             require_confirmation(
@@ -134,13 +135,10 @@ async fn connect_services(
 async fn run_query(
     executor: &QueryExecutor,
     admin_service: &DatabaseAdminService,
-    sql: &str,
-    limit: Option<u32>,
-    offset: Option<u32>,
+    params: &query::QueryParams<'_>,
     config: &CliConfig,
 ) -> Result<()> {
-    let params = query::QueryParams { sql, limit, offset };
-    let result = query::execute_query(executor, admin_service, &params, config).await?;
+    let result = query::execute_query(executor, admin_service, params, config).await?;
     render_result(&result, config);
     Ok(())
 }
