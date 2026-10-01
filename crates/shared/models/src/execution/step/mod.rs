@@ -153,5 +153,3 @@ pub struct TrackedStep {
     pub step_id: StepId,
     pub started_at: DateTime<Utc>,
 }
-
-pub type StepDetail = StepContent;

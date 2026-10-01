@@ -80,7 +80,7 @@ pub use systemprompt_models::ai::{
     StructuredOutputOptions,
 };
 
-pub use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall, ToolExecution};
+pub use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};
 
 pub use systemprompt_models::services::AiConfig;
 

@@ -14,7 +14,6 @@
 mod cloud;
 mod database;
 mod error;
-mod from_env;
 mod governance;
 mod info;
 mod judge;

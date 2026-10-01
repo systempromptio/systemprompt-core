@@ -1,6 +1,5 @@
 use systemprompt_models::errors::{
-    ConfigError, ConfigValidationError, MetadataError, ParseEnumError, RowParseError, SecretsError,
-    ServiceError,
+    ConfigError, ConfigValidationError, MetadataError, ParseEnumError, SecretsError, ServiceError,
 };
 
 #[test]
@@ -82,25 +81,6 @@ fn config_validation_error_missing_system_admin_display() {
     let e = ConfigValidationError::MissingSystemAdmin;
     let s = e.to_string();
     assert!(s.contains("system_admin.username"));
-}
-
-#[test]
-fn row_parse_error_missing_display() {
-    let e = RowParseError::Missing("name");
-    assert!(e.to_string().contains("name"));
-    assert_eq!(e, RowParseError::Missing("name"));
-}
-
-#[test]
-fn row_parse_error_out_of_range_display() {
-    let e = RowParseError::OutOfRange("port");
-    assert!(e.to_string().contains("port"));
-}
-
-#[test]
-fn row_parse_error_equality() {
-    assert_eq!(RowParseError::Missing("x"), RowParseError::Missing("x"));
-    assert_ne!(RowParseError::Missing("x"), RowParseError::Missing("y"));
 }
 
 #[test]

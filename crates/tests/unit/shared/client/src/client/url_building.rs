@@ -1,8 +1,7 @@
 //! Tests for URL building, query-string construction, and path formatting.
 //!
-//! These tests exercise `limited_url` (via
-//! list_logs/list_users/list_all_artifacts), context/task/artifact URL
-//! composition, agent card paths, and the send_message JSON-RPC envelope — all
+//! These tests exercise `limited_url` (via list_all_artifacts),
+//! context/task/artifact URL composition, agent card paths, and the send_message JSON-RPC envelope — all
 //! without requiring a live server or touching any network by inspecting
 //! wiremock request paths and query strings.
 
@@ -33,76 +32,6 @@ fn response_meta() -> serde_json::Value {
         "timestamp": "2024-01-01T00:00:00Z",
         "version": "1.0.0"
     })
-}
-
-#[tokio::test]
-async fn test_list_logs_no_limit_omits_query_param() {
-    let mock_server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/admin/logs"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
-        .mount(&mock_server)
-        .await;
-
-    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client
-        .list_logs(None)
-        .await
-        .expect("list_logs(None) should succeed");
-}
-
-#[tokio::test]
-async fn test_list_logs_with_limit_appends_query_param() {
-    let mock_server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/admin/logs"))
-        .and(query_param("limit", "50"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
-        .mount(&mock_server)
-        .await;
-
-    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client
-        .list_logs(Some(50))
-        .await
-        .expect("list_logs(Some(50)) should succeed");
-}
-
-#[tokio::test]
-async fn test_list_users_no_limit_omits_query_param() {
-    let mock_server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/admin/users"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
-        .mount(&mock_server)
-        .await;
-
-    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client
-        .list_users(None)
-        .await
-        .expect("list_users(None) should succeed");
-}
-
-#[tokio::test]
-async fn test_list_users_with_limit_appends_query_param() {
-    let mock_server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/admin/users"))
-        .and(query_param("limit", "100"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
-        .mount(&mock_server)
-        .await;
-
-    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client
-        .list_users(Some(100))
-        .await
-        .expect("list_users(Some(100)) should succeed");
 }
 
 #[tokio::test]
@@ -138,24 +67,6 @@ async fn test_list_all_artifacts_with_limit() {
         .list_all_artifacts(Some(25))
         .await
         .expect("list_all_artifacts(Some(25)) should succeed");
-}
-
-#[tokio::test]
-async fn test_list_logs_limit_one() {
-    let mock_server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/admin/logs"))
-        .and(query_param("limit", "1"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
-        .mount(&mock_server)
-        .await;
-
-    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client
-        .list_logs(Some(1))
-        .await
-        .expect("list_logs(Some(1)) should succeed");
 }
 
 #[tokio::test]

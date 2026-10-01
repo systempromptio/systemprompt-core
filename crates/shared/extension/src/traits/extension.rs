@@ -166,42 +166,6 @@ pub trait Extension: Send + Sync + 'static {
         !self.template_providers().is_empty()
     }
 
-    fn has_component_renderers(&self) -> bool {
-        !self.component_renderers().is_empty()
-    }
-
-    fn has_template_data_extenders(&self) -> bool {
-        !self.template_data_extenders().is_empty()
-    }
-
-    fn has_page_data_providers(&self) -> bool {
-        !self.page_data_providers().is_empty()
-    }
-
-    fn has_page_prerenderers(&self) -> bool {
-        !self.page_prerenderers().is_empty()
-    }
-
-    fn has_frontmatter_processors(&self) -> bool {
-        !self.frontmatter_processors().is_empty()
-    }
-
-    fn has_content_data_providers(&self) -> bool {
-        !self.content_data_providers().is_empty()
-    }
-
-    fn has_rss_feed_providers(&self) -> bool {
-        !self.rss_feed_providers().is_empty()
-    }
-
-    fn has_sitemap_providers(&self) -> bool {
-        !self.sitemap_providers().is_empty()
-    }
-
-    fn has_site_auth(&self) -> bool {
-        self.site_auth().is_some()
-    }
-
     fn has_storage_paths(&self) -> bool {
         !self.required_storage_paths().is_empty()
     }

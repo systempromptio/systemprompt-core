@@ -35,7 +35,7 @@ pub use response_format::{ResponseFormat, StructuredOutputOptions};
 pub use sampling::{ModelHint, ModelPreferences, ProviderConfig, SamplingParams};
 pub use template_resolver::TemplateResolver;
 pub use template_validation::{PlanValidationError, TemplateValidator, ValidationErrorKind};
-pub use tools::{CallToolResult, McpTool, ToolCall, ToolExecution};
+pub use tools::{CallToolResult, McpTool, ToolCall};
 
 pub use provider_trait::{AiProvider, DynAiProvider, GenerateResponseParams, GoogleSearchParams};
 pub use tool_result_formatter::ToolResultFormatter;
