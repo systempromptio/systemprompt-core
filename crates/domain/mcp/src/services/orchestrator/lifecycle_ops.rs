@@ -150,8 +150,9 @@ impl McpOrchestrator {
     pub async fn build_and_restart_services(
         &self,
         service_name: Option<String>,
-    ) -> McpDomainResult<()> {
+    ) -> McpDomainResult<usize> {
         let servers = self.list_target_servers(service_name, true).await?;
+        let count = servers.len();
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
@@ -161,7 +162,7 @@ impl McpOrchestrator {
             self.lifecycle().restart_server(&server).await?;
         }
 
-        Ok(())
+        Ok(count)
     }
 
     pub async fn build_services(&self, service_name: Option<String>) -> McpDomainResult<()> {

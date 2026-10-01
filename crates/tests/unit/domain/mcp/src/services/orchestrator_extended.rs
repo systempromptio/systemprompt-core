@@ -165,11 +165,13 @@ async fn build_and_restart_services_empty_target_ok() {
 }
 
 #[tokio::test]
-async fn build_and_restart_specific_missing_ok() {
+async fn build_and_restart_specific_missing_selects_nothing() {
     let o = make_orchestrator().await;
-    o.build_and_restart_services(Some(format!("x-{}", uuid::Uuid::new_v4().simple())))
+    let restarted = o
+        .build_and_restart_services(Some(format!("x-{}", uuid::Uuid::new_v4().simple())))
         .await
         .unwrap();
+    assert_eq!(restarted, 0);
 }
 
 #[tokio::test]

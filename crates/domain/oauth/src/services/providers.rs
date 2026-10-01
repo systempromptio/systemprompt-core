@@ -91,9 +91,11 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
         let audiences = params
             .audiences
             .iter()
-            .map(|a| {
-                a.parse::<JwtAudience>()
-                    .map_err(|_e| JwtProviderError::MissingAudience(a.clone()))
+            .map(|a| match a.parse::<JwtAudience>() {
+                Ok(JwtAudience::Resource(_)) | Err(_) => {
+                    Err(JwtProviderError::MissingAudience(a.clone()))
+                },
+                Ok(audience) => Ok(audience),
             })
             .collect::<JwtResult<Vec<_>>>()?;
         if audiences.is_empty() {

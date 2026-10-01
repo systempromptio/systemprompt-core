@@ -125,9 +125,12 @@ pub async fn execute_mcp(
     let manager = lifecycle::mcp_orchestrator(ctx)?;
 
     if build {
-        manager
+        let restarted = manager
             .build_and_restart_services(Some(server_name.to_owned()))
             .await?;
+        if restarted == 0 {
+            anyhow::bail!("{server_name} is not a managed MCP server");
+        }
     } else {
         let outcomes = manager
             .restart_services(Some(server_name.to_owned()))
