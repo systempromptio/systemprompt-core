@@ -7,6 +7,7 @@
 use sqlx::PgPool;
 use std::time::Duration;
 use systemprompt_identifiers::UserId;
+use systemprompt_oauth::OauthError;
 use systemprompt_oauth::repository::{
     OAuthRepository, OauthCleanupRepository, StoreChallengeParams, WebAuthnChallengeKind,
     WebAuthnCredentialParams,
@@ -146,10 +147,7 @@ async fn storing_a_challenge_with_an_unrepresentable_ttl_is_rejected() {
         })
         .await
         .expect_err("a TTL beyond chrono's range must not be stored");
-    assert!(
-        err.to_string().contains("Challenge TTL out of range"),
-        "got {err}"
-    );
+    assert!(matches!(err, OauthError::ChallengeTtl(_)), "got {err}");
 
     let count = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM webauthn_challenges WHERE challenge = $1",

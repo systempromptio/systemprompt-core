@@ -147,10 +147,10 @@ async fn heartbeat_storage_failure_is_reported_and_a_retry_records_the_session()
     let failed = failed?;
     assert_eq!(failed.status(), StatusCode::INTERNAL_SERVER_ERROR);
     let body = read_text(failed).await?;
-    assert!(
-        body.starts_with("bridge heartbeat upsert failed:"),
-        "{body}"
-    );
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(json["code"], "internal_error", "{body}");
+    assert_eq!(json["message"], "Internal server error", "{body}");
+    assert!(!body.contains("bridge_sessions"), "{body}");
 
     let recovered = app
         .oneshot(authed_post(

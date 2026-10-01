@@ -7,7 +7,7 @@
 //! ids and removes them on completion so parallel runs do not collide.
 
 use systemprompt_database::DbPool;
-use systemprompt_files::{FileRepository, FileRole, InsertFileRequest};
+use systemprompt_files::{FileRepository, FileRole, FilesError, InsertFileRequest};
 use systemprompt_identifiers::{ContentId, ContextId, FileId};
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -119,7 +119,10 @@ async fn link_to_content_rejects_non_uuid_file_id() {
         .link_to_content(&content_id, &bad, FileRole::Attachment, 0)
         .await
         .expect_err("non-uuid file id must fail");
-    assert!(err.to_string().contains("Invalid UUID"));
+    assert!(
+        matches!(err, FilesError::InvalidFileId { .. }),
+        "expected InvalidFileId, got {err:?}"
+    );
 }
 
 #[tokio::test]
@@ -155,7 +158,10 @@ async fn unlink_rejects_non_uuid_file_id() {
         .unlink_from_content(&content_id, &bad)
         .await
         .expect_err("non-uuid must fail");
-    assert!(err.to_string().contains("Invalid UUID"));
+    assert!(
+        matches!(err, FilesError::InvalidFileId { .. }),
+        "expected InvalidFileId, got {err:?}"
+    );
 }
 
 #[tokio::test]
@@ -334,7 +340,10 @@ async fn set_featured_rejects_non_uuid_file_id() {
         .set_featured(&FileId::new("bad"), &content_id)
         .await
         .expect_err("non-uuid must fail");
-    assert!(err.to_string().contains("Invalid UUID"));
+    assert!(
+        matches!(err, FilesError::InvalidFileId { .. }),
+        "expected InvalidFileId, got {err:?}"
+    );
 }
 
 #[tokio::test]
@@ -376,7 +385,10 @@ async fn list_content_by_file_rejects_non_uuid() {
         .list_content_by_file(&FileId::new("nope"))
         .await
         .expect_err("non-uuid must fail");
-    assert!(err.to_string().contains("Invalid UUID"));
+    assert!(
+        matches!(err, FilesError::InvalidFileId { .. }),
+        "expected InvalidFileId, got {err:?}"
+    );
 }
 
 #[tokio::test]

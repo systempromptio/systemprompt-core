@@ -7,6 +7,7 @@
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
@@ -206,8 +207,13 @@ async fn start_services_named_with_missing_binary_fails_and_publishes_failure() 
         .start_services(Some(name.clone()))
         .await
         .expect_err("missing binary fails startup");
-    assert!(err.to_string().contains(&name));
-    assert!(err.to_string().contains("Failed to start 1 services"));
+    match &err {
+        McpDomainError::ServicesFailedToStart(failures) => {
+            assert_eq!(failures.0.len(), 1, "{err}");
+            assert_eq!(failures.0[0].service, name, "{err}");
+        },
+        other => panic!("expected ServicesFailedToStart, got {other:?}"),
+    }
 
     let mut saw_requested = false;
     let mut saw_failed = false;

@@ -201,6 +201,7 @@ async fn authenticate_start_unknown_email_is_client_error() -> anyhow::Result<()
 #[tokio::test]
 async fn authenticate_start_does_not_reveal_whether_an_email_has_an_account() -> anyhow::Result<()>
 {
+    ensure_config();
     let (user, _client) = seed_user_and_client().await?;
     let known = format!("{}@webauthn.invalid", user.as_str());
     let unknown = format!("nobody-{}@webauthn.invalid", Uuid::new_v4().simple());

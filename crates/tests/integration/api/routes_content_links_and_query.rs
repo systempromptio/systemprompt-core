@@ -245,12 +245,9 @@ async fn search_database_failure_is_a_json_500_and_recovers_after_schema_repair(
     .await?;
     assert_eq!(status.as_u16(), 500, "{body}");
     let error: serde_json::Value = serde_json::from_str(&body)?;
-    assert!(
-        error["error"]
-            .as_str()
-            .is_some_and(|value| !value.is_empty()),
-        "{body}"
-    );
+    assert_eq!(error["code"], "internal_error", "{body}");
+    assert_eq!(error["message"], "Internal server error", "{body}");
+    assert!(!body.contains("markdown_content"), "{body}");
 
     sqlx::query("ALTER TABLE markdown_content_unavailable RENAME TO markdown_content")
         .execute(raw.as_ref())

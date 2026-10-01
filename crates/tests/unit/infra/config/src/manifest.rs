@@ -1,6 +1,7 @@
 use base64::Engine;
 use systemprompt_config::bootstrap::{
-    MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed,
+    KeyMaterialError, MANIFEST_SIGNING_SEED_BYTES, SecretsBootstrapError, decode_seed,
+    generate_seed, persist_seed,
 };
 
 #[test]
@@ -32,7 +33,16 @@ fn decode_seed_trims_surrounding_whitespace() {
 fn decode_seed_rejects_wrong_length() {
     let short = base64::engine::general_purpose::STANDARD.encode([0u8; 16]);
     let err = decode_seed(&short).unwrap_err();
-    assert!(format!("{err}").contains("byte seed"));
+    assert!(
+        matches!(
+            err,
+            SecretsBootstrapError::ManifestSeedInvalid(KeyMaterialError::Length {
+                expected: MANIFEST_SIGNING_SEED_BYTES,
+                actual: 16,
+            })
+        ),
+        "{err:?}"
+    );
 }
 
 #[test]

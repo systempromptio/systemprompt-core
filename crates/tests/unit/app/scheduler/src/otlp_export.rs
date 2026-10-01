@@ -452,7 +452,7 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
         failed.signals[0]
             .error
             .as_deref()
-            .is_some_and(|message| message.contains("invalid header invalid header name"))
+            .is_some_and(|message| message.contains("invalid header name invalid header name"))
     );
     assert!(collector.received_requests().await.unwrap().is_empty());
     let repository = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone());
@@ -468,7 +468,7 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
     assert!(
         failed_event["fields"]["error"]
             .as_str()
-            .is_some_and(|error| error.contains("invalid header invalid header name"))
+            .is_some_and(|error| error.contains("invalid header name invalid header name"))
     );
     assert!(!failed_event.to_string().contains("credential-sentinel"));
 

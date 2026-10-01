@@ -1,7 +1,7 @@
 // JwtTokenValidator: config-driven construction and decode arms.
 
 use systemprompt_identifiers::UserId;
-use systemprompt_models::auth::JwtAudience;
+use systemprompt_models::auth::{AuthError, JwtAudience};
 use systemprompt_oauth::TokenValidator;
 use systemprompt_oauth::services::JwtTokenValidator;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, mint_admin_jwt};
@@ -60,5 +60,8 @@ async fn validate_token_rejects_non_uuid_subject() {
         .validate_token(token.as_str())
         .await
         .expect_err("non-uuid sub must fail");
-    assert!(err.to_string().contains("Invalid user ID"));
+    assert!(
+        matches!(err, AuthError::InvalidTokenFormat),
+        "expected InvalidTokenFormat, got {err:?}"
+    );
 }

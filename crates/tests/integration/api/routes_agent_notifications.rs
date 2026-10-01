@@ -165,7 +165,14 @@ async fn unknown_method_type_rejected_by_persistence() -> anyhow::Result<()> {
     });
     let uri = format!("/{}/notifications", context_id.as_str());
     let resp = app(&ctx).oneshot(json_post(&uri, body)).await?;
-    assert!(resp.status().is_server_error(), "{}", resp.status());
+    assert_eq!(resp.status().as_u16(), 400, "{}", resp.status());
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await?;
+    let json: serde_json::Value = serde_json::from_slice(&bytes)?;
+    assert_eq!(json["error_key"], "check_violation", "{json}");
+    assert!(
+        !json.to_string().contains("notification_type_check"),
+        "the constraint name stays internal: {json}"
+    );
     Ok(())
 }
 

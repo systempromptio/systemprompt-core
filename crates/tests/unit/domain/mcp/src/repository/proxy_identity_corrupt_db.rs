@@ -11,8 +11,10 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
+use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
 use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
+use systemprompt_traits::RepositoryError;
 
 async fn pool() -> (DbPool, Arc<PgPool>) {
     ensure_test_secrets_bootstrap();
@@ -80,8 +82,12 @@ async fn find_rejects_a_row_whose_user_type_is_not_a_known_variant() {
         .await
         .expect_err("an unknown user_type must not silently resolve an identity");
     assert!(
-        format!("{err:?}").contains("Validation"),
-        "expected a validation error, got {err:?}"
+        matches!(
+            &err,
+            McpDomainError::Repository(RepositoryError::Decode { context, .. })
+                if context == "mcp_proxy_identities.user_type"
+        ),
+        "expected a decode error for user_type, got {err:?}"
     );
 
     repo.delete(&id).await.expect("delete");

@@ -34,10 +34,11 @@ async fn insert_file_rejects_non_object_metadata() {
         .await
         .expect_err("invalid metadata");
     match err {
-        AiProviderError::Internal(message) => {
+        AiProviderError::Internal(cause) => {
             assert!(
-                message.to_string().contains("Invalid file metadata"),
-                "unexpected message: {message}"
+                std::error::Error::source(cause.as_ref())
+                    .is_some_and(|source| source.is::<serde_json::Error>()),
+                "the metadata failure keeps its JSON cause: {cause}"
             );
         },
         other => panic!("expected Internal, got {other:?}"),

@@ -189,7 +189,10 @@ fn a_frontmatter_the_signed_manifest_cannot_carry_is_refused_at_import() {
     ] {
         let md = format!("---\nname: field-notes\ndescription: d\n{bad}---\n\nBody.\n");
         let err = import(&md).expect_err("refused");
-        assert!(err.contains("SKILL.md frontmatter"), "{bad}: {err}");
+        assert!(
+            err.contains("SKILL.md") && err.contains("frontmatter"),
+            "{bad}: {err}"
+        );
     }
     let err = import("---\n- not\n- a mapping\n---\n\nBody.\n").expect_err("refused");
     assert!(err.contains("must be a YAML mapping"), "{err}");

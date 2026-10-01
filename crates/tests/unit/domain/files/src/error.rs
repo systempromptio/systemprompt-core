@@ -51,10 +51,7 @@ fn from_sqlx_error_wraps_repository_variant() {
     let err = FilesError::from(sqlx::Error::RowNotFound);
     match &err {
         FilesError::Repository(inner) => {
-            assert!(
-                inner.to_string().contains("no rows returned"),
-                "unexpected repository error: {inner}"
-            );
+            assert!(inner.is_not_found(), "unexpected repository error: {inner}");
         },
         other => panic!("expected Repository, got {other:?}"),
     }

@@ -268,7 +268,14 @@ async fn get_step_with_corrupt_status_errors() {
         .get(&step_id)
         .await
         .expect_err("corrupt status must fail parsing");
-    assert!(err.to_string().contains("Invalid status"), "got {err}");
+    assert!(
+        matches!(
+            &err,
+            systemprompt_traits::RepositoryError::Decode { context, .. }
+                if context == "execution step status"
+        ),
+        "got {err:?}"
+    );
 
     r.tasks.delete_task(&task_id).await.ok();
 }
@@ -296,7 +303,14 @@ async fn get_step_with_corrupt_content_errors() {
         .get(&step_id)
         .await
         .expect_err("corrupt content must fail parsing");
-    assert!(err.to_string().contains("Invalid content"), "got {err}");
+    assert!(
+        matches!(
+            &err,
+            systemprompt_traits::RepositoryError::Decode { context, .. }
+                if context == "execution step content"
+        ),
+        "got {err:?}"
+    );
 
     r.tasks.delete_task(&task_id).await.ok();
 }

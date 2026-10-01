@@ -253,7 +253,10 @@ async fn finish_registration_with_mismatched_challenge_fails_verification() {
         )
         .await
         .expect_err("credential answering challenge A must not satisfy challenge B");
-    assert!(matches!(err, OauthError::WebAuthnVerificationFailed(_)));
+    assert!(
+        matches!(err, OauthError::WebAuthnCeremony(_)),
+        "got {err:?}"
+    );
 }
 
 #[tokio::test]
@@ -301,7 +304,10 @@ async fn finish_authentication_with_mismatched_assertion_fails_verification() {
         .finish_authentication(&challenge_b, &assertion_for_a)
         .await
         .expect_err("assertion answering challenge A must not satisfy challenge B");
-    assert!(matches!(err, OauthError::WebAuthnVerificationFailed(_)));
+    assert!(
+        matches!(err, OauthError::WebAuthnCeremony(_)),
+        "got {err:?}"
+    );
 }
 
 fn stored_counter(passkey_blob: &[u8]) -> u64 {
@@ -377,7 +383,13 @@ async fn assertion_behind_the_stored_counter_is_rejected_as_a_clone() {
     let err = authenticate(&ctx, &mut auth, &email)
         .await
         .expect_err("an assertion at or below the stored counter must be refused");
-    assert!(matches!(err, OauthError::WebAuthnVerificationFailed(_)));
+    assert!(
+        matches!(
+            err,
+            OauthError::WebAuthnCeremony(_) | OauthError::WebAuthnVerificationFailed(_)
+        ),
+        "got {err:?}"
+    );
 }
 
 async fn seed_uuid_user(pool: &DbPool, email: &str) -> UserId {
@@ -551,7 +563,10 @@ async fn finish_link_rejects_missing_session_and_invalid_token() {
         .finish_registration_with_token("missing-session", &raw_token, &cred)
         .await
         .expect_err("missing session must fail");
-    assert!(err.to_string().contains("not found or expired"));
+    assert!(
+        matches!(err, OauthError::RegistrationStateExpired),
+        "got {err:?}"
+    );
 
     let err = ctx
         .service
@@ -713,8 +728,8 @@ async fn link_start_with_a_second_token_supersedes_the_first_ceremony() {
         .await
         .expect_err("the superseded ceremony must be gone");
     assert!(
-        err.to_string().contains("not found or expired"),
-        "got: {err}"
+        matches!(err, OauthError::RegistrationStateExpired),
+        "got: {err:?}"
     );
 
     let cred_b = auth

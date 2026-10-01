@@ -311,7 +311,11 @@ fn an_anyhow_error_collapses_to_a_server_error() {
     let http: OAuthHttpError = anyhow::anyhow!("something deep failed").into();
 
     assert_eq!(http.code(), OAuthErrorCode::ServerError);
-    assert!(http.description().contains("something deep failed"));
+    assert!(
+        !http.description().contains("something deep failed"),
+        "the cause rides as the logged source, never as description text: {}",
+        http.description()
+    );
 }
 
 #[test]

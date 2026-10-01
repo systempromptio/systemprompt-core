@@ -1,6 +1,7 @@
 //! `GET /bridge/manifest` when the services config on disk is malformed — the
-//! candidate assembly must fail closed with a 500 naming the services-config
-//! load, not serve an unsigned or partial manifest.
+//! candidate assembly must fail closed with a 500, not serve an unsigned or
+//! partial manifest. The body is the fixed server-error envelope: which load
+//! failed is logged, never sent to the client.
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, header};
@@ -51,6 +52,9 @@ async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<(
     let bytes = to_bytes(resp.into_body(), 64 * 1024).await?;
     let body = String::from_utf8_lossy(&bytes).into_owned();
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
-    assert!(body.contains("services"), "{body}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(json["code"], "internal_error", "{body}");
+    assert_eq!(json["message"], "Internal server error", "{body}");
+    assert!(!body.contains("mcp_servers"), "{body}");
     Ok(())
 }

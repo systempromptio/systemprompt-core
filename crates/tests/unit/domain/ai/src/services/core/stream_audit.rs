@@ -8,6 +8,7 @@
 use std::time::Duration;
 
 use futures::StreamExt;
+use systemprompt_ai::error::AiError;
 use systemprompt_ai::models::ai::{AiMessage, AiRequest};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
@@ -239,7 +240,7 @@ async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usa
     assert_eq!(text, "partial");
     let diagnosis = error.to_string();
     assert!(
-        diagnosis.contains("Stream error:") && diagnosis.contains("body"),
+        matches!(error, AiError::Stream(_)) && diagnosis.contains("body"),
         "transport truncation retains the response-body diagnosis: {diagnosis}"
     );
     drop(stream);

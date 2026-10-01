@@ -390,8 +390,10 @@ async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence()
         "nothing marks the task completed before its messages are committed"
     );
     let diagnosis = persisted_task_error(&ctx.pool, &ctx.task_id).await;
-    assert!(diagnosis.contains("agent_name"), "{diagnosis}");
-    assert!(diagnosis.contains("is empty"), "{diagnosis}");
+    assert_eq!(
+        diagnosis, "Task metadata is invalid",
+        "the stored diagnosis is the fixed failure text, never the cause"
+    );
 
     let frames = drain_frames(&mut ctx.sse_rx);
     let finals = final_frames(&frames);

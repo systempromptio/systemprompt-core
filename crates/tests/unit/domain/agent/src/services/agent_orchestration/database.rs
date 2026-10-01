@@ -8,9 +8,10 @@
 // deterministically.
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
-use systemprompt_agent::services::agent_orchestration::AgentStatus;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
+use systemprompt_agent::services::agent_orchestration::{AgentStatus, OrchestrationError};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
 
 use systemprompt_test_fixtures::test_db_pool;
@@ -279,9 +280,13 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
         .get_status(&name)
         .await
         .expect_err("negative persisted pid must be rejected");
-    assert_eq!(
-        error.to_string(),
-        "Database error: stored pid -1 is not a process id"
+    assert!(
+        matches!(
+            &error,
+            OrchestrationError::Repository(RepositoryError::Decode { context, .. })
+                if context == "stored pid -1 is not a process id"
+        ),
+        "{error:?}"
     );
     let state: (Option<i32>, i32, String) = sqlx::query_as(
         "SELECT pid, port, status FROM services WHERE instance_id = $1 AND name = $2",
@@ -304,9 +309,13 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
         .get_status(&name)
         .await
         .expect_err("out-of-range persisted port must be rejected");
-    assert_eq!(
-        error.to_string(),
-        "Database error: stored port 70000 is not a TCP port"
+    assert!(
+        matches!(
+            &error,
+            OrchestrationError::Repository(RepositoryError::Decode { context, .. })
+                if context == "stored port 70000 is not a TCP port"
+        ),
+        "{error:?}"
     );
     let state: (Option<i32>, i32, String) = sqlx::query_as(
         "SELECT pid, port, status FROM services WHERE instance_id = $1 AND name = $2",

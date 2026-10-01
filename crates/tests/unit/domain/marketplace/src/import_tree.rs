@@ -252,12 +252,12 @@ fn a_plugin_source_outside_the_marketplace_tree_is_refused() {
         .expect_err("a `..` plugin source never reads outside the marketplace tree");
     assert!(
         matches!(
-            error,
-            systemprompt_marketplace::MarketplaceError::Import { .. }
+            &error,
+            systemprompt_marketplace::MarketplaceError::ImportSource { context, .. }
+                if context.contains("evil") && context.contains("inside the marketplace tree")
         ),
         "{error}"
     );
-    assert!(error.to_string().contains("evil"), "{error}");
 }
 
 #[test]
