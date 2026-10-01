@@ -35,49 +35,6 @@ fn bridge_policy_binds_validated_key_to_gateway() {
 }
 
 #[test]
-fn unbound_policy_pubkey_is_not_policy_trust() {
-    temp_env::with_vars(
-        [
-            ("SP_BRIDGE_POLICY_PUBKEY", Some(KEY)),
-            ("SP_BRIDGE_POLICY_TRUST", None),
-        ],
-        || {
-            assert_eq!(
-                config::policy_pubkey().expect("a bare manifestPubkey is not an error"),
-                None,
-                "a manifestPubkey without a gateway binding never counts as managed trust"
-            );
-        },
-    );
-}
-
-#[test]
-fn bound_policy_returns_key() {
-    let record =
-        serde_json::json!({"gateway":"https://gateway.example", "key":KEY,"source":"policy"})
-            .to_string();
-    temp_env::with_var("SP_BRIDGE_POLICY_TRUST", Some(record), || {
-        assert_eq!(
-            config::policy_pubkey()
-                .expect("policy")
-                .expect("key")
-                .as_str(),
-            KEY
-        );
-    });
-}
-
-#[test]
-fn malformed_policy_is_an_error() {
-    temp_env::with_var("SP_BRIDGE_POLICY_TRUST", Some("invalid json"), || {
-        assert!(matches!(
-            config::policy_pubkey(),
-            Err(config::TrustError::InvalidPolicy(_))
-        ));
-    });
-}
-
-#[test]
 fn is_uuid_like_requires_standard_hyphenation() {
     assert!(install::is_uuid_like(
         "f8e4d915-f8ad-5304-ab0d-c1bf895df963"

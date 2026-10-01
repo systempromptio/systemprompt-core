@@ -2,8 +2,9 @@
 //!
 //! Trust is a [`TrustRecord`]: the normalized gateway identity, a validated
 //! Ed25519 key and where it came from. A managed policy supplies it as
-//! `manifestTrust` (or the `<PREFIX>_POLICY_TRUST` environment override); an
-//! operator pin lives under `[sync.trust]` in the config file. A key that is
+//! `manifestTrust` in the brand's policy store, which only an administrator can
+//! write and which no user-controlled input can outrank; an operator pin lives
+//! under `[sync.trust]` in the config file. A key that is
 //! not bound to a gateway never pins: a record for another gateway is stale
 //! when it came from policy and simply not in effect when it is an operator
 //! pin.
@@ -20,6 +21,7 @@ mod policy;
 mod record;
 
 use policy::policy_trust;
+pub use policy::parse_policy_trust;
 pub use record::{GatewayIdentity, PinSource, PinnedPubkeyState, SyncConfig, TrustRecord};
 
 #[derive(Debug, thiserror::Error)]
@@ -57,10 +59,18 @@ pub fn pinned_pubkey_state_for(
     cfg: &Config,
     gateway: &ValidatedUrl,
 ) -> Result<PinnedPubkeyState, TrustError> {
-    let current = GatewayIdentity::new(gateway)?;
     let policy = policy_trust()?;
     let operator = cfg.sync.as_ref().and_then(|s| s.trust.as_ref());
-    let Some(record) = policy.as_ref().or(operator) else {
+    resolve_pinned_pubkey_state(policy.as_ref(), operator, gateway)
+}
+
+pub fn resolve_pinned_pubkey_state(
+    policy: Option<&TrustRecord>,
+    operator: Option<&TrustRecord>,
+    gateway: &ValidatedUrl,
+) -> Result<PinnedPubkeyState, TrustError> {
+    let current = GatewayIdentity::new(gateway)?;
+    let Some(record) = policy.or(operator) else {
         return Ok(PinnedPubkeyState::Unpinned);
     };
     // Why: a record for another gateway is stale whatever its key looks
@@ -102,16 +112,6 @@ pub fn pinned_pubkey() -> Result<Option<PinnedPubKey>, TrustError> {
         PinnedPubkeyState::Pinned { key, .. } => Some(key),
         PinnedPubkeyState::Unpinned | PinnedPubkeyState::StaleForGateway { .. } => None,
     })
-}
-
-pub fn policy_pubkey() -> Result<Option<PinnedPubKey>, TrustError> {
-    policy_trust()?
-        .map(|record| {
-            let gateway = ValidatedUrl::try_new(record.gateway.as_str())
-                .map_err(|e| TrustError::InvalidPolicy(format!("gateway: {e}")))?;
-            Ok(TrustRecord::new(&gateway, record.key.as_str(), PinSource::Policy)?.key)
-        })
-        .transpose()
 }
 
 pub fn persist_pinned_pubkey(gateway: &ValidatedUrl, pubkey: &str) -> Result<(), TrustError> {
