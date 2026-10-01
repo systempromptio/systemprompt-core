@@ -7,7 +7,8 @@
 //! serialises the fixed public message of its code with no details or
 //! validation errors, whatever text the error was built with, so internal
 //! error text cannot reach a response body. Repository errors convert through
-//! the one canonical `From<RepositoryError>` mapping in [`repository`].
+//! the one canonical `From<RepositoryError>` mapping in the `repository`
+//! module.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
