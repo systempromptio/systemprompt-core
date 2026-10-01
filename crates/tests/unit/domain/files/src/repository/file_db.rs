@@ -40,13 +40,8 @@ async fn insert_rejects_non_uuid_file_id() {
 
     let err = repo.insert(request).await.expect_err("invalid uuid");
     match err {
-        FilesError::Validation(message) => {
-            assert!(
-                message.contains("Invalid UUID for file id not-a-uuid"),
-                "unexpected message: {message}"
-            );
-        },
-        other => panic!("expected Validation, got {other:?}"),
+        FilesError::InvalidFileId { id, .. } => assert_eq!(id.as_str(), "not-a-uuid"),
+        other => panic!("expected InvalidFileId, got {other:?}"),
     }
 }
 

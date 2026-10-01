@@ -23,15 +23,16 @@ impl WebAuthnService {
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| OauthError::User(e.to_string()))?
-            .ok_or_else(|| OauthError::UserNotFound(email.to_owned()))?;
+            .map_err(|source| OauthError::UserProvider {
+                context: "looking up the account to authenticate",
+                source,
+            })?
+            .ok_or(OauthError::AuthenticationUnavailable)?;
 
         let user_credentials = self.get_user_credentials(&user.id).await?;
 
         if user_credentials.is_empty() {
-            return Err(OauthError::Internal(
-                "No credentials found for user".to_owned(),
-            ));
+            return Err(OauthError::AuthenticationUnavailable);
         }
 
         let (rcr, auth_state) = self
@@ -114,13 +115,11 @@ impl WebAuthnService {
             .oauth_repo
             .consume_webauthn_challenge(challenge_id, WebAuthnChallengeKind::Authentication)
             .await?
-            .ok_or_else(|| {
-                OauthError::Internal("Authentication state not found or expired".to_owned())
-            })?;
+            .ok_or(OauthError::ChallengeExpired)?;
 
-        let user_id = consumed.user_id.ok_or_else(|| {
-            OauthError::Internal("Authentication state has no user id".to_owned())
-        })?;
+        let user_id = consumed
+            .user_id
+            .ok_or(OauthError::Internal("Authentication state has no user id"))?;
         let state: PasskeyAuthentication = serde_json::from_value(consumed.state)?;
 
         Ok((state, user_id, consumed.oauth_state))

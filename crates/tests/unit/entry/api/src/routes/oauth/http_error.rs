@@ -252,11 +252,8 @@ fn oauth_domain_errors_map_onto_their_protocol_codes() {
             OauthError::WebAuthnVerificationFailed("w".to_owned()),
             OAuthErrorCode::InvalidCredential,
         ),
-        (
-            OauthError::Internal("i".to_owned()),
-            OAuthErrorCode::ServerError,
-        ),
-        (OauthError::TokenMissingKid, OAuthErrorCode::ServerError),
+        (OauthError::Internal("i"), OAuthErrorCode::ServerError),
+        (OauthError::TokenMissingKid, OAuthErrorCode::InvalidToken),
     ];
 
     for (err, expected) in cases {

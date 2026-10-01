@@ -9,6 +9,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
+
+use systemprompt_config::ProfileBootstrapError;
+use systemprompt_identifiers::FileId;
 use systemprompt_models::domain_error;
 
 domain_error! {
@@ -17,6 +21,30 @@ domain_error! {
 
         #[error("storage error: {0}")]
         Storage(String),
+
+        #[error(transparent)]
+        Profile(#[from] ProfileBootstrapError),
+
+        #[error("Failed to read files.yaml ({}): {source}", path.display())]
+        ConfigRead {
+            path: PathBuf,
+            #[source]
+            source: std::io::Error,
+        },
+
+        #[error("Failed to parse files.yaml ({}): {source}", path.display())]
+        ConfigParse {
+            path: PathBuf,
+            #[source]
+            source: serde_yaml::Error,
+        },
+
+        #[error("invalid UUID for file id {id}")]
+        InvalidFileId {
+            id: FileId,
+            #[source]
+            source: uuid::Error,
+        },
     }
 }
 
@@ -27,3 +55,10 @@ impl From<sqlx::Error> for FilesError {
 }
 
 pub type FilesResult<T> = Result<T, FilesError>;
+
+pub(crate) fn parse_file_uuid(id: &FileId) -> FilesResult<uuid::Uuid> {
+    uuid::Uuid::parse_str(id.as_str()).map_err(|source| FilesError::InvalidFileId {
+        id: id.clone(),
+        source,
+    })
+}

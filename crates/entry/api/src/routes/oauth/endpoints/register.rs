@@ -36,11 +36,7 @@ use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 
 fn is_unique_violation(err: &OauthError) -> bool {
-    if let OauthError::Repository(sqlx::Error::Database(db_err)) = err {
-        db_err.is_unique_violation()
-    } else {
-        false
-    }
+    err.is_unique_violation()
 }
 
 fn metadata_error(err: &OauthError) -> OAuthHttpError {

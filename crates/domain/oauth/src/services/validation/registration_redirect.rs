@@ -28,8 +28,10 @@ pub fn validate_registration_redirect_uris(
 }
 
 fn validate_one(application_type: &str, uri: &str) -> OauthResult<()> {
-    let parsed = Url::parse(uri).map_err(|e| {
-        OauthError::Validation(format!("redirect_uri {uri:?} is not an absolute URL: {e}"))
+    let parsed = Url::parse(uri).map_err(|source| OauthError::InvalidUrl {
+        field: "redirect_uri".to_owned(),
+        value: uri.to_owned(),
+        source,
     })?;
 
     if parsed.fragment().is_some() {
@@ -63,8 +65,11 @@ pub fn validate_client_metadata_uri(field: &str, value: Option<&str>) -> OauthRe
     let Some(value) = value else {
         return Ok(());
     };
-    let parsed = Url::parse(value)
-        .map_err(|e| OauthError::Validation(format!("{field} {value:?} is not a URL: {e}")))?;
+    let parsed = Url::parse(value).map_err(|source| OauthError::InvalidUrl {
+        field: field.to_owned(),
+        value: value.to_owned(),
+        source,
+    })?;
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err(OauthError::Validation(format!(
             "{field} {value:?} must be an http(s) URL"

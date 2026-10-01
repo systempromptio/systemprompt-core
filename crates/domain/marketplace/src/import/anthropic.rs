@@ -21,6 +21,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
+use systemprompt_models::managed::RevisionBundleError;
 use systemprompt_models::services::hooks::HookEventsConfig;
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -136,7 +137,7 @@ impl MarketplacePluginEntry {
         )
     }
 
-    pub fn plugin_source(&self) -> Result<PluginSource<'_>, String> {
+    pub fn plugin_source(&self) -> Result<PluginSource<'_>, PluginSourceError> {
         let Some(value) = self.source.as_ref() else {
             return Ok(PluginSource::Default);
         };
@@ -161,6 +162,27 @@ impl MarketplacePluginEntry {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum PluginSourceError {
+    #[error("a {kind} source needs `{key}`")]
+    MissingKey {
+        kind: &'static str,
+        key: &'static str,
+    },
+    #[error("`path` {path:?} is not a relative path: {source}")]
+    Subdirectory {
+        path: String,
+        #[source]
+        source: RevisionBundleError,
+    },
+    #[error("`sha` {0:?} is not a full lowercase commit id")]
+    Commit(String),
+    #[error("{0:?} is not a public https repository URL")]
+    NotPublicHttps(String),
+    #[error("{0:?} is neither `owner/repository` nor an https URL")]
+    Location(String),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PluginSource<'a> {
     Default,
@@ -183,13 +205,19 @@ pub struct RemotePluginSource {
 }
 
 impl RemotePluginSource {
-    fn from_object<'v>(kind: &str, text: &dyn Fn(&str) -> Option<&'v str>) -> Result<Self, String> {
+    fn from_object<'v>(
+        kind: &str,
+        text: &dyn Fn(&str) -> Option<&'v str>,
+    ) -> Result<Self, PluginSourceError> {
+        let required = |kind: &'static str, key: &'static str| {
+            text(key).ok_or(PluginSourceError::MissingKey { kind, key })
+        };
         let (location, subdirectory) = match kind {
-            "github" => (text("repo").ok_or("a github source needs `repo`")?, None),
-            "url" => (text("url").ok_or("a url source needs `url`")?, None),
+            "github" => (required("github", "repo")?, None),
+            "url" => (required("url", "url")?, None),
             _ => (
-                text("url").ok_or("a git-subdir source needs `url`")?,
-                Some(text("path").ok_or("a git-subdir source needs `path`")?),
+                required("git-subdir", "url")?,
+                Some(required("git-subdir", "path")?),
             ),
         };
         let subdirectory = subdirectory
@@ -198,14 +226,17 @@ impl RemotePluginSource {
             .map(|path| {
                 systemprompt_models::managed::validate_path(path)
                     .map(|()| path.to_owned())
-                    .map_err(|error| format!("`path` {path:?} is not a relative path: {error}"))
+                    .map_err(|source| PluginSourceError::Subdirectory {
+                        path: path.to_owned(),
+                        source,
+                    })
             })
             .transpose()?;
         let commit = text("sha").map(str::to_owned);
         if let Some(sha) = &commit
             && !is_commit(sha)
         {
-            return Err(format!("`sha` {sha:?} is not a full lowercase commit id"));
+            return Err(PluginSourceError::Commit(sha.clone()));
         }
         Ok(Self {
             repository: repository_url(location)?,
@@ -216,11 +247,11 @@ impl RemotePluginSource {
     }
 }
 
-fn repository_url(location: &str) -> Result<String, String> {
+fn repository_url(location: &str) -> Result<String, PluginSourceError> {
     if let Some(rest) = location.strip_prefix("https://") {
         let host = rest.split('/').next().unwrap_or_default();
         if host.is_empty() || host.contains('@') || rest.chars().any(char::is_whitespace) {
-            return Err(format!("{location:?} is not a public https repository URL"));
+            return Err(PluginSourceError::NotPublicHttps(location.to_owned()));
         }
         return Ok(location.to_owned());
     }
@@ -238,9 +269,7 @@ fn repository_url(location: &str) -> Result<String, String> {
             location.trim_end_matches(".git")
         ));
     }
-    Err(format!(
-        "{location:?} is neither `owner/repository` nor an https URL"
-    ))
+    Err(PluginSourceError::Location(location.to_owned()))
 }
 
 fn is_commit(value: &str) -> bool {

@@ -153,9 +153,10 @@ impl ManagedRepository {
             return Err(super::error::invalid("Resolved Git credential is empty"));
         }
         systemprompt_models::net::validate_outbound_url(&repository).map_err(|error| {
-            super::error::invalid(&format!(
-                "Git repository URL is not an allowed outbound target: {error}"
-            ))
+            super::error::invalid_input(
+                "Git repository URL is not an allowed outbound target",
+                error,
+            )
         })?;
         let credential = credential.map(str::to_owned);
         let root = request.upstream_root.clone();

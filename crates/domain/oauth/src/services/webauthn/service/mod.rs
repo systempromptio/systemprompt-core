@@ -100,12 +100,10 @@ impl WebAuthnService {
             .oauth_repo
             .consume_webauthn_challenge(&key, WebAuthnChallengeKind::Verified)
             .await?
-            .ok_or_else(|| {
-                OauthError::Internal("No verified authentication found for token".to_owned())
-            })?;
+            .ok_or(OauthError::ChallengeExpired)?;
 
-        consumed.user_id.ok_or_else(|| {
-            OauthError::Internal("Verified authentication has no user id".to_owned())
-        })
+        consumed.user_id.ok_or(OauthError::Internal(
+            "Verified authentication has no user id",
+        ))
     }
 }

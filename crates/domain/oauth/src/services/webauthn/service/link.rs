@@ -44,15 +44,15 @@ impl WebAuthnService {
         let token_record = match validation {
             TokenValidationResult::Valid(record) => record,
             TokenValidationResult::Expired => {
-                return Err(OauthError::Internal("Setup token has expired".to_owned()));
+                return Err(OauthError::SetupTokenRejected("Setup token has expired"));
             },
             TokenValidationResult::AlreadyUsed => {
-                return Err(OauthError::Internal(
-                    "Setup token has already been used".to_owned(),
+                return Err(OauthError::SetupTokenRejected(
+                    "Setup token has already been used",
                 ));
             },
             TokenValidationResult::NotFound => {
-                return Err(OauthError::Internal("Invalid setup token".to_owned()));
+                return Err(OauthError::SetupTokenRejected("Invalid setup token"));
             },
         };
 
@@ -63,11 +63,11 @@ impl WebAuthnService {
         let exclude_credentials: Vec<CredentialID> =
             existing_creds.iter().map(|c| c.cred_id().clone()).collect();
 
-        let user_unique_id = Uuid::parse_str(token_record.user_id.as_str()).map_err(|e| {
-            OauthError::Internal(format!(
-                "user_id {:?} is not a valid UUID: {e}",
-                token_record.user_id.as_str()
-            ))
+        let user_unique_id = Uuid::parse_str(token_record.user_id.as_str()).map_err(|source| {
+            OauthError::InvalidUserId {
+                user_id: token_record.user_id.clone(),
+                source,
+            }
         })?;
 
         let reservation = self
@@ -128,8 +128,8 @@ impl WebAuthnService {
         let validation = self.oauth_repo.validate_setup_token(&token_hash).await?;
 
         let TokenValidationResult::Valid(token_record) = validation else {
-            return Err(OauthError::Internal(
-                "Invalid or expired setup token".to_owned(),
+            return Err(OauthError::SetupTokenRejected(
+                "Invalid or expired setup token",
             ));
         };
 
@@ -137,16 +137,14 @@ impl WebAuthnService {
             .oauth_repo
             .consume_webauthn_challenge(challenge_id, WebAuthnChallengeKind::Link)
             .await?
-            .ok_or_else(|| {
-                OauthError::Internal("Registration session not found or expired".to_owned())
-            })?;
-        let user_id = consumed.user_id.ok_or_else(|| {
-            OauthError::Internal("Registration session has no user id".to_owned())
-        })?;
+            .ok_or(OauthError::RegistrationStateExpired)?;
+        let user_id = consumed
+            .user_id
+            .ok_or(OauthError::Internal("Registration session has no user id"))?;
         let state: LinkRegistrationState = serde_json::from_value(consumed.state)?;
 
         if state.token_id != token_record.id {
-            return Err(OauthError::Internal("Token mismatch".to_owned()));
+            return Err(OauthError::SetupTokenRejected("Token mismatch"));
         }
 
         let passkey = self

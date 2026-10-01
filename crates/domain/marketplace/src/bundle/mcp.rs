@@ -98,7 +98,7 @@ pub(super) fn append_mcp_file(
     let json = serde_json::to_vec_pretty(&McpConfigFile {
         mcp_servers: entries,
     })
-    .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    .map_err(|e| MarketplaceError::catalog("serialise .mcp.json", e))?;
     bundle.insert(
         ".mcp.json".to_owned(),
         BundleFile {

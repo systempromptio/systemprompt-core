@@ -6,6 +6,7 @@
 use thiserror::Error;
 
 use super::FileValidationError;
+use crate::error::FilesError;
 
 #[derive(Debug, Error)]
 pub enum FileUploadError {
@@ -25,7 +26,7 @@ pub enum FileUploadError {
     Storage(#[from] systemprompt_traits::FileStorageError),
 
     #[error("Database error: {0}")]
-    Database(String),
+    Database(#[source] FilesError),
 
     #[error("Configuration error: {0}")]
     Config(String),

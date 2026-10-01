@@ -71,9 +71,12 @@ pub struct PurgeCount {
     pub rows: i64,
 }
 
-fn identifier(kind: &str, raw: &str) -> Result<SafeIdentifier> {
-    SafeIdentifier::parse(raw)
-        .map_err(|e| UserError::Validation(format!("purge {kind} {raw}: {e}")))
+fn identifier(kind: &'static str, raw: &str) -> Result<SafeIdentifier> {
+    SafeIdentifier::parse(raw).map_err(|source| UserError::PurgeIdentifier {
+        kind,
+        name: raw.to_owned(),
+        source,
+    })
 }
 
 // Why: the predicate is a fixed fragment from a crate's registration, never

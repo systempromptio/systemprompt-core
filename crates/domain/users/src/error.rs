@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_database::IdentifierError;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::domain_error;
 
@@ -27,6 +28,14 @@ domain_error! {
 
         #[error("pool error: {0}")]
         Pool(String),
+
+        #[error("purge {kind} {name} is not a safe SQL identifier")]
+        PurgeIdentifier {
+            kind: &'static str,
+            name: String,
+            #[source]
+            source: IdentifierError,
+        },
 
         #[error("account merge is unavailable: no owner reassignments are configured")]
         MergeUnavailable,

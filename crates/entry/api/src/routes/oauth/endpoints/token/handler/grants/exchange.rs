@@ -33,9 +33,7 @@ pub(in crate::routes::oauth::endpoints::token::handler) async fn handle_token_ex
 
     let client_id_str = extract_required_field(request.client_id.as_deref(), "client_id")?;
     let client_id = ClientId::new(client_id_str);
-    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
-        .await
-        .map_err(|_e| TokenError::InvalidClientSecret)?;
+    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref()).await?;
 
     let exchange = TokenExchangeRequest {
         subject_token,
@@ -74,9 +72,7 @@ pub(in crate::routes::oauth::endpoints::token::handler) async fn handle_jwt_bear
 
     let client_id_str = extract_required_field(request.client_id.as_deref(), "client_id")?;
     let client_id = ClientId::new(client_id_str);
-    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
-        .await
-        .map_err(|_e| TokenError::InvalidClientSecret)?;
+    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref()).await?;
 
     let exchange = TokenExchangeRequest {
         subject_token: assertion,
@@ -112,16 +108,7 @@ pub(in crate::routes::oauth::endpoints::token::handler) async fn handle_client_c
     let client_id_str = extract_required_field(request.client_id.as_deref(), "client_id")?;
     let client_id = ClientId::new(client_id_str);
 
-    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
-        .await
-        .map_err(|e| {
-            tracing::warn!(
-                client_id = %client_id,
-                error = %e,
-                "client_credentials grant rejected"
-            );
-            TokenError::InvalidClientSecret
-        })?;
+    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref()).await?;
 
     let options = ClientTokenOptions {
         scope: request.scope.as_deref(),

@@ -85,32 +85,32 @@ impl OAuthClient {
 
     pub fn validate(&self) -> Result<()> {
         if self.client_id.as_str().is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "client_id cannot be empty".to_owned(),
             ));
         }
         if self.client_name.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "client_name cannot be empty".to_owned(),
             ));
         }
         if self.redirect_uris.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "redirect_uris cannot be empty".to_owned(),
             ));
         }
         if self.grant_types.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "grant_types cannot be empty".to_owned(),
             ));
         }
         if self.response_types.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "response_types cannot be empty".to_owned(),
             ));
         }
         if self.scopes.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "scopes cannot be empty".to_owned(),
             ));
         }

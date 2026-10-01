@@ -23,7 +23,7 @@ fn empty_token_is_rejected() {
     let err = validate_jwt_token("", "issuer", &[JwtAudience::Api])
         .expect_err("empty input must fail header decode");
 
-    assert!(matches!(err, OauthError::TokenInvalid(_)));
+    assert!(matches!(err, OauthError::TokenRejected(_)));
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn garbage_token_is_rejected() {
     let err = validate_jwt_token("not-a-jwt", "issuer", &[JwtAudience::Api])
         .expect_err("garbage input must fail header decode");
 
-    assert!(matches!(err, OauthError::TokenInvalid(_)));
+    assert!(matches!(err, OauthError::TokenRejected(_)));
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn two_segment_token_is_rejected() {
     let err = validate_jwt_token("aaa.bbb", "issuer", &[JwtAudience::Api])
         .expect_err("two-segment input must fail header decode");
 
-    assert!(matches!(err, OauthError::TokenInvalid(_)));
+    assert!(matches!(err, OauthError::TokenRejected(_)));
 }
 
 #[test]
@@ -63,12 +63,13 @@ fn rs256_with_unknown_kid_yields_unknown_kid_or_lookup_failure() {
         OauthError::TokenUnknownKid { kid } => {
             assert_eq!(kid, "unknown-key-id");
         },
-        OauthError::TokenInvalid(msg) => {
+        OauthError::TokenRejected(source) => {
+            let msg = source.to_string();
             assert!(
                 msg.contains("signing key lookup") || msg.contains("key"),
-                "unexpected token-invalid message: {msg}"
+                "unexpected token-rejected message: {msg}"
             );
         },
-        other => panic!("expected TokenUnknownKid or TokenInvalid, got {other:?}"),
+        other => panic!("expected TokenUnknownKid or TokenRejected, got {other:?}"),
     }
 }

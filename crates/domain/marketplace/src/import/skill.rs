@@ -120,23 +120,20 @@ pub(super) fn import_skill(
     sink: &Sink,
 ) -> Result<(), MarketplaceError> {
     let skill_md = skill_dir.join(SKILL_FILE);
-    let raw = std::fs::read_to_string(&skill_md).map_err(|e| MarketplaceError::Import {
-        path: skill_md.display().to_string(),
-        message: e.to_string(),
-    })?;
+    let raw = std::fs::read_to_string(&skill_md)
+        .map_err(|e| MarketplaceError::import(&skill_md, "read", e))?;
 
-    let invalid = |message: String| MarketplaceError::Import {
-        path: skill_md.display().to_string(),
-        message,
-    };
     let SplitSkillFrontmatter { owned, passthrough } = split_skill_frontmatter(
-        authored_skill_frontmatter(&raw).map_err(|e| invalid(e.to_string()))?,
+        authored_skill_frontmatter(&raw)
+            .map_err(|e| MarketplaceError::import(&skill_md, "SKILL.md frontmatter", e))?,
     );
     if let Some(passthrough) = &passthrough {
-        check_json_compatible(passthrough).map_err(|e| invalid(format!("SKILL.md {e}")))?;
+        check_json_compatible(passthrough)
+            .map_err(|e| MarketplaceError::import(&skill_md, "SKILL.md", e))?;
     }
-    let front: SkillFrontmatter = serde_yaml::from_value(Value::Mapping(owned))
-        .map_err(|e| invalid(format!("SKILL.md frontmatter is not valid YAML: {e}")))?;
+    let front: SkillFrontmatter = serde_yaml::from_value(Value::Mapping(owned)).map_err(|e| {
+        MarketplaceError::import(&skill_md, "SKILL.md frontmatter is not valid YAML", e)
+    })?;
 
     let description = front.description.unwrap_or_default();
     if description.trim().is_empty() {

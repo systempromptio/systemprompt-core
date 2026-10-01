@@ -22,10 +22,11 @@ pub fn load_hooks(services_root: &Path) -> Result<Vec<HookEntry>, MarketplaceErr
     }
 
     let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
-    let read =
-        std::fs::read_dir(&hooks_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let read = std::fs::read_dir(&hooks_dir)
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", hooks_dir.display()), e))?;
     for entry in read {
-        let entry = entry.map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let entry = entry
+            .map_err(|e| MarketplaceError::catalog(format!("read {}", hooks_dir.display()), e))?;
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -63,9 +64,9 @@ fn build_hook_entry(
     config_path: &Path,
 ) -> Result<Option<HookEntry>, MarketplaceError> {
     let config_text = std::fs::read_to_string(config_path)
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", config_path.display()), e))?;
     let config: DiskHookConfig = serde_yaml::from_str(&config_text)
-        .map_err(|e| MarketplaceError::Catalog(format!("parse {}: {e}", config_path.display())))?;
+        .map_err(|e| MarketplaceError::catalog(format!("parse {}", config_path.display()), e))?;
 
     if !config.enabled {
         return Ok(None);
@@ -85,7 +86,7 @@ fn build_hook_entry(
     let mut hasher = Sha256::new();
     hasher.update(config_text.as_bytes());
     let sha256 = Sha256Digest::try_new(hex::encode(hasher.finalize()))
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog("hook digest", e))?;
 
     Ok(Some(HookEntry {
         id,

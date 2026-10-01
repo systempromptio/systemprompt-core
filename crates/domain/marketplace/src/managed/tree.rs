@@ -59,7 +59,7 @@ fn capture_once(services_root: &Path, skill_ids: &[String]) -> Result<CapturedSk
     let root = services_root.join("skills");
     reject_link(&root)?;
     let dev_files = DevFileFilter::load(&services_root)
-        .map_err(|error| ManagedError::Invalid(error.to_string()))?;
+        .map_err(|error| super::error::invalid_input("dev-file filter", error))?;
     let mut skills = BTreeMap::new();
     let mut manifests = BTreeMap::new();
     let mut budget = CaptureBudget::default();

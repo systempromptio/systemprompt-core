@@ -6,7 +6,7 @@
 
 use systemprompt_config::SecretsBootstrapError;
 use systemprompt_models::errors::ConfigError;
-use systemprompt_oauth::OauthError;
+use systemprompt_oauth::{OauthError, OauthErrorKind};
 use systemprompt_traits::auth::AuthProviderError;
 
 use super::OAuthHttpError;
@@ -19,46 +19,31 @@ impl From<ConfigError> for OAuthHttpError {
 
 impl From<OauthError> for OAuthHttpError {
     fn from(err: OauthError) -> Self {
-        match &err {
-            OauthError::InvalidClient(_)
-            | OauthError::ClientNotFound(_)
-            | OauthError::InvalidClientMetadata(_) => Self::invalid_client(err.to_string()),
-            OauthError::InvalidGrant(_)
-            | OauthError::CodeNotFound(_)
-            | OauthError::TokenNotFound(_)
-            | OauthError::PkceMismatch(_)
-            | OauthError::Expired(_) => Self::invalid_grant(err.to_string()),
-            OauthError::Validation(_) => Self::invalid_request(err.to_string()),
-            OauthError::Unauthorized(_) => Self::access_denied(err.to_string()),
-            OauthError::UsernameTaken(_) => Self::username_unavailable(
+        match err.kind() {
+            OauthErrorKind::InvalidClient => Self::invalid_client("Client authentication failed"),
+            OauthErrorKind::InvalidClientMetadata => Self::invalid_client_metadata(err.to_string()),
+            OauthErrorKind::InvalidGrant => Self::invalid_grant(err.to_string()),
+            OauthErrorKind::InvalidToken => Self::invalid_token(err.to_string()),
+            OauthErrorKind::InvalidRequest => Self::invalid_request(err.to_string()),
+            OauthErrorKind::AccessDenied => Self::access_denied(err.to_string()),
+            OauthErrorKind::UsernameUnavailable => Self::username_unavailable(
                 "Username is already taken. Please choose a different username.",
             ),
-            OauthError::EmailRegistered(_) => {
+            OauthErrorKind::EmailExists => {
                 Self::email_exists("An account with this email already exists.")
             },
-            OauthError::UserNotFound(_) => Self::not_found(err.to_string()),
-            OauthError::RegistrationStateExpired => Self::expired_challenge(
-                "Registration challenge has expired. Please start the registration process again.",
+            OauthErrorKind::NotFound => Self::not_found(err.to_string()),
+            OauthErrorKind::ExpiredChallenge => Self::expired_challenge(
+                "The challenge has expired. Please start the ceremony again.",
             ),
-            OauthError::WebAuthnVerificationFailed(_) => Self::invalid_credential(
+            OauthErrorKind::InvalidCredential => Self::invalid_credential(
                 "WebAuthn verification failed. Please ensure your authenticator and browser are \
                  compatible.",
             ),
-            OauthError::WebAuthn(_)
-            | OauthError::User(_)
-            | OauthError::Session(_)
-            | OauthError::TokenInvalid(_)
-            | OauthError::TokenAlgMismatch { .. }
-            | OauthError::TokenMissingKid
-            | OauthError::TokenUnknownKid { .. }
-            | OauthError::Provider(_)
-            | OauthError::Repository(_)
-            | OauthError::DatabaseRepository(_)
-            | OauthError::Config(_)
-            | OauthError::Crypto(_)
-            | OauthError::CimdFetch(_)
-            | OauthError::WebAuthnConfig(_)
-            | OauthError::Internal(_) => Self::server_error(err.to_string()),
+            OauthErrorKind::AuthenticationFailed => Self::authentication_failed(
+                "Authentication failed. Check the email address or register a passkey.",
+            ),
+            OauthErrorKind::ServerError => Self::server_error(err.to_string()),
         }
     }
 }

@@ -58,12 +58,7 @@ pub async fn handle_introspect(
         .ok_or_else(|| OAuthHttpError::invalid_client("Client authentication required"))?;
     let client_id = ClientId::new(client_id_str);
 
-    if validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
-        .await
-        .is_err()
-    {
-        return Err(OAuthHttpError::invalid_client("Invalid client credentials"));
-    }
+    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref()).await?;
 
     let response = match introspect_token(&repo, &request.token)? {
         Some(full) => {

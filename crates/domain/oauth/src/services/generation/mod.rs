@@ -43,10 +43,9 @@ const MAX_TOKEN_LIFETIME: Duration = Duration::days(365);
 
 fn validated_expiry(expires_in: Duration) -> Result<Duration> {
     if expires_in <= Duration::zero() || expires_in > MAX_TOKEN_LIFETIME {
-        return Err(crate::error::OauthError::Internal(format!(
-            "Invalid token expiry: {} seconds. Must be between 1 second and 1 year",
-            expires_in.num_seconds()
-        )));
+        return Err(crate::error::OauthError::InvalidTokenLifetime {
+            seconds: expires_in.num_seconds(),
+        });
     }
     Ok(expires_in)
 }
@@ -115,9 +114,9 @@ fn build_claims(
     let expires_in = validated_expiry(config.expires_in)?;
     let expiration = Utc::now()
         .checked_add_signed(expires_in)
-        .ok_or_else(|| {
-            crate::error::OauthError::Internal("Failed to calculate token expiration".to_owned())
-        })?
+        .ok_or(crate::error::OauthError::Internal(
+            "Failed to calculate token expiration",
+        ))?
         .timestamp();
     let now = Utc::now().timestamp();
     let user_type = UserType::from_permissions(&config.permissions);
@@ -154,12 +153,10 @@ fn encode_claims(claims: &JwtClaims, _signing: &JwtSigningParams<'_>) -> Result<
 }
 
 fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
-    let kid = authority::active_kid()
-        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let kid = authority::active_kid()?;
     let mut header = Header::new(Algorithm::RS256);
     header.kid = Some(kid.to_owned());
-    let key = authority::encoding_key()
-        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let key = authority::encoding_key()?;
     let token = encode(&header, claims, key)?;
     Ok(token)
 }
@@ -167,13 +164,11 @@ fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
 fn encode_id_jag_with_authority(
     claims: &crate::services::validation::id_jag::IdJagClaims,
 ) -> Result<String> {
-    let kid = authority::active_kid()
-        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let kid = authority::active_kid()?;
     let mut header = Header::new(Algorithm::RS256);
     header.kid = Some(kid.to_owned());
     header.typ = Some(crate::services::validation::id_jag::ID_JAG_TYP.to_owned());
-    let key = authority::encoding_key()
-        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let key = authority::encoding_key()?;
     let token = encode(&header, claims, key)?;
     Ok(token)
 }
@@ -209,9 +204,9 @@ pub fn generate_anonymous_jwt_with_expiry(
     let expires_in = validated_expiry(Duration::seconds(expires_in_seconds))?;
     let expiration = Utc::now()
         .checked_add_signed(expires_in)
-        .ok_or_else(|| {
-            crate::error::OauthError::Internal("Failed to calculate token expiration".to_owned())
-        })?
+        .ok_or(crate::error::OauthError::Internal(
+            "Failed to calculate token expiration",
+        ))?
         .timestamp();
 
     let now = Utc::now().timestamp();

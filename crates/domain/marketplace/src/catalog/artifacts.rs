@@ -72,10 +72,12 @@ pub fn load_artifacts(services_root: &Path) -> Result<Vec<ArtifactEntry>, Market
     }
 
     let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
-    let read =
-        std::fs::read_dir(&artifacts_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let read = std::fs::read_dir(&artifacts_dir)
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", artifacts_dir.display()), e))?;
     for entry in read {
-        let entry = entry.map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let entry = entry.map_err(|e| {
+            MarketplaceError::catalog(format!("read {}", artifacts_dir.display()), e)
+        })?;
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -111,9 +113,9 @@ pub fn load_artifacts(services_root: &Path) -> Result<Vec<ArtifactEntry>, Market
 fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, MarketplaceError> {
     let config_path = artifact_dir.join(ARTIFACT_CONFIG_FILENAME);
     let config_text = std::fs::read_to_string(&config_path)
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", config_path.display()), e))?;
     let config: DiskArtifactConfig = serde_yaml::from_str(&config_text)
-        .map_err(|e| MarketplaceError::Catalog(format!("parse {}: {e}", config_path.display())))?;
+        .map_err(|e| MarketplaceError::catalog(format!("parse {}", config_path.display()), e))?;
 
     if !config.enabled {
         return Ok(None);
@@ -122,7 +124,7 @@ fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, Ma
     let content_path = artifact_dir.join(config.content_file());
     let content = if content_path.exists() {
         std::fs::read_to_string(&content_path)
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?
+            .map_err(|e| MarketplaceError::catalog(format!("read {}", content_path.display()), e))?
     } else {
         String::new()
     };
@@ -180,5 +182,5 @@ fn artifact_digest(
         hasher.update([0u8]);
     }
     Sha256Digest::try_new(hex::encode(hasher.finalize()))
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
+        .map_err(|e| MarketplaceError::catalog("artifact digest", e))
 }

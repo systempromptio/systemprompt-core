@@ -67,7 +67,7 @@ pub mod repository;
 pub mod services;
 pub(crate) mod state;
 
-pub use error::{OauthError, OauthResult};
+pub use error::{OauthError, OauthErrorKind, OauthResult};
 pub use extension::OauthExtension;
 
 pub use models::*;

@@ -78,10 +78,7 @@ pub(super) fn import_marketplace(
 
     config
         .validate(id.as_str())
-        .map_err(|e| MarketplaceError::Import {
-            path: manifest_path.display().to_string(),
-            message: e.to_string(),
-        })?;
+        .map_err(|e| MarketplaceError::import(manifest_path, "marketplace config is invalid", e))?;
 
     let rel = Path::new("marketplaces")
         .join(id.as_str())

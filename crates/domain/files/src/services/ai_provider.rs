@@ -14,14 +14,28 @@ use crate::config::FilesConfig;
 use crate::models::{File, FileMetadata};
 use crate::repository::{FileRepository, InsertFileRequest};
 
+#[derive(Debug, thiserror::Error)]
+enum FileMetadataError {
+    #[error("file metadata for {file_id} is not serialisable")]
+    Serialise {
+        file_id: FileId,
+        #[source]
+        source: serde_json::Error,
+    },
+    #[error("invalid file metadata")]
+    Deserialise(#[source] serde_json::Error),
+}
+
 fn to_ai_generated(f: File) -> AiProviderResult<AiGeneratedFile> {
-    let metadata = serde_json::to_value(&f.metadata.0).map_err(|e| {
-        AiProviderError::Internal(
-            format!("File metadata for {} is not serialisable: {e}", f.id).into(),
-        )
+    let id = FileId::new(f.id.to_string());
+    let metadata = serde_json::to_value(&f.metadata.0).map_err(|source| {
+        AiProviderError::Internal(Box::new(FileMetadataError::Serialise {
+            file_id: id.clone(),
+            source,
+        }))
     })?;
     Ok(AiGeneratedFile {
-        id: FileId::new(f.id.to_string()),
+        id,
         path: f.path,
         public_url: f.public_url,
         mime_type: f.mime_type,
@@ -53,8 +67,9 @@ impl FilesAiPersistenceProvider {
 impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
     async fn insert_file(&self, params: InsertAiFileParams) -> AiProviderResult<()> {
         let file_id = FileId::new(params.id.to_string());
-        let metadata: FileMetadata = serde_json::from_value(params.metadata)
-            .map_err(|e| AiProviderError::Internal(format!("Invalid file metadata: {e}").into()))?;
+        let metadata: FileMetadata = serde_json::from_value(params.metadata).map_err(|source| {
+            AiProviderError::Internal(Box::new(FileMetadataError::Deserialise(source)))
+        })?;
         let mut request =
             InsertFileRequest::new(file_id, params.path, params.public_url, params.mime_type)
                 .with_ai_content(true)
@@ -120,9 +135,10 @@ impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
     }
 
     fn storage_config(&self) -> AiProviderResult<ImageStorageConfig> {
-        let config = FilesConfig::get().map_err(|e| AiProviderError::ConfigurationError {
-            message: e.to_string(),
-        })?;
+        let config =
+            FilesConfig::get_optional().ok_or_else(|| AiProviderError::ConfigurationError {
+                message: "FilesConfig::init() not called".to_owned(),
+            })?;
 
         Ok(ImageStorageConfig {
             base_path: FilesConfig::generated_images_relative(),

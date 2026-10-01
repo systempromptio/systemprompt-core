@@ -272,7 +272,7 @@ async fn verified_token_stored_on_replica_a_is_consumed_on_replica_b() {
         .consume_verified_authentication(&token)
         .await
         .expect_err("token is single-use across replicas");
-    assert!(matches!(err, OauthError::Internal(_)), "got {err:?}");
+    assert!(matches!(err, OauthError::ChallengeExpired), "got {err:?}");
 }
 
 #[tokio::test]
@@ -378,7 +378,10 @@ async fn link_started_on_replica_a_finishes_on_replica_b() {
         .finish_registration_with_token(&challenge_id, &raw_token, &cred)
         .await
         .expect_err("a finished link ceremony cannot be replayed");
-    assert!(matches!(replay, OauthError::Internal(_)), "{replay}");
+    assert!(
+        matches!(replay, OauthError::SetupTokenRejected(_)),
+        "{replay}"
+    );
     let row = ctx
         .repo
         .consume_webauthn_challenge(&challenge_id, WebAuthnChallengeKind::Link)

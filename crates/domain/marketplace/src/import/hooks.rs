@@ -44,14 +44,10 @@ pub(super) fn import_plugin_hooks(
         return Ok(out);
     }
 
-    let text = std::fs::read_to_string(&path).map_err(|e| MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: e.to_string(),
-    })?;
-    let file: HooksFile = serde_json::from_str(&text).map_err(|e| MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: format!("hooks.json is not valid: {e}"),
-    })?;
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| MarketplaceError::import(&path, "read", e))?;
+    let file: HooksFile = serde_json::from_str(&text)
+        .map_err(|e| MarketplaceError::import(&path, "hooks.json is not valid", e))?;
 
     for event in HookEvent::ALL_VARIANTS {
         let mut index = 0usize;

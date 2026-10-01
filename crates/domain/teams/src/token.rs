@@ -116,8 +116,7 @@ impl TokenProvider {
     }
 
     async fn fetch(&self, now_unix: i64) -> TeamsResult<CachedToken> {
-        validate_outbound_url(&self.token_url)
-            .map_err(|e| TeamsError::OutboundUrl(e.to_string()))?;
+        validate_outbound_url(&self.token_url)?;
         let resp = self
             .http
             .post(&self.token_url)

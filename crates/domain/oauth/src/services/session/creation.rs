@@ -21,12 +21,14 @@ impl SessionCreationService {
             .user_provider
             .create_anonymous(&params.fingerprint)
             .await
-            .map_err(|e| OauthError::Session(e.to_string()))?;
+            .map_err(|source| OauthError::UserProvider {
+                context: "creating the anonymous user",
+                source,
+            })?;
         let user_id = UserId::new(anonymous_user.id);
 
-        let jwt_expiration_seconds = systemprompt_models::Config::get()
-            .map_err(|e| OauthError::Config(e.to_string()))?
-            .jwt_access_token_expiration;
+        let jwt_expiration_seconds =
+            systemprompt_models::Config::get()?.jwt_access_token_expiration;
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration_seconds);
 
         self.session_provider
@@ -39,16 +41,13 @@ impl SessionCreationService {
                 is_ai_crawler: params.analytics.is_ai_crawler,
                 expires_at,
             })
-            .await
-            .map_err(|e| OauthError::Session(e.to_string()))?;
+            .await?;
 
-        let config =
-            systemprompt_models::Config::get().map_err(|e| OauthError::Config(e.to_string()))?;
+        let config = systemprompt_models::Config::get()?;
         let signing = JwtSigningParams {
             issuer: &config.jwt_issuer,
         };
-        let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)
-            .map_err(|e| OauthError::TokenInvalid(e.to_string()))?;
+        let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)?;
 
         Ok(AnonymousSessionInfo {
             session_id,

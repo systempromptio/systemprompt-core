@@ -10,6 +10,7 @@ mod db_backed {
     use systemprompt_oauth::repository::{ClientRepository, CreateClientParams, OAuthRepository};
     use systemprompt_oauth::services::hash_client_secret;
     use systemprompt_oauth::services::validation::validate_client_credentials;
+    use systemprompt_oauth::{OauthError, OauthErrorKind};
     use systemprompt_test_fixtures::{
         ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
     };
@@ -62,7 +63,8 @@ mod db_backed {
         let err = validate_client_credentials(&repo, &client_id, Some("wrong-secret"))
             .await
             .expect_err("wrong secret");
-        assert!(err.to_string().contains("Invalid client secret"));
+        assert!(matches!(err, OauthError::InvalidClient(_)));
+        assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
     }
 
     #[tokio::test]
@@ -71,7 +73,8 @@ mod db_backed {
         let err = validate_client_credentials(&repo, &client_id, None)
             .await
             .expect_err("missing secret");
-        assert!(err.to_string().contains("Client secret required"));
+        assert!(matches!(err, OauthError::InvalidClient(_)));
+        assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
     }
 
     #[tokio::test]
@@ -81,7 +84,8 @@ mod db_backed {
         let err = validate_client_credentials(&repo, &missing, Some(SECRET))
             .await
             .expect_err("unknown client");
-        assert!(err.to_string().contains("Client not found"));
+        assert!(matches!(err, OauthError::ClientNotFound(_)));
+        assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
     }
 }
 

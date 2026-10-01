@@ -71,7 +71,7 @@ impl OAuthState {
     pub fn webauthn(&self) -> OauthResult<&Arc<WebAuthnService>> {
         self.webauthn
             .as_ref()
-            .ok_or_else(|| OauthError::WebAuthnConfig("WebAuthn is not configured".to_owned()))
+            .ok_or(OauthError::WebAuthnConfig("WebAuthn is not configured"))
     }
 
     #[must_use]

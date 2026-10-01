@@ -80,7 +80,7 @@ impl TeamsClient {
         now_unix: i64,
     ) -> TeamsResult<()> {
         let url = reply_url(service_url, conversation_id);
-        validate_outbound_url(&url).map_err(|e| TeamsError::OutboundUrl(e.to_string()))?;
+        validate_outbound_url(&url)?;
         let http = self
             .reply_http
             .as_ref()

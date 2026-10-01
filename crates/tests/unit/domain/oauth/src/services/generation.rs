@@ -343,7 +343,7 @@ mod jwt_minting {
         JwtConfig, JwtSigningParams, generate_anonymous_jwt, generate_anonymous_jwt_with_expiry,
         generate_jwt, generate_jwt_with_act,
     };
-    use systemprompt_oauth::validate_jwt_token;
+    use systemprompt_oauth::{OauthError, validate_jwt_token};
     use systemprompt_test_fixtures::{ensure_test_bootstrap, install_test_signing_key};
     use uuid::Uuid;
 
@@ -463,7 +463,7 @@ mod jwt_minting {
                 &signing(),
             )
             .expect_err("invalid expiry must be rejected");
-            assert!(err.to_string().contains("Invalid token expiry"));
+            assert!(matches!(err, OauthError::InvalidTokenLifetime { .. }));
         }
     }
 
@@ -526,7 +526,7 @@ mod jwt_minting {
             366 * 24 * 3600,
         )
         .expect_err("expiry beyond one year must fail");
-        assert!(err.to_string().contains("Invalid token expiry"));
+        assert!(matches!(err, OauthError::InvalidTokenLifetime { .. }));
     }
 
     #[test]

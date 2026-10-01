@@ -161,10 +161,8 @@ impl ManifestService {
     }
 
     pub fn seal(manifest: &SignedManifest) -> Result<SignedManifestEnvelope, MarketplaceError> {
-        let payload = manifest_signing::canonicalize(manifest)
-            .map_err(|e| MarketplaceError::Signing(e.to_string()))?;
-        let signature = manifest_signing::sign_bytes(payload.as_bytes())
-            .map_err(|e| MarketplaceError::Signing(e.to_string()))?;
+        let payload = manifest_signing::canonicalize(manifest)?;
+        let signature = manifest_signing::sign_bytes(payload.as_bytes())?;
         Ok(SignedManifestEnvelope {
             payload,
             signature: ManifestSignature::new(signature),
@@ -184,7 +182,7 @@ fn listed_marketplaces(
                 .iter()
                 .map(|p| {
                     PluginId::try_new(p.id.as_str())
-                        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
+                        .map_err(|e| MarketplaceError::catalog("marketplace plugin id", e))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(ManifestMarketplace {

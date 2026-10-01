@@ -222,7 +222,10 @@ fn parse_frontmatter(markdown: &str) -> Result<(ContentMetadata, String), Conten
 
 fn parse_date(date_str: &str) -> Result<DateTime<Utc>, ContentError> {
     chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-        .map_err(|e| ContentError::Parse(format!("Invalid date '{}': {}", date_str, e)))?
+        .map_err(|source| ContentError::InvalidDate {
+            value: date_str.to_owned(),
+            source,
+        })?
         .and_hms_opt(0, 0, 0)
         .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_owned()))?
         .and_local_timezone(Utc)

@@ -94,7 +94,10 @@ impl WebAuthnService {
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| OauthError::User(e.to_string()))?;
+            .map_err(|source| OauthError::UserProvider {
+                context: "looking up the account's passkeys",
+                source,
+            })?;
         if let Some(user) = user {
             self.get_user_credentials(&user.id).await
         } else {

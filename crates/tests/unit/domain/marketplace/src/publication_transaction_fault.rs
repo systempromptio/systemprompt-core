@@ -107,7 +107,7 @@ async fn final_outbox_write_failure_rolls_back_publication_then_identical_retry_
         .review_and_publish(&owner, &owner, &request)
         .await
         .expect_err("final outbox failure must abort publication");
-    assert!(matches!(error, ManagedError::Database(_)));
+    assert!(matches!(error, ManagedError::Repository(_)));
     assert!(matches!(
         repository
             .resolve_managed(&owner, ResourceKind::Skill, "atomic-skill")

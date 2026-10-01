@@ -28,11 +28,8 @@ impl JwtValidationProviderImpl {
     }
 
     pub fn from_config() -> JwtResult<Self> {
-        let config = systemprompt_models::Config::get().map_err(|e| {
-            JwtProviderError::ConfigurationError {
-                message: e.to_string(),
-            }
-        })?;
+        let config = systemprompt_models::Config::get()
+            .map_err(|e| JwtProviderError::Internal(Box::new(e)))?;
 
         Ok(Self {
             issuer: config.jwt_issuer.clone(),
@@ -63,14 +60,11 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
     }
 
     fn generate_token(&self, params: GenerateTokenParams) -> JwtResult<String> {
-        let user_id = Uuid::parse_str(params.user_id.as_str()).map_err(|e| {
-            JwtProviderError::Internal(
-                format!(
-                    "user_id {:?} is not a valid UUID: {e}",
-                    params.user_id.as_str()
-                )
-                .into(),
-            )
+        let user_id = Uuid::parse_str(params.user_id.as_str()).map_err(|source| {
+            JwtProviderError::Internal(Box::new(OauthError::InvalidUserId {
+                user_id: params.user_id.clone(),
+                source,
+            }))
         })?;
 
         let user = AuthenticatedUser {
@@ -87,7 +81,9 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             .iter()
             .map(|p| {
                 p.parse::<Permission>().map_err(|_e| {
-                    JwtProviderError::Internal(format!("unknown permission {p:?}").into())
+                    JwtProviderError::Internal(Box::new(OauthError::Validation(format!(
+                        "unknown permission {p:?}"
+                    ))))
                 })
             })
             .collect::<JwtResult<Vec<_>>>()?;

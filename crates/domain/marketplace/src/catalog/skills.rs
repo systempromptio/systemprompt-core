@@ -37,10 +37,11 @@ pub fn load_skills_traced(
     }
 
     let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
-    let read =
-        std::fs::read_dir(&skills_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let read = std::fs::read_dir(&skills_dir)
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", skills_dir.display()), e))?;
     for entry in read {
-        let entry = entry.map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let entry = entry
+            .map_err(|e| MarketplaceError::catalog(format!("read {}", skills_dir.display()), e))?;
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -107,9 +108,9 @@ fn build_skill_entry(
 ) -> Result<Option<SkillEntry>, MarketplaceError> {
     let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
     let config_text = std::fs::read_to_string(&config_path)
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", config_path.display()), e))?;
     let config: DiskSkillConfig = serde_yaml::from_str(&config_text)
-        .map_err(|e| MarketplaceError::Catalog(format!("parse {}: {e}", config_path.display())))?;
+        .map_err(|e| MarketplaceError::catalog(format!("parse {}", config_path.display()), e))?;
 
     if !config.enabled {
         return Ok(None);
@@ -121,22 +122,22 @@ fn build_skill_entry(
             config.id.as_str()
         )));
     }
-    let id = SkillId::try_new(dir_name).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let id = SkillId::try_new(dir_name).map_err(|e| MarketplaceError::catalog("skill id", e))?;
     let display_name = if config.name.is_empty() {
         dir_name.replace('_', " ")
     } else {
         config.name.clone()
     };
     let name =
-        SkillName::try_new(display_name).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        SkillName::try_new(display_name).map_err(|e| MarketplaceError::catalog("skill name", e))?;
 
     let content_path = skill_dir.join(config.content_file());
     let raw = std::fs::read_to_string(&content_path)
-        .map_err(|e| MarketplaceError::Catalog(format!("read {}: {e}", content_path.display())))?;
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", content_path.display()), e))?;
     let instructions = strip_frontmatter(&raw);
     if let Some(frontmatter) = &config.frontmatter {
         check_json_compatible(frontmatter)
-            .map_err(|e| MarketplaceError::Catalog(format!("{}: {e}", config_path.display())))?;
+            .map_err(|e| MarketplaceError::catalog(config_path.display().to_string(), e))?;
     }
     let sha256 = skill_digest(config.frontmatter.as_ref(), &instructions)?;
 
@@ -160,24 +161,24 @@ fn skill_digest(
     instructions: &str,
 ) -> Result<Sha256Digest, MarketplaceError> {
     let rendered = render_passthrough_frontmatter(frontmatter)
-        .map_err(|e| MarketplaceError::Catalog(format!("render skill frontmatter: {e}")))?;
+        .map_err(|e| MarketplaceError::catalog("render skill frontmatter", e))?;
     let mut hasher = Sha256::new();
     hasher.update(rendered.as_bytes());
     hasher.update(instructions.as_bytes());
     Sha256Digest::try_new(hex::encode(hasher.finalize()))
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
+        .map_err(|e| MarketplaceError::catalog("skill digest", e))
 }
 
 pub(crate) fn build_managed_skill_entry(
     skill: ManagedSkill,
 ) -> Result<(SkillEntry, RevisionFiles), MarketplaceError> {
     let id = SkillId::try_new(skill.id.as_str())
-        .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
+        .map_err(|error| MarketplaceError::catalog("managed skill id", error))?;
     let name = SkillName::try_new(skill.name)
-        .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
+        .map_err(|error| MarketplaceError::catalog("managed skill name", error))?;
     if let Some(frontmatter) = &skill.frontmatter {
         check_json_compatible(frontmatter)
-            .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
+            .map_err(|error| MarketplaceError::catalog("managed skill frontmatter", error))?;
     }
     let sha256 = skill_digest(skill.frontmatter.as_ref(), &skill.instructions)?;
     let entry = SkillEntry {
@@ -187,7 +188,7 @@ pub(crate) fn build_managed_skill_entry(
             revision_id: skill.revision_id,
             generation: skill.generation,
             bundle_digest: Sha256Digest::try_new(skill.bundle_digest.as_str())
-                .map_err(|error| MarketplaceError::Catalog(error.to_string()))?,
+                .map_err(|error| MarketplaceError::catalog("managed skill bundle digest", error))?,
         }),
         file_path: format!("managed://{}@{}", id.as_str(), skill.bundle_digest.as_str()),
         id,

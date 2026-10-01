@@ -125,7 +125,7 @@ fn failing_filter_factory(
     _pool: &systemprompt_database::DbPool,
 ) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError> {
     Err(MarketplaceFilterError::Backend(
-        "fixture factory always fails".to_owned(),
+        "fixture factory always fails".into(),
     ))
 }
 

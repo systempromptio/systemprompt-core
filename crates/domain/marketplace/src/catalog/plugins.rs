@@ -52,7 +52,7 @@ pub fn plugin_bundles(
             continue;
         }
         let id = PluginId::try_new(config.id.as_str())
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+            .map_err(|e| MarketplaceError::catalog("plugin id", e))?;
         out.insert(id, bundle);
     }
     Ok(out)
@@ -79,7 +79,7 @@ pub(super) fn bundle_fingerprint(
 }
 
 fn to_json<T: serde::Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, MarketplaceError> {
-    serde_json::to_vec(value).map_err(|e| MarketplaceError::Catalog(e.to_string()))
+    serde_json::to_vec(value).map_err(|e| MarketplaceError::catalog("serialise plugin catalog", e))
 }
 
 fn hash_part(hasher: &mut Sha256, bytes: &[u8]) {
@@ -122,7 +122,7 @@ pub fn artifact_owners(
                 .iter()
                 .map(|id| {
                     LibraryArtifactId::try_new(id.as_str())
-                        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
+                        .map_err(|e| MarketplaceError::catalog("library artifact id", e))
                 })
                 .collect::<Result<_, _>>()?,
             ComponentSource::Instance => artifacts
@@ -132,7 +132,7 @@ pub fn artifact_owners(
                 .collect(),
         };
         let owner = PluginId::try_new(config.id.as_str())
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+            .map_err(|e| MarketplaceError::catalog("plugin id", e))?;
         for id in selected {
             out.entry(id).or_default().insert(owner.clone());
         }
@@ -170,7 +170,7 @@ pub fn skill_owners(
     for config in selected_configs(services) {
         let agent_ids = crate::bundle::resolve_agents(config, content.agents);
         let owner = PluginId::try_new(config.id.as_str())
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+            .map_err(|e| MarketplaceError::catalog("plugin id", e))?;
         for id in crate::bundle::resolve_skill_ids(config, content, &agent_ids) {
             out.entry(id).or_default().insert(owner.clone());
         }
@@ -185,7 +185,7 @@ pub fn rule_owners(
     let mut out: BTreeMap<RuleId, BTreeSet<PluginId>> = BTreeMap::new();
     for config in selected_configs(services) {
         let owner = PluginId::try_new(config.id.as_str())
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+            .map_err(|e| MarketplaceError::catalog("plugin id", e))?;
         for id in crate::bundle::resolve_rule_ids(config, content) {
             out.entry(id).or_default().insert(owner.clone());
         }
@@ -217,7 +217,7 @@ fn hash_entry(
     }
 
     let aggregate = Sha256Digest::try_new(hex::encode(hasher.finalize()))
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog("plugin aggregate digest", e))?;
     Ok(PluginEntry {
         id,
         version: version.to_owned(),
@@ -231,5 +231,5 @@ fn file_digest(bytes: &[u8]) -> Result<Sha256Digest, MarketplaceError> {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     Sha256Digest::try_new(hex::encode(hasher.finalize()))
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
+        .map_err(|e| MarketplaceError::catalog("plugin file digest", e))
 }

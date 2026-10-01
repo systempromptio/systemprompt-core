@@ -17,6 +17,8 @@
 
 use std::path::{Path, PathBuf};
 
+use systemprompt_traits::BoxedSource;
+
 use crate::error::MarketplaceError;
 use crate::managed::{GitCaptureRequest, GitSourceCapture};
 
@@ -39,9 +41,15 @@ pub(super) fn fetch_plugin(
         .as_deref()
         .or(source.reference.as_deref())
         .unwrap_or(UNPINNED_REFERENCE);
+    let path = format!("{}@{reference}", source.repository);
     let failed = |message: String| MarketplaceError::Import {
-        path: format!("{}@{reference}", source.repository),
+        path: path.clone(),
         message: format!("plugin '{plugin}': {message}"),
+    };
+    let caused = |context: String, cause: BoxedSource| MarketplaceError::ImportSource {
+        path: path.clone(),
+        context: format!("plugin '{plugin}': {context}"),
+        source: cause,
     };
     let captured = capture
         .capture(&GitCaptureRequest {
@@ -51,7 +59,12 @@ pub(super) fn fetch_plugin(
             root: "",
             credential: None,
         })
-        .map_err(|error| failed(format!("could not fetch the upstream plugin: {error}")))?;
+        .map_err(|error| {
+            caused(
+                "could not fetch the upstream plugin".to_owned(),
+                error.into(),
+            )
+        })?;
     if let Some(pinned) = &source.commit
         && captured.commit != *pinned
     {
@@ -67,10 +80,11 @@ pub(super) fn fetch_plugin(
         )));
     }
 
-    let dir = TempTree::create(plugin).map_err(|e| failed(e.to_string()))?;
+    let dir = TempTree::create(plugin)
+        .map_err(|e| caused("create a staging directory".to_owned(), e.into()))?;
     for (relative, file) in &captured.files.0 {
         write_file(&dir.0.join(relative), &file.bytes, file.executable)
-            .map_err(|e| failed(format!("{relative}: {e}")))?;
+            .map_err(|e| caused(relative.clone(), e.into()))?;
     }
     Ok(FetchedPlugin {
         dir,

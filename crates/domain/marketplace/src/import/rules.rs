@@ -40,10 +40,8 @@ pub(super) fn import_rules_dir(
         return Ok(());
     }
 
-    let read = std::fs::read_dir(rules_dir).map_err(|e| MarketplaceError::Import {
-        path: rules_dir.display().to_string(),
-        message: e.to_string(),
-    })?;
+    let read =
+        std::fs::read_dir(rules_dir).map_err(|e| MarketplaceError::import(rules_dir, "read", e))?;
     let mut files: Vec<std::path::PathBuf> = read
         .filter_map(Result::ok)
         .map(|e| e.path())
@@ -70,23 +68,16 @@ pub(super) fn import_rules_dir(
 }
 
 fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<(), MarketplaceError> {
-    let raw = std::fs::read_to_string(path).map_err(|e| MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: e.to_string(),
-    })?;
+    let raw =
+        std::fs::read_to_string(path).map_err(|e| MarketplaceError::import(path, "read", e))?;
 
     let front: RuleFrontmatter = match split_frontmatter(&raw) {
-        Some(f) => serde_yaml::from_str(f.yaml).map_err(|e| MarketplaceError::Import {
-            path: path.display().to_string(),
-            message: format!("rule frontmatter is not valid YAML: {e}"),
-        })?,
+        Some(f) => serde_yaml::from_str(f.yaml)
+            .map_err(|e| MarketplaceError::import(path, "rule frontmatter is not valid YAML", e))?,
         None => RuleFrontmatter::default(),
     };
 
-    let id = RuleId::try_new(name).map_err(|e| MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: e.to_string(),
-    })?;
+    let id = RuleId::try_new(name).map_err(|e| MarketplaceError::import(path, "rule id", e))?;
     let doc = DiskRuleConfig {
         id,
         name: front

@@ -4,6 +4,7 @@
 
 use systemprompt_api::routes::oauth::{OAuthErrorCode, OAuthHttpError};
 use systemprompt_oauth::OauthError;
+use systemprompt_traits::RepositoryError;
 use systemprompt_traits::auth::AuthProviderError;
 
 #[test]
@@ -77,16 +78,56 @@ fn oauth_webauthn_verification_failed_maps_to_invalid_credential() {
 #[test]
 fn oauth_internal_kinds_map_to_server_error() {
     for err in [
-        OauthError::WebAuthn("x".into()),
-        OauthError::Session("s".into()),
-        OauthError::Provider("p".into()),
-        OauthError::Internal("i".into()),
-        OauthError::TokenInvalid("t".into()),
-        OauthError::TokenMissingKid,
+        OauthError::Internal("i"),
+        OauthError::WebAuthnConfig("not configured"),
+        OauthError::Repository(RepositoryError::internal("pool closed")),
+        OauthError::InvalidTokenLifetime { seconds: 0 },
     ] {
         let e: OAuthHttpError = err.into();
         assert_eq!(e.code(), OAuthErrorCode::ServerError);
     }
+}
+
+#[test]
+fn oauth_token_validation_failures_map_to_invalid_token() {
+    for err in [
+        OauthError::TokenMissingKid,
+        OauthError::TokenUnknownKid { kid: "k".into() },
+        OauthError::TokenAlgMismatch {
+            got: "HS256".into(),
+            expected: "RS256".into(),
+        },
+    ] {
+        let e: OAuthHttpError = err.into();
+        assert_eq!(e.code(), OAuthErrorCode::InvalidToken);
+    }
+}
+
+#[test]
+fn oauth_refresh_token_rejection_maps_to_invalid_grant() {
+    let e: OAuthHttpError = OauthError::TokenInvalid("Invalid refresh token".into()).into();
+    assert_eq!(e.code(), OAuthErrorCode::InvalidGrant);
+}
+
+#[test]
+fn wrong_client_secret_is_an_authentication_failure_not_a_server_error() {
+    let e: OAuthHttpError = OauthError::InvalidClient("Invalid client secret".into()).into();
+    assert_eq!(e.code(), OAuthErrorCode::InvalidClient);
+    assert_eq!(e.code().default_status(), http::StatusCode::UNAUTHORIZED);
+}
+
+#[test]
+fn client_authentication_failures_share_one_description() {
+    let wrong: OAuthHttpError = OauthError::InvalidClient("Invalid client secret".into()).into();
+    let unknown: OAuthHttpError = OauthError::ClientNotFound("client_x".into()).into();
+    assert_eq!(wrong.description(), unknown.description());
+}
+
+#[test]
+fn webauthn_start_answers_identically_for_unknown_and_passkeyless_accounts() {
+    let e: OAuthHttpError = OauthError::AuthenticationUnavailable.into();
+    assert_eq!(e.code(), OAuthErrorCode::AuthenticationFailed);
+    assert!(!e.description().contains('@'));
 }
 
 #[test]

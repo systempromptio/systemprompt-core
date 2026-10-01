@@ -224,7 +224,7 @@ fn test_session_creation_error_user_not_found() {
 
 #[test]
 fn test_session_creation_error_internal() {
-    let error = SessionCreationError::Internal("database connection lost".to_string());
+    let error = SessionCreationError::Internal("database connection lost".into());
     let message = error.to_string();
 
     assert!(message.contains("database connection lost"));
@@ -235,7 +235,7 @@ fn test_session_creation_error_display() {
     let user_error = SessionCreationError::UserNotFound {
         user_id: fixture_user_id(),
     };
-    let internal_error = SessionCreationError::Internal("timeout".to_string());
+    let internal_error = SessionCreationError::Internal("timeout".into());
 
     let user_display = format!("{}", user_error);
     let internal_display = format!("{}", internal_error);
@@ -247,7 +247,7 @@ fn test_session_creation_error_display() {
 
 #[test]
 fn test_session_creation_error_is_std_error() {
-    let error = SessionCreationError::Internal("test".to_string());
+    let error = SessionCreationError::Internal("test".into());
     let std_error: &dyn std::error::Error = &error;
 
     assert!(std_error.to_string().contains("test"));

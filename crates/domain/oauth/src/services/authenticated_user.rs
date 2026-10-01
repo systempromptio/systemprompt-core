@@ -23,7 +23,10 @@ pub async fn load_authenticated_user(
     let user = users
         .find_by_id(user_id)
         .await
-        .map_err(|e| OauthError::User(e.to_string()))?
+        .map_err(|source| OauthError::UserProvider {
+            context: "loading the user a token is minted for",
+            source,
+        })?
         .ok_or_else(|| OauthError::UserNotFound(user_id.to_string()))?;
 
     let permissions: Vec<Permission> = user

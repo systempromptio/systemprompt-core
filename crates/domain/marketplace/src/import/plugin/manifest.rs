@@ -30,15 +30,10 @@ pub(super) fn resolve_manifest(
             ..PluginManifest::default()
         });
     }
-    let text = std::fs::read_to_string(&path).map_err(|e| MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: e.to_string(),
-    })?;
-    let mut manifest: PluginManifest =
-        serde_json::from_str(&text).map_err(|e| MarketplaceError::Import {
-            path: path.display().to_string(),
-            message: format!("plugin.json is not valid: {e}"),
-        })?;
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| MarketplaceError::import(&path, "read", e))?;
+    let mut manifest: PluginManifest = serde_json::from_str(&text)
+        .map_err(|e| MarketplaceError::import(&path, "plugin.json is not valid", e))?;
     if manifest.skills.is_none() {
         manifest.skills.clone_from(&entry.skills);
     }
@@ -71,9 +66,12 @@ pub(super) fn skill_paths(
             }
             systemprompt_models::managed::validate_path(relative)
                 .map(|()| dir.join(relative))
-                .map_err(|error| MarketplaceError::Import {
-                    path: dir.join(relative).display().to_string(),
-                    message: format!("skills path {raw:?} must stay inside the plugin: {error}"),
+                .map_err(|error| {
+                    MarketplaceError::import(
+                        &dir.join(relative),
+                        format!("skills path {raw:?} must stay inside the plugin"),
+                        error,
+                    )
                 })
         })
         .collect()

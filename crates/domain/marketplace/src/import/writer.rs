@@ -45,9 +45,9 @@ impl Sink {
         }
         let dest = self.root.join(rel);
         if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| io_err(parent, &e))?;
+            std::fs::create_dir_all(parent).map_err(|e| io_err(parent, e))?;
         }
-        std::fs::write(&dest, bytes).map_err(|e| io_err(&dest, &e))
+        std::fs::write(&dest, bytes).map_err(|e| io_err(&dest, e))
     }
 
     pub(super) fn write_yaml<T: Serialize>(
@@ -55,10 +55,8 @@ impl Sink {
         rel: &Path,
         value: &T,
     ) -> Result<(), MarketplaceError> {
-        let text = serde_yaml::to_string(value).map_err(|e| MarketplaceError::Import {
-            path: rel.display().to_string(),
-            message: e.to_string(),
-        })?;
+        let text = serde_yaml::to_string(value)
+            .map_err(|e| MarketplaceError::import(rel, "serialise yaml", e))?;
         self.write_bytes(rel, text.as_bytes())
     }
 
@@ -75,11 +73,11 @@ impl Sink {
         }
         let dest = self.root.join(rel);
         if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| io_err(parent, &e))?;
+            std::fs::create_dir_all(parent).map_err(|e| io_err(parent, e))?;
         }
         std::fs::copy(src, &dest)
             .map(|_| ())
-            .map_err(|e| io_err(&dest, &e))
+            .map_err(|e| io_err(&dest, e))
     }
 
     pub(super) fn copy_tree(&self, src: &Path, rel: &Path) -> Result<(), MarketplaceError> {
@@ -103,8 +101,8 @@ impl Sink {
                 message: "expected a directory".to_owned(),
             });
         }
-        for entry in std::fs::read_dir(src).map_err(|e| io_err(src, &e))? {
-            let entry = entry.map_err(|e| io_err(src, &e))?;
+        for entry in std::fs::read_dir(src).map_err(|e| io_err(src, e))? {
+            let entry = entry.map_err(|e| io_err(src, e))?;
             let path = entry.path();
             let Some(name) = path.file_name() else {
                 continue;
@@ -128,9 +126,6 @@ impl Sink {
     }
 }
 
-fn io_err(path: &Path, e: &std::io::Error) -> MarketplaceError {
-    MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: e.to_string(),
-    }
+fn io_err(path: &Path, e: std::io::Error) -> MarketplaceError {
+    MarketplaceError::import(path, "write", e)
 }

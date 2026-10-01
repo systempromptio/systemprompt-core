@@ -102,7 +102,7 @@ pub fn build_plugin_bundle(
     let version = content_version(&config.version, &bundle);
     let manifest = build_manifest(config, &version);
     let json = serde_json::to_vec_pretty(&manifest)
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog("serialise plugin manifest", e))?;
     bundle.insert(
         PLUGIN_MANIFEST_RELPATH.to_owned(),
         BundleFile {
@@ -155,8 +155,9 @@ fn append_package_files(
         return Ok(());
     };
     for name in [NODE_PACKAGE_FILE, lockfile] {
-        let bytes =
-            std::fs::read(dir.join(name)).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let bytes = std::fs::read(dir.join(name)).map_err(|e| {
+            MarketplaceError::catalog(format!("read {}", dir.join(name).display()), e)
+        })?;
         bundle.insert(
             name.to_owned(),
             BundleFile {
@@ -194,11 +195,10 @@ fn append_script_files(
             continue;
         }
         let bytes = std::fs::read(&source).map_err(|e| {
-            MarketplaceError::Catalog(format!(
-                "plugin '{}' script {}: {e}",
-                config.id,
-                source.display()
-            ))
+            MarketplaceError::catalog(
+                format!("plugin '{}' script {}", config.id, source.display()),
+                e,
+            )
         })?;
         bundle.insert(
             format!("scripts/{}", script.name),
