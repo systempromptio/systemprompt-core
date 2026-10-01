@@ -6,26 +6,33 @@
 //! extensions) via `#[from]` so callers can pattern-match on the original
 //! cause without losing fidelity.
 //!
-//! Third-party errors without a `#[from]` adapter are stringified into
-//! the [`RuntimeError::Internal`] variant at the call site so the lossy
-//! conversion is visible.
+//! Boot steps whose failure needs more context than the upstream error
+//! carries (a storage root, a bundle name) get a struct variant holding that
+//! context next to the `#[source]` cause.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
+
 use systemprompt_agent::AgentError;
 use systemprompt_analytics::AnalyticsError;
 use systemprompt_config::paths::PathError;
-use systemprompt_config::{ConfigError as ProfileConfigError, ProfileBootstrapError};
+use systemprompt_config::{
+    ConfigError as ProfileConfigError, ProfileBootstrapError, SecretsBootstrapError,
+};
 use systemprompt_content::ContentError;
 use systemprompt_extension::LoaderError;
 use systemprompt_files::FilesError;
+use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::errors::ConfigError as ModelConfigError;
 use systemprompt_oauth::OauthError;
+use systemprompt_security::authz::AuthzError;
+use systemprompt_security::keys::TokenAuthorityError;
 use systemprompt_security::policy::GovernanceEngineError;
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{BoxedSource, FileStorageError, RepositoryError};
 use systemprompt_users::UserError;
 use thiserror::Error;
 
@@ -78,6 +85,47 @@ pub enum RuntimeError {
     #[error(transparent)]
     Managed(#[from] ManagedError),
 
+    #[error(transparent)]
+    Secrets(#[from] SecretsBootstrapError),
+
+    #[error("services config: {0}")]
+    ServicesConfig(#[from] ConfigLoadError),
+
+    #[error("services bundle: {0}")]
+    ServicesBundle(#[from] BundleError),
+
+    #[error("services bundle {name} has no cached fetch state")]
+    ServicesBundleNotCached { name: String },
+
+    #[error("services bundle {name} manifest: {source}")]
+    ServicesBundleManifest {
+        name: String,
+        #[source]
+        source: BundleError,
+    },
+
+    #[error("services authz reconcile: {0}")]
+    ServicesReconcile(#[source] AuthzError),
+
+    #[error("services reconcile state: {0}")]
+    ServicesReconcileState(#[source] BundleError),
+
+    #[error("signing key init: {0}")]
+    Signing(#[from] TokenAuthorityError),
+
+    #[error("authz bootstrap: {0}")]
+    Authz(#[from] AuthzError),
+
+    #[error("storage root {} probe: {source}", .path.display())]
+    StorageProbe {
+        path: PathBuf,
+        #[source]
+        source: FileStorageError,
+    },
+
+    #[error("storage root {} did not read back what was written", .path.display())]
+    StorageReadBack { path: PathBuf },
+
     #[error(
         "Configured system admin '{username}' was not found in the users table. Run `systemprompt \
          admin bootstrap` first."
@@ -97,17 +145,18 @@ pub enum RuntimeError {
     SystemAdminMissingRole { username: String },
 
     #[error(
-        "Configured GeoIP database at '{path}' could not be loaded: {message}. Fix or remove \
+        "Configured GeoIP database at '{path}' could not be loaded: {source}. Fix or remove \
          paths.geoip_database from the profile."
     )]
-    GeoIpUnreadable { path: String, message: String },
+    GeoIpUnreadable {
+        path: String,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("DATABASE_URL is empty")]
     EmptyDatabaseUrl,
 
     #[error("DATABASE_URL must be a postgres:// or postgresql:// URL")]
     UnsupportedDatabaseUrl,
-
-    #[error("internal: {0}")]
-    Internal(String),
 }

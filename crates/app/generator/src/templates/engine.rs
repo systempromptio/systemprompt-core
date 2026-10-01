@@ -9,11 +9,10 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_models::{Config, WebConfig, WebConfigError};
 use tokio::fs;
 
-pub async fn load_web_config(paths: &AppPaths) -> Result<WebConfig, WebConfigError> {
-    let config = Config::get().map_err(|e| WebConfigError::InvalidValue {
-        field: "config".to_owned(),
-        message: e.to_string(),
-    })?;
+use crate::error::GeneratorResult;
+
+pub async fn load_web_config(paths: &AppPaths) -> GeneratorResult<WebConfig> {
+    let config = Config::get()?;
 
     let content = fs::read_to_string(&config.web_config_path)
         .await

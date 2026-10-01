@@ -18,7 +18,7 @@ async fn build_fails_when_css_dir_is_a_file() {
     let orch = BuildOrchestrator::new(tmp.path().to_path_buf(), BuildMode::Production);
     let err = orch.build().await.expect_err("css dir creation must fail");
     assert!(
-        matches!(err, BuildError::CssOrganizationFailed(ref m) if m.contains("create css directory")),
+        matches!(err, BuildError::CssOrganizationFailed { ref context, .. } if context.contains("create css directory")),
         "unexpected error: {err:?}"
     );
 }
@@ -34,7 +34,7 @@ async fn build_fails_when_css_copy_destination_is_a_directory() {
     let orch = BuildOrchestrator::new(tmp.path().to_path_buf(), BuildMode::Production);
     let err = orch.build().await.expect_err("css copy must fail");
     assert!(
-        matches!(err, BuildError::CssOrganizationFailed(ref m) if m.contains("content.css")),
+        matches!(err, BuildError::CssOrganizationFailed { ref context, .. } if context.contains("content.css")),
         "unexpected error: {err:?}"
     );
 }

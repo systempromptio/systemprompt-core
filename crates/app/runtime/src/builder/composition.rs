@@ -38,8 +38,8 @@ pub(super) async fn ensure_legacy_context(
         .a2a
         .contexts
         .ensure_legacy_context(system_admin.id())
-        .await
-        .map_err(|e| crate::error::RuntimeError::Internal(e.to_string()))
+        .await?;
+    Ok(())
 }
 
 pub(super) struct RepositoryBundles {

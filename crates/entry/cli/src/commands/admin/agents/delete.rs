@@ -68,7 +68,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
         let process_stopped = stop_agent_process(agent_name, agent_port, &orchestrator).await;
         match delete_single_agent(agent_name, process_stopped, &authoring, args.force) {
             Ok(()) => deleted.push(agent_name.clone()),
-            Err(msg) => errors.push(msg),
+            Err(error) => errors.push(format!("{error:#}")),
         }
     }
 
@@ -178,7 +178,7 @@ pub fn delete_single_agent(
     process_stopped: bool,
     authoring: &AgentConfigAuthoringService,
     force: bool,
-) -> Result<(), String> {
+) -> Result<()> {
     CliService::info(&format!("Deleting agent '{}'...", agent_name));
 
     if !process_stopped && !force {
@@ -187,7 +187,7 @@ pub fn delete_single_agent(
             agent_name
         );
         CliService::error(&msg);
-        return Err(msg);
+        return Err(anyhow!(msg));
     }
 
     if !process_stopped {
@@ -204,7 +204,7 @@ pub fn delete_single_agent(
         },
         Err(e) => {
             CliService::error(&format!("Failed to delete agent '{}': {}", agent_name, e));
-            Err(format!("{}: {}", agent_name, e))
+            Err(e).with_context(|| format!("Failed to delete agent '{agent_name}'"))
         },
     }
 }

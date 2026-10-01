@@ -87,7 +87,7 @@ pub(super) async fn render_list_route(params: RenderListParams<'_>) -> Generator
         let data = provider
             .provide_page_data(&page_ctx)
             .await
-            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
+            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e))?;
         merge_json_data(&mut list_data, &data);
     }
 
@@ -102,7 +102,7 @@ pub(super) async fn render_list_route(params: RenderListParams<'_>) -> Generator
 
     let list_html = template_registry
         .render(template_name, &list_data)
-        .map_err(|e| PublishError::render_failed(template_name, None, e.to_string()))?;
+        .map_err(|e| PublishError::render_failed(template_name, None, e))?;
 
     let list_dir = if locale_prefix.is_empty() {
         dist_dir.join(list_config.url.trim_start_matches('/'))

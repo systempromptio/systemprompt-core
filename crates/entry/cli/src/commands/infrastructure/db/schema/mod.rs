@@ -10,6 +10,7 @@
 use anyhow::{Context, Result, anyhow};
 use systemprompt_database::{DatabaseAdminService, DatabaseCliDisplay, SafeIdentifier};
 use systemprompt_logging::CliService;
+use systemprompt_traits::RepositoryError;
 
 use crate::cli_settings::CliConfig;
 use crate::presentation::tables::db_tables_table;
@@ -88,14 +89,10 @@ pub(super) async fn execute_describe(
     let table_id = SafeIdentifier::parse(table_name)
         .map_err(|e| anyhow!("Invalid table name '{}': {}", table_name, e))?;
 
-    let (columns, row_count) = admin.describe_table(&table_id).await.map_err(|e| {
-        let msg = e.to_string();
-        if msg.contains("not found") || msg.contains("does not exist") {
-            anyhow!("Table '{}' not found", table_name)
-        } else {
-            anyhow!("Failed to describe table: {}", msg)
-        }
-    })?;
+    let (columns, row_count) = admin
+        .describe_table(&table_id)
+        .await
+        .map_err(|e| table_error(e, table_name, "Failed to describe table"))?;
 
     let indexes = admin
         .list_table_indexes(&table_id)
@@ -195,14 +192,10 @@ pub(super) async fn execute_count(
     let table_id = SafeIdentifier::parse(table_name)
         .map_err(|e| anyhow!("Invalid table name '{}': {}", table_name, e))?;
 
-    let count = admin.count_rows(&table_id).await.map_err(|e| {
-        let msg = e.to_string();
-        if msg.contains("not found") || msg.contains("does not exist") {
-            anyhow!("Table '{}' not found", table_name)
-        } else {
-            anyhow!("Failed to count rows: {}", msg)
-        }
-    })?;
+    let count = admin
+        .count_rows(&table_id)
+        .await
+        .map_err(|e| table_error(e, table_name, "Failed to count rows"))?;
 
     let output = DbCountOutput {
         table: table_name.to_owned(),
@@ -217,4 +210,15 @@ pub(super) async fn execute_count(
     }
 
     Ok(())
+}
+
+// Why: Postgres reports a missing relation as SQLSTATE 42P01 (undefined_table).
+const UNDEFINED_TABLE: &str = "42P01";
+
+fn table_error(err: RepositoryError, table_name: &str, context: &'static str) -> anyhow::Error {
+    if err.is_not_found() || err.sqlstate() == Some(UNDEFINED_TABLE) {
+        anyhow!("Table '{table_name}' not found")
+    } else {
+        anyhow::Error::new(err).context(context)
+    }
 }

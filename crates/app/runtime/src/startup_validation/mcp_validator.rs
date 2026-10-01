@@ -22,22 +22,20 @@ pub(super) fn validate_mcp_manifests(
     );
 
     let mcp_errors = collect_manifest_errors(services_config, config.is_cloud, |binary| {
-        registry
-            .get_path(binary)
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+        registry.get_path(binary).map(|_| ())
     });
 
     merge_mcp_errors(report, mcp_errors);
 }
 
-pub fn collect_manifest_errors<F>(
+pub fn collect_manifest_errors<F, E>(
     services_config: &ServicesConfig,
     is_cloud: bool,
     resolve: F,
 ) -> Vec<ValidationIssue>
 where
-    F: Fn(&str) -> Result<(), String>,
+    F: Fn(&str) -> Result<(), E>,
+    E: std::fmt::Display,
 {
     let mut mcp_errors: Vec<ValidationIssue> = Vec::new();
 

@@ -326,7 +326,7 @@ async fn generate_feed_with_providers_propagates_fetch_failure() {
         .await
         .expect_err("fetch failure");
     assert!(
-        matches!(err, PublishError::ProviderFailed { ref cause, .. } if cause.contains("items boom")),
+        matches!(err, PublishError::ProviderFailed { ref source, .. } if source.to_string().contains("items boom")),
         "unexpected error: {err:?}"
     );
 }

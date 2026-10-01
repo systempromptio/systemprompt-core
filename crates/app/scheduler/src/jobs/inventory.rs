@@ -69,7 +69,7 @@ impl Job for InventoryRefreshJob {
                     &ctx.actor().user_id,
                 )
                 .await
-                .map_err(|error| SchedulerError::config_error(error.to_string()))?;
+                .map_err(SchedulerError::from)?;
                 if let Some(fingerprint) = fingerprint {
                     remember(fingerprint);
                 }
@@ -84,7 +84,7 @@ impl Job for InventoryRefreshJob {
             .managed_repository()
             .refresh_installation_coverage(owner)
             .await
-            .map_err(|error| SchedulerError::config_error(error.to_string()))?;
+            .map_err(SchedulerError::from)?;
         Ok(JobResult::success().with_stats(published + coverage_changed, 0))
     }
 }

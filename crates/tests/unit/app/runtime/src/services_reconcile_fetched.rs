@@ -116,13 +116,6 @@ fn write_manifest(cache: &BundleCache, owns: BundleOwnership) {
     .expect("write manifest");
 }
 
-fn message(err: &RuntimeError) -> String {
-    match err {
-        RuntimeError::Internal(m) => m.clone(),
-        other => panic!("expected an internal error, got {other:?}"),
-    }
-}
-
 #[tokio::test]
 async fn a_baked_tree_is_reconciled_without_touching_the_database() {
     let f = fixture(false);
@@ -158,10 +151,9 @@ async fn a_source_with_no_cached_fetch_state_refuses_the_boot() {
             .await
             .expect_err("a composed source with no cached fetch state cannot be projected");
 
-    let text = message(&err);
     assert!(
-        text.contains(SOURCE) && text.contains("no cached fetch state"),
-        "the error must name the source that is missing: {text}"
+        matches!(&err, RuntimeError::ServicesBundleNotCached { name } if name == SOURCE),
+        "the error must name the source that is missing: {err:?}"
     );
     assert_eq!(f.cache.read_state().last_reconciled_hash, None);
 }
@@ -179,10 +171,9 @@ async fn an_unreadable_cached_manifest_refuses_the_boot() {
             .await
             .expect_err("a cached manifest that is not on disk cannot be projected");
 
-    let text = message(&err);
     assert!(
-        text.contains(SOURCE) && text.contains("manifest"),
-        "the error must name the unreadable manifest: {text}"
+        matches!(&err, RuntimeError::ServicesBundleManifest { name, .. } if name == SOURCE),
+        "the error must name the unreadable manifest: {err:?}"
     );
     assert_eq!(f.cache.read_state().last_reconciled_hash, None);
 }
@@ -202,9 +193,8 @@ async fn a_failed_projection_refuses_the_boot_and_records_nothing() {
             .expect_err("a projection that cannot reach the database must refuse the boot");
 
     assert!(
-        message(&err).contains("services authz reconcile"),
-        "the reconcile failure must be reported as such: {}",
-        message(&err)
+        matches!(err, RuntimeError::ServicesReconcile(_)),
+        "the reconcile failure must be reported as such: {err:?}"
     );
     assert_eq!(
         f.cache.read_state().last_reconciled_hash,

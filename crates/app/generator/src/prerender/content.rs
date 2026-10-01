@@ -112,7 +112,7 @@ async fn process_source(
     let locale = &target.locale;
     let contents = fetch_content_for_source(ctx, source_name, &source.source_id, locale)
         .await
-        .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
+        .map_err(|e| PublishError::fetch_failed(source_name, e))?;
 
     if contents.is_empty() {
         tracing::debug!(source = %source_name, locale = %locale, "No content found for source/locale");
@@ -138,7 +138,7 @@ async fn process_source(
     .await;
     let popular_ids = fetch_popular_ids(content_analytics, source_name, &source.source_id)
         .await
-        .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
+        .map_err(|e| PublishError::fetch_failed(source_name, e))?;
 
     let job = SourceRenderJob {
         ctx,

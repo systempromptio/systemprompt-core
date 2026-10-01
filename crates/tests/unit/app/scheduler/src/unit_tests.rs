@@ -11,6 +11,7 @@
 
 use chrono::{TimeZone, Utc};
 use systemprompt_identifiers::ScheduledJobId;
+use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{
     DbServiceRecord, DesiredStatus, JobStatus, ReconciliationResult, RuntimeStatus, ScheduledJob,
     SchedulerError, ServiceAction, ServiceConfig, ServiceType, VerifiedServiceState,
@@ -64,10 +65,13 @@ fn test_scheduler_error_invalid_schedule() {
 
 #[test]
 fn test_scheduler_error_job_execution_failed() {
-    let error = SchedulerError::job_execution_failed("test_job", "connection timeout");
+    let error = SchedulerError::job_execution_failed(
+        "test_job",
+        ProviderError::InvalidInput("connection timeout".to_owned()),
+    );
     assert_eq!(
         error.to_string(),
-        "Job execution failed: test_job - connection timeout"
+        "Job execution failed: test_job - Invalid input: connection timeout"
     );
 }
 
@@ -1471,8 +1475,11 @@ fn test_scheduler_error_display_all_variants() {
             "Invalid cron schedule: bad_cron",
         ),
         (
-            SchedulerError::job_execution_failed("job", "error"),
-            "Job execution failed: job - error",
+            SchedulerError::job_execution_failed(
+                "job",
+                ProviderError::InvalidInput("error".to_owned()),
+            ),
+            "Job execution failed: job - Invalid input: error",
         ),
         (
             SchedulerError::config_error("bad config"),

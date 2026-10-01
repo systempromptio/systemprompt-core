@@ -89,9 +89,7 @@ pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> G
     let html = ctx
         .template_registry
         .render(template_name, &template_data)
-        .map_err(|e| {
-            PublishError::render_failed(template_name, Some(slug.to_owned()), e.to_string())
-        })?;
+        .map_err(|e| PublishError::render_failed(template_name, Some(slug.to_owned()), e))?;
 
     write_rendered_page(
         &ctx.dist_dir,
@@ -145,7 +143,7 @@ async fn build_template_data(
         let data = provider
             .provide_page_data(&page_ctx)
             .await
-            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
+            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e))?;
         merge_json_data(&mut template_data, &data);
     }
 

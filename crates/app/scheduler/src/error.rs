@@ -2,11 +2,13 @@
 //!
 //! [`SchedulerError`] is the canonical error returned from public, non-trait
 //! signatures (services, repositories, lifecycle helpers). It composes
-//! [`sqlx::Error`], [`tokio_cron_scheduler::JobSchedulerError`],
+//! [`tokio_cron_scheduler::JobSchedulerError`],
 //! [`systemprompt_traits::RepositoryError`],
 //! [`systemprompt_analytics::AnalyticsError`], and
 //! [`systemprompt_users::UserError`] via `#[from]` so `?` propagation works
-//! transparently for every internal call site.
+//! transparently for every internal call site. A [`sqlx::Error`] is
+//! classified through [`systemprompt_traits::RepositoryError`] so a
+//! not-found or constraint failure keeps its class.
 //!
 //! Provider trait implementations (e.g. [`systemprompt_traits::Job`]) keep
 //! returning [`systemprompt_provider_contracts::ProviderResult`] — the
@@ -16,6 +18,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::profile::OtlpSignal;
+use systemprompt_provider_contracts::ProviderError;
+use systemprompt_traits::{BoxedSource, RepositoryError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -32,8 +37,12 @@ pub enum SchedulerError {
     #[error("Invalid cron schedule: {schedule}")]
     InvalidSchedule { schedule: String },
 
-    #[error("Job execution failed: {job_name} - {error}")]
-    JobExecutionFailed { job_name: String, error: String },
+    #[error("Job execution failed: {job_name} - {source}")]
+    JobExecutionFailed {
+        job_name: String,
+        #[source]
+        source: ProviderError,
+    },
 
     #[error("Invalid parameter format '{parameter}'. Use KEY=VALUE format.")]
     InvalidJobParameter { parameter: String },
@@ -44,11 +53,8 @@ pub enum SchedulerError {
     #[error("Specify job name(s), use --all, or use --tag <tag> to run jobs")]
     NoJobsSelected,
 
-    #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
-
     #[error("Repository error: {0}")]
-    Repository(#[from] systemprompt_traits::RepositoryError),
+    Repository(#[from] RepositoryError),
 
     #[error("Analytics error: {0}")]
     Analytics(#[from] systemprompt_analytics::AnalyticsError),
@@ -75,13 +81,26 @@ pub enum SchedulerError {
     Panic(String),
 
     #[error("Distributed lock error: {0}")]
-    DistributedLock(String),
+    DistributedLock(#[source] RepositoryError),
+
+    #[error("Inventory refresh failed: {0}")]
+    Inventory(#[from] systemprompt_runtime::managed::OrchestrationError),
+
+    #[error("Managed marketplace error: {0}")]
+    Managed(#[from] systemprompt_marketplace::managed::ManagedError),
+
+    #[error("Unknown OTLP export signal '{signal}'")]
+    UnknownOtlpSignal { signal: String },
+
+    #[error("OTLP {signal} export failed: {source}")]
+    OtlpExport {
+        signal: OtlpSignal,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-
-    #[error("internal: {0}")]
-    Internal(String),
 }
 
 impl SchedulerError {
@@ -97,10 +116,10 @@ impl SchedulerError {
         }
     }
 
-    pub fn job_execution_failed(job_name: impl Into<String>, error: impl Into<String>) -> Self {
+    pub fn job_execution_failed(job_name: impl Into<String>, source: ProviderError) -> Self {
         Self::JobExecutionFailed {
             job_name: job_name.into(),
-            error: error.into(),
+            source,
         }
     }
 
@@ -119,7 +138,13 @@ impl SchedulerError {
     }
 }
 
-impl From<SchedulerError> for systemprompt_provider_contracts::ProviderError {
+impl From<sqlx::Error> for SchedulerError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::Repository(RepositoryError::from(err))
+    }
+}
+
+impl From<SchedulerError> for ProviderError {
     fn from(err: SchedulerError) -> Self {
         Self::Internal(Box::new(err))
     }

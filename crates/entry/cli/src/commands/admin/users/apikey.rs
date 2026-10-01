@@ -58,10 +58,14 @@ pub struct RevokeArgs {
     pub id: String,
 }
 
-fn parse_rfc3339(raw: &str) -> Result<DateTime<Utc>, String> {
+#[derive(Debug, thiserror::Error)]
+#[error("expected an RFC 3339 timestamp: {0}")]
+struct Rfc3339Error(#[source] chrono::ParseError);
+
+fn parse_rfc3339(raw: &str) -> Result<DateTime<Utc>, Rfc3339Error> {
     DateTime::parse_from_rfc3339(raw)
         .map(|dt| dt.with_timezone(&Utc))
-        .map_err(|e| format!("expected an RFC 3339 timestamp: {e}"))
+        .map_err(Rfc3339Error)
 }
 
 #[derive(Debug, Serialize)]

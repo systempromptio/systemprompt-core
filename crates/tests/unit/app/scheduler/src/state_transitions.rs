@@ -1,3 +1,4 @@
+use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{
     DesiredStatus, ReconciliationResult, RuntimeStatus, SchedulerError, ServiceAction, ServiceType,
     VerifiedServiceState,
@@ -262,8 +263,11 @@ mod scheduler_error_additional_tests {
                 "Invalid cron schedule: bad_cron",
             ),
             (
-                SchedulerError::job_execution_failed("job", "error"),
-                "Job execution failed: job - error",
+                SchedulerError::job_execution_failed(
+                    "job",
+                    ProviderError::InvalidInput("error".to_owned()),
+                ),
+                "Job execution failed: job - Invalid input: error",
             ),
             (
                 SchedulerError::config_error("bad config"),

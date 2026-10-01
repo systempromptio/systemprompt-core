@@ -241,7 +241,10 @@ async fn load_web_config_missing_file_is_io_error() {
         .await
         .expect_err("missing web config");
     assert!(
-        matches!(err, systemprompt_models::WebConfigError::Io { .. }),
+        matches!(
+            err,
+            PublishError::WebConfig(systemprompt_models::WebConfigError::Io { .. })
+        ),
         "unexpected error: {err:?}"
     );
 }
@@ -258,7 +261,7 @@ async fn load_web_config_rejects_nonexistent_templates_path() {
         .await
         .expect_err("nonexistent templates path must be rejected");
     assert!(
-        matches!(err, systemprompt_models::WebConfigError::PathNotFound { ref field, .. } if field == "paths.templates"),
+        matches!(err, PublishError::WebConfig(systemprompt_models::WebConfigError::PathNotFound { ref field, .. }) if field == "paths.templates"),
         "unexpected error: {err:?}"
     );
 }

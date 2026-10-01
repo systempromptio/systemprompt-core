@@ -106,7 +106,7 @@ fn delete_reports_missing_agent_as_error() {
 
     let err = delete_single_agent("absent", true, &authoring, false).unwrap_err();
 
-    assert!(err.contains("absent"));
+    assert!(format!("{err:#}").contains("absent"));
 }
 
 #[test]
@@ -122,7 +122,7 @@ fn delete_failure_preserves_the_profile_include_for_repair() {
     let error = delete_single_agent("undeletable", true, &authoring, false)
         .expect_err("a directory cannot be removed through the agent-file authoring path");
 
-    assert!(error.contains("undeletable"), "{error}");
+    assert!(format!("{error:#}").contains("undeletable"), "{error:#}");
     assert!(
         agent_path.is_dir(),
         "the failed target remains available for repair"
@@ -147,7 +147,10 @@ fn a_failed_stop_preserves_config_until_force_is_requested() {
 
     let error = delete_single_agent("force-owned", false, &authoring, false)
         .expect_err("a failed process stop must prevent ordinary deletion");
-    assert!(error.contains("Use --force to delete anyway"), "{error}");
+    assert!(
+        error.to_string().contains("Use --force to delete anyway"),
+        "{error}"
+    );
     assert_eq!(fs::read(&agent_file).unwrap(), original_agent);
     assert_eq!(fs::read(&config_file).unwrap(), original_config);
 

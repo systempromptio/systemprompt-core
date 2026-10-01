@@ -13,6 +13,12 @@ pub mod inventory;
 pub enum OrchestrationError {
     #[error(transparent)]
     Managed(#[from] systemprompt_marketplace::managed::ManagedError),
-    #[error("Source operation failed: {0}")]
-    Source(String),
+    #[error("Configured inventory could not be loaded; previous inventory retained: {0}")]
+    InventoryLoad(#[source] systemprompt_loader::ConfigLoadError),
+    #[error("Git credentials are unavailable: {0}")]
+    CredentialsUnavailable(#[source] systemprompt_config::SecretsBootstrapError),
+    #[error("Git credential reference is unresolved")]
+    CredentialUnresolved,
+    #[error("Operation requires a registered Git source")]
+    NotGitSource,
 }

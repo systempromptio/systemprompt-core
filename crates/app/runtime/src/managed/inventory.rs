@@ -57,9 +57,7 @@ async fn load_services(
             ctx.managed_repository()
                 .record_inventory_failure(owner)
                 .await?;
-            Err(OrchestrationError::Source(format!(
-                "Configured inventory could not be loaded; previous inventory retained: {error}"
-            )))
+            Err(OrchestrationError::InventoryLoad(error))
         },
     }
 }
