@@ -57,6 +57,12 @@ impl fmt::Display for HostKind {
 #[error("unknown host id `{0}`")]
 pub struct UnknownHostKind(pub String);
 
+impl HostKind {
+    pub fn parse_list<S: AsRef<str>>(hosts: &[S]) -> Result<Vec<Self>, UnknownHostKind> {
+        hosts.iter().map(|host| host.as_ref().parse()).collect()
+    }
+}
+
 impl FromStr for HostKind {
     type Err = UnknownHostKind;
 

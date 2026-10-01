@@ -101,6 +101,9 @@ fn validate_skill(id: &str, files: &RevisionFiles) -> Result<()> {
     {
         return Err(invalid("Skill ID does not match its authoring directory"));
     }
+    if let Err(unknown) = config.host_kinds() {
+        return Err(invalid(&format!("Skill hosts list is invalid: {unknown}")));
+    }
     if !config.enabled || !files.0.contains_key(config.content_file()) {
         return Err(invalid(
             "Baseline skills must be enabled and contain their instruction file",

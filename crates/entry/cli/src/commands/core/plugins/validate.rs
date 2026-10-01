@@ -155,11 +155,19 @@ fn validate_skill_refs(
                     "Referenced skill '{}' does not exist (no skill declares that id)",
                     skill_id
                 )),
-                Some(false) => warnings.push(format!(
-                    "Referenced skill '{}' is disabled and will not be delivered",
-                    skill_id
-                )),
-                Some(true) => {},
+                Some(skill) => {
+                    if let Some(unknown) = &skill.unknown_host {
+                        errors.push(format!(
+                            "Referenced skill '{skill_id}' lists an {unknown}"
+                        ));
+                    }
+                    if !skill.enabled {
+                        warnings.push(format!(
+                            "Referenced skill '{}' is disabled and will not be delivered",
+                            skill_id
+                        ));
+                    }
+                },
             }
         }
     }
@@ -171,7 +179,12 @@ fn validate_skill_refs(
     }
 }
 
-fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, bool> {
+struct DeclaredSkill {
+    enabled: bool,
+    unknown_host: Option<systemprompt_models::bridge::host::UnknownHostKind>,
+}
+
+fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, DeclaredSkill> {
     let mut skills = std::collections::HashMap::new();
     let Ok(entries) = std::fs::read_dir(skills_path) else {
         return skills;
@@ -192,7 +205,13 @@ fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, bool
             || entry.file_name().to_string_lossy().into_owned(),
             |id| id.as_str().to_owned(),
         );
-        skills.insert(id, config.enabled);
+        skills.insert(
+            id,
+            DeclaredSkill {
+                enabled: config.enabled,
+                unknown_host: config.host_kinds().err(),
+            },
+        );
     }
     skills
 }

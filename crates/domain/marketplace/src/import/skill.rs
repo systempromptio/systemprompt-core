@@ -32,6 +32,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_yaml::Value;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::services::skill_frontmatter::{
     SplitSkillFrontmatter, authored_skill_frontmatter, check_json_compatible,
     split_skill_frontmatter,
@@ -141,6 +142,14 @@ pub(super) fn import_skill(
             path: skill_md.display().to_string(),
             message: "SKILL.md frontmatter must set a non-empty 'description'".to_owned(),
         });
+    }
+
+    if let Err(unknown) = HostKind::parse_list(&front.hosts) {
+        return Err(MarketplaceError::import(
+            &skill_md,
+            "SKILL.md frontmatter `hosts`",
+            unknown,
+        ));
     }
 
     let doc = SkillDoc {

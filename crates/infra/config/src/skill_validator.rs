@@ -126,6 +126,16 @@ fn validate_skill_entry(entry: &std::fs::DirEntry, report: &mut ValidationReport
         },
     };
 
+    if let Err(unknown) = config.host_kinds() {
+        report.add_error(
+            ValidationIssue::new(format!("skills.{dir_name}.hosts"), unknown.to_string())
+                .with_path(&config_path)
+                .with_suggestion(
+                    "Use only claude-code, claude-desktop, codex-cli, hermes or opencode",
+                ),
+        );
+    }
+
     let content_file = config.content_file();
     let content_path = entry.path().join(content_file);
     if !content_path.exists() {

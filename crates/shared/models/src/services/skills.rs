@@ -20,6 +20,7 @@ use systemprompt_identifiers::error::IdValidationError;
 use super::IncludableString;
 use super::plugin::PluginComponentRef;
 use crate::ai::ToolModelConfig;
+use crate::bridge::host::{HostKind, UnknownHostKind};
 
 const fn default_true() -> bool {
     true
@@ -105,6 +106,10 @@ impl DiskSkillConfig {
             Some(id) => Ok(id.clone()),
             None => SkillId::try_new(dir_name),
         }
+    }
+
+    pub fn host_kinds(&self) -> Result<Vec<HostKind>, UnknownHostKind> {
+        HostKind::parse_list(&self.hosts)
     }
 
     pub fn content_file(&self) -> &str {
