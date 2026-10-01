@@ -199,20 +199,12 @@ async fn logs_delete_clears_every_entry() {
     ensure_test_bootstrap();
     install_test_signing_key();
 
-    let database = DisposableDb::empty("cov_cli_logsdel").await;
+    let database = DisposableDb::with_schema("cov_cli_logsdel").await;
     let url = database.url().to_owned();
 
     {
-        let pool = test_db_pool().await;
+        let pool = database.test_pool().await;
         let raw = pool.pool_arc().unwrap().as_ref().clone();
-        systemprompt_database::install_extension_schemas_full(
-            &systemprompt_extension::ExtensionRegistry::discover().unwrap(),
-            pool.write(),
-            &[],
-            systemprompt_database::MigrationConfig::default(),
-        )
-        .await
-        .expect("migrate the disposable database");
 
         let owner = "logdel_owner";
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
