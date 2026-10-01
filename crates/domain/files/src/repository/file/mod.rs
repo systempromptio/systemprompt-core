@@ -21,7 +21,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
-use crate::error::{FilesError, FilesResult};
+use crate::error::{FilesResult, parse_file_uuid};
 use crate::models::{File, FileMetadata};
 
 #[derive(Debug, Clone)]
@@ -38,12 +38,7 @@ impl FileRepository {
     }
 
     pub async fn insert(&self, request: InsertFileRequest) -> FilesResult<FileId> {
-        let id_uuid = uuid::Uuid::parse_str(request.id.as_str()).map_err(|e| {
-            FilesError::Validation(format!(
-                "Invalid UUID for file id {}: {e}",
-                request.id.as_str()
-            ))
-        })?;
+        let id_uuid = parse_file_uuid(&request.id)?;
         let now = Utc::now();
 
         let user_id_str = request.user_id.as_ref().map(UserId::as_str);
@@ -120,8 +115,7 @@ impl FileRepository {
     }
 
     pub async fn find_by_id(&self, id: &FileId) -> FilesResult<Option<File>> {
-        let id_uuid = uuid::Uuid::parse_str(id.as_str())
-            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
+        let id_uuid = parse_file_uuid(id)?;
 
         let result = sqlx::query_as!(
             File,
@@ -200,8 +194,7 @@ impl FileRepository {
     }
 
     pub async fn delete(&self, id: &FileId) -> FilesResult<()> {
-        let id_uuid = uuid::Uuid::parse_str(id.as_str())
-            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
+        let id_uuid = parse_file_uuid(id)?;
 
         sqlx::query!(
             r#"
@@ -217,8 +210,7 @@ impl FileRepository {
     }
 
     pub async fn update_metadata(&self, id: &FileId, metadata: &FileMetadata) -> FilesResult<()> {
-        let id_uuid = uuid::Uuid::parse_str(id.as_str())
-            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
+        let id_uuid = parse_file_uuid(id)?;
         let now = Utc::now();
 
         sqlx::query!(

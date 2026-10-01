@@ -117,10 +117,8 @@ pub fn import_anthropic_tree_with(
         ensure_empty(into)?;
     }
 
-    let dev_files = DevFileFilter::load(from).map_err(|e| MarketplaceError::Import {
-        path: from.display().to_string(),
-        message: e.to_string(),
-    })?;
+    let dev_files = DevFileFilter::load(from)
+        .map_err(|e| MarketplaceError::import(from, "load dev-file filter", e))?;
     let sink = writer::Sink::new(into, opts.dry_run, dev_files);
     let mut report = ImportReport {
         copied_base_dirs: base::copy_base_tree(from, &sink)?,
@@ -165,15 +163,10 @@ fn import_marketplace_tree(
     capture: &dyn GitSourceCapture,
     report: &mut ImportReport,
 ) -> Result<(), MarketplaceError> {
-    let text = std::fs::read_to_string(manifest_path).map_err(|e| MarketplaceError::Import {
-        path: manifest_path.display().to_string(),
-        message: e.to_string(),
-    })?;
-    let manifest: MarketplaceJson =
-        serde_json::from_str(&text).map_err(|e| MarketplaceError::Import {
-            path: manifest_path.display().to_string(),
-            message: format!("marketplace.json is not valid: {e}"),
-        })?;
+    let text = std::fs::read_to_string(manifest_path)
+        .map_err(|e| MarketplaceError::import(manifest_path, "read", e))?;
+    let manifest: MarketplaceJson = serde_json::from_str(&text)
+        .map_err(|e| MarketplaceError::import(manifest_path, "marketplace.json is not valid", e))?;
 
     let sidecar = sidecar::load_marketplace_sidecar(&from.join(SIDECAR_RELPATH))?;
     let (vendored, external_plugins) = pass_through::split(&manifest.plugins, manifest_path)?;
@@ -191,12 +184,9 @@ fn import_marketplace_tree(
     let plugin_root = manifest.metadata.plugin_root.as_deref();
 
     for entry in vendored {
-        let source = entry
-            .plugin_source()
-            .map_err(|message| MarketplaceError::Import {
-                path: manifest_path.display().to_string(),
-                message: format!("plugin '{}' source: {message}", entry.name),
-            })?;
+        let source = entry.plugin_source().map_err(|e| {
+            MarketplaceError::import(manifest_path, format!("plugin '{}' source", entry.name), e)
+        })?;
         let fetched = match source {
             PluginSource::Unsupported(_) => {
                 report.warnings.push(ImportWarning::RemotePluginSource {
@@ -254,10 +244,8 @@ fn ensure_empty(into: &Path) -> Result<(), MarketplaceError> {
             message: "destination exists and is not a directory".to_owned(),
         });
     }
-    let mut read = std::fs::read_dir(into).map_err(|e| MarketplaceError::Import {
-        path: into.display().to_string(),
-        message: e.to_string(),
-    })?;
+    let mut read = std::fs::read_dir(into)
+        .map_err(|e| MarketplaceError::import(into, "read destination", e))?;
     if read.next().is_some() {
         return Err(MarketplaceError::Import {
             path: into.display().to_string(),

@@ -72,6 +72,6 @@ async fn service_new_rejects_ip_address_relying_party() {
         .expect_err("webauthn-rs rejects an IP-address RP ID");
     assert!(matches!(
         err,
-        systemprompt_oauth::error::OauthError::WebAuthnVerificationFailed(_)
+        systemprompt_oauth::error::OauthError::WebAuthnCeremony(_)
     ));
 }

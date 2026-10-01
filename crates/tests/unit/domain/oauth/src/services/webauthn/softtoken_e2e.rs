@@ -274,7 +274,7 @@ async fn finish_authentication_unknown_challenge_errors() {
         .finish_authentication("missing-challenge", &assertion)
         .await
         .expect_err("unknown auth challenge must fail");
-    assert!(matches!(err, OauthError::Internal(_)));
+    assert!(matches!(err, OauthError::ChallengeExpired));
 }
 
 #[tokio::test]
@@ -582,7 +582,10 @@ async fn finish_link_rejects_token_swapped_between_sessions() {
         .finish_registration_with_token(&challenge_a, &token_b, &cred)
         .await
         .expect_err("finishing session A with token B must fail");
-    assert!(err.to_string().contains("Token mismatch"));
+    assert!(matches!(
+        err,
+        OauthError::SetupTokenRejected("Token mismatch")
+    ));
 }
 
 // The browser refuses a second concurrent `create()`, so a double-fired

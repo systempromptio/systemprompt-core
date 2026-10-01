@@ -1,7 +1,8 @@
 //! Unit tests for error types, FileUploadRequest builder, and UploadedFile
 
 use systemprompt_files::{
-    FileUploadError, FileUploadRequest, FileUploadRequestBuilder, FileValidationError, UploadedFile,
+    FileUploadError, FileUploadRequest, FileUploadRequestBuilder, FileValidationError, FilesError,
+    UploadedFile,
 };
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId};
 use systemprompt_test_fixtures::fixture_user_id;
@@ -75,8 +76,9 @@ fn test_file_upload_error_display_validation() {
 
 #[test]
 fn test_file_upload_error_display_database() {
-    let err = FileUploadError::Database("connection failed".to_string());
-    assert_eq!(format!("{}", err), "Database error: connection failed");
+    let err = FileUploadError::Database(FilesError::NotFound("file row".to_string()));
+    assert_eq!(format!("{}", err), "Database error: not found: file row");
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 #[test]

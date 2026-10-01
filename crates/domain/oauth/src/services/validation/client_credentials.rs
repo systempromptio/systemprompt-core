@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::OauthResult as Result;
+use crate::error::{OauthError, OauthResult as Result};
 use crate::models::OAuthClient;
 use crate::repository::OAuthRepository;
 use crate::services::verify_client_secret;
@@ -19,7 +19,7 @@ pub async fn validate_client_credentials(
     let client = repo
         .find_client_by_id(client_id)
         .await?
-        .ok_or_else(|| crate::error::OauthError::Internal("Client not found".to_owned()))?;
+        .ok_or_else(|| OauthError::ClientNotFound(client_id.to_string()))?;
 
     verify_client_authentication(
         client.token_endpoint_auth_method.as_str(),
@@ -43,26 +43,26 @@ pub fn verify_client_authentication(
         (Some(hash), Some(secret)) => (hash, secret),
         (Some(_hash), None) => {
             perform_timing_safe_dummy_verification();
-            return Err(crate::error::OauthError::Internal(
+            return Err(OauthError::InvalidClient(
                 "Client secret required".to_owned(),
             ));
         },
         (None, Some(_secret)) => {
             perform_timing_safe_dummy_verification();
-            return Err(crate::error::OauthError::Internal(
+            return Err(OauthError::InvalidClient(
                 "Client has no secret hash configured".to_owned(),
             ));
         },
         (None, None) => {
             perform_timing_safe_dummy_verification();
-            return Err(crate::error::OauthError::Internal(
+            return Err(OauthError::InvalidClient(
                 "Client secret required".to_owned(),
             ));
         },
     };
 
     if !verify_client_secret(secret_to_verify, hash_to_verify)? {
-        return Err(crate::error::OauthError::Internal(
+        return Err(OauthError::InvalidClient(
             "Invalid client secret".to_owned(),
         ));
     }

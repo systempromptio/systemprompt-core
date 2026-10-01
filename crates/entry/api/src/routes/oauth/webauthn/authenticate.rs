@@ -39,15 +39,7 @@ pub async fn start_auth(
 
     let (challenge, challenge_id) = webauthn_service
         .start_authentication(&params.email, params.oauth_state)
-        .await
-        .map_err(|e| {
-            let http: OAuthHttpError = e.into();
-            if matches!(http.code(), crate::routes::oauth::OAuthErrorCode::NotFound) {
-                http
-            } else {
-                OAuthHttpError::authentication_failed(http.description().to_owned())
-            }
-        })?;
+        .await?;
 
     let challenge_json = serde_json::to_value(&challenge)
         .map_err(|e| OAuthHttpError::server_error(format!("Failed to serialize challenge: {e}")))?;

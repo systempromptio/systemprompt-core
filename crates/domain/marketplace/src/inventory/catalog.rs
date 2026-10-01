@@ -50,8 +50,10 @@ pub fn configured_inventory_fingerprint(
     services: &ServicesConfig,
 ) -> Result<[u8; 32]> {
     let resolved = resolve_services_root(root)?;
-    let config = canonical_json(services)
-        .map_err(|error| invalid(&format!("Services configuration unserializable: {error}")))?;
+    let config = canonical_json(services).map_err(|error| ManagedError::Internal {
+        context: "services configuration unserializable",
+        source: Box::new(error),
+    })?;
     let mut hasher = Sha256::new();
     hasher.update((config.len() as u64).to_le_bytes());
     hasher.update(&config);
@@ -201,8 +203,11 @@ fn inspect(path: &Path, kind: &str, key: &str) -> Result<()> {
     if bytes.len() > 65_536 {
         return Err(invalid("Catalog configuration exceeds 64 KiB"));
     }
-    let config: serde_yaml::Value = serde_yaml::from_slice(&bytes)
-        .map_err(|error| invalid(&format!("Catalog configuration is invalid: {error}")))?;
+    let config: serde_yaml::Value =
+        serde_yaml::from_slice(&bytes).map_err(|error| ManagedError::InvalidInput {
+            context: "catalog configuration",
+            source: Box::new(error),
+        })?;
     if config.get("enabled").and_then(serde_yaml::Value::as_bool) == Some(false) {
         return Err(invalid("Configured entry is disabled"));
     }

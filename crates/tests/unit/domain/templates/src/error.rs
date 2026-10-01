@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+
+use systemprompt_template_provider::TemplateLoaderError;
 use systemprompt_templates::TemplateError;
 
 mod template_error_display_tests {
@@ -16,7 +19,7 @@ mod template_error_display_tests {
     fn load_error_displays_name_and_message() {
         let error = TemplateError::LoadError {
             name: "broken-template".to_string(),
-            message: "file not accessible".to_string(),
+            source: TemplateLoaderError::NotFound(PathBuf::from("file not accessible")),
         };
 
         let display = error.to_string();
@@ -36,19 +39,6 @@ mod template_error_display_tests {
         assert!(display.contains("failed to compile template"));
         assert!(display.contains("invalid-syntax"));
         assert!(display.contains("unexpected token"));
-    }
-
-    #[test]
-    fn render_error_displays_name_and_message() {
-        let error = TemplateError::RenderError {
-            name: "render-fail".to_string(),
-            message: "missing variable".to_string(),
-        };
-
-        let display = error.to_string();
-        assert!(display.contains("failed to render template"));
-        assert!(display.contains("render-fail"));
-        assert!(display.contains("missing variable"));
     }
 
     #[test]
@@ -95,7 +85,7 @@ mod template_error_construction_tests {
         for message in messages {
             let error = TemplateError::LoadError {
                 name: "test".to_string(),
-                message: message.to_string(),
+                source: TemplateLoaderError::NotFound(PathBuf::from(message)),
             };
             assert!(error.to_string().contains("failed to load"));
             assert!(error.to_string().contains(message));
@@ -111,17 +101,6 @@ mod template_error_construction_tests {
 
         let display = error.to_string();
         assert!(display.contains("specific-template"));
-    }
-
-    #[test]
-    fn render_error_preserves_name() {
-        let error = TemplateError::RenderError {
-            name: "render-template".to_string(),
-            message: "variable 'title' not found".to_string(),
-        };
-
-        let display = error.to_string();
-        assert!(display.contains("render-template"));
     }
 
     #[test]
@@ -150,26 +129,29 @@ mod error_trait_tests {
     }
 
     #[test]
-    fn load_error_source_is_none() {
+    fn load_error_source_is_the_loader_error() {
         let error = TemplateError::LoadError {
             name: "test".to_string(),
-            message: "underlying error".to_string(),
+            source: TemplateLoaderError::NoBasePaths,
         };
-        assert!(error.source().is_none());
+        let source = error.source().expect("loader error kept as source");
+        assert!(source.is::<TemplateLoaderError>());
+    }
+
+    #[test]
+    fn partial_read_source_is_the_io_error() {
+        let error = TemplateError::PartialRead {
+            path: PathBuf::from("partials/header.hbs"),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "gone"),
+        };
+        assert!(error.to_string().contains("partials/header.hbs"));
+        let source = error.source().expect("io error kept as source");
+        assert!(source.is::<std::io::Error>());
     }
 
     #[test]
     fn compile_error_source_is_none() {
         let error = TemplateError::CompileError {
-            name: "test".to_string(),
-            message: "underlying error".to_string(),
-        };
-        assert!(error.source().is_none());
-    }
-
-    #[test]
-    fn render_error_source_is_none() {
-        let error = TemplateError::RenderError {
             name: "test".to_string(),
             message: "underlying error".to_string(),
         };
@@ -225,7 +207,7 @@ mod edge_case_tests {
     fn nested_error_message() {
         let error = TemplateError::LoadError {
             name: "test".to_string(),
-            message: "middle context: inner error".to_string(),
+            source: TemplateLoaderError::io("middle context", std::io::Error::other("inner error")),
         };
 
         let display = error.to_string();

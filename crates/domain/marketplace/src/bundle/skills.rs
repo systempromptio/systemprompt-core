@@ -127,7 +127,7 @@ fn insert_skill_id(ids: &mut BTreeSet<SkillId>, raw: &str) {
 
 fn skill_md(kebab: &str, skill: &SkillEntry) -> Result<String, MarketplaceError> {
     let passthrough = render_passthrough_frontmatter(skill.frontmatter.as_ref()).map_err(|e| {
-        MarketplaceError::Catalog(format!("skill {} frontmatter: {e}", skill.id.as_str()))
+        MarketplaceError::catalog(format!("skill {} frontmatter", skill.id.as_str()), e)
     })?;
     Ok(format!(
         "---\nname: {kebab}\ndescription: \"{}\"\n{passthrough}---\n\n{}\n",
@@ -183,7 +183,7 @@ fn collect_aux(
     bundle: &mut PluginBundle,
 ) -> Result<(), MarketplaceError> {
     let io = |path: &Path, e: std::io::Error| {
-        MarketplaceError::Catalog(format!("skill aux file {}: {e}", path.display()))
+        MarketplaceError::catalog(format!("skill aux file {}", path.display()), e)
     };
     let entries = std::fs::read_dir(current).map_err(|e| io(current, e))?;
     for entry in entries {
@@ -206,7 +206,7 @@ fn collect_aux(
             continue;
         }
         let rel = path.strip_prefix(base).map_err(|e| {
-            MarketplaceError::Catalog(format!("skill aux file {}: {e}", path.display()))
+            MarketplaceError::catalog(format!("skill aux file {}", path.display()), e)
         })?;
         let rel = rel.to_string_lossy().replace('\\', "/");
         if DevFileFilter::defaults().excludes(&format!("{subdir}/{rel}"), None, false) {

@@ -180,7 +180,7 @@ impl FileUploadService {
                     "Failed to clean up uploaded file after database error"
                 );
             }
-            return Err(FileUploadError::Database(e.to_string()));
+            return Err(FileUploadError::Database(e));
         }
 
         Ok(())

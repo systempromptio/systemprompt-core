@@ -6,11 +6,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{OauthError, OauthResult};
+use crate::error::OauthResult;
 
 pub(super) fn hash_at_rest(value: &str) -> OauthResult<String> {
-    let pepper = systemprompt_config::SecretsBootstrap::oauth_at_rest_pepper()
-        .map_err(|e| OauthError::Internal(format!("oauth_at_rest_pepper unavailable: {e}")))?;
+    let pepper = systemprompt_config::SecretsBootstrap::oauth_at_rest_pepper()?;
     Ok(systemprompt_security::hmac_sha256_hex(
         pepper.as_bytes(),
         value.as_bytes(),

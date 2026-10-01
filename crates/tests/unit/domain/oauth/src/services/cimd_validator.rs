@@ -125,7 +125,7 @@ async fn cimd_client_fetch_failure_propagates() {
         .validate_client(&unreachable, Some("https://app.example/cb"))
         .await
         .expect_err("unresolvable host");
-    assert!(matches!(err, OauthError::CimdFetch(_)));
+    assert!(matches!(err, OauthError::CimdFetch { .. }));
 }
 
 #[tokio::test]
@@ -142,6 +142,6 @@ async fn fetcher_reports_network_failure_with_url_context() {
         .await
         .expect_err("dns failure");
     let msg = err.to_string();
-    assert!(msg.contains("Failed to fetch CIMD metadata"));
+    assert!(msg.contains("CIMD metadata fetch"));
     assert!(msg.contains(client_id.as_str()));
 }

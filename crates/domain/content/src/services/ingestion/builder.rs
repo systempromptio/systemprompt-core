@@ -19,11 +19,9 @@ pub(super) fn create_content_from_metadata(
     let slug = metadata.slug.clone();
 
     let published_at = chrono::NaiveDate::parse_from_str(&metadata.published_at, "%Y-%m-%d")
-        .map_err(|e| {
-            ContentError::Parse(format!(
-                "Invalid published_at date '{}': {}",
-                metadata.published_at, e
-            ))
+        .map_err(|source| ContentError::InvalidDate {
+            value: metadata.published_at.clone(),
+            source,
         })?
         .and_hms_opt(0, 0, 0)
         .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_owned()))?

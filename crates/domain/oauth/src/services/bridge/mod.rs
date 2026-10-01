@@ -7,7 +7,7 @@ mod provisioning;
 
 pub use provisioning::{BridgeOAuthClient, provision_bridge_oauth_client};
 
-use crate::error::{OauthError, OauthResult as Result};
+use crate::error::OauthResult as Result;
 use chrono::{Duration as ChronoDuration, Utc};
 use http::HeaderMap;
 use rand::Rng;
@@ -154,8 +154,7 @@ pub async fn issue_bridge_access(
             is_ai_crawler: false,
             expires_at,
         })
-        .await
-        .map_err(|e| OauthError::Session(e.to_string()))?;
+        .await?;
 
     let hdrs = build_bridge_headers(&BridgeHeaderParams {
         user_id,

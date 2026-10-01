@@ -52,8 +52,10 @@ impl ManagedRepository {
             };
             Self::store_inventory_entry(&mut tx, owner, &stored).await?;
         }
-        let count = i64::try_from(entries.len())
-            .map_err(|error| ManagedError::Invalid(format!("Inventory count overflow: {error}")))?;
+        let count = i64::try_from(entries.len()).map_err(|error| ManagedError::Internal {
+            context: "inventory count overflow",
+            source: Box::new(error),
+        })?;
         let sources = serde_json::to_value(systemprompt_loader::bundle::sources_provenance())?;
         sqlx::query!("UPDATE managed_inventory_state SET generation=$2,observed_at=$3,entries=$4,sources=$5,last_error=NULL WHERE owner_id=$1",owner.as_str(),generation,observed,count,sources).execute(&mut *tx).await?;
         // Why: membership rows join on this generation's mint time as

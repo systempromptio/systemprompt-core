@@ -43,11 +43,11 @@ pub enum DevFileError {
         path: String,
         source: std::io::Error,
     },
-    #[error("{path}:{line}: invalid ignore pattern: {message}")]
+    #[error("{path}:{line}: invalid ignore pattern: {source}")]
     Pattern {
         path: String,
         line: usize,
-        message: String,
+        source: globset::Error,
     },
 }
 
@@ -79,10 +79,10 @@ impl DevFileFilter {
                 path: path.display().to_string(),
                 source,
             })?;
-            parse_rules(&text).map_err(|(line, message)| DevFileError::Pattern {
+            parse_rules(&text).map_err(|(line, source)| DevFileError::Pattern {
                 path: path.display().to_string(),
                 line,
-                message,
+                source,
             })?
         } else {
             Vec::new()
@@ -151,7 +151,7 @@ fn relative(root: &Path, path: &Path) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join("/"))
 }
 
-fn parse_rules(text: &str) -> Result<Vec<IgnoreRule>, (usize, String)> {
+fn parse_rules(text: &str) -> Result<Vec<IgnoreRule>, (usize, globset::Error)> {
     let mut rules = Vec::new();
     for (index, raw) in text.lines().enumerate() {
         let line = raw.trim_end();
@@ -177,7 +177,7 @@ fn parse_rules(text: &str) -> Result<Vec<IgnoreRule>, (usize, String)> {
             .literal_separator(true)
             .backslash_escape(true)
             .build()
-            .map_err(|e| (index + 1, e.to_string()))?
+            .map_err(|source| (index + 1, source))?
             .compile_matcher();
         rules.push(IgnoreRule {
             matcher,

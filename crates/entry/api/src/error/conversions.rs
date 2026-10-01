@@ -14,8 +14,8 @@ use systemprompt_marketplace::MarketplaceError;
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::ContextExtractionError;
-use systemprompt_oauth::OauthError;
 use systemprompt_oauth::services::SessionCreationError;
+use systemprompt_oauth::{OauthError, OauthErrorKind};
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
@@ -43,6 +43,12 @@ impl From<AgentError> for ApiHttpError {
 
 impl From<MarketplaceError> for ApiHttpError {
     fn from(err: MarketplaceError) -> Self {
+        let err = match err {
+            MarketplaceError::Managed(ManagedError::Repository(inner)) => {
+                return Self(ApiError::from(inner));
+            },
+            other => other,
+        };
         let api = match &err {
             MarketplaceError::NotFound(_)
             | MarketplaceError::NoDefault
@@ -50,15 +56,17 @@ impl From<MarketplaceError> for ApiHttpError {
                 ApiError::not_found(err.to_string())
             },
             MarketplaceError::Validation(_)
-            | MarketplaceError::Managed(ManagedError::Invalid(_)) => {
-                ApiError::bad_request(err.to_string())
-            },
+            | MarketplaceError::Managed(
+                ManagedError::Invalid(_) | ManagedError::InvalidInput { .. },
+            ) => ApiError::bad_request(err.to_string()),
             MarketplaceError::Managed(ManagedError::Conflict(_)) => {
                 ApiError::conflict(err.to_string())
             },
             MarketplaceError::Catalog(_)
+            | MarketplaceError::CatalogSource { .. }
             | MarketplaceError::Managed(_)
             | MarketplaceError::Import { .. }
+            | MarketplaceError::ImportSource { .. }
             | MarketplaceError::Signing(_)
             | MarketplaceError::Filter(_) => {
                 internal_api_error("Marketplace operation failed", &err)
@@ -81,6 +89,7 @@ impl From<UserError> for ApiHttpError {
             | UserError::InvalidRoles(_) => ApiError::bad_request(message),
             UserError::Pool(_)
             | UserError::MergeUnavailable
+            | UserError::PurgeIdentifier { .. }
             | UserError::OwnerReassignment { .. } => {
                 internal_api_error("User operation failed", &message)
             },
@@ -91,41 +100,31 @@ impl From<UserError> for ApiHttpError {
 
 impl From<OauthError> for ApiHttpError {
     fn from(err: OauthError) -> Self {
-        let message = err.to_string();
-        let api = match err {
+        if matches!(
+            err,
             OauthError::CodeNotFound(_)
-            | OauthError::TokenNotFound(_)
-            | OauthError::ClientNotFound(_)
-            | OauthError::UserNotFound(_) => ApiError::not_found(message),
-            OauthError::Validation(_) | OauthError::InvalidClientMetadata(_) => {
-                ApiError::bad_request(message)
+                | OauthError::TokenNotFound(_)
+                | OauthError::ClientNotFound(_)
+                | OauthError::UserNotFound(_)
+        ) {
+            return Self(ApiError::not_found(err.to_string()));
+        }
+        let api = match err.kind() {
+            OauthErrorKind::InvalidRequest
+            | OauthErrorKind::InvalidClientMetadata
+            | OauthErrorKind::ExpiredChallenge
+            | OauthErrorKind::InvalidCredential => ApiError::bad_request(err.to_string()),
+            OauthErrorKind::UsernameUnavailable | OauthErrorKind::EmailExists => {
+                ApiError::conflict(err.to_string())
             },
-            OauthError::UsernameTaken(_) | OauthError::EmailRegistered(_) => {
-                ApiError::conflict(message)
-            },
-            OauthError::Unauthorized(_)
-            | OauthError::InvalidGrant(_)
-            | OauthError::InvalidClient(_)
-            | OauthError::TokenInvalid(_)
-            | OauthError::TokenAlgMismatch { .. }
-            | OauthError::TokenMissingKid
-            | OauthError::TokenUnknownKid { .. }
-            | OauthError::PkceMismatch(_)
-            | OauthError::Expired(_) => ApiError::unauthorized(message),
-            OauthError::Provider(_)
-            | OauthError::Session(_)
-            | OauthError::WebAuthn(_)
-            | OauthError::RegistrationStateExpired
-            | OauthError::WebAuthnVerificationFailed(_)
-            | OauthError::User(_)
-            | OauthError::Repository(_)
-            | OauthError::DatabaseRepository(_)
-            | OauthError::Config(_)
-            | OauthError::Crypto(_)
-            | OauthError::CimdFetch(_)
-            | OauthError::WebAuthnConfig(_)
-            | OauthError::Internal(_) => {
-                internal_api_error("Authorization operation failed", &message)
+            OauthErrorKind::InvalidClient => ApiError::unauthorized("Client authentication failed"),
+            OauthErrorKind::AuthenticationFailed => ApiError::unauthorized("Authentication failed"),
+            OauthErrorKind::InvalidGrant
+            | OauthErrorKind::InvalidToken
+            | OauthErrorKind::AccessDenied => ApiError::unauthorized(err.to_string()),
+            OauthErrorKind::NotFound => ApiError::not_found(err.to_string()),
+            OauthErrorKind::ServerError => {
+                ApiError::internal("Authorization operation failed", err)
             },
         };
         Self(api)

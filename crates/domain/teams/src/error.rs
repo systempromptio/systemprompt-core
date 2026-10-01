@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::domain_error;
+use systemprompt_models::net::OutboundUrlError;
 
 domain_error! {
     pub enum TeamsError {
@@ -11,6 +12,13 @@ domain_error! {
 
         #[error("activity token validation failed: {0}")]
         TokenValidation(String),
+
+        #[error("activity token validation failed: {context}")]
+        InvalidToken {
+            context: &'static str,
+            #[source]
+            source: jsonwebtoken::errors::Error,
+        },
 
         #[error("token issuer mismatch: {0}")]
         IssuerMismatch(String),
@@ -34,7 +42,7 @@ domain_error! {
         Outbound(String),
 
         #[error("invalid outbound URL: {0}")]
-        OutboundUrl(String),
+        OutboundUrl(#[from] OutboundUrlError),
 
         #[error("guarded outbound http client is unavailable")]
         ClientUnavailable,

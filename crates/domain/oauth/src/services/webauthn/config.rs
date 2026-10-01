@@ -21,17 +21,13 @@ impl WebAuthnConfig {
     pub fn new() -> crate::error::OauthResult<Self> {
         let config = Config::get()?;
         let api_url = &config.api_external_url;
-        let parsed_url = Url::parse(api_url).map_err(|e| {
-            crate::error::OauthError::WebAuthnConfig(format!("API_EXTERNAL_URL invalid: {}", e))
-        })?;
+        let parsed_url = Url::parse(api_url).map_err(crate::error::OauthError::ExternalUrl)?;
 
         let rp_id = parsed_url
             .host_str()
-            .ok_or_else(|| {
-                crate::error::OauthError::WebAuthnConfig(
-                    "API_EXTERNAL_URL must contain a valid host for WebAuthn RP ID".to_owned(),
-                )
-            })?
+            .ok_or(crate::error::OauthError::WebAuthnConfig(
+                "API_EXTERNAL_URL must contain a valid host for WebAuthn RP ID",
+            ))?
             .to_owned();
 
         Ok(Self {

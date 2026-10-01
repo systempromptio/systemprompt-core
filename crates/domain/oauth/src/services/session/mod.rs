@@ -15,7 +15,8 @@ use uuid::Uuid;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::Config;
 use systemprompt_traits::{
-    CreateSessionInput, FingerprintProvider, SessionAnalytics, SessionProvider, UserProvider,
+    BoxedSource, CreateSessionInput, FingerprintProvider, SessionAnalytics, SessionProvider,
+    UserProvider,
 };
 
 const MAX_SESSION_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
@@ -26,7 +27,7 @@ pub enum SessionCreationError {
     UserNotFound { user_id: UserId },
 
     #[error("Session creation failed: {0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }
 
 struct SessionCreationParams<'a> {
@@ -100,7 +101,10 @@ impl SessionCreationService {
             .user_provider
             .create_anonymous(&fingerprint)
             .await
-            .map_err(|e| crate::error::OauthError::Session(e.to_string()))?;
+            .map_err(|source| crate::error::OauthError::UserProvider {
+                context: "creating the anonymous user",
+                source,
+            })?;
         Ok((user.id, fingerprint))
     }
 
@@ -123,8 +127,7 @@ impl SessionCreationService {
         analytics: &SessionAnalytics,
         session_source: SessionSource,
     ) -> Result<SessionId, SessionCreationError> {
-        let global_config =
-            Config::get().map_err(|e| SessionCreationError::Internal(e.to_string()))?;
+        let global_config = Config::get().map_err(|e| SessionCreationError::Internal(e.into()))?;
         self.create_authenticated_session_with_ttl(
             user_id,
             analytics,
@@ -145,7 +148,7 @@ impl SessionCreationService {
             .user_provider
             .find_by_id(user_id)
             .await
-            .map_err(|e| SessionCreationError::Internal(e.to_string()))?;
+            .map_err(|e| SessionCreationError::Internal(e.into()))?;
 
         if user.is_none() {
             return Err(SessionCreationError::UserNotFound {
@@ -167,7 +170,7 @@ impl SessionCreationService {
                 expires_at,
             })
             .await
-            .map_err(|e| SessionCreationError::Internal(e.to_string()))?;
+            .map_err(|e| SessionCreationError::Internal(e.into()))?;
 
         Ok(session_id)
     }

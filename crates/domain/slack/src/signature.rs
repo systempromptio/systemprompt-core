@@ -30,9 +30,7 @@ pub fn verify_slack_signature(
             "signing secret is empty; refusing to verify".to_owned(),
         ));
     }
-    let ts: i64 = timestamp.parse().map_err(|e| {
-        SlackError::MalformedRequest(format!("invalid X-Slack-Request-Timestamp: {e}"))
-    })?;
+    let ts: i64 = timestamp.parse().map_err(SlackError::InvalidTimestamp)?;
     if (now_unix - ts).abs() > MAX_TIMESTAMP_SKEW_SECS {
         return Err(SlackError::StaleTimestamp);
     }
@@ -40,18 +38,16 @@ pub fn verify_slack_signature(
     let provided = signature
         .strip_prefix("v0=")
         .ok_or_else(|| SlackError::Signature("missing v0= prefix".to_owned()))?;
-    let provided = hex::decode(provided)
-        .map_err(|e| SlackError::Signature(format!("signature is not valid hex: {e}")))?;
+    let provided = hex::decode(provided).map_err(SlackError::SignatureEncoding)?;
 
-    let mut mac = HmacSha256::new_from_slice(signing_secret)
-        .map_err(|e| SlackError::Internal(e.to_string()))?;
+    let mut mac = HmacSha256::new_from_slice(signing_secret).map_err(SlackError::SigningKey)?;
     mac.update(b"v0:");
     mac.update(timestamp.as_bytes());
     mac.update(b":");
     mac.update(body);
 
     mac.verify_slice(&provided)
-        .map_err(|e| SlackError::Signature(format!("HMAC mismatch: {e}")))
+        .map_err(SlackError::SignatureMismatch)
 }
 
 #[must_use]

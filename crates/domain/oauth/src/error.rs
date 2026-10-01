@@ -1,23 +1,29 @@
 //! Typed error taxonomy for the systemprompt-oauth domain.
 //!
 //! Variants enumerate the security-meaningful failure modes encountered
-//! throughout the OAuth 2.0 / OIDC, `WebAuthn` and CIMD subsystems. Concrete
-//! `#[from]` adapters route `sqlx`, `std::io`, `url`, `serde_json`, and
-//! `webauthn`/`bcrypt`/`jsonwebtoken` errors into the appropriate variant
-//! so callers can match on a single `OauthError` enum.
+//! throughout the OAuth 2.0 / OIDC, `WebAuthn` and CIMD subsystems. A variant
+//! built from another error keeps it as its `source`; a `String` payload is
+//! only ever text this crate authors. [`OauthError::kind`] classifies every
+//! variant into the RFC 6749 §5.2 (plus `WebAuthn` / RFC 7591) error class the
+//! HTTP edge answers with, so the edge never inspects error text.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod kind;
+
+pub use kind::OauthErrorKind;
+
+use systemprompt_traits::{AnalyticsProviderError, AuthProviderError, RepositoryError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum OauthError {
-    #[error("provider error: {0}")]
-    Provider(String),
-
     #[error("token error: {0}")]
     TokenInvalid(String),
+
+    #[error("token rejected: {0}")]
+    TokenRejected(#[source] systemprompt_security::AuthError),
 
     #[error("token signed with `{got}`, expected `{expected}`")]
     TokenAlgMismatch { got: String, expected: String },
@@ -49,11 +55,8 @@ pub enum OauthError {
     #[error("client not found: {0}")]
     ClientNotFound(String),
 
-    #[error("session error: {0}")]
-    Session(String),
-
-    #[error("webauthn error: {0}")]
-    WebAuthn(String),
+    #[error("setup token rejected: {0}")]
+    SetupTokenRejected(&'static str),
 
     #[error("username already taken: {0}")]
     UsernameTaken(String),
@@ -64,63 +67,117 @@ pub enum OauthError {
     #[error("user not found: {0}")]
     UserNotFound(String),
 
+    #[error("passkey authentication is not available for this account")]
+    AuthenticationUnavailable,
+
     #[error("registration state expired or not found")]
     RegistrationStateExpired,
+
+    #[error("authentication challenge expired or not found")]
+    ChallengeExpired,
 
     #[error("webauthn verification failed: {0}")]
     WebAuthnVerificationFailed(String),
 
-    #[error("user error: {0}")]
-    User(String),
+    #[error("webauthn ceremony failed: {0}")]
+    WebAuthnCeremony(#[from] webauthn_rs::prelude::WebauthnError),
+
+    #[error("user provider failed while {context}: {source}")]
+    UserProvider {
+        context: &'static str,
+        #[source]
+        source: AuthProviderError,
+    },
+
+    #[error("session store failed: {0}")]
+    SessionStore(#[from] AnalyticsProviderError),
 
     #[error("repository error: {0}")]
-    Repository(#[from] sqlx::Error),
-
-    #[error("database repository error: {0}")]
-    DatabaseRepository(#[from] systemprompt_traits::RepositoryError),
+    Repository(#[from] RepositoryError),
 
     #[error("validation error: {0}")]
     Validation(String),
+
+    #[error("{field} {value:?} is not a valid absolute URL: {source}")]
+    InvalidUrl {
+        field: String,
+        value: String,
+        #[source]
+        source: url::ParseError,
+    },
 
     #[error("unauthorized: {0}")]
     Unauthorized(String),
 
     #[error("config error: {0}")]
-    Config(String),
+    Config(#[from] systemprompt_models::errors::ConfigError),
 
-    #[error("crypto error: {0}")]
-    Crypto(String),
+    #[error("secrets unavailable: {0}")]
+    Secrets(#[from] systemprompt_config::SecretsBootstrapError),
 
-    #[error("CIMD metadata fetch failed: {0}")]
-    CimdFetch(String),
+    #[error("signing key unavailable: {0}")]
+    SigningKey(#[from] systemprompt_security::keys::TokenAuthorityError),
+
+    #[error("token signing failed: {0}")]
+    Signing(#[from] jsonwebtoken::errors::Error),
+
+    #[error("invalid token lifetime of {seconds} seconds; must be between 1 second and 1 year")]
+    InvalidTokenLifetime { seconds: i64 },
+
+    #[error("password hashing failed: {0}")]
+    Bcrypt(#[from] bcrypt::BcryptError),
+
+    #[error("stored state is not valid JSON: {0}")]
+    Json(#[from] serde_json::Error),
+
+    #[error("user id {user_id} is not a valid UUID: {source}")]
+    InvalidUserId {
+        user_id: systemprompt_identifiers::UserId,
+        #[source]
+        source: uuid::Error,
+    },
+
+    #[error("CIMD HTTP client could not be built: {0}")]
+    CimdHttpClient(#[source] reqwest::Error),
+
+    #[error("CIMD metadata fetch from {url} failed: {source}")]
+    CimdFetch {
+        url: String,
+        #[source]
+        source: reqwest::Error,
+    },
+
+    #[error("CIMD metadata fetch from {url} returned HTTP {status}")]
+    CimdStatus { url: String, status: u16 },
+
+    #[error("CIMD metadata from {url} is not valid JSON: {source}")]
+    CimdDecode {
+        url: String,
+        #[source]
+        source: reqwest::Error,
+    },
 
     #[error("invalid client metadata: {0}")]
     InvalidClientMetadata(String),
 
     #[error("webauthn configuration error: {0}")]
-    WebAuthnConfig(String),
+    WebAuthnConfig(&'static str),
+
+    #[error("api_external_url is not a valid URL: {0}")]
+    ExternalUrl(#[source] url::ParseError),
+
+    #[error("challenge TTL out of range: {0}")]
+    ChallengeTtl(#[source] chrono::OutOfRangeError),
 
     #[error("internal: {0}")]
-    Internal(String),
+    Internal(&'static str),
 }
 
 pub type OauthResult<T> = Result<T, OauthError>;
 
-impl From<webauthn_rs::prelude::WebauthnError> for OauthError {
-    fn from(err: webauthn_rs::prelude::WebauthnError) -> Self {
-        Self::WebAuthnVerificationFailed(err.to_string())
-    }
-}
-
-impl From<bcrypt::BcryptError> for OauthError {
-    fn from(err: bcrypt::BcryptError) -> Self {
-        Self::Crypto(err.to_string())
-    }
-}
-
-impl From<jsonwebtoken::errors::Error> for OauthError {
-    fn from(err: jsonwebtoken::errors::Error) -> Self {
-        Self::TokenInvalid(err.to_string())
+impl From<sqlx::Error> for OauthError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::Repository(RepositoryError::from(err))
     }
 }
 
@@ -138,25 +195,19 @@ impl From<systemprompt_security::AuthError> for OauthError {
             AuthError::InvalidToken(e) if matches!(e.kind(), ErrorKind::ExpiredSignature) => {
                 Self::Expired("Token has expired".to_owned())
             },
-            other => Self::TokenInvalid(other.to_string()),
+            other => Self::TokenRejected(other),
         }
     }
 }
 
-impl From<serde_json::Error> for OauthError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Validation(format!("json parse: {err}"))
-    }
-}
-
-impl From<systemprompt_models::errors::ConfigError> for OauthError {
-    fn from(err: systemprompt_models::errors::ConfigError) -> Self {
-        Self::Config(err.to_string())
-    }
-}
-
-impl From<systemprompt_config::SecretsBootstrapError> for OauthError {
-    fn from(err: systemprompt_config::SecretsBootstrapError) -> Self {
-        Self::Config(err.to_string())
+impl OauthError {
+    pub fn is_unique_violation(&self) -> bool {
+        matches!(
+            self,
+            Self::Repository(RepositoryError::Constraint {
+                kind: systemprompt_traits::ConstraintKind::Unique,
+                ..
+            })
+        )
     }
 }

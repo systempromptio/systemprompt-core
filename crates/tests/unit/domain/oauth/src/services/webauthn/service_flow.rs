@@ -146,8 +146,11 @@ async fn start_authentication_unknown_user_errors() {
         .await
         .expect_err("unknown user must fail");
     assert!(
-        matches!(err, systemprompt_oauth::error::OauthError::UserNotFound(_)),
-        "expected UserNotFound, got {err:?}"
+        matches!(
+            err,
+            systemprompt_oauth::error::OauthError::AuthenticationUnavailable
+        ),
+        "expected AuthenticationUnavailable, got {err:?}"
     );
 }
 
@@ -155,15 +158,18 @@ async fn start_authentication_unknown_user_errors() {
 async fn start_authentication_user_without_credentials_errors() {
     let ctx = setup().await;
     // The user exists (seeded) but has no webauthn credentials, exercising the
-    // get_user_credentials empty path and the "No credentials found" branch.
+    // get_user_credentials empty path.
     let err = ctx
         .service
         .start_authentication(&ctx.email, None)
         .await
         .expect_err("no credentials must fail");
     assert!(
-        matches!(err, systemprompt_oauth::error::OauthError::Internal(_)),
-        "expected Internal(no credentials), got {err:?}"
+        matches!(
+            err,
+            systemprompt_oauth::error::OauthError::AuthenticationUnavailable
+        ),
+        "an account without passkeys must look like an unknown account, got {err:?}"
     );
 }
 
@@ -189,7 +195,7 @@ async fn verified_authentication_roundtrip_consumes_once() {
         .await
         .expect_err("second consume must fail");
     assert!(
-        matches!(err, systemprompt_oauth::error::OauthError::Internal(_)),
+        matches!(err, systemprompt_oauth::error::OauthError::ChallengeExpired),
         "consuming a spent token must error, got {err:?}"
     );
 }
@@ -204,7 +210,7 @@ async fn consume_verified_authentication_unknown_token_errors() {
         .expect_err("unknown token must fail");
     assert!(matches!(
         err,
-        systemprompt_oauth::error::OauthError::Internal(_)
+        systemprompt_oauth::error::OauthError::ChallengeExpired
     ));
 }
 

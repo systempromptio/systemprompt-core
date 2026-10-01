@@ -142,8 +142,8 @@ async fn the_production_constructor_rejects_a_malformed_token_without_fetching()
         .await
         .expect_err("a malformed token is rejected before the JWKS is fetched");
     assert!(
-        matches!(err, TeamsError::TokenValidation(_)),
-        "expected TokenValidation, got {err:?}"
+        matches!(err, TeamsError::InvalidToken { .. }),
+        "expected InvalidToken, got {err:?}"
     );
 }
 
@@ -172,8 +172,8 @@ async fn a_jwk_with_unparseable_key_material_is_rejected() {
         .await
         .expect_err("a JWK whose modulus cannot decode yields no usable key");
     assert!(
-        matches!(err, TeamsError::TokenValidation(_)),
-        "expected TokenValidation, got {err:?}"
+        matches!(err, TeamsError::InvalidToken { .. }),
+        "expected InvalidToken, got {err:?}"
     );
 }
 

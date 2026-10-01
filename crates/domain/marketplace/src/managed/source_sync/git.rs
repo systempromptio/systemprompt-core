@@ -263,9 +263,8 @@ fn parse_tree_entry<'a>(entry: &'a [u8], prefix_text: &str) -> Result<(&'a str, 
             "Git source contains links, submodules, or non-regular files",
         ));
     }
-    let path = std::str::from_utf8(path).map_err(|error| {
-        super::super::error::invalid(&format!("Git paths must be UTF-8: {error}"))
-    })?;
+    let path = std::str::from_utf8(path)
+        .map_err(|error| super::super::error::invalid_input("Git paths must be UTF-8", error))?;
     if path
         .split('/')
         .any(|part| matches!(part, ".git" | ".gitmodules"))

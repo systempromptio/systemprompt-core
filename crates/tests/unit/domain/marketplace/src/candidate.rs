@@ -420,7 +420,7 @@ fn marketplace_error_variants_debug() {
         MarketplaceError::NoDefault,
         MarketplaceError::Validation("bad".into()),
         MarketplaceError::Catalog("fail".into()),
-        MarketplaceError::Signing("sig".into()),
+        MarketplaceError::Signing(systemprompt_security::ManifestSigningError::KeyMissing),
         MarketplaceError::Filter(MarketplaceFilterError::Backend("b".into())),
     ];
     for v in &variants {

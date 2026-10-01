@@ -20,11 +20,7 @@ use systemprompt_oauth::clients::api::{CreateOAuthClientRequest, OAuthClientResp
 use systemprompt_oauth::repository::CreateClientParams;
 
 fn is_unique_violation(err: &OauthError) -> bool {
-    if let OauthError::Repository(sqlx::Error::Database(db_err)) = err {
-        db_err.is_unique_violation()
-    } else {
-        false
-    }
+    err.is_unique_violation()
 }
 
 #[instrument(skip(repository, req_ctx, request), fields(client_id = %request.client_id))]

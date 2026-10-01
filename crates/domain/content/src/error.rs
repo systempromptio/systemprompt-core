@@ -24,6 +24,13 @@ domain_error! {
         #[error("parse error: {0}")]
         Parse(String),
 
+        #[error("invalid date '{value}'")]
+        InvalidDate {
+            value: String,
+            #[source]
+            source: chrono::ParseError,
+        },
+
         #[error("service error: {0}")]
         Service(String),
     }

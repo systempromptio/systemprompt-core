@@ -1,5 +1,6 @@
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_marketplace::{MarketplaceError, MarketplaceFilterError};
+use systemprompt_security::ManifestSigningError;
 
 #[test]
 fn filter_error_backend_display() {
@@ -45,8 +46,27 @@ fn marketplace_error_catalog_display() {
 
 #[test]
 fn marketplace_error_signing_display() {
-    let e = MarketplaceError::Signing("key not loaded".into());
-    assert!(e.to_string().contains("key not loaded"));
+    let e = MarketplaceError::Signing(ManifestSigningError::KeyMissing);
+    assert!(e.to_string().contains("signing key missing"));
+    assert!(std::error::Error::source(&e).is_some());
+}
+
+#[test]
+fn marketplace_error_catalog_source_keeps_cause() {
+    let cause = std::io::Error::new(std::io::ErrorKind::NotFound, "no such file");
+    let e = MarketplaceError::catalog("read skills", cause);
+    assert!(matches!(e, MarketplaceError::CatalogSource { .. }));
+    assert!(e.to_string().contains("read skills"));
+    let source = std::error::Error::source(&e).expect("cause is kept");
+    assert!(source.to_string().contains("no such file"));
+}
+
+#[test]
+fn marketplace_error_import_source_keeps_cause() {
+    let cause = std::io::Error::other("disk gone");
+    let e = MarketplaceError::import(std::path::Path::new("/tmp/kit"), "read", cause);
+    assert!(matches!(e, MarketplaceError::ImportSource { ref path, .. } if path == "/tmp/kit"));
+    assert!(std::error::Error::source(&e).is_some());
 }
 
 #[test]

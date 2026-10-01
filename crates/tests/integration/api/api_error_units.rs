@@ -72,7 +72,10 @@ fn marketplace_error_variants_classify() {
         StatusCode::BAD_REQUEST
     );
     assert_eq!(
-        status_of(MarketplaceError::Signing("s".to_owned()).into()),
+        status_of(
+            MarketplaceError::Signing(systemprompt_security::ManifestSigningError::KeyMissing)
+                .into()
+        ),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }
@@ -438,25 +441,22 @@ fn oauth_error_variants_classify() {
             StatusCode::UNAUTHORIZED,
         ),
         (
-            OauthError::Provider("p".to_owned()),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ),
-        (
-            OauthError::Session("s".to_owned()),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ),
-        (
-            OauthError::WebAuthn("w".to_owned()),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ),
-        (
             OauthError::RegistrationStateExpired,
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            OauthError::AuthenticationUnavailable,
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            OauthError::Repository(RepositoryError::internal("pool closed")),
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
         (
-            OauthError::Internal("i".to_owned()),
+            OauthError::WebAuthnConfig("not configured"),
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
+        (OauthError::Internal("i"), StatusCode::INTERNAL_SERVER_ERROR),
     ];
 
     for (err, expected) in cases {
@@ -502,7 +502,7 @@ fn session_creation_errors_split_missing_user_from_internal_failure() {
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(SessionCreationError::Internal("pool exhausted".to_owned()).into()),
+        status_of(SessionCreationError::Internal("pool exhausted".into()).into()),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }

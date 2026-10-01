@@ -50,7 +50,7 @@ pub async fn keep_sets(
 ) -> Result<EntryKeepSets, MarketplaceFilterError> {
     let index = ParentChainIndex::load(repo, std::sync::Arc::new(chain_sources(candidate)))
         .await
-        .map_err(|e| MarketplaceFilterError::Backend(e.to_string()))?;
+        .map_err(|e| MarketplaceFilterError::Backend(e.into()))?;
 
     let allowed = |kind: EntityKind, ids: Vec<String>| {
         let chains = &index;
@@ -68,7 +68,7 @@ pub async fn keep_sets(
                 },
             )
             .await
-            .map_err(|e| MarketplaceFilterError::Backend(e.to_string()))
+            .map_err(|e| MarketplaceFilterError::Backend(e.into()))
         }
     };
 

@@ -99,15 +99,21 @@ impl ActivityTokenVerifier {
         service_url: &str,
         now_unix: i64,
     ) -> TeamsResult<ActivityClaims> {
-        let header = decode_header(token)
-            .map_err(|e| TeamsError::TokenValidation(format!("invalid token header: {e}")))?;
+        let header = decode_header(token).map_err(|source| TeamsError::InvalidToken {
+            context: "invalid token header",
+            source,
+        })?;
         let kid = header
             .kid
             .ok_or_else(|| TeamsError::TokenValidation("token missing kid".to_owned()))?;
 
         let jwk = self.key_for(&kid, now_unix).await?;
-        let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
-            .map_err(|e| TeamsError::TokenValidation(format!("malformed signing key: {e}")))?;
+        let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|source| {
+            TeamsError::InvalidToken {
+                context: "malformed signing key",
+                source,
+            }
+        })?;
         validate_token(token, &key, &self.audience, service_url)
     }
 
@@ -168,7 +174,10 @@ pub fn validate_token(
         ErrorKind::ExpiredSignature => TeamsError::StaleToken,
         ErrorKind::InvalidIssuer => TeamsError::IssuerMismatch(ISSUER.to_owned()),
         ErrorKind::InvalidAudience => TeamsError::AudienceMismatch(audience.to_owned()),
-        _ => TeamsError::TokenValidation(e.to_string()),
+        _ => TeamsError::InvalidToken {
+            context: "token rejected",
+            source: e,
+        },
     })?;
 
     match data.claims.serviceurl.as_deref() {

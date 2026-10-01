@@ -30,11 +30,14 @@ impl UserCreationService {
         full_name: Option<&str>,
         roles: Option<Vec<String>>,
     ) -> Result<UserId> {
-        if let Some(existing_user) = self
-            .user_provider
-            .find_by_email(email)
-            .await
-            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?
+        if let Some(existing_user) =
+            self.user_provider
+                .find_by_email(email)
+                .await
+                .map_err(|source| crate::error::OauthError::UserProvider {
+                    context: "looking up the registering email",
+                    source,
+                })?
         {
             return Ok(existing_user.id);
         }
@@ -45,12 +48,18 @@ impl UserCreationService {
             .user_provider
             .create_user(username, email, full_name)
             .await
-            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?;
+            .map_err(|source| crate::error::OauthError::UserProvider {
+                context: "creating the user",
+                source,
+            })?;
 
         self.user_provider
             .assign_roles(&user.id, &roles)
             .await
-            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?;
+            .map_err(|source| crate::error::OauthError::UserProvider {
+                context: "assigning the new user's roles",
+                source,
+            })?;
 
         Ok(user.id)
     }
@@ -65,7 +74,10 @@ impl UserCreationService {
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?
+            .map_err(|source| crate::error::OauthError::UserProvider {
+                context: "checking whether the email is registered",
+                source,
+            })?
             .is_some()
         {
             return Err(crate::error::OauthError::EmailRegistered(email.to_owned()));
@@ -75,7 +87,10 @@ impl UserCreationService {
             .user_provider
             .find_by_name(username)
             .await
-            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?
+            .map_err(|source| crate::error::OauthError::UserProvider {
+                context: "checking whether the username is taken",
+                source,
+            })?
             .is_some()
         {
             return Err(crate::error::OauthError::UsernameTaken(username.to_owned()));

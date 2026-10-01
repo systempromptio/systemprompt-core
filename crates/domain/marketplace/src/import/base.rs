@@ -26,17 +26,11 @@ pub(super) fn copy_base_tree(from: &Path, sink: &Sink) -> Result<Vec<String>, Ma
         return Ok(Vec::new());
     }
 
-    let read = std::fs::read_dir(&base).map_err(|e| MarketplaceError::Import {
-        path: base.display().to_string(),
-        message: e.to_string(),
-    })?;
+    let read = std::fs::read_dir(&base).map_err(|e| MarketplaceError::import(&base, "read", e))?;
 
     let mut dirs: Vec<(String, std::path::PathBuf)> = Vec::new();
     for entry in read {
-        let entry = entry.map_err(|e| MarketplaceError::Import {
-            path: base.display().to_string(),
-            message: e.to_string(),
-        })?;
+        let entry = entry.map_err(|e| MarketplaceError::import(&base, "read", e))?;
         let path = entry.path();
         if !path.is_dir() {
             continue;

@@ -18,7 +18,7 @@ use crate::managed::{
 pub fn verify_readback(bundle: &RevisionBundle, request: &ConsumerReceiptRequest) -> Result<()> {
     request
         .validate()
-        .map_err(|error| ManagedError::Invalid(error.to_string()))?;
+        .map_err(|error| crate::managed::error::invalid_input("consumer receipt request", error))?;
     bundle.verify()?;
     if bundle.root != request.revision_id
         || bundle.digest()?.as_str() != request.bundle_digest.as_str()

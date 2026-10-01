@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::TokenValidator;
+use crate::error::OauthError;
 use systemprompt_models::auth::{AuthError, AuthenticatedUser, JwtAudience};
 use uuid::Uuid;
 
@@ -21,10 +22,12 @@ impl JwtTokenValidator {
     }
 
     pub fn from_config() -> Result<Self, AuthError> {
-        let config =
-            systemprompt_models::Config::get().map_err(|e| AuthError::AuthenticationFailed {
-                message: format!("Failed to get config: {e}"),
-            })?;
+        let config = systemprompt_models::Config::get().map_err(|error| {
+            tracing::error!(%error, "JWT validator could not read the configuration");
+            AuthError::AuthenticationFailed {
+                message: "token validator is not configured".to_owned(),
+            }
+        })?;
         Ok(Self {
             issuer: config.jwt_issuer.clone(),
             audiences: config.jwt_audiences.clone(),
@@ -40,16 +43,20 @@ impl TokenValidator for JwtTokenValidator {
     )]
     async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthError> {
         let claims =
-            jwt::validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| {
-                AuthError::AuthenticationFailed {
-                    message: format!("JWT validation failed: {e}"),
+            jwt::validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|error| {
+                match error {
+                    OauthError::Expired(_) => AuthError::TokenExpired,
+                    other => {
+                        tracing::debug!(error = %other, "JWT validation failed");
+                        AuthError::AuthenticationFailed {
+                            message: "JWT validation failed".to_owned(),
+                        }
+                    },
                 }
             })?;
 
         let user_id =
-            Uuid::parse_str(&claims.sub).map_err(|e| AuthError::AuthenticationFailed {
-                message: format!("Invalid user ID in token: {e}"),
-            })?;
+            Uuid::parse_str(&claims.sub).map_err(|_invalid| AuthError::InvalidTokenFormat)?;
 
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();

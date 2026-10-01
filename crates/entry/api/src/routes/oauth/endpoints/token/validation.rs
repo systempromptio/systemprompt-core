@@ -6,6 +6,7 @@
 use super::{TokenError, TokenResult};
 use anyhow::Result;
 use systemprompt_identifiers::{AuthorizationCode, ClientId};
+use systemprompt_oauth::OauthErrorKind;
 use systemprompt_oauth::models::OAuthClient;
 use systemprompt_oauth::repository::{AuthCodeValidationResult, OAuthRepository};
 use systemprompt_oauth::services::validation::validate_client_credentials as validate_client_credentials_shared;
@@ -24,10 +25,19 @@ pub async fn validate_client_credentials(
     repo: &OAuthRepository,
     client_id: &ClientId,
     client_secret: Option<&str>,
-) -> Result<OAuthClient> {
+) -> TokenResult<OAuthClient> {
     validate_client_credentials_shared(repo, client_id, client_secret)
         .await
-        .map_err(Into::into)
+        .map_err(|error| {
+            if error.kind() == OauthErrorKind::InvalidClient {
+                TokenError::InvalidClientSecret
+            } else {
+                tracing::error!(%error, "Client authentication could not be evaluated");
+                TokenError::ServerError {
+                    message: "Client authentication could not be evaluated".to_owned(),
+                }
+            }
+        })
 }
 
 #[derive(Debug)]

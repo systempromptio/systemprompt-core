@@ -10,7 +10,7 @@ use chrono::Utc;
 use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};
 
 use super::file::FileRepository;
-use crate::error::{FilesError, FilesResult};
+use crate::error::{FilesError, FilesResult, parse_file_uuid};
 use crate::models::{ContentFile, File, FileMetadata, FileRole};
 
 impl FileRepository {
@@ -21,8 +21,7 @@ impl FileRepository {
         role: FileRole,
         display_order: i32,
     ) -> FilesResult<ContentFile> {
-        let file_id_uuid = uuid::Uuid::parse_str(file_id.as_str())
-            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
+        let file_id_uuid = parse_file_uuid(file_id)?;
         let now = Utc::now();
         let content_id_str = content_id.as_str();
 
@@ -52,8 +51,7 @@ impl FileRepository {
         content_id: &ContentId,
         file_id: &FileId,
     ) -> FilesResult<()> {
-        let file_id_uuid = uuid::Uuid::parse_str(file_id.as_str())
-            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
+        let file_id_uuid = parse_file_uuid(file_id)?;
         let content_id_str = content_id.as_str();
 
         sqlx::query!(
@@ -156,8 +154,7 @@ impl FileRepository {
     }
 
     pub async fn set_featured(&self, file_id: &FileId, content_id: &ContentId) -> FilesResult<()> {
-        let file_id_uuid = uuid::Uuid::parse_str(file_id.as_str())
-            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
+        let file_id_uuid = parse_file_uuid(file_id)?;
         let content_id_str = content_id.as_str();
         let featured_role = FileRole::Featured.as_str();
         let attachment_role = FileRole::Attachment.as_str();
@@ -201,8 +198,7 @@ impl FileRepository {
     }
 
     pub async fn list_content_by_file(&self, file_id: &FileId) -> FilesResult<Vec<ContentFile>> {
-        let file_id_uuid = uuid::Uuid::parse_str(file_id.as_str())
-            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
+        let file_id_uuid = parse_file_uuid(file_id)?;
 
         let result = sqlx::query_as!(
             ContentFile,

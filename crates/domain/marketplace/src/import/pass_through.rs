@@ -53,17 +53,25 @@ fn external_plugin(
         .source
         .clone()
         .ok_or_else(|| refuse("needs a github, url or git-subdir `source`".to_owned()))?;
+    let malformed = |context: &str, source: serde_json::Error| {
+        MarketplaceError::import(
+            manifest_path,
+            format!("pass-through plugin '{}': {context}", entry.name),
+            source,
+        )
+    };
     let source: ExternalPluginSource = serde_json::from_value(source).map_err(|e| {
-        refuse(format!(
-            "`source` must be a github, url or git-subdir object pinned by `sha`: {e}"
-        ))
+        malformed(
+            "`source` must be a github, url or git-subdir object pinned by `sha`",
+            e,
+        )
     })?;
     let skills: Option<ExternalPluginSkills> = entry
         .skills
         .clone()
         .map(serde_json::from_value)
         .transpose()
-        .map_err(|e| refuse(format!("`skills` must be a path or a list of paths: {e}")))?;
+        .map_err(|e| malformed("`skills` must be a path or a list of paths", e))?;
     Ok(ExternalPluginEntry {
         name: entry.name.clone(),
         source,

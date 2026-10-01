@@ -48,9 +48,8 @@ pub(super) async fn handle_authorization_code_grant(
             })?
     };
 
-    let client = validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
-        .await
-        .map_err(|_e| TokenError::InvalidClientSecret)?;
+    let client =
+        validate_client_credentials(&repo, &client_id, request.client_secret.as_deref()).await?;
 
     // Why: RFC 6749 §4.1.3 — a public client has no secret binding the code
     // to it, so the redirect_uri echo is the only proof it is the same party
@@ -139,9 +138,7 @@ pub(super) async fn handle_refresh_token_grant(
             })?
     };
 
-    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
-        .await
-        .map_err(|_e| TokenError::InvalidClientSecret)?;
+    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref()).await?;
 
     let consumed = repo
         .consume_refresh_token(&refresh_token, &client_id)

@@ -73,8 +73,7 @@ pub struct LinkChallengeReservation {
 }
 
 fn to_chrono(duration: Duration) -> Result<chrono::Duration> {
-    chrono::Duration::from_std(duration)
-        .map_err(|e| OauthError::Internal(format!("Challenge TTL out of range: {e}")))
+    chrono::Duration::from_std(duration).map_err(OauthError::ChallengeTtl)
 }
 
 impl crate::repository::OAuthRepository {

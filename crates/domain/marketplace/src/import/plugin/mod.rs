@@ -58,13 +58,14 @@ pub(super) fn plugin_dir(
         |path| strip_dot(path).to_owned(),
     );
     systemprompt_models::managed::validate_path(&relative).map_err(|error| {
-        MarketplaceError::Import {
-            path: from.join(&relative).display().to_string(),
-            message: format!(
-                "plugin `{}` source must stay inside the marketplace tree: {error}",
+        MarketplaceError::import(
+            &from.join(&relative),
+            format!(
+                "plugin `{}` source must stay inside the marketplace tree",
                 entry.name
             ),
-        }
+            error,
+        )
     })?;
     Ok(from.join(relative))
 }
@@ -147,10 +148,7 @@ pub(super) fn import_plugin(
 
     config
         .validate(id.as_str())
-        .map_err(|e| MarketplaceError::Import {
-            path: manifest_path.display().to_string(),
-            message: e.to_string(),
-        })?;
+        .map_err(|e| MarketplaceError::import(&manifest_path, "plugin config is invalid", e))?;
 
     let rel = Path::new("plugins").join(id.as_str()).join("config.yaml");
     sink.write_yaml(&rel, &PluginConfigFile { plugin: config })?;

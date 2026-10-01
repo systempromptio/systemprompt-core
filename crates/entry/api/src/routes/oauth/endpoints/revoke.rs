@@ -73,12 +73,8 @@ pub async fn handle_revoke(
     let client_id = match &request.client_id {
         Some(raw) => {
             let client_id = ClientId::new(raw.clone());
-            if validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
-                .await
-                .is_err()
-            {
-                return Err(OAuthHttpError::invalid_client("Invalid client credentials"));
-            }
+            validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
+                .await?;
             Some(client_id)
         },
         None => None,

@@ -51,13 +51,13 @@ pub fn load_managed_mcp_servers(
                 _ => format!("{base}/api/v1/mcp/{name}/mcp"),
             }
         };
-        let url =
-            ValidatedUrl::try_new(url_str).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let url = ValidatedUrl::try_new(url_str)
+            .map_err(|e| MarketplaceError::catalog("mcp server url", e))?;
         let mcp_name = ManagedMcpServerName::try_new(name.clone())
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+            .map_err(|e| MarketplaceError::catalog("mcp server name", e))?;
         out.push(ManagedMcpServer {
             id: McpServerId::try_new(name.clone())
-                .map_err(|e| MarketplaceError::Catalog(e.to_string()))?,
+                .map_err(|e| MarketplaceError::catalog("mcp server id", e))?,
             name: mcp_name,
             url,
             transport: Some("http".to_owned()),
@@ -65,7 +65,7 @@ pub fn load_managed_mcp_servers(
             oauth: Some(deployment.oauth.required),
             tool_policy: Some(BTreeMap::from([(
                 ToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD)
-                    .map_err(|e| MarketplaceError::Catalog(e.to_string()))?,
+                    .map_err(|e| MarketplaceError::catalog("mcp tool policy name", e))?,
                 tool_policy,
             )])),
         });

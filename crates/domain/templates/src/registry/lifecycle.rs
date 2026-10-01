@@ -133,9 +133,9 @@ impl TemplateRegistry {
     async fn load_partial_file(&self, path: &Path) -> Result<String, TemplateError> {
         tokio::fs::read_to_string(path)
             .await
-            .map_err(|e| TemplateError::LoadError {
-                name: path.display().to_string(),
-                message: e.to_string(),
+            .map_err(|source| TemplateError::PartialRead {
+                path: path.to_path_buf(),
+                source,
             })
     }
 
@@ -145,10 +145,10 @@ impl TemplateRegistry {
     ) -> Result<String, TemplateError> {
         for loader in &self.loaders {
             if loader.can_load(&definition.source) {
-                return loader.load(&definition.source).await.map_err(|e| {
+                return loader.load(&definition.source).await.map_err(|source| {
                     TemplateError::LoadError {
                         name: definition.name.clone(),
-                        message: e.to_string(),
+                        source,
                     }
                 });
             }

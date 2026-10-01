@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::domain_error;
+use systemprompt_models::net::OutboundUrlError;
 
 domain_error! {
     pub enum SlackError {
@@ -11,6 +12,18 @@ domain_error! {
 
         #[error("signature verification failed: {0}")]
         Signature(String),
+
+        #[error("signature verification failed: signature is not valid hex")]
+        SignatureEncoding(#[source] hex::FromHexError),
+
+        #[error("signature verification failed: HMAC mismatch")]
+        SignatureMismatch(#[source] hmac::digest::MacError),
+
+        #[error("signing secret rejected by HMAC")]
+        SigningKey(#[source] hmac::digest::InvalidLength),
+
+        #[error("malformed Slack request: invalid X-Slack-Request-Timestamp")]
+        InvalidTimestamp(#[source] std::num::ParseIntError),
 
         #[error("request timestamp outside tolerance window")]
         StaleTimestamp,
@@ -28,10 +41,7 @@ domain_error! {
         Outbound(String),
 
         #[error("invalid outbound URL: {0}")]
-        OutboundUrl(String),
-
-        #[error("{0}")]
-        Internal(String),
+        OutboundUrl(#[from] OutboundUrlError),
     }
 }
 

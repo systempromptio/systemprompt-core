@@ -192,10 +192,32 @@ async fn authenticate_start_unknown_email_is_client_error() -> anyhow::Result<()
     let resp = app
         .oneshot(empty_post(&format!("/webauthn/auth/start?email={email}")))
         .await?;
-    assert!(
-        resp.status().is_client_error() || resp.status().is_server_error(),
-        "unknown email must not succeed, got {}",
-        resp.status()
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{}", resp.status());
+    let v = read_json(resp).await?;
+    assert_eq!(v["error"].as_str(), Some("authentication_failed"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn authenticate_start_does_not_reveal_whether_an_email_has_an_account() -> anyhow::Result<()>
+{
+    let (user, _client) = seed_user_and_client().await?;
+    let known = format!("{}@webauthn.invalid", user.as_str());
+    let unknown = format!("nobody-{}@webauthn.invalid", Uuid::new_v4().simple());
+
+    let mut answers = Vec::new();
+    for email in [known, unknown] {
+        let resp = webauthn_app()
+            .await?
+            .oneshot(empty_post(&format!("/webauthn/auth/start?email={email}")))
+            .await?;
+        let status = resp.status();
+        answers.push((status, read_json(resp).await?));
+    }
+
+    assert_eq!(
+        answers[0], answers[1],
+        "a passkeyless account and an unknown email must answer identically"
     );
     Ok(())
 }
