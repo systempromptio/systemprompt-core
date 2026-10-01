@@ -15,11 +15,10 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{MarketplaceId, UserId};
+use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId, UserId};
 use systemprompt_marketplace::{
     KeepSetsSubject, MarketplaceCandidate, MarketplaceMembership, keep_sets,
 };
-use systemprompt_models::bridge::ids::{PluginId, SkillId};
 use systemprompt_models::bridge::manifest::{PluginEntry, SkillEntry};
 use systemprompt_security::authz::{AccessControlRepository, NO_SUBJECT_ATTRIBUTES};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
@@ -106,7 +105,8 @@ async fn grant_role(f: &Fixture, kind: &str, id: &str, role: &str) {
 const ZERO_DIGEST: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
 fn skill(id: &str) -> SkillEntry {
-    use systemprompt_models::bridge::ids::{Sha256Digest, SkillName};
+    use systemprompt_identifiers::SkillName;
+    use systemprompt_models::bridge::ids::Sha256Digest;
     SkillEntry {
         publication: None,
         id: SkillId::try_new(id).expect("valid skill id"),

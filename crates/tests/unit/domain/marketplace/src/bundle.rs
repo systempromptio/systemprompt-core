@@ -1,15 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use systemprompt_identifiers::{AgentId, AgentName, PluginId, ValidatedUrl};
+use systemprompt_identifiers::{
+    AgentId, AgentName, LibraryArtifactId, MarketplaceRuleId, McpServerId, PluginId, RuleName,
+    SkillId, SkillName, ValidatedUrl,
+};
 use systemprompt_marketplace::MarketplaceCache;
 use systemprompt_marketplace::bundle::{
     BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content,
 };
 use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles};
-use systemprompt_models::bridge::ids::{
-    LibraryArtifactId, ManagedMcpServerName, RuleId, RuleName, Sha256Digest, SkillId, SkillName,
-};
+use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
@@ -53,7 +54,7 @@ fn skill_entry_at(id: &str, description: &str, instructions: &str, file_path: &s
 fn mcp_server(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).expect("mcp name"),
+        name: McpServerId::try_new(name).expect("mcp name"),
         url: ValidatedUrl::try_new(url).expect("mcp url"),
         transport: Some("http".to_owned()),
         headers: None,
@@ -356,7 +357,7 @@ fn plugin_bundles_scopes_to_the_marketplace_include_list() {
     let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
     let ids: Vec<&str> = bundles
         .keys()
-        .map(systemprompt_models::bridge::ids::PluginId::as_str)
+        .map(systemprompt_identifiers::PluginId::as_str)
         .collect();
     assert_eq!(
         ids,
@@ -401,7 +402,7 @@ fn plugin_bundles_unions_enabled_marketplaces() {
     let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
     let ids: Vec<&str> = bundles
         .keys()
-        .map(systemprompt_models::bridge::ids::PluginId::as_str)
+        .map(systemprompt_identifiers::PluginId::as_str)
         .collect();
     assert_eq!(
         ids,
@@ -539,7 +540,7 @@ fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
 
 fn comparable(
     bundles: &std::collections::BTreeMap<
-        systemprompt_models::bridge::ids::PluginId,
+        systemprompt_identifiers::PluginId,
         std::collections::BTreeMap<String, systemprompt_marketplace::bundle::BundleFile>,
     >,
 ) -> std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<u8>>> {
@@ -1338,7 +1339,7 @@ fn a_bundle_ships_an_install_manifest_and_the_raw_page_beside_each_record() {
 
 fn rule_entry(id: &str, description: &str, instructions: &str) -> RuleEntry {
     RuleEntry {
-        id: RuleId::try_new(id).expect("rule id"),
+        id: MarketplaceRuleId::try_new(id).expect("rule id"),
         name: RuleName::try_new(id.replace('_', " ")).expect("rule name"),
         description: description.to_owned(),
         file_path: format!("/nonexistent/rules/{id}/index.md"),

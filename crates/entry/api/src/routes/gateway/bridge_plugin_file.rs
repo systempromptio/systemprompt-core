@@ -16,7 +16,7 @@ use axum::extract::Path as AxumPath;
 use axum::http::{HeaderMap, header};
 use axum::response::Response;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::bridge::ids::PluginId;
+use systemprompt_identifiers::PluginId;
 use systemprompt_runtime::AppContext;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};

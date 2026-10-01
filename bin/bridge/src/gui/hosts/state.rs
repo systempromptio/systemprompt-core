@@ -5,6 +5,8 @@
 
 use std::collections::HashMap;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 
 /// Monotonic per-host probe ticket: a result is applied only when its ticket
@@ -41,17 +43,17 @@ impl HostState {
 
 #[derive(Debug, Clone, Default)]
 pub struct HostsState {
-    pub by_id: HashMap<String, HostState>,
+    pub by_id: HashMap<HostKind, HostState>,
     pub local_proxy: ProxyHealth,
     pub proxy_probe_in_flight: bool,
 }
 
 impl HostsState {
-    pub fn entry(&mut self, host_id: &str) -> &mut HostState {
-        self.by_id.entry(host_id.to_owned()).or_default()
+    pub fn entry(&mut self, host_id: HostKind) -> &mut HostState {
+        self.by_id.entry(host_id).or_default()
     }
 
-    pub fn get(&self, host_id: &str) -> Option<&HostState> {
-        self.by_id.get(host_id)
+    pub fn get(&self, host_id: HostKind) -> Option<&HostState> {
+        self.by_id.get(&host_id)
     }
 }

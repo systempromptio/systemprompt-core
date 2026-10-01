@@ -9,6 +9,7 @@ mod fetch;
 mod identity;
 pub mod identity_source;
 pub mod manifest;
+mod manifest_hosts;
 pub mod manifest_version;
 pub mod model_view;
 pub mod types;

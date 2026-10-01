@@ -45,11 +45,7 @@ pub(super) fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<
         AgentServiceError::operation(format!("Invalid YAML in {}", config_path.display()), e)
     })?;
 
-    let resolved_id = if config.id.as_str().is_empty() {
-        skill_id.clone()
-    } else {
-        config.id.clone()
-    };
+    let resolved_id = config.id.clone().unwrap_or_else(|| skill_id.clone());
 
     let content_path = skill_dir.join(config.content_file());
     let instructions = if content_path.exists() {

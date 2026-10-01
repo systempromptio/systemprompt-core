@@ -56,3 +56,28 @@ fn non_base64_payload_is_none() {
 fn non_json_payload_is_none() {
     assert!(decode_jwt_identity_unverified(NON_JSON_TOKEN).is_none());
 }
+
+// Payload segments are base64url of `{"sub":""}` and `{"sub":"unset"}`.
+const EMPTY_SUB_TOKEN: &str = "eyJhbGciOiJub25lIn0.eyJzdWIiOiIifQ.sig";
+const SENTINEL_SUB_TOKEN: &str = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1bnNldCJ9.sig";
+
+// Payload segment is base64url of `{"email":"a@b.com","sub":"test-user"}`.
+const OPAQUE_SUB_TOKEN: &str =
+    "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFAYi5jb20iLCJzdWIiOiJ0ZXN0LXVzZXIifQ.sig";
+
+#[test]
+fn empty_or_sentinel_subject_decodes_to_no_identity() {
+    assert!(decode_jwt_identity_unverified(EMPTY_SUB_TOKEN).is_none());
+    assert!(decode_jwt_identity_unverified(SENTINEL_SUB_TOKEN).is_none());
+}
+
+#[test]
+fn opaque_non_uuid_subject_still_decodes() {
+    let identity =
+        decode_jwt_identity_unverified(OPAQUE_SUB_TOKEN).expect("opaque subject decodes");
+    assert_eq!(
+        identity.user_id.as_ref().map(|id| id.as_str()),
+        Some("test-user")
+    );
+    assert_eq!(identity.email.as_deref(), Some("a@b.com"));
+}

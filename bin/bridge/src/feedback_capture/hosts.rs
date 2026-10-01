@@ -8,23 +8,30 @@ use crate::feedback::ReadbackFault;
 use crate::gateway::manifest::SkillEntry;
 use crate::host_sync::HostSyncCtx;
 use std::path::PathBuf;
+use systemprompt_models::bridge::host::HostKind;
 
-pub(super) fn roots(host: &str, ctx: &HostSyncCtx<'_>, skill: &SkillEntry) -> Result<Vec<PathBuf>> {
+pub(super) fn roots(
+    host: HostKind,
+    ctx: &HostSyncCtx<'_>,
+    skill: &SkillEntry,
+) -> Result<Vec<PathBuf>> {
     if !crate::hash::safe_id_segment(skill.id.as_str()) {
         return Err(FeedbackError::Readback(ReadbackFault::UnsafeSkillId));
     }
     let roots = match host {
-        "hermes" => vec![crate::integration::hermes::feedback_skill_root().join(skill.id.as_str())],
-        "opencode" => vec![crate::integration::opencode::feedback_skill_root().join(
+        HostKind::Hermes => {
+            vec![crate::integration::hermes::feedback_skill_root().join(skill.id.as_str())]
+        },
+        HostKind::OpenCode => vec![crate::integration::opencode::feedback_skill_root().join(
             crate::integration::managed_skills::kebab_dir(skill.id.as_str()),
         )],
-        "codex-cli" => {
+        HostKind::CodexCli => {
             crate::integration::codex_cli::feedback_skill_roots(ctx.loopback, ctx.manifest, skill)
         },
-        "claude-code" => {
+        HostKind::ClaudeCode => {
             crate::integration::claude_code_cli::feedback_skill_roots(ctx.manifest, skill)
         },
-        "claude-desktop" => {
+        HostKind::ClaudeDesktop => {
             if crate::integration::cowork_plugins::resolve_target()
                 .map_err(|error| FeedbackError::Io(std::io::Error::other(error)))?
                 .is_none()
@@ -42,7 +49,6 @@ pub(super) fn roots(host: &str, ctx: &HostSyncCtx<'_>, skill: &SkillEntry) -> Re
                 })
                 .collect()
         },
-        _ => return Err(FeedbackError::Scope),
     };
     if roots.iter().any(|root| !root.join("SKILL.md").is_file()) {
         return Err(FeedbackError::Readback(ReadbackFault::SkillMissing));

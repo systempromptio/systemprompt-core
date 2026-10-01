@@ -94,7 +94,11 @@ fn validate_skill(id: &str, files: &RevisionFiles) -> Result<()> {
         .ok_or_else(|| invalid("Skill configuration is missing"))?;
     let config: DiskSkillConfig = serde_yaml::from_slice(&config.bytes)
         .map_err(|_error| invalid("Skill configuration is invalid"))?;
-    if !config.id.as_str().is_empty() && config.id.as_str() != id {
+    if config
+        .id
+        .as_ref()
+        .is_some_and(|declared| declared.as_str() != id)
+    {
         return Err(invalid("Skill ID does not match its authoring directory"));
     }
     if !config.enabled || !files.0.contains_key(config.content_file()) {

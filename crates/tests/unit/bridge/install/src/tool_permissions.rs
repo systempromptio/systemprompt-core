@@ -8,15 +8,15 @@ use systemprompt_bridge::gateway::manifest::{
     ManagedMcpServer, SignedManifestBuilder, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{ManagedMcpServerName, ToolName, ToolPolicy};
+use systemprompt_bridge::ids::{McpServerId, McpToolName, ToolPolicy};
 use systemprompt_bridge::install::mdm::claude_code_settings::permissions::{
     PermissionRules, merged_permissions, rules_for,
 };
 
-fn server(name: &str, policy: Option<BTreeMap<ToolName, ToolPolicy>>) -> ManagedMcpServer {
+fn server(name: &str, policy: Option<BTreeMap<McpToolName, ToolPolicy>>) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).unwrap(),
+        name: McpServerId::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(format!("https://gw.example.com/api/v1/mcp/{name}/mcp"))
             .expect("valid ValidatedUrl"),
         transport: Some("http".into()),
@@ -26,9 +26,9 @@ fn server(name: &str, policy: Option<BTreeMap<ToolName, ToolPolicy>>) -> Managed
     }
 }
 
-fn wildcard(policy: ToolPolicy) -> BTreeMap<ToolName, ToolPolicy> {
+fn wildcard(policy: ToolPolicy) -> BTreeMap<McpToolName, ToolPolicy> {
     BTreeMap::from([(
-        ToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD).unwrap(),
+        McpToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD).unwrap(),
         policy,
     )])
 }
@@ -74,8 +74,11 @@ fn a_wildcard_allow_becomes_the_bare_server_rule_and_one_per_mirroring_plugin() 
 #[test]
 fn a_named_tool_rule_is_scoped_to_that_tool_and_deny_lands_in_the_deny_list() {
     let policy = BTreeMap::from([
-        (ToolName::try_new("*").unwrap(), ToolPolicy::Allow),
-        (ToolName::try_new("delete_issue").unwrap(), ToolPolicy::Deny),
+        (McpToolName::try_new("*").unwrap(), ToolPolicy::Allow),
+        (
+            McpToolName::try_new("delete_issue").unwrap(),
+            ToolPolicy::Deny,
+        ),
     ]);
     let m = manifest(vec![server("atlassian", Some(policy))]);
     let rules = rules_for(&m, &BTreeMap::new());
@@ -131,9 +134,15 @@ fn taking_every_bridge_rule_out_of_an_otherwise_empty_object_removes_the_key() {
 #[test]
 fn a_wildcard_deny_drops_named_allows_that_claude_code_would_never_honour() {
     let policy = BTreeMap::from([
-        (ToolName::try_new("*").unwrap(), ToolPolicy::Deny),
-        (ToolName::try_new("read_issue").unwrap(), ToolPolicy::Allow),
-        (ToolName::try_new("delete_issue").unwrap(), ToolPolicy::Deny),
+        (McpToolName::try_new("*").unwrap(), ToolPolicy::Deny),
+        (
+            McpToolName::try_new("read_issue").unwrap(),
+            ToolPolicy::Allow,
+        ),
+        (
+            McpToolName::try_new("delete_issue").unwrap(),
+            ToolPolicy::Deny,
+        ),
     ]);
     let m = manifest(vec![server("atlassian", Some(policy))]);
     let rules = rules_for(&m, &BTreeMap::new());

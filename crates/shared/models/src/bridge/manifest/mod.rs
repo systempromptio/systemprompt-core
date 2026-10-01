@@ -30,10 +30,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 pub use crate::bridge::ids::ManifestSignature;
-use crate::bridge::ids::PluginId;
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::services::bridge_policy::AutoUpdatePolicy;
-use systemprompt_identifiers::{ApiKeyId, MarketplaceId, TenantId, UserId};
+use systemprompt_identifiers::{ApiKeyId, MarketplaceId, PluginId, TenantId, UserId};
 
 pub use entries::{
     AgentEntry, ArtifactEntry, HookEntry, PluginEntry, PluginFile, RuleEntry, SkillEntry,

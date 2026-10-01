@@ -4,13 +4,24 @@ use systemprompt_bridge::integration::host_app::{
     AppInstallState, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, HostConfigSchema,
     ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileState,
 };
-use systemprompt_bridge::integration::{find_host_by_id, host_apps};
+use systemprompt_bridge::integration::{
+    ResolvedHost, SYNC_ONLY_AGENTS, find_host_by_id, host_apps, resolve_host,
+};
 use systemprompt_bridge::{host_sync, register_host_app};
+use systemprompt_models::bridge::host::HostKind;
+
+// Why: this binary suppresses Hermes below (the white-label shape), so it is
+// in neither the registry nor the sync-only table for every test here.
+const SUPPRESSED: HostKind = HostKind::Hermes;
+
+fn desktop_offered() -> bool {
+    cfg!(any(target_os = "macos", target_os = "windows"))
+}
 
 #[test]
 fn host_apps_contains_builtins() {
-    let ids: Vec<&str> = host_apps().iter().map(|h| h.id()).collect();
-    for expected in ["codex-cli", "hermes", "opencode"] {
+    let ids: Vec<HostKind> = host_apps().iter().map(|h| h.id()).collect();
+    for expected in [HostKind::CodexCli, HostKind::OpenCode] {
         assert!(
             ids.contains(&expected),
             "{expected} built-in host missing; registry = {ids:?}"
@@ -23,21 +34,18 @@ fn host_apps_contains_builtins() {
 // implementation here silently vanishes from the GUI.
 #[test]
 fn known_hosts_cover_every_local_and_sync_only_agent() {
-    use systemprompt_bridge::integration::SYNC_ONLY_AGENTS;
-    use systemprompt_models::bridge::host::HostKind;
-
-    let mut bridge: Vec<&str> = host_apps()
+    let mut bridge: Vec<HostKind> = host_apps()
         .iter()
         .map(|h| h.id())
-        .filter(|id| !id.starts_with("dummy-"))
         .chain(SYNC_ONLY_AGENTS.iter().map(|a| a.id))
         .collect();
     bridge.sort_unstable();
     bridge.dedup();
-    let mut known: Vec<&str> = HostKind::ALL.map(HostKind::as_str).to_vec();
-    if !cfg!(any(target_os = "macos", target_os = "windows")) {
-        known.retain(|id| *id != "claude-desktop");
-    }
+    let mut known: Vec<HostKind> = HostKind::ALL
+        .into_iter()
+        .filter(|kind| *kind != SUPPRESSED)
+        .filter(|kind| desktop_offered() || *kind != HostKind::ClaudeDesktop)
+        .collect();
     known.sort_unstable();
     assert_eq!(
         bridge, known,
@@ -47,7 +55,7 @@ fn known_hosts_cover_every_local_and_sync_only_agent() {
 
 #[test]
 fn host_apps_are_sorted_by_id() {
-    let ids: Vec<&str> = host_apps().iter().map(|h| h.id()).collect();
+    let ids: Vec<HostKind> = host_apps().iter().map(|h| h.id()).collect();
     let mut sorted = ids.clone();
     sorted.sort_unstable();
     assert_eq!(ids, sorted, "host registry must be sorted by id");
@@ -55,14 +63,8 @@ fn host_apps_are_sorted_by_id() {
 
 #[test]
 fn host_sync_registry_contains_builtins() {
-    let ids: Vec<&str> = host_sync::registry().iter().map(|s| s.host_id()).collect();
-    for expected in [
-        "codex-cli",
-        "claude-code",
-        "claude-desktop",
-        "hermes",
-        "opencode",
-    ] {
+    let ids: Vec<HostKind> = host_sync::registry().iter().map(|s| s.host_id()).collect();
+    for expected in HostKind::ALL {
         assert!(
             ids.contains(&expected),
             "{expected} host sync missing; registry = {ids:?}"
@@ -74,7 +76,7 @@ fn host_sync_registry_contains_builtins() {
 fn host_sync_registry_keeps_both_claude_desktop_facets() {
     let cowork = host_sync::registry()
         .iter()
-        .filter(|s| s.host_id() == "claude-desktop")
+        .filter(|s| s.host_id() == HostKind::ClaudeDesktop)
         .count();
     assert_eq!(
         cowork, 2,
@@ -83,106 +85,56 @@ fn host_sync_registry_keeps_both_claude_desktop_facets() {
     );
 }
 
-struct DummyHost;
-
-static DUMMY_SCHEMA: HostConfigSchema = HostConfigSchema {
+static TEST_SCHEMA: HostConfigSchema = HostConfigSchema {
     required_keys: &[],
     display_keys: &[],
 };
 
-impl HostApp for DummyHost {
-    fn id(&self) -> &'static str {
-        "dummy-test-host"
-    }
-    fn display_name(&self) -> &'static str {
-        "Dummy Test Host"
-    }
-    fn config_schema(&self) -> &'static HostConfigSchema {
-        &DUMMY_SCHEMA
-    }
-    fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
-        HostAppSnapshot {
-            host_id: "dummy-test-host",
-            display_name: "Dummy Test Host",
-            profile_state: ProfileState::Absent,
-            profile_source: None,
-            profile_keys: BTreeMap::new(),
-            probe_error: None,
-            host_running: Some(false),
-            host_processes: Vec::new(),
-            app_installed: AppInstallState::NotInstalled,
-            probed_at_unix: 0,
-            update_needs_approval: false,
-        }
-    }
-    fn generate_profile(
-        &self,
-        _inputs: &ProfileGenInputs,
-    ) -> Result<GeneratedProfile, HostAppError> {
-        Ok(GeneratedProfile {
-            path: String::new(),
-            bytes: 0,
-            payload_uuid: String::new(),
-            profile_uuid: String::new(),
-        })
-    }
-    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
-        Ok(ProfileInstalled::ok())
-    }
-    fn install_action_label(&self) -> &'static str {
-        "install"
+fn absent_snapshot(host_id: HostKind, display_name: &'static str) -> HostAppSnapshot {
+    HostAppSnapshot {
+        host_id,
+        display_name,
+        profile_state: ProfileState::Absent,
+        profile_source: None,
+        profile_keys: BTreeMap::new(),
+        probe_error: None,
+        host_running: Some(false),
+        host_processes: Vec::new(),
+        app_installed: AppInstallState::NotInstalled,
+        probed_at_unix: 0,
+        update_needs_approval: false,
     }
 }
 
-register_host_app!(DummyHost);
-
-#[test]
-fn externally_registered_host_is_discoverable() {
-    let host = find_host_by_id("dummy-test-host");
-    assert!(
-        host.is_some(),
-        "host registered via register_host_app! not found in registry"
-    );
-    assert_eq!(host.unwrap().display_name(), "Dummy Test Host");
+fn empty_profile() -> GeneratedProfile {
+    GeneratedProfile {
+        path: String::new(),
+        bytes: 0,
+        payload_uuid: String::new(),
+        profile_uuid: String::new(),
+    }
 }
 
 struct ShadowCodexHost;
 
 impl HostApp for ShadowCodexHost {
-    fn id(&self) -> &'static str {
-        "codex-cli"
+    fn id(&self) -> HostKind {
+        HostKind::CodexCli
     }
     fn display_name(&self) -> &'static str {
         "Shadowed Codex"
     }
     fn config_schema(&self) -> &'static HostConfigSchema {
-        &DUMMY_SCHEMA
+        &TEST_SCHEMA
     }
     fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
-        HostAppSnapshot {
-            host_id: "codex-cli",
-            display_name: "Shadowed Codex",
-            profile_state: ProfileState::Absent,
-            profile_source: None,
-            profile_keys: BTreeMap::new(),
-            probe_error: None,
-            host_running: Some(false),
-            host_processes: Vec::new(),
-            app_installed: AppInstallState::NotInstalled,
-            probed_at_unix: 0,
-            update_needs_approval: false,
-        }
+        absent_snapshot(HostKind::CodexCli, "Shadowed Codex")
     }
     fn generate_profile(
         &self,
         _inputs: &ProfileGenInputs,
     ) -> Result<GeneratedProfile, HostAppError> {
-        Ok(GeneratedProfile {
-            path: String::new(),
-            bytes: 0,
-            payload_uuid: String::new(),
-            profile_uuid: String::new(),
-        })
+        Ok(empty_profile())
     }
     fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
@@ -195,14 +147,17 @@ impl HostApp for ShadowCodexHost {
 register_host_app!(ShadowCodexHost, priority = 100);
 
 #[test]
-fn higher_priority_registration_shadows_builtin() {
-    let host = find_host_by_id("codex-cli").expect("codex-cli present");
+fn an_externally_registered_host_is_discoverable_and_shadows_the_builtin() {
+    let host = find_host_by_id(HostKind::CodexCli).expect("codex-cli present");
     assert_eq!(
         host.display_name(),
         "Shadowed Codex",
         "priority-100 registration should shadow the built-in codex-cli host"
     );
-    let count = host_apps().iter().filter(|h| h.id() == "codex-cli").count();
+    let count = host_apps()
+        .iter()
+        .filter(|h| h.id() == HostKind::CodexCli)
+        .count();
     assert_eq!(count, 1, "shadowed id must appear exactly once (deduped)");
 }
 
@@ -212,11 +167,8 @@ fn higher_priority_registration_shadows_builtin() {
 // asserted: no id the gateway may send can come back Unknown.
 #[test]
 fn no_known_host_resolves_as_unknown() {
-    use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
-    use systemprompt_models::bridge::host::HostKind;
-
-    for id in HostKind::ALL.map(HostKind::as_str) {
-        if !cfg!(any(target_os = "macos", target_os = "windows")) && id == "claude-desktop" {
+    for id in HostKind::ALL {
+        if !desktop_offered() && id == HostKind::ClaudeDesktop {
             continue;
         }
         assert!(
@@ -232,88 +184,41 @@ fn no_known_host_resolves_as_unknown() {
 
 #[test]
 fn sync_only_agent_resolves_without_a_host_app() {
-    use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
-
     assert!(
-        find_host_by_id("claude-code").is_none(),
+        find_host_by_id(HostKind::ClaudeCode).is_none(),
         "sync-only by design"
     );
-    let ResolvedHost::SyncOnly(agent) = resolve_host("claude-code") else {
+    let ResolvedHost::SyncOnly(agent) = resolve_host(HostKind::ClaudeCode) else {
         panic!("claude-code must resolve as a sync-only agent, not an unknown id");
     };
     assert_eq!(agent.display_name, "Claude Code");
 }
 
 #[test]
-fn an_id_belonging_to_nothing_is_the_only_unknown() {
-    use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
-
+fn a_kind_this_build_has_no_host_for_is_the_only_unknown() {
+    if desktop_offered() {
+        return;
+    }
     assert!(matches!(
-        resolve_host("no-such-agent"),
+        resolve_host(HostKind::ClaudeDesktop),
         ResolvedHost::Unknown
     ));
 }
 
-struct SuppressedHost;
-
-impl HostApp for SuppressedHost {
-    fn id(&self) -> &'static str {
-        "dummy-suppressed-host"
-    }
-    fn display_name(&self) -> &'static str {
-        "Suppressed Host"
-    }
-    fn config_schema(&self) -> &'static HostConfigSchema {
-        &DUMMY_SCHEMA
-    }
-    fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
-        HostAppSnapshot {
-            host_id: "dummy-suppressed-host",
-            display_name: "Suppressed Host",
-            profile_state: ProfileState::Absent,
-            profile_source: None,
-            profile_keys: BTreeMap::new(),
-            probe_error: None,
-            host_running: Some(false),
-            host_processes: Vec::new(),
-            app_installed: AppInstallState::NotInstalled,
-            probed_at_unix: 0,
-            update_needs_approval: false,
-        }
-    }
-    fn generate_profile(
-        &self,
-        _inputs: &ProfileGenInputs,
-    ) -> Result<GeneratedProfile, HostAppError> {
-        Ok(GeneratedProfile {
-            path: String::new(),
-            bytes: 0,
-            payload_uuid: String::new(),
-            profile_uuid: String::new(),
-        })
-    }
-    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
-        Ok(ProfileInstalled::ok())
-    }
-    fn install_action_label(&self) -> &'static str {
-        "install"
-    }
+#[test]
+fn a_host_id_outside_the_closed_set_cannot_be_named() {
+    assert!("no-such-agent".parse::<HostKind>().is_err());
+    assert!("codex".parse::<HostKind>().is_err());
 }
 
-register_host_app!(SuppressedHost);
-systemprompt_bridge::suppress_host_app!("dummy-suppressed-host");
+systemprompt_bridge::suppress_host_app!(SUPPRESSED);
 
 // Why: this is the Astound shape — a white-label build calls
-// `suppress_host_app!("codex-cli")`, and the id is then in neither the registry
-// nor the sync-only table. "Not offered on this installation" is the truthful
-// answer; "unknown host" is not.
+// `suppress_host_app!(HostKind::CodexCli)`, and the id is then in neither the
+// registry nor the sync-only table. "Not offered on this installation" is the
+// truthful answer; "unknown host" is not.
 #[test]
 fn suppressed_host_is_not_unknown() {
-    use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
-
-    assert!(find_host_by_id("dummy-suppressed-host").is_none());
-    assert!(matches!(
-        resolve_host("dummy-suppressed-host"),
-        ResolvedHost::Suppressed
-    ));
+    assert!(find_host_by_id(SUPPRESSED).is_none());
+    assert!(matches!(resolve_host(SUPPRESSED), ResolvedHost::Suppressed));
 }

@@ -269,7 +269,7 @@ fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_surface() {
         inputs.host_token,
         systemprompt_bridge::proxy::scoped_token::host_token(
             &systemprompt_bridge::ids::LoopbackSecret::new("seeded-loopback-secret"),
-            &systemprompt_bridge::ids::HostId::new(CODEX_CLI_HOST.id()),
+            CODEX_CLI_HOST.id(),
         ),
         "the profile carries the host token derived from the loopback secret the proxy will check"
     );
@@ -316,7 +316,7 @@ fn a_surface_override_replaces_the_models_and_the_protocol_header() {
 
 #[test]
 fn every_registered_host_is_probed_before_a_repair_is_considered() {
-    let ids: Vec<&'static str> = host_apps().iter().map(|h| h.id()).collect();
+    let ids: Vec<&'static str> = host_apps().iter().map(|h| h.id().as_str()).collect();
     assert!(
         ids.contains(&"codex-cli") && ids.contains(&"hermes") && ids.contains(&"opencode"),
         "the reapply sweep walks the whole host registry: {ids:?}"
@@ -361,8 +361,8 @@ static PROMPTING_SCHEMA: HostConfigSchema = HostConfigSchema {
 };
 
 impl HostApp for PromptingHost {
-    fn id(&self) -> &'static str {
-        "prompting-host"
+    fn id(&self) -> systemprompt_models::bridge::host::HostKind {
+        systemprompt_models::bridge::host::HostKind::Hermes
     }
 
     fn display_name(&self) -> &'static str {

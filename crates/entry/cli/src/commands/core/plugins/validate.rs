@@ -188,11 +188,10 @@ fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, bool
         else {
             continue;
         };
-        let id = if config.id.as_str().is_empty() {
-            entry.file_name().to_string_lossy().into_owned()
-        } else {
-            config.id.as_str().to_owned()
-        };
+        let id = config.id.as_ref().map_or_else(
+            || entry.file_name().to_string_lossy().into_owned(),
+            |id| id.as_str().to_owned(),
+        );
         skills.insert(id, config.enabled);
     }
     skills

@@ -22,6 +22,8 @@ pub use systemprompt_models::services::{AutoUpdatePolicy, PluginComponentRef};
 
 pub use systemprompt_identifiers::{AgentId, AgentName, ApiKeyId, TenantId, UserId, ValidatedUrl};
 
+pub use super::manifest_hosts::{enables_host, skill_targets_host, unknown_skill_hosts};
+
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
     #[error("pubkey base64 decode: {0}")]

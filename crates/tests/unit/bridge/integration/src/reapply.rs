@@ -100,7 +100,11 @@ fn a_per_user_override_still_narrows_a_host_that_declares_no_surfaces() {
     overrides.insert("opencode".to_owned(), vec!["anthropic".to_owned()]);
 
     assert_eq!(
-        effective_surfaces("opencode", &[], &overrides),
+        effective_surfaces(
+            systemprompt_models::bridge::host::HostKind::OpenCode,
+            &[],
+            &overrides
+        ),
         vec![ApiSurface::Anthropic],
         "an empty host default means 'everything', and an override still narrows it"
     );

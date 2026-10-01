@@ -11,6 +11,7 @@ use crate::feedback::credentials::Enrollment;
 use crate::feedback::outbox::Outbox;
 use crate::feedback::{FeedbackError, Result};
 use crate::host_sync::HostSyncCtx;
+use systemprompt_models::bridge::host::HostKind;
 
 const RECOVERY_BUDGET: std::time::Duration = std::time::Duration::from_secs(30);
 const DELIVERY_BUDGET: std::time::Duration = std::time::Duration::from_secs(10);
@@ -44,8 +45,8 @@ impl CaptureOutcome {
     }
 }
 
-pub async fn capture_host(host: &str, ctx: &HostSyncCtx<'_>) -> Result<CaptureOutcome> {
-    let kind = crate::feedback::client_kind(host).ok_or(FeedbackError::Scope)?;
+pub async fn capture_host(host: HostKind, ctx: &HostSyncCtx<'_>) -> Result<CaptureOutcome> {
+    let kind = crate::feedback::client_kind(host.as_str()).ok_or(FeedbackError::Scope)?;
     let skills: Vec<_> = ctx
         .manifest
         .skills

@@ -3,12 +3,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::bridge::host::HostKind;
+
 use super::AppState;
 use crate::gui::hosts::state::ProbeSeq;
 use crate::integration::{HostAppSnapshot, ProxyHealth};
 
 impl AppState {
-    pub fn apply_host_snapshot(&self, host_id: &str, seq: ProbeSeq, snap: HostAppSnapshot) -> bool {
+    pub fn apply_host_snapshot(
+        &self,
+        host_id: HostKind,
+        seq: ProbeSeq,
+        snap: HostAppSnapshot,
+    ) -> bool {
         let mut guard = self.snap_mut();
         let entry = guard.hosts.entry(host_id);
         if !entry.is_newest(seq) {
@@ -20,7 +27,7 @@ impl AppState {
         true
     }
 
-    pub fn finish_failed_probe(&self, host_id: Option<(&str, ProbeSeq)>) {
+    pub fn finish_failed_probe(&self, host_id: Option<(HostKind, ProbeSeq)>) {
         let mut guard = self.snap_mut();
         match host_id {
             Some((id, seq)) => {
@@ -33,7 +40,7 @@ impl AppState {
         }
     }
 
-    pub fn begin_host_probe(&self, host_id: &str, exclusive: bool) -> Option<ProbeSeq> {
+    pub fn begin_host_probe(&self, host_id: HostKind, exclusive: bool) -> Option<ProbeSeq> {
         let mut guard = self.snap_mut();
         let entry = guard.hosts.entry(host_id);
         if exclusive && entry.probe_in_flight {
@@ -46,7 +53,7 @@ impl AppState {
 
     pub fn set_last_generated_profile(
         &self,
-        host_id: &str,
+        host_id: HostKind,
         profile: crate::integration::GeneratedProfile,
     ) {
         let mut guard = self.snap_mut();

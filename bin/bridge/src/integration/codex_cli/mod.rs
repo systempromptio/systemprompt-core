@@ -10,10 +10,12 @@ mod probe;
 
 pub use managed_resources::CodexCliSync;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::integration::host_app::{
-    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
-    HostConfigSchema, HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled,
-    ProfileProbe, ProfileRemoval, ProfileState,
+    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppKind, HostAppSnapshot,
+    HostConfigSchema, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
+    ProfileRemoval, ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -22,8 +24,8 @@ pub struct CodexCliHost;
 pub static CODEX_CLI_HOST: CodexCliHost = CodexCliHost;
 
 impl HostApp for CodexCliHost {
-    fn id(&self) -> &'static str {
-        "codex-cli"
+    fn id(&self) -> HostKind {
+        HostKind::CodexCli
     }
 
     fn display_name(&self) -> &'static str {
@@ -97,17 +99,13 @@ impl HostApp for CodexCliHost {
         }
     }
 
-    fn kind(&self) -> HostKind {
-        HostKind::CliTool
+    fn kind(&self) -> HostAppKind {
+        HostAppKind::CliTool
     }
 
     fn description(&self) -> &'static str {
         "OpenAI's Codex (CLI, desktop app, IDE extension). systemprompt-bridge installs managed \
          configuration that takes precedence over user config across all three surfaces."
-    }
-
-    fn icon_id(&self) -> &'static str {
-        "codex-cli"
     }
 
     fn config_format(&self) -> ConfigFormat {

@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::ids::SkillId;
+use systemprompt_identifiers::SkillId;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };

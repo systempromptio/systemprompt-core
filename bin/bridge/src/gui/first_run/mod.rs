@@ -42,7 +42,7 @@ pub(crate) fn tick(app: &mut crate::gui::GuiApp) {
     for host in &state.hosts {
         if !host.status.is_terminal() {
             app.state.set_first_run_host(
-                &host.host_id,
+                host.host_id,
                 state::StepStatus::Failed,
                 Some(format!("timed out after {TIMEOUT_SECS}s")),
             );

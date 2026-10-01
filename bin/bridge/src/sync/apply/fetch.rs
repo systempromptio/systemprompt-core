@@ -24,7 +24,7 @@ use super::safe_path::join_under;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{PluginEntry, PluginFile};
 use crate::hash::sha256_hex;
-use crate::ids::{BearerToken, Sha256Digest};
+use crate::ids::{BearerToken, PluginId, Sha256Digest};
 
 const PLUGIN_FILE_FETCH_CONCURRENCY: usize = 8;
 
@@ -63,7 +63,7 @@ pub(super) async fn fetch_plugin_into_staging(
             fetch_one_file(FileFetch {
                 client: client.clone(),
                 bearer: bearer.clone(),
-                plugin_id: plugin.id.to_string(),
+                plugin_id: plugin.id.clone(),
                 file: file.clone(),
                 out,
                 reuse,
@@ -90,7 +90,7 @@ fn installed_copy(installed: &Path, file: &PluginFile) -> Option<Vec<u8>> {
 struct FileFetch {
     client: GatewayClient,
     bearer: BearerToken,
-    plugin_id: String,
+    plugin_id: PluginId,
     file: PluginFile,
     out: PathBuf,
     reuse: Option<Vec<u8>>,

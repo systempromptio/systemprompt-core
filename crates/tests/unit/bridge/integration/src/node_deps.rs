@@ -239,6 +239,7 @@ fn installed_plugin(bin: &Path) -> TempDir {
 #[test]
 fn promotion_carries_node_modules_forward_only_after_the_staged_tree_has_landed() {
     use systemprompt_bridge::sync::apply::swap::promote_staged;
+    use systemprompt_identifiers::PluginId;
     let bin = tempdir().unwrap();
     fake_tool(
         bin.path(),
@@ -252,7 +253,7 @@ fn promotion_carries_node_modules_forward_only_after_the_staged_tree_has_landed(
     let stage = root.path().join("stage");
     std::fs::rename(staged.keep(), &stage).unwrap();
 
-    assert!(promote_staged(&stage, &target, "plugin").unwrap());
+    assert!(promote_staged(&stage, &target, &PluginId::new("plugin")).unwrap());
     assert!(target.join("node_modules/installed").exists());
     assert!(!root.path().join("plugin.old").exists());
     assert_eq!(
@@ -265,6 +266,7 @@ fn promotion_carries_node_modules_forward_only_after_the_staged_tree_has_landed(
 #[test]
 fn a_failed_promotion_restores_the_installed_plugin_with_its_node_modules() {
     use systemprompt_bridge::sync::apply::swap::promote_staged;
+    use systemprompt_identifiers::PluginId;
     let bin = tempdir().unwrap();
     fake_tool(
         bin.path(),
@@ -276,7 +278,8 @@ fn a_failed_promotion_restores_the_installed_plugin_with_its_node_modules() {
     std::fs::rename(installed_plugin(bin.path()).keep(), &target).unwrap();
     let missing_stage = root.path().join("stage-that-never-landed");
 
-    promote_staged(&missing_stage, &target, "plugin").expect_err("promotion cannot complete");
+    promote_staged(&missing_stage, &target, &PluginId::new("plugin"))
+        .expect_err("promotion cannot complete");
     assert!(target.join("package.json").exists());
     assert!(
         target.join("node_modules/installed").exists(),

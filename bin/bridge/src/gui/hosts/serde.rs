@@ -3,12 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::gui::state::AppStateSnapshot;
 use crate::integration::agent_health::{
     AgentFleets, AgentSurface, HostCapabilities, HostHealthInputs, HostModelViewRef,
     SYNC_ONLY_AGENTS,
 };
-use crate::integration::host_app::{ConfigFormat, HostKind};
+use crate::integration::host_app::{ConfigFormat, HostAppKind};
 pub(crate) use crate::wire::hosts::{
     HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
 };
@@ -53,7 +55,7 @@ fn build_entry<'a>(
         can_open_config: caps.can_open_config,
         can_remove: caps.can_remove,
         probe_in_flight: st.is_some_and(|s| s.probe_in_flight),
-        enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
+        enabled: snap.enabled_hosts.iter().any(|h| h == host.id().as_str()),
         last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
         health: snapshot.map(HostHealthPayload::from),
         compatible_models: view.compatible_models,
@@ -89,7 +91,7 @@ fn build_sync_only_entry<'a>(
     HostEntryPayload {
         id: agent.id,
         display_name: agent.display_name,
-        kind: HostKind::CliTool,
+        kind: HostAppKind::CliTool,
         description: agent.description,
         icon: agent.icon,
         config_format: ConfigFormat::Json,
@@ -101,7 +103,7 @@ fn build_sync_only_entry<'a>(
         can_open_config: caps.can_open_config,
         can_remove: caps.can_remove,
         probe_in_flight: false,
-        enabled: snap.enabled_hosts.iter().any(|h| h == agent.id),
+        enabled: snap.enabled_hosts.iter().any(|h| h == agent.id.as_str()),
         last_generated_profile: None,
         health: None,
         compatible_models: Vec::new(),
@@ -117,7 +119,7 @@ fn build_sync_only_entry<'a>(
 
 pub(crate) fn single_host_payload<'a>(
     snap: &'a AppStateSnapshot,
-    host_id: &str,
+    host_id: HostKind,
 ) -> Option<HostEntryPayload<'a>> {
     crate::integration::host_apps()
         .iter()

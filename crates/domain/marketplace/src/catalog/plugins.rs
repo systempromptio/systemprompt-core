@@ -23,9 +23,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::ids::{
-    LibraryArtifactId, PluginId, RuleId, Sha256Digest, SkillId,
-};
+use systemprompt_identifiers::{LibraryArtifactId, MarketplaceRuleId, PluginId, SkillId};
+use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::{ArtifactEntry, PluginEntry, PluginFile};
 use systemprompt_models::services::{
     ComponentSource, MarketplaceMemberKind, PluginConfig, ServicesConfig,
@@ -51,9 +50,7 @@ pub fn plugin_bundles(
             );
             continue;
         }
-        let id = PluginId::try_new(config.id.as_str())
-            .map_err(|e| MarketplaceError::catalog("plugin id", e))?;
-        out.insert(id, bundle);
+        out.insert(config.id.clone(), bundle);
     }
     Ok(out)
 }
@@ -131,8 +128,7 @@ pub fn artifact_owners(
                 .map(|a| a.id.clone())
                 .collect(),
         };
-        let owner = PluginId::try_new(config.id.as_str())
-            .map_err(|e| MarketplaceError::catalog("plugin id", e))?;
+        let owner = config.id.clone();
         for id in selected {
             out.entry(id).or_default().insert(owner.clone());
         }
@@ -169,8 +165,7 @@ pub fn skill_owners(
     let mut out: BTreeMap<SkillId, BTreeSet<PluginId>> = BTreeMap::new();
     for config in selected_configs(services) {
         let agent_ids = crate::bundle::resolve_agents(config, content.agents);
-        let owner = PluginId::try_new(config.id.as_str())
-            .map_err(|e| MarketplaceError::catalog("plugin id", e))?;
+        let owner = config.id.clone();
         for id in crate::bundle::resolve_skill_ids(config, content, &agent_ids) {
             out.entry(id).or_default().insert(owner.clone());
         }
@@ -181,11 +176,10 @@ pub fn skill_owners(
 pub fn rule_owners(
     services: &ServicesConfig,
     content: &BundleContent<'_>,
-) -> Result<BTreeMap<RuleId, BTreeSet<PluginId>>, MarketplaceError> {
-    let mut out: BTreeMap<RuleId, BTreeSet<PluginId>> = BTreeMap::new();
+) -> Result<BTreeMap<MarketplaceRuleId, BTreeSet<PluginId>>, MarketplaceError> {
+    let mut out: BTreeMap<MarketplaceRuleId, BTreeSet<PluginId>> = BTreeMap::new();
     for config in selected_configs(services) {
-        let owner = PluginId::try_new(config.id.as_str())
-            .map_err(|e| MarketplaceError::catalog("plugin id", e))?;
+        let owner = config.id.clone();
         for id in crate::bundle::resolve_rule_ids(config, content) {
             out.entry(id).or_default().insert(owner.clone());
         }

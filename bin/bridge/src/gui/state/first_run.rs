@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::bridge::host::HostKind;
+
 use super::{AppState, now_unix};
 
 impl AppState {
@@ -10,7 +12,7 @@ impl AppState {
         self.snapshot().first_run.active
     }
 
-    pub fn begin_first_run(&self, hosts: &[(String, String)]) {
+    pub fn begin_first_run(&self, hosts: &[(HostKind, String)]) {
         use crate::gui::first_run::state::{FirstRunHost, FirstRunPhase, StepStatus};
         let mut guard = self.snap_mut();
         guard.first_run.active = true;
@@ -21,7 +23,7 @@ impl AppState {
         guard.first_run.hosts = hosts
             .iter()
             .map(|(id, name)| FirstRunHost {
-                host_id: id.clone(),
+                host_id: *id,
                 display_name: name.clone(),
                 status: StepStatus::Probing,
                 error: None,
@@ -31,7 +33,7 @@ impl AppState {
 
     pub fn set_first_run_host(
         &self,
-        host_id: &str,
+        host_id: HostKind,
         status: crate::gui::first_run::state::StepStatus,
         error: Option<String>,
     ) {

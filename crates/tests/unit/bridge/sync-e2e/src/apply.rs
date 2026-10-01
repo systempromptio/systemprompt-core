@@ -26,7 +26,7 @@ use systemprompt_bridge::gateway::manifest::{
     PluginEntry, PluginFile, SignedManifest, SkillEntry, UserInfo, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
+use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::mcp_registry::normalize_key;
 use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_identifiers::HookId;
@@ -103,7 +103,7 @@ fn hook() -> HookEntry {
 fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).unwrap(),
+        name: McpServerId::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(url).unwrap(),
         transport: Some("http".into()),
         headers: None,

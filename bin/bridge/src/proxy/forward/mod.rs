@@ -104,7 +104,7 @@ pub(crate) async fn forward(
         },
         RouteResolution::Mcp(route) => (route, token.token.expose().to_owned()),
         RouteResolution::Hook { url, plugin_id } => {
-            require_hook_credential(&credential, plugin_id.as_str())?;
+            require_hook_credential(&credential, &plugin_id)?;
             let gw = crate::gateway::GatewayClient::new(gateway_base.clone(), gateway_http);
             let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
                 &plugin_tokens,

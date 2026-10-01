@@ -18,13 +18,12 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use std::path::{Path, PathBuf};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::MarketplaceId;
+use systemprompt_identifiers::{MarketplaceId, PluginId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_marketplace::{
     MarketplaceService, render_marketplace_json, render_marketplace_list,
 };
 use systemprompt_models::api::ApiError;
-use systemprompt_models::bridge::ids::PluginId;
 use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;

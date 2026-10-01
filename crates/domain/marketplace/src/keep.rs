@@ -23,7 +23,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::hash::Hash;
 
-use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId, UserId};
+use systemprompt_identifiers::{MarketplaceId, PluginId, UserId};
 use systemprompt_security::authz::{
     AccessControlRepository, BulkKeepQuery, ChainSources, EntityKind, MarketplaceSource,
     ParentChainIndex, SubjectAttributes, SubjectDimension, allowed_ids,
@@ -119,13 +119,12 @@ fn chain_sources(candidate: &MarketplaceCandidate) -> ChainSources {
         .plugins
         .iter()
         .map(|p| {
-            let id = PluginId::new(p.id.as_str());
             let owners = membership
                 .plugins
-                .get(&id)
+                .get(&p.id)
                 .cloned()
                 .unwrap_or_else(|| all.clone());
-            (id, owners)
+            (p.id.clone(), owners)
         })
         .collect();
 
@@ -134,16 +133,7 @@ fn chain_sources(candidate: &MarketplaceCandidate) -> ChainSources {
     ChainSources {
         marketplaces,
         plugins,
-        skill_owners: candidate
-            .skill_owners
-            .iter()
-            .map(|(skill, owners)| {
-                (
-                    SkillId::new(skill.as_str()),
-                    owners.iter().map(|p| PluginId::new(p.as_str())).collect(),
-                )
-            })
-            .collect(),
+        skill_owners: candidate.skill_owners.clone(),
         marketplace_members,
     }
 }

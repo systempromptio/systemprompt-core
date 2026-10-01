@@ -4,15 +4,17 @@
 use systemprompt_bridge::integration::enrol::{Selection, SelectionError, resolve};
 
 fn ids(selection: &Selection) -> Result<Vec<&'static str>, SelectionError> {
-    resolve(selection).map(|targets| targets.iter().map(|t| t.id()).collect())
+    resolve(selection).map(|targets| targets.iter().map(|t| t.id().as_str()).collect())
+}
+
+fn named(raw: &[&str]) -> Result<Vec<&'static str>, SelectionError> {
+    let raw: Vec<String> = raw.iter().map(|id| (*id).to_owned()).collect();
+    ids(&Selection::parse_ids(&raw)?)
 }
 
 #[test]
 fn a_named_local_host_resolves() {
-    assert_eq!(
-        ids(&Selection::Ids(vec!["opencode".to_owned()])),
-        Ok(vec!["opencode"])
-    );
+    assert_eq!(named(&["opencode"]), Ok(vec!["opencode"]));
 }
 
 #[test]
@@ -21,10 +23,7 @@ fn a_sync_only_agent_resolves_rather_than_erroring() {
     // governed through the gateway and has no profile to write, but rejecting
     // the id would fail the whole line and leave OpenCode unenrolled too.
     assert_eq!(
-        ids(&Selection::Ids(vec![
-            "claude-code".to_owned(),
-            "opencode".to_owned()
-        ])),
+        named(&["claude-code", "opencode"]),
         Ok(vec!["claude-code", "opencode"])
     );
 }
@@ -32,21 +31,14 @@ fn a_sync_only_agent_resolves_rather_than_erroring() {
 #[test]
 fn order_is_the_order_the_caller_named() {
     assert_eq!(
-        ids(&Selection::Ids(vec![
-            "opencode".to_owned(),
-            "claude-code".to_owned()
-        ])),
+        named(&["opencode", "claude-code"]),
         Ok(vec!["opencode", "claude-code"])
     );
 }
 
 #[test]
 fn an_unknown_id_fails_the_whole_request() {
-    let err = ids(&Selection::Ids(vec![
-        "opencode".to_owned(),
-        "opencodee".to_owned(),
-    ]))
-    .expect_err("a typo must not be silently skipped");
+    let err = named(&["opencode", "opencodee"]).expect_err("a typo must not be silently skipped");
     assert!(
         matches!(&err, SelectionError::Unknown { id, .. } if id == "opencodee"),
         "{err:?}"
@@ -54,6 +46,15 @@ fn an_unknown_id_fails_the_whole_request() {
     assert!(
         err.to_string().contains("known ids"),
         "the error has to say what is valid: {err}"
+    );
+}
+
+#[test]
+fn the_retired_codex_alias_is_an_unknown_id() {
+    let err = named(&["codex"]).expect_err("only codex-cli names the Codex host");
+    assert!(
+        matches!(&err, SelectionError::Unknown { id, .. } if id == "codex"),
+        "{err:?}"
     );
 }
 

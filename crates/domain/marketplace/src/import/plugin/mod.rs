@@ -85,7 +85,8 @@ pub(super) fn import_plugin(
     let extra_skill_dirs = manifest::skill_paths(&manifest, dir)?;
     let sidecar = load_plugin_sidecar(&dir.join(SIDECAR_RELPATH))?;
 
-    let id = PluginId::new(manifest.name.trim());
+    let id = PluginId::try_new(manifest.name.trim())
+        .map_err(|e| MarketplaceError::import(&manifest_path, "plugin name", e))?;
     let mut warnings = Vec::new();
     collect_manifest_warnings(id.as_str(), &manifest, dir, &mut warnings);
 

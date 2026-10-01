@@ -80,7 +80,7 @@ async fn refresh_tool_catalog(
             );
             report.warn(
                 crate::host_sync::HostWarningKind::ToolCatalog,
-                "claude-desktop",
+                systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
                 format!(
                     "tool catalog not refreshed ({e}); managed connectors with a wildcard tool \
                      policy are withheld until the next successful sync"
@@ -143,8 +143,8 @@ pub(crate) struct ClaudeDesktopMdmSync;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[async_trait::async_trait]
 impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
-    fn host_id(&self) -> &'static str {
-        "claude-desktop"
+    fn host_id(&self) -> systemprompt_models::bridge::host::HostKind {
+        systemprompt_models::bridge::host::HostKind::ClaudeDesktop
     }
 
     async fn apply(
@@ -183,7 +183,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                 Ok(None) => {},
                 Err(e) => report.warn(
                     crate::host_sync::HostWarningKind::PolicyWriter,
-                    "claude-desktop",
+                    systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
                     format!(
                         "the elevated policy writer did not apply the policy ({e}); falling back \
                          to the write that needs administrator approval"

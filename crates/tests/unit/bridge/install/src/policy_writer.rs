@@ -14,7 +14,9 @@ use systemprompt_bridge::gateway::manifest::{
     MANIFEST_SCHEMA_VERSION, ManagedMcpServer, SignedManifest, SignedManifestEnvelope,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{HostToken, ManifestSignature};
+use systemprompt_bridge::ids::{
+    HostToken, ManifestSignature, McpServerId, McpToolName, ToolPolicy,
+};
 use systemprompt_bridge::install::policy_writer::{
     BIN_SDDL, INBOX_SDDL, Layout, Loopback, MAX_REQUEST_BYTES, OUTBOX_SDDL, PolicyWriteRequest,
     PolicyWriterError, REQUEST_VERSION, RequestFacts, TASK_SDDL, build_request, derive_policy,
@@ -22,7 +24,6 @@ use systemprompt_bridge::install::policy_writer::{
 };
 use systemprompt_bridge::mcp_registry::EnvelopeFragment;
 use systemprompt_identifiers::ValidatedUrl;
-use systemprompt_models::bridge::ids::{ManagedMcpServerName, ToolName, ToolPolicy};
 
 const GATEWAY: &str = "https://gateway.example.test";
 
@@ -43,10 +44,10 @@ fn anchor(key: &SigningKey, gateway: &str) -> TrustRecord {
     .unwrap()
 }
 
-fn server(name: &str, tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>) -> ManagedMcpServer {
+fn server(name: &str, tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).unwrap(),
-        name: ManagedMcpServerName::try_new(name).unwrap(),
+        name: McpServerId::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(format!("{GATEWAY}/api/v1/mcp/{name}/mcp")).unwrap(),
         transport: Some("http".into()),
         headers: None,
@@ -55,10 +56,10 @@ fn server(name: &str, tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>) -> Ma
     }
 }
 
-fn wildcard(policy: ToolPolicy) -> Option<BTreeMap<ToolName, ToolPolicy>> {
+fn wildcard(policy: ToolPolicy) -> Option<BTreeMap<McpToolName, ToolPolicy>> {
     let mut map = BTreeMap::new();
     map.insert(
-        ToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD).unwrap(),
+        McpToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD).unwrap(),
         policy,
     );
     Some(map)

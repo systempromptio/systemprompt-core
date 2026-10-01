@@ -187,8 +187,10 @@ pub struct GatewayStatusPayload<'a> {
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct VerifiedIdentityPayload<'a> {
     pub email: Option<&'a str>,
-    pub user_id: Option<&'a str>,
-    pub tenant_id: Option<&'a str>,
+    #[cfg_attr(feature = "ts-export", ts(type = "string | null"))]
+    pub user_id: Option<&'a systemprompt_identifiers::UserId>,
+    #[cfg_attr(feature = "ts-export", ts(type = "string | null"))]
+    pub tenant_id: Option<&'a systemprompt_identifiers::TenantId>,
     pub exp_unix: Option<u64>,
     pub verified_at_unix: u64,
 }

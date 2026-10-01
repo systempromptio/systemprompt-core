@@ -24,8 +24,8 @@ mod scoping;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use systemprompt_identifiers::UserId;
-use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature, PluginId, SkillId};
+use systemprompt_identifiers::{LibraryArtifactId, SkillId, UserId};
+use systemprompt_models::bridge::ids::ManifestSignature;
 use systemprompt_models::bridge::manifest::{
     ManifestClaudeCode, ManifestMarketplace, SignedManifest, SignedManifestEnvelope,
 };
@@ -110,7 +110,7 @@ impl ManifestService {
         let (skills, rules, agents, managed_mcp_servers, artifacts) = catalog.into_parts();
 
         let enabled = services.enabled_marketplaces();
-        let marketplaces = listed_marketplaces(services, &enabled)?;
+        let marketplaces = listed_marketplaces(services, &enabled);
         let (agents, managed_mcp_servers, artifacts) =
             scope_all(&enabled, agents, managed_mcp_servers, artifacts, trace);
         let membership =
@@ -173,19 +173,16 @@ impl ManifestService {
 fn listed_marketplaces(
     services: &ServicesConfig,
     enabled: &[&MarketplaceConfig],
-) -> Result<Vec<ManifestMarketplace>, MarketplaceError> {
+) -> Vec<ManifestMarketplace> {
     enabled
         .iter()
         .map(|marketplace| {
             let plugin_ids = services
                 .marketplace_plugin_configs(marketplace)
                 .iter()
-                .map(|p| {
-                    PluginId::try_new(p.id.as_str())
-                        .map_err(|e| MarketplaceError::catalog("marketplace plugin id", e))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(ManifestMarketplace {
+                .map(|p| p.id.clone())
+                .collect();
+            ManifestMarketplace {
                 id: marketplace.id.clone(),
                 name: marketplace.name.clone(),
                 plugin_ids,
@@ -207,7 +204,7 @@ fn listed_marketplaces(
                 claude_code: marketplace.claude_code.map(|c| ManifestClaudeCode {
                     skill_listing_budget_chars: c.skill_listing_budget_chars,
                 }),
-            })
+            }
         })
         .collect()
 }

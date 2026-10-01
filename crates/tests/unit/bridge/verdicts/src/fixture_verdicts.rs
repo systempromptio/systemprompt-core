@@ -66,7 +66,7 @@ fn profile_state_of(host: &Value, health: &Value) -> ProfileState {
 // snapshot, so the snapshot is rebuilt from what the front end actually sees.
 fn snapshot_of(host: &Value, v: &Value) -> HostAppSnapshot {
     HostAppSnapshot {
-        host_id: "fixture",
+        host_id: systemprompt_models::bridge::host::HostKind::Hermes,
         display_name: "fixture",
         profile_state: profile_state_of(host, v),
         profile_source: None,

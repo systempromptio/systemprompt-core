@@ -11,7 +11,7 @@ use systemprompt_bridge::integration::agent_fleet::AgentFleets;
 use systemprompt_bridge::integration::agent_health::{
     AgentAction, AgentReason, AgentState, AgentSurface, AgentVerdict,
 };
-use systemprompt_bridge::integration::host_app::{AppInstallState, ConfigFormat, HostKind};
+use systemprompt_bridge::integration::host_app::{AppInstallState, ConfigFormat, HostAppKind};
 use systemprompt_bridge::integration::profile_state::{ProfileState, StaleReason};
 use systemprompt_bridge::integration::{GeneratedProfile, HostAppSnapshot};
 use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
@@ -22,6 +22,7 @@ use systemprompt_bridge::wire::first_run::{
 use systemprompt_bridge::wire::hosts::{
     HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
 };
+use systemprompt_models::bridge::host::HostKind;
 
 fn json_of<T: serde::Serialize>(v: &T) -> Value {
     serde_json::to_value(v).expect("payload serialises")
@@ -29,7 +30,7 @@ fn json_of<T: serde::Serialize>(v: &T) -> Value {
 
 fn snapshot(profile_state: ProfileState, keys: BTreeMap<String, String>) -> HostAppSnapshot {
     HostAppSnapshot {
-        host_id: "claude_code",
+        host_id: HostKind::ClaudeCode,
         display_name: "Claude Code",
         profile_state,
         profile_source: Some("/etc/managed.json".to_owned()),
@@ -169,9 +170,9 @@ fn host_entry_carries_the_row_the_agents_list_renders() {
         profile_uuid: "profile-uuid".to_owned(),
     };
     let entry = HostEntryPayload {
-        id: "claude_code",
+        id: HostKind::ClaudeCode,
         display_name: "Claude Code",
-        kind: HostKind::CliTool,
+        kind: HostAppKind::CliTool,
         description: "the CLI",
         icon: "claude",
         config_format: ConfigFormat::Json,
@@ -197,7 +198,7 @@ fn host_entry_carries_the_row_the_agents_list_renders() {
     };
     let v = json_of(&entry);
 
-    assert_eq!(v["id"], json!("claude_code"));
+    assert_eq!(v["id"], json!("claude-code"));
     assert_eq!(v["kind"], json!("cli-tool"));
     assert_eq!(v["config_format"], json!("json"));
     assert_eq!(v["surface"], json!("local-profile"));
@@ -219,9 +220,9 @@ fn host_entry_carries_the_row_the_agents_list_renders() {
 #[test]
 fn an_unprobed_host_ships_null_health_rather_than_omitting_it() {
     let entry = HostEntryPayload {
-        id: "codex",
+        id: HostKind::CodexCli,
         display_name: "Codex",
-        kind: HostKind::DesktopApp,
+        kind: HostAppKind::DesktopApp,
         description: "",
         icon: "",
         config_format: ConfigFormat::Toml,
@@ -300,13 +301,13 @@ fn first_run_reports_claude_code_as_a_row_like_the_hosts() {
         error: None,
         hosts: vec![
             FirstRunHostPayload {
-                host_id: "claude-desktop",
+                host_id: HostKind::ClaudeDesktop,
                 display_name: "Claude Desktop",
                 status: StepStatus::Generating,
                 error: None,
             },
             FirstRunHostPayload {
-                host_id: "claude-code",
+                host_id: HostKind::ClaudeCode,
                 display_name: "Claude Code",
                 status: StepStatus::Failed,
                 error: Some("settings.json is not valid JSON"),
@@ -358,9 +359,9 @@ fn fixture_paths() -> Vec<std::path::PathBuf> {
 
 fn host_entry_keys() -> Vec<String> {
     let entry = HostEntryPayload {
-        id: "claude-code",
+        id: HostKind::ClaudeCode,
         display_name: "Claude Code",
-        kind: HostKind::CliTool,
+        kind: HostAppKind::CliTool,
         description: "",
         icon: "claude-code",
         config_format: ConfigFormat::Json,
@@ -444,8 +445,6 @@ fn every_fixture_host_entry_carries_exactly_the_wire_key_set() {
 // `no-models.json` and `proxy-down.json` had quietly dropped `codex-cli`.
 #[test]
 fn every_fixture_lists_exactly_the_known_hosts() {
-    use systemprompt_models::bridge::host::HostKind;
-
     let mut expected: Vec<&str> = HostKind::ALL.map(HostKind::as_str).to_vec();
     expected.sort_unstable();
     let mut checked = 0_usize;

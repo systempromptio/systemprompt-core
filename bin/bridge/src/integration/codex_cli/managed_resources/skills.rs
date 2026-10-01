@@ -6,7 +6,9 @@
 use std::fs;
 use std::path::Path;
 
-use crate::gateway::manifest::{SignedManifest, SkillEntry};
+use systemprompt_models::bridge::host::HostKind;
+
+use crate::gateway::manifest::{SignedManifest, SkillEntry, skill_targets_host};
 use crate::hash::{safe_id_segment, sha256_hex};
 use crate::host_sync::ApplyError;
 use crate::integration::managed_skills::skill_markdown;
@@ -14,7 +16,7 @@ use crate::integration::managed_skills::skill_markdown;
 use super::io_err;
 
 pub(super) fn targets_codex(skill: &SkillEntry) -> bool {
-    skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == "codex" || h == "codex-cli")
+    skill_targets_host(skill, HostKind::CodexCli)
 }
 
 pub(super) fn bundle_version(

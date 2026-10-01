@@ -25,7 +25,7 @@ use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
 
 const fn snapshot(profile_state: ProfileState, app: AppInstallState) -> HostAppSnapshot {
     HostAppSnapshot {
-        host_id: "test-host",
+        host_id: systemprompt_models::bridge::host::HostKind::Hermes,
         display_name: "Test Host",
         profile_state,
         profile_source: None,

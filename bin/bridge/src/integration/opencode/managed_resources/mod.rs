@@ -19,6 +19,8 @@
 
 use async_trait::async_trait;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 use crate::integration::managed_skills::{SkillDirPolicy, SkillTarget};
 
@@ -35,15 +37,15 @@ pub struct OpenCodeSync;
 fn skills() -> SkillTarget {
     SkillTarget {
         root: super::config::skills_dir(),
-        host_id: "opencode",
+        host_id: HostKind::OpenCode,
         policy: SkillDirPolicy::KebabNamed,
     }
 }
 
 #[async_trait]
 impl HostSync for OpenCodeSync {
-    fn host_id(&self) -> &'static str {
-        "opencode"
+    fn host_id(&self) -> HostKind {
+        HostKind::OpenCode
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {

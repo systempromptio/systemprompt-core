@@ -174,7 +174,7 @@ pub(crate) fn managed_skill_from_bundle(
     let config_file = files.0.get("config.yaml").ok_or(ManagedError::Integrity)?;
     let config: DiskSkillConfig =
         serde_yaml::from_slice(&config_file.bytes).map_err(|_corrupt| ManagedError::Integrity)?;
-    if !config.enabled || (!config.id.as_str().is_empty() && config.id.as_str() != key) {
+    if !config.enabled || config.id.as_ref().is_some_and(|id| id.as_str() != key) {
         return Err(ManagedError::Integrity);
     }
     let content = files
@@ -188,11 +188,7 @@ pub(crate) fn managed_skill_from_bundle(
         revision_id,
         hosts: config.hosts.clone(),
         tags: config.tags.clone(),
-        id: if config.id.as_str().is_empty() {
-            SkillId::new(key.to_owned())
-        } else {
-            config.id
-        },
+        id: config.id.unwrap_or_else(|| SkillId::new(key.to_owned())),
         name: if config.name.is_empty() {
             key.to_owned()
         } else {

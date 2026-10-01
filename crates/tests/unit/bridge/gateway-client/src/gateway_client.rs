@@ -7,7 +7,8 @@
 use systemprompt_bridge::gateway::manifest::decode_payload;
 use systemprompt_bridge::gateway::{Freshness, GatewayClient, GatewayError};
 use systemprompt_bridge::ids::BearerToken;
-use systemprompt_identifiers::ValidatedUrl;
+use systemprompt_bridge::integration::HostKind;
+use systemprompt_identifiers::{PluginId, ValidatedUrl};
 use wiremock::matchers::{header, header_exists, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -472,7 +473,7 @@ async fn fetch_plugin_file_ok() {
         .await;
 
     let bytes = client(&server)
-        .fetch_plugin_file(&bearer(), "my-plugin", "dist/index.js")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "dist/index.js")
         .await
         .unwrap();
     assert_eq!(bytes, payload);
@@ -488,7 +489,7 @@ async fn fetch_plugin_file_404_maps_to_http_status() {
         .await;
 
     let err = client(&server)
-        .fetch_plugin_file(&bearer(), "my-plugin", "missing.js")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "missing.js")
         .await
         .unwrap_err();
     match err {
@@ -506,7 +507,7 @@ async fn fetch_plugin_file_404_maps_to_http_status() {
 async fn fetch_plugin_file_traversal_path_maps_to_unsafe_path() {
     let server = MockServer::start().await;
     let err = client(&server)
-        .fetch_plugin_file(&bearer(), "my-plugin", "../etc/passwd")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "../etc/passwd")
         .await
         .unwrap_err();
     match err {
@@ -528,7 +529,7 @@ async fn set_host_model_filter_posts_the_host_and_protocol_list() {
     client(&server)
         .set_host_model_filter(
             &BearerToken::new("bearer-token"),
-            "codex-cli",
+            HostKind::CodexCli,
             Some(&["responses".to_owned()]),
         )
         .await
@@ -557,7 +558,11 @@ async fn clearing_the_host_model_filter_sends_a_null_protocol_list() {
         .await;
 
     client(&server)
-        .set_host_model_filter(&BearerToken::new("bearer-token"), "claude-desktop", None)
+        .set_host_model_filter(
+            &BearerToken::new("bearer-token"),
+            HostKind::ClaudeDesktop,
+            None,
+        )
         .await
         .expect("clearing is accepted");
 
@@ -606,7 +611,7 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
         GatewayError::HealthCheck(_)
     ));
     assert!(matches!(
-        c.set_host_model_filter(&bearer(), "codex-cli", None)
+        c.set_host_model_filter(&bearer(), HostKind::CodexCli, None)
             .await
             .unwrap_err(),
         GatewayError::PostRequest(_)
@@ -616,7 +621,7 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
 #[tokio::test]
 async fn a_plugin_file_connection_failure_carries_the_plugin_and_path() {
     let err = dead_client()
-        .fetch_plugin_file(&bearer(), "my-plugin", "dist/index.js")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "dist/index.js")
         .await
         .unwrap_err();
     match err {
@@ -633,7 +638,7 @@ async fn a_plugin_file_connection_failure_carries_the_plugin_and_path() {
 #[tokio::test]
 async fn an_absolute_plugin_path_is_refused_before_any_request() {
     let err = dead_client()
-        .fetch_plugin_file(&bearer(), "my-plugin", "/etc/passwd")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "/etc/passwd")
         .await
         .unwrap_err();
     match err {
@@ -652,7 +657,11 @@ async fn a_rejected_host_model_filter_maps_to_http_status() {
         .await;
 
     let err = client(&server)
-        .set_host_model_filter(&BearerToken::new("bearer-token"), "codex-cli", Some(&[]))
+        .set_host_model_filter(
+            &BearerToken::new("bearer-token"),
+            HostKind::CodexCli,
+            Some(&[]),
+        )
         .await
         .expect_err("a 422 must surface");
     match err {

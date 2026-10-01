@@ -619,7 +619,7 @@ fn otel_posts_require_the_loopback_secret_and_are_rewritten_under_v1() {
 
         let host_token = systemprompt_bridge::proxy::scoped_token::host_token(
             &systemprompt_bridge::ids::LoopbackSecret::new(SECRET),
-            &systemprompt_bridge::ids::HostId::new("claude-desktop"),
+            systemprompt_bridge::integration::HostKind::ClaudeDesktop,
         );
         let with_host_token = h
             .post_with("/otel/v1/traces", host_token.as_str(), "payload")
@@ -1179,7 +1179,7 @@ fn a_host_token_forwards_verified_attestation_instead_of_caller_claims() {
             .await;
         let host_token = systemprompt_bridge::proxy::scoped_token::host_token(
             &systemprompt_bridge::ids::LoopbackSecret::new(SECRET),
-            &systemprompt_bridge::ids::HostId::new("claude-desktop"),
+            systemprompt_bridge::integration::HostKind::ClaudeDesktop,
         );
 
         let response = Harness::client()

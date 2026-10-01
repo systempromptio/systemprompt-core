@@ -46,6 +46,13 @@ pub enum ConfigLoadError {
     )]
     IncludeNotFound { include: PathBuf, referrer: PathBuf },
 
+    #[error("invalid identifier at {path}: {source}")]
+    InvalidId {
+        path: PathBuf,
+        #[source]
+        source: systemprompt_identifiers::error::IdValidationError,
+    },
+
     #[error("include cycle detected: {chain}")]
     IncludeCycle { chain: String },
 

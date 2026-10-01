@@ -19,12 +19,11 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::{AgentId, SkillId};
 
 use crate::dev_files::DevFileFilter;
 use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;
-use systemprompt_models::bridge::ids::SkillId;
 use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::services::skill_frontmatter::render_passthrough_frontmatter;
 use systemprompt_models::services::{ComponentSource, PluginConfig};

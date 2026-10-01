@@ -4,8 +4,7 @@ use systemprompt_identifiers::JobName;
 use systemprompt_identifiers::{ExternalAgentId, SkillId, UserId};
 use systemprompt_models::services::{
     DiskSkillConfig, ExternalAgentConfig, ExternalAgentKind, JobConfig, RuntimeStatus,
-    SchedulerConfig, ServiceType, Settings, SkillDetail, SkillSummary, SystemAdmin,
-    split_frontmatter, strip_frontmatter,
+    SchedulerConfig, ServiceType, Settings, SystemAdmin, split_frontmatter, strip_frontmatter,
 };
 
 #[test]
@@ -201,7 +200,7 @@ fn system_admin_accessors() {
 #[test]
 fn disk_skill_config_content_file_default_and_explicit() {
     let cfg = DiskSkillConfig {
-        id: SkillId::new("s"),
+        id: Some(SkillId::new("s")),
         name: "Skill".to_owned(),
         description: "desc".to_owned(),
         enabled: true,
@@ -221,50 +220,15 @@ fn disk_skill_config_content_file_default_and_explicit() {
 }
 
 #[test]
-fn skill_summary_from_disk_config_file_path_logic() {
-    let cfg = DiskSkillConfig {
-        id: SkillId::new("s1"),
-        name: "S1".to_owned(),
-        description: "d".to_owned(),
-        enabled: true,
-        file: String::new(),
-        tags: vec!["a".to_owned(), "b".to_owned()],
-        category: None,
-        hosts: vec![],
-        frontmatter: None,
-    };
-    let sum: SkillSummary = (&cfg).into();
-    assert_eq!(sum.skill_id, cfg.id);
-    assert!(sum.file_path.is_none());
-    assert_eq!(sum.tags.len(), 2);
-    assert_eq!(sum.display_name, "S1");
+fn disk_skill_config_resolved_id_prefers_declared_then_directory() {
+    let yaml = "id: declared\nname: S\ndescription: d\n";
+    let declared: DiskSkillConfig = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(declared.resolved_id("dir").unwrap().as_str(), "declared");
 
-    let cfg2 = DiskSkillConfig {
-        file: "x.md".to_owned(),
-        ..cfg
-    };
-    let sum2: SkillSummary = (&cfg2).into();
-    assert_eq!(sum2.file_path.as_deref(), Some("x.md"));
-}
-
-#[test]
-fn skill_detail_from_disk_config_carries_category_and_blank_preview() {
-    let cfg = DiskSkillConfig {
-        id: SkillId::new("s1"),
-        name: "S1".to_owned(),
-        description: "desc".to_owned(),
-        enabled: false,
-        file: "x.md".to_owned(),
-        tags: vec!["t".to_owned()],
-        category: Some("dev".to_owned()),
-        hosts: vec![],
-        frontmatter: None,
-    };
-    let det: SkillDetail = (&cfg).into();
-    assert_eq!(det.category.as_deref(), Some("dev"));
-    assert_eq!(det.file_path.as_deref(), Some("x.md"));
-    assert!(!det.enabled);
-    assert!(det.instructions_preview.is_empty());
+    let yaml = "id: \"\"\nname: S\ndescription: d\n";
+    let blank: DiskSkillConfig = serde_yaml::from_str(yaml).unwrap();
+    assert!(blank.id.is_none());
+    assert_eq!(blank.resolved_id("dir").unwrap().as_str(), "dir");
 }
 
 #[test]

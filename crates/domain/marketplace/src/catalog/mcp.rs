@@ -6,8 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use systemprompt_identifiers::{McpServerId, ValidatedUrl};
-use systemprompt_models::bridge::ids::{ManagedMcpServerName, ToolName};
+use systemprompt_identifiers::{McpServerId, McpToolName, ValidatedUrl};
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::ServicesConfig;
@@ -53,19 +52,17 @@ pub fn load_managed_mcp_servers(
         };
         let url = ValidatedUrl::try_new(url_str)
             .map_err(|e| MarketplaceError::catalog("mcp server url", e))?;
-        let mcp_name = ManagedMcpServerName::try_new(name.clone())
-            .map_err(|e| MarketplaceError::catalog("mcp server name", e))?;
+        let id = McpServerId::try_new(name.clone())
+            .map_err(|e| MarketplaceError::catalog("mcp server id", e))?;
         out.push(ManagedMcpServer {
-            id: McpServerId::try_new(name.clone())
-                .map_err(|e| MarketplaceError::catalog("mcp server id", e))?,
-            name: mcp_name,
+            name: id.clone(),
+            id,
             url,
             transport: Some("http".to_owned()),
             headers: None,
             oauth: Some(deployment.oauth.required),
             tool_policy: Some(BTreeMap::from([(
-                ToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD)
-                    .map_err(|e| MarketplaceError::catalog("mcp tool policy name", e))?,
+                McpToolName::new(ManagedMcpServer::TOOL_POLICY_WILDCARD),
                 tool_policy,
             )])),
         });

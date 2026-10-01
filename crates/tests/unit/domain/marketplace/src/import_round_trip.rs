@@ -1,13 +1,15 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use systemprompt_identifiers::{MarketplaceId, PluginId};
+use systemprompt_identifiers::{
+    MarketplaceId, MarketplaceRuleId, PluginId, RuleName, SkillId, SkillName,
+};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_marketplace::catalog::load_rules;
 use systemprompt_marketplace::{
     BundleContent, ImportOptions, build_plugin_bundle, import_anthropic_tree,
 };
-use systemprompt_models::bridge::ids::{RuleId, RuleName, Sha256Digest, SkillId, SkillName};
+use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::{RuleEntry, SkillEntry};
 use systemprompt_models::services::marketplace::{
     MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceVisibility,
@@ -113,7 +115,7 @@ fn skill_entry(id: &str, description: &str) -> SkillEntry {
 
 fn rule_entry(id: &str, body: &str) -> RuleEntry {
     RuleEntry {
-        id: RuleId::try_new(id).expect("rule id"),
+        id: MarketplaceRuleId::try_new(id).expect("rule id"),
         name: RuleName::try_new(id).expect("rule name"),
         description: format!("{id} description"),
         file_path: format!("/nonexistent/rules/{id}/index.md"),

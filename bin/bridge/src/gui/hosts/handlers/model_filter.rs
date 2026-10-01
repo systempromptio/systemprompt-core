@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use serde_json::json;
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::config;
 use crate::gateway::GatewayClient;
@@ -13,18 +14,17 @@ use crate::gui::GuiApp;
 use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::HostUiEvent;
-use crate::ids::HostId;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::finish;
 
 pub(crate) fn on_model_filter_set_requested(
     app: &GuiApp,
-    host_id: &HostId,
+    host_id: HostKind,
     protocols: Option<Vec<String>>,
     reply_to: ReplyId,
 ) {
-    if crate::gui::hosts::resolve::resolve_or_reply(app, host_id.as_str(), "model filter", reply_to)
+    if crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "model filter", reply_to)
         .is_none()
     {
         return;
@@ -38,15 +38,14 @@ pub(crate) fn on_model_filter_set_requested(
         },
         None => app.append_log(format!("[{host_id}] model filter cleared (host default)")),
     }
-    let host_id_owned = host_id.clone();
     let proxy = app.proxy.clone();
     let http = app.ctx.http.clone();
     app.ctx.spawn(async move {
-        let result = push_model_filter(&host_id_owned, protocols.as_deref(), http)
+        let result = push_model_filter(host_id, protocols.as_deref(), http)
             .await
             .map_err(Arc::new);
         proxy.send_event(UiEvent::Host(HostUiEvent::ModelFilterSetFinished {
-            host_id: host_id_owned,
+            host_id,
             result,
             reply_to,
         }));
@@ -54,7 +53,7 @@ pub(crate) fn on_model_filter_set_requested(
 }
 
 async fn push_model_filter(
-    host_id: &HostId,
+    host_id: HostKind,
     protocols: Option<&[String]>,
     http: reqwest::Client,
 ) -> GuiResult<()> {
@@ -67,14 +66,14 @@ async fn push_model_filter(
         })?
         .ok_or(GuiError::NotAuthenticated)?;
     GatewayClient::new(gateway_base, http)
-        .set_host_model_filter(&bearer.token, host_id.as_str(), protocols)
+        .set_host_model_filter(&bearer.token, host_id, protocols)
         .await?;
     Ok(())
 }
 
 pub(crate) fn on_model_filter_set_finished(
     app: &GuiApp,
-    host_id: &HostId,
+    host_id: HostKind,
     result: Result<(), Arc<GuiError>>,
     reply_to: ReplyId,
 ) {

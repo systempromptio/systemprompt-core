@@ -5,13 +5,17 @@
 //! per-skill on-disk descriptor. [`SkillSummary`] and [`SkillDetail`] are the
 //! list- and detail-view projections.
 //!
+//! A descriptor may leave `id` empty: the skill is then named by its
+//! directory, which [`DiskSkillConfig::resolved_id`] applies.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use systemprompt_identifiers::SkillId;
+use systemprompt_identifiers::error::IdValidationError;
 
 use super::IncludableString;
 use super::plugin::PluginComponentRef;
@@ -66,7 +70,8 @@ pub struct SkillConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DiskSkillConfig {
-    pub id: SkillId,
+    #[serde(deserialize_with = "empty_skill_id_as_none")]
+    pub id: Option<SkillId>,
     pub name: String,
     pub description: String,
     #[serde(default = "default_true")]
@@ -83,7 +88,25 @@ pub struct DiskSkillConfig {
     pub frontmatter: Option<serde_yaml::Mapping>,
 }
 
+fn empty_skill_id_as_none<'de, D>(deserializer: D) -> Result<Option<SkillId>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer)?
+        .filter(|raw| !raw.trim().is_empty())
+        .map(SkillId::try_new)
+        .transpose()
+        .map_err(serde::de::Error::custom)
+}
+
 impl DiskSkillConfig {
+    pub fn resolved_id(&self, dir_name: &str) -> Result<SkillId, IdValidationError> {
+        match &self.id {
+            Some(id) => Ok(id.clone()),
+            None => SkillId::try_new(dir_name),
+        }
+    }
+
     pub fn content_file(&self) -> &str {
         if self.file.is_empty() {
             DEFAULT_SKILL_CONTENT_FILE
@@ -103,24 +126,6 @@ pub struct SkillSummary {
     pub tags: Vec<String>,
 }
 
-impl From<&DiskSkillConfig> for SkillSummary {
-    fn from(config: &DiskSkillConfig) -> Self {
-        let file_path = if config.file.is_empty() {
-            None
-        } else {
-            Some(config.file.clone())
-        };
-        Self {
-            skill_id: config.id.clone(),
-            name: config.name.clone(),
-            display_name: config.name.clone(),
-            enabled: config.enabled,
-            file_path,
-            tags: config.tags.clone(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillDetail {
     pub skill_id: SkillId,
@@ -132,25 +137,4 @@ pub struct SkillDetail {
     pub category: Option<String>,
     pub file_path: Option<String>,
     pub instructions_preview: String,
-}
-
-impl From<&DiskSkillConfig> for SkillDetail {
-    fn from(config: &DiskSkillConfig) -> Self {
-        let file_path = if config.file.is_empty() {
-            None
-        } else {
-            Some(config.file.clone())
-        };
-        Self {
-            skill_id: config.id.clone(),
-            name: config.name.clone(),
-            display_name: config.name.clone(),
-            description: config.description.clone(),
-            enabled: config.enabled,
-            tags: config.tags.clone(),
-            category: config.category.clone(),
-            file_path,
-            instructions_preview: String::new(),
-        }
-    }
 }

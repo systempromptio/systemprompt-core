@@ -5,10 +5,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::integration::agent_fleet::AgentFleets;
 use crate::integration::agent_health::{AgentSurface, AgentVerdict};
-use crate::integration::host_app::{AppInstallState, ConfigFormat, HostKind, ProfileCode};
+use crate::integration::host_app::{AppInstallState, ConfigFormat, HostAppKind, ProfileCode};
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 use crate::proxy_probe::ProxyProbeState;
 use crate::verdict::Verdict;
@@ -94,9 +95,10 @@ pub struct HostsPayload<'a> {
     reason = "wire payload of independent per-host facts the GUI renders verbatim"
 )]
 pub struct HostEntryPayload<'a> {
-    pub id: &'a str,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
+    pub id: HostKind,
     pub display_name: &'a str,
-    pub kind: HostKind,
+    pub kind: HostAppKind,
     pub description: &'a str,
     pub icon: &'a str,
     pub config_format: ConfigFormat,

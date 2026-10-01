@@ -26,10 +26,12 @@ pub mod contract {
 
 pub use install::{install_profile_into, remove_profile_from};
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::integration::host_app::{
-    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
-    HostConfigSchema, HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled,
-    ProfileProbe, ProfileRemoval, ProfileState,
+    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppKind, HostAppSnapshot,
+    HostConfigSchema, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
+    ProfileRemoval, ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -38,8 +40,8 @@ pub struct HermesHost;
 pub static HERMES_HOST: HermesHost = HermesHost;
 
 impl HostApp for HermesHost {
-    fn id(&self) -> &'static str {
-        "hermes"
+    fn id(&self) -> HostKind {
+        HostKind::Hermes
     }
 
     fn display_name(&self) -> &'static str {
@@ -62,8 +64,7 @@ impl HostApp for HermesHost {
         let secret = Freshness::compare(
             install::installed_key_fingerprint(&config::env_path_in(&config::hermes_home()))
                 .as_deref(),
-            env.host_token_fingerprint(&crate::ids::HostId::new(self.id()))
-                .as_deref(),
+            env.host_token_fingerprint(self.id()).as_deref(),
             "hermes host token",
         );
         let profile_state = ProfileState::classify(&ProfileProbe {
@@ -117,18 +118,14 @@ impl HostApp for HermesHost {
          written to HERMES_HOME/.env)"
     }
 
-    fn kind(&self) -> HostKind {
-        HostKind::DesktopApp
+    fn kind(&self) -> HostAppKind {
+        HostAppKind::DesktopApp
     }
 
     fn description(&self) -> &'static str {
         "Nous Research's Hermes Agent Desktop. systemprompt-bridge writes managed configuration \
          that routes inference through the gateway, registers MCP connectors, and publishes \
          managed skills."
-    }
-
-    fn icon_id(&self) -> &'static str {
-        "hermes"
     }
 
     fn config_format(&self) -> ConfigFormat {

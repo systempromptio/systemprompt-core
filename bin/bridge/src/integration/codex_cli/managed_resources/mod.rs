@@ -19,6 +19,8 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 use crate::proxy::LoopbackEndpoint;
@@ -41,8 +43,8 @@ pub struct CodexCliSync;
 
 #[async_trait]
 impl HostSync for CodexCliSync {
-    fn host_id(&self) -> &'static str {
-        "codex-cli"
+    fn host_id(&self) -> HostKind {
+        HostKind::CodexCli
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {

@@ -3,12 +3,11 @@ use std::sync::Once;
 
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
-use systemprompt_identifiers::{MarketplaceId, UserId};
+use systemprompt_identifiers::{LibraryArtifactId, MarketplaceId, UserId};
 use systemprompt_marketplace::{
     AllowAllFilter, AssembleRequest, EntryKeepSets, ManifestService, MarketplaceCache,
     MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError,
 };
-use systemprompt_models::bridge::ids::LibraryArtifactId;
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_security::manifest_signing;
@@ -843,7 +842,7 @@ async fn assemble_candidate_records_which_plugins_own_each_skill() {
 
     let owners: BTreeSet<&str> = candidate
         .skill_owners
-        .get(&systemprompt_models::bridge::ids::SkillId::try_new("shared_skill").expect("id"))
+        .get(&systemprompt_identifiers::SkillId::try_new("shared_skill").expect("id"))
         .expect("the shipped skill is owned")
         .iter()
         .map(|p| p.as_str())

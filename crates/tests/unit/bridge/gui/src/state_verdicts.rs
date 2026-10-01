@@ -2,12 +2,12 @@ use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gui::state::{
     AppState, AppStateSnapshot, GatewayProbeOutcome, GatewayStatus, VerifiedIdentity,
 };
-use systemprompt_bridge::ids::HostId;
 use systemprompt_bridge::obs::StartupFault;
 use systemprompt_bridge::sync::{HostFailure, SyncSummary};
 use systemprompt_bridge::verdict::Tone;
 use systemprompt_bridge::wire::DeviceAction;
 use systemprompt_bridge::wire::codes::{HealthCode, IdentityCode, OverallCode};
+use systemprompt_models::bridge::host::HostKind;
 
 fn reachable() -> AppStateSnapshot {
     AppStateSnapshot {
@@ -205,7 +205,7 @@ fn a_clean_sync_report_reads_as_synced() {
 fn a_host_failure_in_the_last_report_reads_as_degraded_even_with_a_summary() {
     let mut snap = signed_in_after_sync();
     snap.last_sync_report = Some(report(vec![HostFailure {
-        host_id: HostId::new("claude-desktop"),
+        host_id: HostKind::ClaudeDesktop,
         emitter: "claude-desktop".to_owned(),
         error: "mdm refresh: policy store unreadable".into(),
         needs_elevation: false,
@@ -223,7 +223,7 @@ fn a_host_failure_in_the_last_report_reads_as_degraded_even_with_a_summary() {
 fn a_run_whose_only_failures_need_an_administrator_reads_as_needs_approval() {
     let mut snap = signed_in_after_sync();
     snap.last_sync_report = Some(report(vec![HostFailure {
-        host_id: HostId::new("claude-desktop"),
+        host_id: HostKind::ClaudeDesktop,
         emitter: "claude-desktop".to_owned(),
         error: "mdm refresh: HKLM shadows HKCU".into(),
         needs_elevation: true,
@@ -243,13 +243,13 @@ fn a_run_with_an_elevation_failure_beside_another_failure_stays_degraded() {
     let mut snap = signed_in_after_sync();
     snap.last_sync_report = Some(report(vec![
         HostFailure {
-            host_id: HostId::new("claude-desktop"),
+            host_id: HostKind::ClaudeDesktop,
             emitter: "claude-desktop".to_owned(),
             error: "mdm refresh: HKLM shadows HKCU".into(),
             needs_elevation: true,
         },
         HostFailure {
-            host_id: HostId::new("opencode"),
+            host_id: HostKind::OpenCode,
             emitter: "config".to_owned(),
             error: "write failed".into(),
             needs_elevation: false,
@@ -273,7 +273,7 @@ fn a_partial_run_that_left_no_summary_line_is_still_degraded_not_ready() {
 fn syncing_and_offline_outrank_a_degraded_report() {
     let mut snap = signed_in_after_sync();
     snap.last_sync_report = Some(report(vec![HostFailure {
-        host_id: HostId::new("codex-cli"),
+        host_id: HostKind::CodexCli,
         emitter: "codex-cli".to_owned(),
         error: "permission denied".into(),
         needs_elevation: false,

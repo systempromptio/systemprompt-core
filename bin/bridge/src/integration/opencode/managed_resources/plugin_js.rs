@@ -17,7 +17,9 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use crate::gateway::manifest::SignedManifest;
+use systemprompt_models::bridge::host::HostKind;
+
+use crate::gateway::manifest::{SignedManifest, skill_targets_host};
 use crate::host_sync::ApplyError;
 use crate::integration::managed_skills::kebab_dir;
 use crate::proxy::LoopbackEndpoint;
@@ -35,13 +37,13 @@ fn skill_map(manifest: &SignedManifest) -> BTreeMap<String, String> {
     manifest
         .skills
         .iter()
-        .filter(|skill| skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == "opencode"))
+        .filter(|skill| skill_targets_host(skill, HostKind::OpenCode))
         .map(|skill| {
             let dir = kebab_dir(skill.id.as_str());
-            let owner = skill
-                .plugins
-                .first()
-                .map_or_else(|| "opencode".to_owned(), |p| p.as_str().to_owned());
+            let owner = skill.plugins.first().map_or_else(
+                || HostKind::OpenCode.as_str().to_owned(),
+                |p| p.as_str().to_owned(),
+            );
             (dir.clone(), format!("{owner}:{dir}"))
         })
         .collect()

@@ -40,14 +40,8 @@ pub(super) const fn gateway_status_payload(s: &GatewayStatus) -> GatewayStatusPa
 pub(super) fn verified_identity_payload(v: &VerifiedIdentity) -> VerifiedIdentityPayload<'_> {
     VerifiedIdentityPayload {
         email: v.email.as_deref(),
-        user_id: v
-            .user_id
-            .as_ref()
-            .map(systemprompt_identifiers::UserId::as_str),
-        tenant_id: v
-            .tenant_id
-            .as_ref()
-            .map(systemprompt_identifiers::TenantId::as_str),
+        user_id: v.user_id.as_ref(),
+        tenant_id: v.tenant_id.as_ref(),
         exp_unix: v.exp_unix,
         verified_at_unix: v.verified_at_unix,
     }

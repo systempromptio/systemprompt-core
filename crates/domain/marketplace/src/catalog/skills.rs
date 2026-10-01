@@ -12,7 +12,8 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::ids::{Sha256Digest, SkillId, SkillName};
+use systemprompt_identifiers::{SkillId, SkillName};
+use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::services::skill_frontmatter::{
     check_json_compatible, render_passthrough_frontmatter,
@@ -116,10 +117,9 @@ fn build_skill_entry(
         return Ok(None);
     }
 
-    if !config.id.as_str().is_empty() && config.id.as_str() != dir_name {
+    if let Some(declared) = config.id.as_ref().filter(|id| id.as_str() != dir_name) {
         return Err(MarketplaceError::Catalog(format!(
-            "skill id '{}' does not match its directory name '{dir_name}'",
-            config.id.as_str()
+            "skill id '{declared}' does not match its directory name '{dir_name}'"
         )));
     }
     let id = SkillId::try_new(dir_name).map_err(|e| MarketplaceError::catalog("skill id", e))?;
@@ -172,8 +172,7 @@ fn skill_digest(
 pub(crate) fn build_managed_skill_entry(
     skill: ManagedSkill,
 ) -> Result<(SkillEntry, RevisionFiles), MarketplaceError> {
-    let id = SkillId::try_new(skill.id.as_str())
-        .map_err(|error| MarketplaceError::catalog("managed skill id", error))?;
+    let id = skill.id;
     let name = SkillName::try_new(skill.name)
         .map_err(|error| MarketplaceError::catalog("managed skill name", error))?;
     if let Some(frontmatter) = &skill.frontmatter {

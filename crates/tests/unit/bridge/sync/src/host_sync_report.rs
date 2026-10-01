@@ -1,4 +1,5 @@
 use systemprompt_bridge::host_sync::{HostSyncReport, HostWarningKind};
+use systemprompt_models::bridge::host::HostKind;
 
 #[test]
 fn a_warning_travels_in_the_report_with_its_kind_and_host() {
@@ -7,7 +8,7 @@ fn a_warning_travels_in_the_report_with_its_kind_and_host() {
 
     report.warn(
         HostWarningKind::ToolCatalog,
-        "claude-desktop",
+        HostKind::ClaudeDesktop,
         "tool catalog not refreshed",
     );
 
@@ -21,9 +22,13 @@ fn a_warning_travels_in_the_report_with_its_kind_and_host() {
 #[test]
 fn merging_reports_keeps_every_warning_in_order() {
     let mut first = HostSyncReport::ok();
-    first.warn(HostWarningKind::Manifest, "claude-code", "first");
+    first.warn(HostWarningKind::Manifest, HostKind::ClaudeCode, "first");
     let mut second = HostSyncReport::ok();
-    second.warn(HostWarningKind::PermissionRules, "claude-code", "second");
+    second.warn(
+        HostWarningKind::PermissionRules,
+        HostKind::ClaudeCode,
+        "second",
+    );
 
     first.merge(second);
 

@@ -6,9 +6,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{ApplyReport, HostFailure};
-use crate::gateway::manifest::SignedManifest;
+use crate::gateway::manifest::{SignedManifest, enables_host};
 use crate::host_sync::{HostSync, HostSyncCtx, HostWarning, HostWarningKind};
-use crate::ids::HostId;
+use systemprompt_models::bridge::host::HostKind;
 
 pub(super) async fn capture(
     emitters: &[&'static dyn HostSync],
@@ -17,17 +17,17 @@ pub(super) async fn capture(
     report: &mut ApplyReport,
 ) -> Vec<HostWarning> {
     let mut warnings = Vec::new();
-    let hosts: Vec<&str> = emitters
+    let hosts: Vec<HostKind> = emitters
         .iter()
         .map(|emitter| emitter.host_id())
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .filter(|host_id| {
-            manifest.enabled_hosts.iter().any(|host| host == host_id)
+            enables_host(manifest, *host_id)
                 && !report
                     .host_failures
                     .iter()
-                    .any(|failure| failure.host_id.as_str() == *host_id)
+                    .any(|failure| failure.host_id == *host_id)
         })
         .collect();
     // Why: each host's evidence has its own budget; run them together so a
@@ -36,7 +36,7 @@ pub(super) async fn capture(
     let captures = futures_util::future::join_all(hosts.iter().map(|host_id| async move {
         (
             *host_id,
-            crate::feedback_capture::capture_host(host_id, ctx_ref).await,
+            crate::feedback_capture::capture_host(*host_id, ctx_ref).await,
         )
     }))
     .await;
@@ -63,7 +63,7 @@ pub(super) async fn capture(
                         | crate::feedback::FeedbackError::Contract(_)
                 ) {
                     report.host_failures.push(HostFailure {
-                        host_id: HostId::new(host_id),
+                        host_id,
                         emitter: "installation-evidence".to_owned(),
                         error: format!("verify installed skill evidence: {error}"),
                         needs_elevation: false,

@@ -13,6 +13,8 @@ use std::path::Path;
 
 use async_trait::async_trait;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 
 mod config_yaml;
@@ -26,8 +28,8 @@ pub struct HermesSync;
 
 #[async_trait]
 impl HostSync for HermesSync {
-    fn host_id(&self) -> &'static str {
-        "hermes"
+    fn host_id(&self) -> HostKind {
+        HostKind::Hermes
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {

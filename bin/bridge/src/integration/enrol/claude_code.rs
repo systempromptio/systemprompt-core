@@ -4,17 +4,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::bridge::host::HostKind;
+
 use super::{Outcome, Report};
 use crate::context::BridgeContext;
 use crate::integration::sync_only::{SyncOnlyAgent, sync_only_agent};
 
-pub const ID: &str = "claude-code";
 pub(super) const LABEL: &str = "gateway keys merged into Claude Code's settings file";
 
 #[must_use]
 pub fn installed_agent() -> Option<&'static SyncOnlyAgent> {
     if crate::integration::claude_code_cli::claude_cli_installed() {
-        sync_only_agent(ID)
+        sync_only_agent(HostKind::ClaudeCode)
     } else {
         None
     }
@@ -35,8 +36,9 @@ pub(super) fn removal_report() -> Report {
 
 fn report(outcome: Outcome) -> Report {
     Report {
-        host_id: ID.to_owned(),
-        display_name: sync_only_agent(ID).map_or("Claude Code", |agent| agent.display_name),
+        host_id: HostKind::ClaudeCode,
+        display_name: sync_only_agent(HostKind::ClaudeCode)
+            .map_or("Claude Code", |agent| agent.display_name),
         install_action_label: LABEL,
         outcome,
         warnings: Vec::new(),

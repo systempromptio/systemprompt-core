@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+use systemprompt_models::bridge::host::HostKind;
 
 /// How far the run has got. `Complete` and `Failed` are both terminal; the
 /// difference is only what the wizard says, not whether the user may leave.
@@ -49,7 +50,8 @@ impl StepStatus {
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct FirstRunHostPayload<'a> {
-    pub host_id: &'a str,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
+    pub host_id: HostKind,
     pub display_name: &'a str,
     pub status: StepStatus,
     pub error: Option<&'a str>,

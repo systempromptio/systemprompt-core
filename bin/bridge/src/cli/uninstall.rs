@@ -15,7 +15,13 @@ use crate::{install, stdio};
 pub(super) fn cmd_uninstall(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let hosts = parse_multi_flag(args, "--host");
     if !hosts.is_empty() {
-        return remove_hosts(&Selection::Ids(hosts));
+        return match Selection::parse_ids(&hosts) {
+            Ok(selection) => remove_hosts(&selection),
+            Err(e) => {
+                diag(&e.to_string());
+                ExitCode::from(64)
+            },
+        };
     }
     let purge = has_flag(args, "--purge");
     match crate::integration::uninstall::uninstall(purge, ctx) {

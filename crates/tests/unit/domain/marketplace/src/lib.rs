@@ -62,13 +62,14 @@ mod view;
 #[cfg(test)]
 use async_trait::async_trait;
 #[cfg(test)]
+use systemprompt_identifiers::PluginId;
+#[cfg(test)]
 use systemprompt_identifiers::UserId;
 #[cfg(test)]
 use systemprompt_marketplace::{
     AllowAllFilter, MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError,
 };
-#[cfg(test)]
-use systemprompt_models::bridge::ids::{PluginId, Sha256Digest};
+use systemprompt_models::bridge::ids::Sha256Digest;
 #[cfg(test)]
 use systemprompt_models::bridge::manifest::PluginEntry;
 #[cfg(test)]

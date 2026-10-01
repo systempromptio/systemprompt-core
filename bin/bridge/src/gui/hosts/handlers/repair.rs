@@ -6,17 +6,18 @@
 
 use std::sync::Arc;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
-use crate::ids::HostId;
 use crate::integration::HostAppSnapshot;
 use crate::integration::profile_state::{ProfileState, StaleReason};
 use crate::integration::reapply::{Attendance, Outcome, Report};
 
 pub(crate) fn repair_stale_unattended(
     app: &mut GuiApp,
-    host_id: &HostId,
+    host_id: HostKind,
     snapshot: &HostAppSnapshot,
 ) {
     let ProfileState::Stale { reason } = &snapshot.profile_state else {
@@ -26,10 +27,10 @@ pub(crate) fn repair_stale_unattended(
     if !state.signed_in() || state.first_run.active {
         return;
     }
-    if !app.unattended_repairs.insert(host_id.clone()) {
+    if !app.unattended_repairs.insert(host_id) {
         return;
     }
-    let Some(host) = crate::integration::find_host_by_id(host_id.as_str()) else {
+    let Some(host) = crate::integration::find_host_by_id(host_id) else {
         return;
     };
     let why = match reason {
@@ -44,7 +45,6 @@ pub(crate) fn repair_stale_unattended(
     let env = app.probe_env();
     let proxy = app.proxy.clone();
     let bridge = Arc::clone(&app.ctx);
-    let host_id_owned = host_id.clone();
     app.ctx.spawn(async move {
         let report = crate::integration::reapply::reapply_host(
             &bridge,
@@ -55,13 +55,13 @@ pub(crate) fn repair_stale_unattended(
         )
         .await;
         proxy.send_event(UiEvent::Host(HostUiEvent::UnattendedRepairFinished {
-            host_id: host_id_owned,
+            host_id,
             report,
         }));
     });
 }
 
-pub(crate) fn on_unattended_repair_finished(app: &GuiApp, host_id: &HostId, report: &Report) {
+pub(crate) fn on_unattended_repair_finished(app: &GuiApp, host_id: HostKind, report: &Report) {
     match &report.outcome {
         Outcome::Reapplied => {
             app.append_log(format!("[{host_id}] configuration profile refreshed"));
@@ -85,7 +85,7 @@ pub(crate) fn on_unattended_repair_finished(app: &GuiApp, host_id: &HostId, repo
     }
     app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
-            host_id: host_id.clone(),
+            host_id,
             cause: ProbeCause::Manual,
             reply_to: None,
         }));

@@ -32,7 +32,7 @@ pub(super) fn write_mcp_blocks(
     let mut written = Vec::with_capacity(servers.len());
     if !servers.is_empty() {
         let bearer = loopback
-            .host_bearer(&crate::ids::HostId::new("opencode"))
+            .host_bearer(systemprompt_models::bridge::host::HostKind::OpenCode)
             .map_err(|e| ApplyError::Io {
                 context: "derive opencode host token for mcp".into(),
                 source: e,

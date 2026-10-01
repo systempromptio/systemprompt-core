@@ -90,9 +90,12 @@ pub(crate) fn emit_gateway_changed(app: &GuiApp) {
     send_emit(app, "gateway.changed", &value);
 }
 
-pub(crate) fn emit_host_changed(app: &mut GuiApp, host_id: &crate::ids::HostId) {
+pub(crate) fn emit_host_changed(
+    app: &mut GuiApp,
+    host_id: systemprompt_models::bridge::host::HostKind,
+) {
     let snap = app.state.snapshot();
-    let value = crate::gui::hosts::serde::single_host_payload(&snap, host_id.as_str());
+    let value = crate::gui::hosts::serde::single_host_payload(&snap, host_id);
     send_emit(app, "host.changed", &value);
     emit_state(app);
 }
