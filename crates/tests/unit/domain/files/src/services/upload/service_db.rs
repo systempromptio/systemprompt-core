@@ -14,7 +14,7 @@ use systemprompt_files::{
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::profile::StorageBackend;
 use systemprompt_storage::build_file_storage;
-use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::FileStorage;
 
 const CONTENT: &[u8] = b"hello upload bytes";
@@ -30,10 +30,6 @@ fn files_config(bootstrap: &TestBootstrap, yaml: Option<&str>) -> FilesConfig {
 
 fn local_storage(bootstrap: &TestBootstrap) -> Arc<dyn FileStorage> {
     build_file_storage(StorageBackend::Local, &bootstrap.storage_path)
-}
-
-async fn live_pool(bootstrap: &TestBootstrap) -> Option<DbPool> {
-    fixture_db_pool(&bootstrap.database_url).await.ok()
 }
 
 fn encoded_content() -> String {
@@ -62,10 +58,7 @@ fn regular_files_under(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
 #[tokio::test]
 async fn upload_context_scoped_persists_file_and_row() {
     let b = ensure_test_bootstrap();
-    // skip-ok: no database, so nothing to act on
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let cfg = files_config(b, None);
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
@@ -125,10 +118,7 @@ async fn upload_context_scoped_persists_file_and_row() {
 #[tokio::test]
 async fn upload_rejected_when_persistence_disabled() {
     let b = ensure_test_bootstrap();
-    // skip-ok: no database, so nothing to act on
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let cfg = files_config(
         b,
         Some("files:\n  upload:\n    persistence_mode: disabled\n"),
@@ -150,10 +140,7 @@ async fn upload_rejected_when_persistence_disabled() {
 #[tokio::test]
 async fn upload_rejects_oversized_base64_payload() {
     let b = ensure_test_bootstrap();
-    // skip-ok: no database, so nothing to act on
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let cfg = files_config(b, Some("files:\n  upload:\n    max_file_size_bytes: 16\n"));
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
@@ -177,10 +164,7 @@ async fn upload_rejects_oversized_base64_payload() {
 #[tokio::test]
 async fn upload_rejects_invalid_base64() {
     let b = ensure_test_bootstrap();
-    // skip-ok: no database, so nothing to act on
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         files_config(b, None),
@@ -196,10 +180,7 @@ async fn upload_rejects_invalid_base64() {
 #[tokio::test]
 async fn upload_user_library_scopes_path_to_user() {
     let b = ensure_test_bootstrap();
-    // skip-ok: no database, so nothing to act on
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let cfg = files_config(
         b,
         Some("files:\n  upload:\n    persistence_mode: user_library\n"),
@@ -232,10 +213,7 @@ async fn upload_user_library_scopes_path_to_user() {
 #[tokio::test]
 async fn upload_user_library_without_user_uses_anonymous() {
     let b = ensure_test_bootstrap();
-    // skip-ok: no database, so nothing to act on
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let cfg = files_config(
         b,
         Some("files:\n  upload:\n    persistence_mode: user_library\n"),
@@ -262,10 +240,7 @@ async fn upload_user_library_without_user_uses_anonymous() {
 #[tokio::test]
 async fn upload_rejects_user_id_with_traversal() {
     let b = ensure_test_bootstrap();
-    // skip-ok: no database, so nothing to act on
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let cfg = files_config(
         b,
         Some("files:\n  upload:\n    persistence_mode: user_library\n"),
@@ -292,9 +267,6 @@ async fn upload_rejects_user_id_with_traversal() {
 #[tokio::test]
 async fn upload_db_failure_removes_stored_file() {
     let b = ensure_test_bootstrap();
-    if live_pool(b).await.is_none() {
-        return;
-    }
     let cfg = files_config(b, None);
 
     // Read pool works so construction succeeds; the closed write pool makes
@@ -328,14 +300,10 @@ async fn upload_db_failure_removes_stored_file() {
     );
 }
 
-
 #[tokio::test]
 async fn upload_io_error_when_uploads_path_is_blocked() {
     let b = ensure_test_bootstrap();
-    // skip-ok: no database, so nothing to act on
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let cfg = files_config(b, None);
     // A regular file at the uploads root makes create_dir_all fail before the
     // artefact is written.

@@ -2,15 +2,9 @@
 //! `update_metadata`, and `search_by_path`, each on uniquely-tagged rows.
 
 use chrono::Utc;
-use systemprompt_database::DbPool;
 use systemprompt_files::{File, FileChecksums, FileMetadata, FileRepository};
 use systemprompt_identifiers::{FileId, UserId};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn file_row(tag: &str, ai_content: bool, user: Option<&UserId>) -> File {
     let id = uuid::Uuid::new_v4();
@@ -35,7 +29,7 @@ fn file_row(tag: &str, ai_content: bool, user: Option<&UserId>) -> File {
 
 #[tokio::test]
 async fn list_ai_images_includes_inserted_ai_rows() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = FileRepository::new(&db).expect("repo");
     let tag = format!("ai-list-{}", uuid::Uuid::new_v4().simple());
     let user = UserId::new(format!("u-{tag}"));
@@ -70,7 +64,7 @@ async fn list_ai_images_includes_inserted_ai_rows() {
 
 #[tokio::test]
 async fn list_all_and_search_by_path_return_tagged_rows() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = FileRepository::new(&db).expect("repo");
     let tag = format!("query-{}", uuid::Uuid::new_v4().simple());
 
@@ -98,7 +92,7 @@ async fn list_all_and_search_by_path_return_tagged_rows() {
 
 #[tokio::test]
 async fn update_metadata_persists_new_checksums() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = FileRepository::new(&db).expect("repo");
     let tag = format!("meta-{}", uuid::Uuid::new_v4().simple());
 
@@ -131,7 +125,7 @@ async fn update_metadata_persists_new_checksums() {
 
 #[tokio::test]
 async fn get_stats_snapshot_is_internally_consistent() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = FileRepository::new(&db).expect("repo");
     let tag = format!("stats-{}", uuid::Uuid::new_v4().simple());
 

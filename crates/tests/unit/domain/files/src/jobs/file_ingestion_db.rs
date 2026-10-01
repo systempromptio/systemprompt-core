@@ -8,7 +8,8 @@ use systemprompt_database::{Database, DbPool};
 use systemprompt_files::{FileIngestionJob, FileRepository, FilesConfig};
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_test_fixtures::{
-    TestBootstrap, closed_db_pool, ensure_test_bootstrap, fixture_db_pool,
+    TestBootstrap, closed_db_pool, ensure_test_bootstrap, test_database_url, test_db_pool,
+    test_pg_pool,
 };
 use systemprompt_traits::{Job, JobContext};
 
@@ -21,16 +22,10 @@ fn pool_ctx(pool: &DbPool) -> JobContext {
     job_ctx(Arc::new(Arc::clone(pool)))
 }
 
-async fn live_pool(bootstrap: &TestBootstrap) -> Option<DbPool> {
-    fixture_db_pool(&bootstrap.database_url).await.ok()
-}
-
 #[tokio::test]
 async fn execute_ingests_images_then_skips_on_rerun() {
     let b = ensure_test_bootstrap();
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let cfg = FilesConfig::get().expect("bootstrap initialised FilesConfig");
     let generated = cfg.generated_images();
     std::fs::create_dir_all(&generated).expect("mkdir generated");
@@ -119,15 +114,9 @@ async fn execute_without_db_pool_is_configuration_error() {
 #[tokio::test]
 async fn execute_without_files_config_is_configuration_error() {
     // No bootstrap: FilesConfig::get() must fail in this process.
-    let Ok(url) = std::env::var("TEST_DATABASE_URL").or_else(|_| std::env::var("DATABASE_URL"))
-    // skip-ok: no database, so nothing to act on
-    else {
-        return;
-    };
-    // skip-ok: no database, so nothing to act on
-    let Ok(read) = sqlx::PgPool::connect(&url).await else {
-        return;
-    };
+    let read = sqlx::PgPool::connect(&test_database_url())
+        .await
+        .expect("read pool");
     let pool: DbPool = Arc::new(Database::from_pools(Arc::new(read), None));
 
     let job = FileIngestionJob::new();
@@ -143,10 +132,7 @@ async fn execute_without_files_config_is_configuration_error() {
 #[tokio::test]
 async fn execute_with_missing_images_dir_short_circuits() {
     let b = ensure_test_bootstrap();
-    // skip-ok: no database, so nothing to act on
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     std::fs::remove_dir_all(&b.storage_path).expect("remove storage root");
 
     let job = FileIngestionJob::new();
@@ -161,9 +147,6 @@ async fn execute_with_missing_images_dir_short_circuits() {
 #[tokio::test]
 async fn execute_counts_existence_check_failures() {
     let b = ensure_test_bootstrap();
-    if live_pool(b).await.is_none() {
-        return;
-    }
     std::fs::write(b.storage_path.join("broken.png"), b"img").expect("write image");
 
     let job = FileIngestionJob::new();
@@ -178,16 +161,11 @@ async fn execute_counts_existence_check_failures() {
 #[tokio::test]
 async fn execute_counts_insert_failures() {
     let b = ensure_test_bootstrap();
-    if live_pool(b).await.is_none() {
-        return;
-    }
     std::fs::write(b.storage_path.join("unsaved.png"), b"img").expect("write image");
 
     // Live read pool (existence check passes), closed write pool (insert
     // fails), so the error arm of insert_file_record is exercised.
-    let read = sqlx::PgPool::connect(&b.database_url)
-        .await
-        .expect("read pool");
+    let read = test_pg_pool().await;
     let closed = sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed")
         .expect("lazy pool");
     closed.close().await;

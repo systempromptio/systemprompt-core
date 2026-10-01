@@ -11,11 +11,7 @@ use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_traits::{Job, JobContext};
 
 use crate::bootstrap::test_env;
-
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn write_png_at(path: &std::path::Path) {
     let parent = path.parent().expect("png path has parent");
@@ -41,10 +37,7 @@ async fn file_ingestion_job_metadata_surface() {
 
 #[tokio::test]
 async fn file_ingestion_executes_against_real_pool() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping (no db)");
-        return;
-    };
+    let db = test_db_pool().await;
     let env = test_env();
 
     let unique = format!("test_{}.png", uuid::Uuid::new_v4().simple());
