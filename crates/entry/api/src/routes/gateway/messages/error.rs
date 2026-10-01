@@ -70,3 +70,28 @@ impl RejectionError {
         }
     }
 }
+
+impl axum::response::IntoResponse for RejectionError {
+    fn into_response(self) -> axum::response::Response {
+        if self.status.is_server_error() {
+            tracing::error!(
+                status = %self.status,
+                message = %self.message,
+                cause = ?self.cause,
+                "Gateway request rejected"
+            );
+        } else {
+            tracing::warn!(
+                status = %self.status,
+                message = %self.message,
+                cause = ?self.cause,
+                "Gateway request rejected"
+            );
+        }
+        super::dispatch::errors::build_error_response(
+            self.status,
+            super::dispatch::errors::error_type_for(self.status),
+            self.public_message(),
+        )
+    }
+}

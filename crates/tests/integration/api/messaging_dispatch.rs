@@ -61,7 +61,9 @@ async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
     seed_agent_backend(&pool, &backend).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
-    let outcome = dispatch_messaging(&ctx, inbound(&user, "hi")).await?;
+    let outcome = dispatch_messaging(&ctx, inbound(&user, "hi"))
+        .await
+        .map_err(|e| anyhow::anyhow!("dispatch failed: {e}"))?;
     match outcome {
         DispatchOutcome::Replied(text) => assert_eq!(text, "the agent replied"),
         DispatchOutcome::Denied(reason) => panic!("expected Replied, got Denied({reason})"),
@@ -81,7 +83,9 @@ async fn deny_hook_short_circuits_to_denied() -> anyhow::Result<()> {
     )?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
-    let outcome = dispatch_messaging(&ctx, inbound(&user, "hi")).await?;
+    let outcome = dispatch_messaging(&ctx, inbound(&user, "hi"))
+        .await
+        .map_err(|e| anyhow::anyhow!("dispatch failed: {e}"))?;
     assert!(
         matches!(outcome, DispatchOutcome::Denied(_)),
         "deny-all hook must short-circuit to Denied, got {outcome:?}"
@@ -131,7 +135,9 @@ async fn first_contact_creates_a_federated_user_reused_on_the_second_call() -> a
     let user = format!("U_{}", Uuid::new_v4().simple());
     let pg = pool.pool();
 
-    dispatch_messaging(&ctx, inbound(&user, "first")).await?;
+    dispatch_messaging(&ctx, inbound(&user, "first"))
+        .await
+        .map_err(|e| anyhow::anyhow!("dispatch failed: {e}"))?;
     let first: String = sqlx::query_scalar(
         "SELECT user_id FROM federated_identities WHERE issuer=$1 AND external_sub=$2",
     )
@@ -140,7 +146,9 @@ async fn first_contact_creates_a_federated_user_reused_on_the_second_call() -> a
     .fetch_one(pg.as_ref())
     .await?;
 
-    dispatch_messaging(&ctx, inbound(&user, "second")).await?;
+    dispatch_messaging(&ctx, inbound(&user, "second"))
+        .await
+        .map_err(|e| anyhow::anyhow!("dispatch failed: {e}"))?;
     let rows: Vec<String> = sqlx::query_scalar(
         "SELECT user_id FROM federated_identities WHERE issuer=$1 AND external_sub=$2",
     )

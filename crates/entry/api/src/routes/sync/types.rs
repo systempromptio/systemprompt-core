@@ -20,7 +20,7 @@ pub(super) enum SyncError {
     #[error("blocking file-sync task failed")]
     Join(#[source] tokio::task::JoinError),
     #[error("failed to build the download response")]
-    Response(#[source] axum::http::Error),
+    Response(#[source] http::Error),
 }
 
 impl From<SyncError> for ApiError {

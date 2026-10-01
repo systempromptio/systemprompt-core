@@ -45,7 +45,7 @@ pub enum ReleaseError {
     #[error("{stage} returned {status}")]
     UpstreamStatus {
         stage: &'static str,
-        status: reqwest::StatusCode,
+        status: StatusCode,
     },
     #[error("bridge release token secret unavailable")]
     SecretsUnavailable(#[source] SecretsBootstrapError),

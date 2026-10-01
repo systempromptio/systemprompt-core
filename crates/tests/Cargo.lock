@@ -9131,6 +9131,7 @@ name = "systemprompt-templates-tests"
 version = "0.0.11"
 dependencies = [
  "async-trait",
+ "handlebars",
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-template-provider",

@@ -111,7 +111,7 @@ pub fn clear(ours: &InstallId) -> std::io::Result<()> {
 #[derive(Debug, thiserror::Error)]
 #[error("parse {}: {source}", path.display())]
 struct PortRecordParseError {
-    path: std::path::PathBuf,
+    path: PathBuf,
     #[source]
     source: serde_json::Error,
 }

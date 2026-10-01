@@ -181,7 +181,7 @@ enum ArtifactUiError {
     #[error("failed to render artifact UI")]
     Render(#[source] McpDomainError),
     #[error("failed to build artifact UI response")]
-    Response(#[source] axum::http::Error),
+    Response(#[source] http::Error),
 }
 
 impl From<ArtifactUiError> for ApiHttpError {

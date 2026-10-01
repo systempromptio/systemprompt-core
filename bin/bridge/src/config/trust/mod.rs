@@ -49,7 +49,7 @@ pub enum TrustError {
     )]
     InvalidPolicy(#[source] serde_json::Error),
     #[error("signing trust gateway is not a valid URL: {0}")]
-    GatewayInvalid(#[source] crate::ids::IdValidationError),
+    GatewayInvalid(#[source] systemprompt_identifiers::error::IdValidationError),
     #[error("signing trust record cannot be encoded: {0}")]
     RecordEncode(#[source] serde_json::Error),
 }

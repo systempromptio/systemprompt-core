@@ -437,7 +437,7 @@ async fn a_whole_fleet_checking_at_once_costs_one_github_round_trip() -> anyhow:
         let resolved = feed
             .resolve(&spec, "darwin-arm64")
             .await
-            .map_err(|(status, body)| anyhow::anyhow!("{status}: {body}"))?;
+            .map_err(|err| anyhow::anyhow!("{}: {err}", err.status()))?;
         assert_eq!(resolved.manifest.version, "0.32.0");
     }
 
@@ -472,7 +472,7 @@ async fn a_github_outage_serves_the_last_known_release_rather_than_failing() -> 
     let first = feed
         .resolve(&spec, "darwin-arm64")
         .await
-        .map_err(|(status, body)| anyhow::anyhow!("{status}: {body}"))?;
+        .map_err(|err| anyhow::anyhow!("{}: {err}", err.status()))?;
     assert_eq!(first.manifest.version, "0.32.0");
 
     let s = server().await;
@@ -486,7 +486,7 @@ async fn a_github_outage_serves_the_last_known_release_rather_than_failing() -> 
     let served = feed
         .resolve(&spec, "darwin-arm64")
         .await
-        .map_err(|(status, body)| anyhow::anyhow!("{status}: {body}"))?;
+        .map_err(|err| anyhow::anyhow!("{}: {err}", err.status()))?;
 
     assert_eq!(
         served.manifest.version, "0.32.0",
@@ -515,6 +515,6 @@ async fn an_outage_with_nothing_cached_still_reports_the_failure() -> anyhow::Re
         .await
         .expect_err("no cached release means the failure is the answer");
 
-    assert_eq!(err.0.as_u16(), 502, "{}", err.1);
+    assert_eq!(err.status().as_u16(), 502, "{err}");
     Ok(())
 }

@@ -17,8 +17,8 @@ use systemprompt_oauth::repository::OAuthRepository;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[instrument(skip(repo, req_ctx))]
 pub async fn handle_logout(
@@ -54,5 +54,7 @@ async fn revoke_jti(
     user_id: Uuid,
     exp: DateTime<Utc>,
 ) -> Result<(), OAuthHttpError> {
-    repo.revoke_jti(jti, user_id, exp).await.map_err(|e| internal::server_error("Logout failed", e))
+    repo.revoke_jti(jti, user_id, exp)
+        .await
+        .map_err(|e| internal::server_error("Logout failed", e))
 }

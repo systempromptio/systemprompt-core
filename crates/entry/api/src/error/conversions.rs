@@ -126,7 +126,9 @@ impl From<UserError> for ApiHttpError {
             e @ (UserError::Pool(_)
             | UserError::MergeUnavailable
             | UserError::PurgeIdentifier { .. }
-            | UserError::OwnerReassignment { .. }) => ApiError::internal("User operation failed", e),
+            | UserError::OwnerReassignment { .. }) => {
+                ApiError::internal("User operation failed", e)
+            },
         };
         Self(api)
     }

@@ -235,7 +235,7 @@ enum SendFailure {
 async fn send_once(
     provider: &str,
     req: reqwest::RequestBuilder,
-) -> std::result::Result<reqwest::Response, SendFailure> {
+) -> Result<reqwest::Response, SendFailure> {
     let response = req.send().await.map_err(|e| {
         SendFailure::Fatal(UpstreamError::Transport {
             provider: provider.to_owned(),

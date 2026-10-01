@@ -151,7 +151,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<crate::host_sync::HostSyncReport, crate::host_sync::ApplyError> {
-        let mut report = refresh_tool_catalog(ctx).await?;
+        let report = refresh_tool_catalog(ctx).await?;
         let inputs = super::MdmPayloadInputs {
             policy_store: ctx.policy_store,
             loopback: ctx.loopback,
@@ -159,7 +159,8 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
             egress_allowed_hosts: None,
         };
         #[cfg(target_os = "windows")]
-        {
+        let report = {
+            let mut report = report;
             let config = crate::config::load().map_err(|e| crate::host_sync::ApplyError::Step {
                 context: "load the bridge config for the desktop policy's organization",
                 source: Box::new(e),
@@ -189,7 +190,8 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                     ),
                 ),
             }
-        }
+            report
+        };
         match enforce_managed_policy(&inputs) {
             Ok(line) => {
                 tracing::info!(

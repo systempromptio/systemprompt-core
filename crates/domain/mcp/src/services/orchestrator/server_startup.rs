@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{McpDomainError, McpDomainResult, ServiceStartFailure};
+use crate::error::{McpDomainError, McpDomainResult, ServiceStartFailure, ServiceStartFailures};
 use crate::services::spawn_target::SpawnTarget;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -58,7 +58,9 @@ pub(super) async fn start_pending_servers(
     notify_reconciliation_complete(events, started_count, servers.len());
 
     if !failed.is_empty() {
-        return Err(McpDomainError::ServicesFailedToStart(failed));
+        return Err(McpDomainError::ServicesFailedToStart(ServiceStartFailures(
+            failed,
+        )));
     }
 
     Ok(started_count)

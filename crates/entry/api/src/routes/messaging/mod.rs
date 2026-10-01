@@ -94,7 +94,7 @@ pub enum MessagingError {
     #[error("could not encode the agent request")]
     Encode(#[source] serde_json::Error),
     #[error("could not build the agent request")]
-    Request(#[source] axum::http::Error),
+    Request(#[source] http::Error),
     #[error("agent dispatch failed")]
     Dispatch(#[source] ProxyError),
     #[error("agent returned JSON-RPC error {code}: {message}")]

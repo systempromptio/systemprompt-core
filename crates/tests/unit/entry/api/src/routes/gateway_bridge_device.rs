@@ -63,10 +63,8 @@ async fn enroll(
     h: &Harness,
     headers: HeaderMap,
     fingerprint: String,
-) -> Result<
-    Json<systemprompt_api::routes::gateway::bridge_device::SelfEnrollResponse>,
-    ApiHttpError,
-> {
+) -> Result<Json<systemprompt_api::routes::gateway::bridge_device::SelfEnrollResponse>, ApiHttpError>
+{
     enroll_self(
         Arc::clone(&h.extractor),
         (*h.ctx).clone(),

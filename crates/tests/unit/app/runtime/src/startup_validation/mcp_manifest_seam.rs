@@ -82,7 +82,7 @@ fn internal_present_manifest_yields_no_error() {
         deployment(McpServerType::Internal, true, false, "bin_ok"),
     )]);
 
-    let errors = collect_manifest_errors(&cfg, false, |_| Ok(()));
+    let errors = collect_manifest_errors(&cfg, false, |_| Ok::<(), std::io::Error>(()));
 
     assert!(errors.is_empty(), "resolvable manifest produces no error");
 }
@@ -176,7 +176,7 @@ fn a_server_without_a_tool_policy_is_a_validation_error() {
             ..deployment(McpServerType::Internal, true, false, "present")
         },
     )]);
-    let errors = collect_manifest_errors(&cfg, false, |_| Ok(()));
+    let errors = collect_manifest_errors(&cfg, false, |_| Ok::<(), std::io::Error>(()));
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert_eq!(errors[0].field, "mcp_servers.unpoliced.tool_policy");
 }

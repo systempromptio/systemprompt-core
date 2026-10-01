@@ -102,8 +102,8 @@ domain_error! {
         #[error("MCP server {server} unavailable: concurrency limit reached")]
         DependencyUnavailable { server: String },
 
-        #[error("Failed to start {} MCP service(s): {}", .0.len(), summarize_failures(.0))]
-        ServicesFailedToStart(Vec<ServiceStartFailure>),
+        #[error("Failed to start {0}")]
+        ServicesFailedToStart(ServiceStartFailures),
 
         #[error("{0}")]
         Internal(String),
@@ -158,12 +158,20 @@ impl ServiceStartFailure {
     }
 }
 
-fn summarize_failures(failures: &[ServiceStartFailure]) -> String {
-    failures
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(", ")
+#[derive(Debug)]
+pub struct ServiceStartFailures(pub Vec<ServiceStartFailure>);
+
+impl std::fmt::Display for ServiceStartFailures {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} MCP service(s): ", self.0.len())?;
+        for (index, failure) in self.0.iter().enumerate() {
+            if index > 0 {
+                f.write_str(", ")?;
+            }
+            write!(f, "{failure}")?;
+        }
+        Ok(())
+    }
 }
 
 impl From<sqlx::Error> for McpDomainError {

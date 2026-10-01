@@ -16,8 +16,8 @@ use super::validation::{
     validate_authorize_request, validate_oauth_parameters,
 };
 use super::{AuthorizeQuery, AuthorizeRequest};
-use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::request_base_url::RequestBaseUrl;
 use axum::extract::{Extension, Form, Query, State};
 use axum::response::{Html, IntoResponse, Response};
@@ -53,7 +53,9 @@ async fn issue_server_state(
         .with_client_id(&params.client_id)
         .with_redirect_uri(params.redirect_uri.as_deref().unwrap_or(""))
         .build();
-    repo.store_state_binding(binding).await.map_err(|e| internal::server_error("Failed to persist authorization state", e))?;
+    repo.store_state_binding(binding)
+        .await
+        .map_err(|e| internal::server_error("Failed to persist authorization state", e))?;
     Ok(server_state)
 }
 

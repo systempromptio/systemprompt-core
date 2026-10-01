@@ -176,7 +176,8 @@ enum ManifestReadError {
     Json(#[from] serde_json::Error),
 }
 
-// JSON: a plugin marketplace manifest on disk — a foreign file inspected key by key.
+// JSON: a plugin marketplace manifest on disk — a foreign file inspected key by
+// key.
 fn read_manifest(path: &Path) -> Result<serde_json::Value, ManifestReadError> {
     let bytes = std::fs::read(path)?;
     Ok(serde_json::from_slice(&bytes)?)

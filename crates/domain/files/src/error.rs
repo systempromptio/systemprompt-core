@@ -22,17 +22,17 @@ domain_error! {
         #[error("storage error: {0}")]
         Storage(String),
 
-        #[error(transparent)]
+        #[error("profile: {0}")]
         Profile(#[from] ProfileBootstrapError),
 
-        #[error("Failed to read files.yaml ({}): {source}", path.display())]
+        #[error("Failed to read files.yaml ({path:?}): {source}")]
         ConfigRead {
             path: PathBuf,
             #[source]
             source: std::io::Error,
         },
 
-        #[error("Failed to parse files.yaml ({}): {source}", path.display())]
+        #[error("Failed to parse files.yaml ({path:?}): {source}")]
         ConfigParse {
             path: PathBuf,
             #[source]

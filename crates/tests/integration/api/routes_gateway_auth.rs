@@ -239,10 +239,13 @@ async fn session_with_valid_code_issues_bridge_access() -> Result<()> {
 async fn manifest_without_credential_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let extractor = jwt_extractor(&ctx)?;
-    let (status, _msg) = bridge_manifest::manifest(extractor, (*ctx).clone(), HeaderMap::new())
+    let error = bridge_manifest::manifest(extractor, (*ctx).clone(), HeaderMap::new())
         .await
         .expect_err("missing credential must error");
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        error.into_inner().code.status_code(),
+        StatusCode::UNAUTHORIZED
+    );
     Ok(())
 }
 
@@ -387,11 +390,15 @@ async fn coverage_manifest_database_failure_fails_closed() -> Result<()> {
     let error = bridge_manifest::manifest(extractor, (*offline_ctx).clone(), headers)
         .await
         .expect_err("managed-resource authority must be available");
-    assert_eq!(error.0, StatusCode::INTERNAL_SERVER_ERROR);
+    let error = error.into_inner();
+    assert_eq!(
+        error.code.status_code(),
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "a storage failure must surface as a server error, got: {error:?}"
+    );
     assert!(
-        error.1.contains("managed resource resolution failed"),
-        "a storage failure must surface as the managed authority being unavailable, got: {}",
-        error.1
+        error.source().is_some(),
+        "the storage failure must be kept as the logged cause, got: {error:?}"
     );
     Ok(())
 }

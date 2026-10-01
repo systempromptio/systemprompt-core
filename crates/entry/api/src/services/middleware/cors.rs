@@ -31,13 +31,12 @@ impl CorsMiddleware {
             if trimmed.is_empty() {
                 continue;
             }
-            let header_value =
-                trimmed
-                    .parse::<http::HeaderValue>()
-                    .map_err(|source| CorsError::InvalidOrigin {
-                        origin: origin.clone(),
-                        source,
-                    })?;
+            let header_value = trimmed.parse::<http::HeaderValue>().map_err(|source| {
+                CorsError::InvalidOrigin {
+                    origin: origin.clone(),
+                    source,
+                }
+            })?;
             origins.push(header_value);
         }
 

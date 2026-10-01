@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{McpDomainError, McpDomainResult, ServiceStartFailure};
+use crate::error::{McpDomainError, McpDomainResult, ServiceStartFailure, ServiceStartFailures};
 use crate::services::spawn_target::SpawnTarget;
 use systemprompt_traits::StartupEventSender;
 
@@ -87,7 +87,9 @@ impl McpOrchestrator {
         }
 
         if !failed.is_empty() {
-            return Err(McpDomainError::ServicesFailedToStart(failed));
+            return Err(McpDomainError::ServicesFailedToStart(ServiceStartFailures(
+                failed,
+            )));
         }
 
         Ok(())

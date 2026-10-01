@@ -1,7 +1,15 @@
 use std::path::PathBuf;
 
+use handlebars::{RenderError, RenderErrorReason};
 use systemprompt_template_provider::TemplateLoaderError;
 use systemprompt_templates::TemplateError;
+
+fn render_error(name: &str, message: &str) -> TemplateError {
+    TemplateError::RenderError {
+        name: name.to_string(),
+        source: RenderError::from(RenderErrorReason::Other(message.to_string())),
+    }
+}
 
 mod template_error_display_tests {
     use super::*;
@@ -39,6 +47,14 @@ mod template_error_display_tests {
         assert!(display.contains("failed to compile template"));
         assert!(display.contains("invalid-syntax"));
         assert!(display.contains("unexpected token"));
+    }
+
+    #[test]
+    fn render_error_displays_name_and_message() {
+        let display = render_error("render-fail", "missing variable").to_string();
+        assert!(display.contains("failed to render template"));
+        assert!(display.contains("render-fail"));
+        assert!(display.contains("missing variable"));
     }
 
     #[test]
@@ -104,6 +120,12 @@ mod template_error_construction_tests {
     }
 
     #[test]
+    fn render_error_preserves_name() {
+        let display = render_error("render-template", "variable 'title' not found").to_string();
+        assert!(display.contains("render-template"));
+    }
+
+    #[test]
     fn empty_template_name_in_not_found() {
         let error = TemplateError::NotFound(String::new());
         let display = error.to_string();
@@ -156,6 +178,13 @@ mod error_trait_tests {
             message: "underlying error".to_string(),
         };
         assert!(error.source().is_none());
+    }
+
+    #[test]
+    fn render_error_source_is_the_render_error() {
+        let error = render_error("test", "underlying error");
+        let source = error.source().expect("render error kept as source");
+        assert!(source.is::<RenderError>());
     }
 
     #[test]

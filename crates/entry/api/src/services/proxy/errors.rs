@@ -123,7 +123,7 @@ pub enum ResponseBuildError {
     #[error("failed to read the upstream response body")]
     Body(#[source] reqwest::Error),
     #[error("failed to assemble the proxied response")]
-    Assemble(#[source] http::Error),
+    Assemble(#[source] Box<http::Error>),
 }
 
 impl ProxyError {

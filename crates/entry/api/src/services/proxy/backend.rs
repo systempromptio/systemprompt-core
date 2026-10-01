@@ -247,7 +247,7 @@ impl ResponseHandler {
 
         axum_response
             .body(body)
-            .map_err(ResponseBuildError::Assemble)
+            .map_err(|e| ResponseBuildError::Assemble(Box::new(e)))
     }
 
     // Why: the audit tap rewrites a buffered JSON body (execution stamp) and

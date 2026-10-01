@@ -101,7 +101,10 @@ async fn manifest_is_not_signed_when_the_revocation_read_fails() {
 
     assert_eq!(error.code, ErrorCode::InternalError, "{}", error.message);
     assert_eq!(error.message, "manifest: revocations unavailable");
-    assert!(error.source().is_some(), "the read failure is kept for the log");
+    assert!(
+        error.source().is_some(),
+        "the read failure is kept for the log"
+    );
     let wire = serde_json::to_value(&error).expect("serialise the error");
     assert_eq!(wire["message"], "Internal server error");
 }
