@@ -100,8 +100,16 @@ async fn other_user_gets_the_same_404_as_a_missing_execution() -> anyhow::Result
     let (missing_status, missing_body) =
         get_as(&ctx, &missing, caller("intruder", UserType::User)).await?;
     assert_eq!(missing_status, StatusCode::NOT_FOUND);
-    assert_eq!(body, missing_body);
+    assert_eq!(without_timestamp(&body)?, without_timestamp(&missing_body)?);
     Ok(())
+}
+
+fn without_timestamp(body: &str) -> anyhow::Result<serde_json::Value> {
+    let mut value: serde_json::Value = serde_json::from_str(body)?;
+    if let Some(object) = value.as_object_mut() {
+        object.remove("timestamp");
+    }
+    Ok(value)
 }
 
 #[tokio::test]
