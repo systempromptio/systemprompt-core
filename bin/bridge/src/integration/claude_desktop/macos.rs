@@ -29,6 +29,8 @@ pub(super) const fn update_needs_approval(
 pub(super) fn read_domain(domain: &str) -> DomainRead {
     let mut out = DomainRead::default();
     if let Err(e) = read_domain_into(domain, &mut out) {
+        out.keys.clear();
+        out.api_key_fp = None;
         out.probe_error = Some(e);
     }
     out
