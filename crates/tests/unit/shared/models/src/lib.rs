@@ -201,6 +201,9 @@ mod auth_permission;
 mod auth_types;
 
 #[cfg(test)]
+mod bridge_host_kind;
+
+#[cfg(test)]
 mod bridge_ids;
 
 #[cfg(test)]

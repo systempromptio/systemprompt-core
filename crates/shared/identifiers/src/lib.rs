@@ -17,19 +17,31 @@
 //! ```ignore
 //! use systemprompt_identifiers::{TaskId, UserId};
 //!
-//! // Known string value (literal, parsed input, DB row).
-//! let user = UserId::new("user_abc");
+//! // A value already known to be valid (a decoded DB row).
+//! let task = TaskId::new("task_abc");
+//!
+//! // A value from outside (header, path segment, JWT claim): validate it.
+//! let user = UserId::try_new(raw_sub)?;
 //!
 //! // Mint a fresh UUID-backed identifier.
-//! let task = TaskId::generate();
+//! let fresh = UserId::generate();
 //! ```
 //!
-//! Validated identifiers (`McpServerId`, `ContextId`, `Email`, `ProfileName`,
-//! `ValidatedUrl`, `ValidatedFilePath`, `AgentName`, ...) expose **only** the
-//! fallible `try_new` constructor returning [`error::IdValidationError`];
-//! there is no infallible `new` that could panic on runtime input. Values
+//! Validated identifiers (`ContextId`, `Email`, `ProfileName`, `ValidatedUrl`,
+//! `ValidatedFilePath`, `RoleId`, ...) expose **only** the fallible `try_new`
+//! constructor returning [`error::IdValidationError`]; there is no
+//! infallible `new` that could panic on runtime input. Values
 //! minted by the platform itself (`ContextId::generate`, `AgentName::system`)
 //! come from dedicated constructors.
+//!
+//! Checked identifiers (`UserId`, `ServiceName`, `AgentName`, `McpServerId`,
+//! `McpToolName`) have both: `try_new` validates input from outside, `new`
+//! accepts a value already known valid (a decoded row, a configuration key
+//! validated at load). They implement no `From<String>`, and their
+//! `Deserialize`/`FromStr` validate.
+//!
+//! "Absent" is `Option<Id>`, never a sentinel value such as `"unset"`,
+//! `"unknown"` or the empty string.
 //!
 //! # Feature flags
 //!
@@ -77,6 +89,7 @@ mod profile;
 mod provider_request;
 mod roles;
 mod section;
+mod service;
 mod session;
 mod slack;
 mod task;
@@ -101,7 +114,7 @@ pub use auth::{
 };
 pub use client::{ClientId, ClientType};
 pub use client_session::ClientSessionId;
-pub use cloud::PriceId;
+pub use cloud::{CloudUserId, PriceId};
 pub use connection::ConnectionId;
 pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;
@@ -131,6 +144,7 @@ pub use profile::ProfileName;
 pub use provider_request::ProviderRequestId;
 pub use roles::RoleId;
 pub use section::SectionId;
+pub use service::ServiceName;
 pub use session::{SessionId, SessionSource};
 pub use slack::{SlackChannelId, SlackUserId, SlackWorkspaceId};
 pub use task::TaskId;

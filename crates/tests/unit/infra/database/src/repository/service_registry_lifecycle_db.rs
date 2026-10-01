@@ -5,8 +5,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_database::{CreateServiceInput, Database, DbPool, PoolConfig, ServiceRepository};
-use systemprompt_identifiers::InstanceId;
+use systemprompt_database::{
+    CreateServiceInput, Database, DbPool, PoolConfig, ServiceModule, ServiceRepository,
+    ServiceStatus,
+};
+use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_test_fixtures::test_database_url;
 
 fn unique(prefix: &str) -> String {
@@ -32,11 +35,17 @@ async fn repo() -> (ServiceRepository, DbPool) {
     (repo, db)
 }
 
-async fn register(repo: &ServiceRepository, name: &str, module: &str, port: u16, pid: i32) {
+async fn register(
+    repo: &ServiceRepository,
+    name: &ServiceName,
+    module: ServiceModule,
+    port: u16,
+    pid: i32,
+) {
     repo.create_service(CreateServiceInput {
         name,
         module_name: module,
-        status: "running",
+        status: ServiceStatus::Running,
         port,
         binary_mtime: None,
     })
@@ -48,13 +57,13 @@ async fn register(repo: &ServiceRepository, name: &str, module: &str, port: u16,
 #[tokio::test]
 async fn re_registering_the_same_name_updates_the_row_in_place() {
     let (repo, _db) = repo().await;
-    let name = unique("svc");
-    register(&repo, &name, "mcp", 5555, 111).await;
+    let name = ServiceName::new(unique("svc"));
+    register(&repo, &name, ServiceModule::Mcp, 5555, 111).await;
 
     repo.create_service(CreateServiceInput {
         name: &name,
-        module_name: "agent",
-        status: "starting",
+        module_name: ServiceModule::Agent,
+        status: ServiceStatus::Starting,
         port: 6666,
         binary_mtime: Some(4242),
     })
@@ -66,8 +75,8 @@ async fn re_registering_the_same_name_updates_the_row_in_place() {
         .await
         .expect("find")
         .expect("row");
-    assert_eq!(row.module_name, "agent");
-    assert_eq!(row.status, "starting");
+    assert_eq!(row.module_name, ServiceModule::Agent);
+    assert_eq!(row.status, ServiceStatus::Starting);
     assert_eq!(row.port, 6666);
     assert_eq!(row.binary_mtime, Some(4242));
     assert_eq!(
@@ -85,10 +94,10 @@ async fn re_registering_the_same_name_updates_the_row_in_place() {
 #[tokio::test]
 async fn crashing_clears_the_pid_and_the_stale_sweep_reaps_the_row() {
     let (repo, _db) = repo().await;
-    let crashed = unique("svc_crashed");
-    let healthy = unique("svc_healthy");
-    register(&repo, &crashed, "mcp", 5555, 111).await;
-    register(&repo, &healthy, "mcp", 5556, 222).await;
+    let crashed = ServiceName::new(unique("svc_crashed"));
+    let healthy = ServiceName::new(unique("svc_healthy"));
+    register(&repo, &crashed, ServiceModule::Mcp, 5555, 111).await;
+    register(&repo, &healthy, ServiceModule::Mcp, 5556, 222).await;
 
     repo.mark_service_crashed(&crashed).await.expect("crash");
     let row = repo
@@ -96,9 +105,14 @@ async fn crashing_clears_the_pid_and_the_stale_sweep_reaps_the_row() {
         .await
         .expect("find")
         .expect("row");
-    assert_eq!(row.status, "error");
+    assert_eq!(row.status, ServiceStatus::Error);
     assert_eq!(row.pid, None, "a crashed service must not keep its pid");
-    assert_eq!(repo.count_running_services("mcp").await.expect("count"), 1);
+    assert_eq!(
+        repo.count_running_services(ServiceModule::Mcp)
+            .await
+            .expect("count"),
+        1
+    );
 
     assert_eq!(repo.cleanup_stale_entries().await.expect("sweep"), 1);
     assert!(
@@ -119,18 +133,22 @@ async fn crashing_clears_the_pid_and_the_stale_sweep_reaps_the_row() {
 #[tokio::test]
 async fn running_listings_are_status_filtered_and_name_ordered() {
     let (repo, _db) = repo().await;
-    let mut names = vec![unique("svc_b"), unique("svc_a"), unique("svc_c")];
+    let mut names = vec![
+        ServiceName::new(unique("svc_b")),
+        ServiceName::new(unique("svc_a")),
+        ServiceName::new(unique("svc_c")),
+    ];
     for (index, name) in names.iter().enumerate() {
         register(
             &repo,
             name,
-            "mcp",
+            ServiceModule::Mcp,
             6000 + u16::try_from(index).expect("index fits"),
             300 + i32::try_from(index).expect("index fits"),
         )
         .await;
     }
-    repo.update_service_status(&names[2], "starting")
+    repo.update_service_status(&names[2], ServiceStatus::Starting)
         .await
         .expect("status");
 
@@ -153,7 +171,7 @@ async fn running_listings_are_status_filtered_and_name_ordered() {
         running.len()
     );
     assert_eq!(
-        repo.list_services_by_type("mcp")
+        repo.list_services_by_type(ServiceModule::Mcp)
             .await
             .expect("by type")
             .len(),
@@ -165,8 +183,8 @@ async fn running_listings_are_status_filtered_and_name_ordered() {
 #[tokio::test]
 async fn dead_instance_reaper_honours_the_retention_boundary() {
     let (repo, db) = repo().await;
-    let name = unique("svc");
-    register(&repo, &name, "mcp", 5557, 111).await;
+    let name = ServiceName::new(unique("svc"));
+    register(&repo, &name, ServiceModule::Mcp, 5557, 111).await;
 
     // Why: the sweep is table-wide, so every retention this test passes sits
     // far outside any other test's rows — 400 days ages only its own row, and

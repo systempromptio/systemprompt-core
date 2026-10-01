@@ -1,7 +1,7 @@
 //! Tests for the proxy-verified identity short-circuit: header extraction,
 //! scope enforcement, and the authenticated context it produces.
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_mcp::OAuthRequirement;
 use systemprompt_mcp::middleware::AuthenticatedRequestContext;
 use systemprompt_mcp::middleware::rbac::try_proxy_verified_auth;
@@ -14,6 +14,7 @@ fn ctx() -> RequestContext {
         TraceId::new("t-proxy"),
         ContextId::generate(),
         AgentName::try_new("agent-proxy").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

@@ -194,7 +194,7 @@ fn manifest(plugins: Vec<PluginEntry>, marketplaces: Vec<ManifestMarketplace>) -
         not_before: chrono::DateTime::parse_from_rfc3339("2026-09-05T00:00:00Z")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: systemprompt_identifiers::UserId::new("test-user"),
+        user_id: systemprompt_identifiers::UserId::new("00000000-0000-4000-8000-00000000beef"),
         tenant_id: None,
         user: None,
         plugins,

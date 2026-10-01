@@ -24,7 +24,7 @@ fn host_apps_contains_builtins() {
 #[test]
 fn known_hosts_cover_every_local_and_sync_only_agent() {
     use systemprompt_bridge::integration::SYNC_ONLY_AGENTS;
-    use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+    use systemprompt_models::bridge::host::HostKind;
 
     let mut bridge: Vec<&str> = host_apps()
         .iter()
@@ -34,14 +34,14 @@ fn known_hosts_cover_every_local_and_sync_only_agent() {
         .collect();
     bridge.sort_unstable();
     bridge.dedup();
-    let mut known: Vec<&str> = KNOWN_HOSTS.to_vec();
+    let mut known: Vec<&str> = HostKind::ALL.map(HostKind::as_str).to_vec();
     if !cfg!(any(target_os = "macos", target_os = "windows")) {
         known.retain(|id| *id != "claude-desktop");
     }
     known.sort_unstable();
     assert_eq!(
         bridge, known,
-        "bridge registries and the gateway KNOWN_HOSTS list have drifted"
+        "bridge registries and the gateway HostKind set have drifted"
     );
 }
 
@@ -213,10 +213,10 @@ fn higher_priority_registration_shadows_builtin() {
 #[test]
 fn no_known_host_resolves_as_unknown() {
     use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
-    use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+    use systemprompt_models::bridge::host::HostKind;
 
-    for id in KNOWN_HOSTS {
-        if !cfg!(any(target_os = "macos", target_os = "windows")) && *id == "claude-desktop" {
+    for id in HostKind::ALL.map(HostKind::as_str) {
+        if !cfg!(any(target_os = "macos", target_os = "windows")) && id == "claude-desktop" {
             continue;
         }
         assert!(

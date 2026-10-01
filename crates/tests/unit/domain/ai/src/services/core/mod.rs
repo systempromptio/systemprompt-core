@@ -130,7 +130,7 @@ pub(crate) async fn seeded_context(pool: &DbPool) -> (UserId, RequestContext) {
         TraceId::generate(),
         ContextId::try_new(uuid::Uuid::new_v4().to_string()).expect("valid ContextId"),
         AgentName::try_new("ai-core-test").expect("valid AgentName"),
-    )
-    .with_actor(Actor::user(user_id.clone()));
+        Actor::user(user_id.clone()),
+    );
     (user_id, context)
 }

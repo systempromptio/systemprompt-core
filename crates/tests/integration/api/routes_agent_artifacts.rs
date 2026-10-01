@@ -92,8 +92,8 @@ mod owned {
             TraceId::generate(),
             ContextId::generate(),
             AgentName::try_new("artifact-test").expect("valid AgentName"),
+            Actor::user(user.clone()),
         )
-        .with_actor(Actor::user(user.clone()))
     }
 
     async fn seed_user(db: &DbPool) -> Result<UserId> {

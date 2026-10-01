@@ -1,105 +1,120 @@
 //! Unit tests for ServiceConfig and CreateServiceInput
 
-use systemprompt_database::{CreateServiceInput, ServiceConfig};
+use systemprompt_database::{CreateServiceInput, ServiceConfig, ServiceModule, ServiceStatus};
+use systemprompt_identifiers::{InstanceId, ServiceName};
 
-#[test]
-fn test_service_config_creation() {
-    let config = ServiceConfig {
-        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: "api-server".to_string(),
-        module_name: "api".to_string(),
-        status: "running".to_string(),
-        pid: Some(1234),
+fn config(
+    name: &str,
+    module_name: ServiceModule,
+    status: ServiceStatus,
+    pid: Option<i32>,
+) -> ServiceConfig {
+    ServiceConfig {
+        instance_id: InstanceId::new("test-instance"),
+        name: ServiceName::new(name),
+        module_name,
+        status,
+        pid,
         port: 8080,
         binary_mtime: Some(1700000000),
         created_at: "2024-01-01T00:00:00Z".to_string(),
         heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
-    };
+    }
+}
 
-    assert_eq!(config.name, "api-server");
-    assert_eq!(config.module_name, "api");
-    assert_eq!(config.status, "running");
+#[test]
+fn test_service_config_creation() {
+    let config = config(
+        "api-server",
+        ServiceModule::Agent,
+        ServiceStatus::Running,
+        Some(1234),
+    );
+
+    assert_eq!(config.name.as_str(), "api-server");
+    assert_eq!(config.module_name, ServiceModule::Agent);
+    assert_eq!(config.status, ServiceStatus::Running);
     assert_eq!(config.pid, Some(1234));
     assert_eq!(config.port, 8080);
 }
 
 #[test]
 fn test_service_config_without_pid() {
-    let config = ServiceConfig {
-        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: "stopped-service".to_string(),
-        module_name: "mcp".to_string(),
-        status: "stopped".to_string(),
-        pid: None,
-        port: 3000,
-        binary_mtime: None,
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T00:00:00Z".to_string(),
-    };
+    let config = config(
+        "stopped-service",
+        ServiceModule::Mcp,
+        ServiceStatus::Stopped,
+        None,
+    );
 
     assert!(config.pid.is_none());
-    assert_eq!(config.status, "stopped");
+    assert_eq!(config.status, ServiceStatus::Stopped);
 }
 
-
 #[test]
-fn test_service_config_serialization() {
-    let config = ServiceConfig {
-        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: "serializable".to_string(),
-        module_name: "test".to_string(),
-        status: "running".to_string(),
-        pid: Some(999),
-        port: 9999,
-        binary_mtime: None,
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T00:00:00Z".to_string(),
-    };
+fn test_service_config_serializes_the_stored_strings() {
+    let config = config(
+        "serializable",
+        ServiceModule::Mcp,
+        ServiceStatus::Running,
+        Some(999),
+    );
 
     let json = serde_json::to_string(&config).expect("Should serialize");
     assert!(json.contains("\"name\":\"serializable\""));
-    assert!(json.contains("\"port\":9999"));
+    assert!(json.contains("\"module_name\":\"mcp\""));
+    assert!(json.contains("\"status\":\"running\""));
+}
+
+#[test]
+fn test_service_status_round_trips_every_stored_string() {
+    for status in [
+        ServiceStatus::Starting,
+        ServiceStatus::Running,
+        ServiceStatus::Stopping,
+        ServiceStatus::Stopped,
+        ServiceStatus::Error,
+    ] {
+        assert_eq!(status.as_str().parse::<ServiceStatus>(), Ok(status));
+    }
+    assert!("crashed".parse::<ServiceStatus>().is_err());
+    assert!("".parse::<ServiceStatus>().is_err());
+}
+
+#[test]
+fn test_service_module_round_trips_every_stored_string() {
+    for module in [ServiceModule::Mcp, ServiceModule::Agent] {
+        assert_eq!(module.as_str().parse::<ServiceModule>(), Ok(module));
+    }
+    assert!("api".parse::<ServiceModule>().is_err());
 }
 
 #[test]
 fn test_create_service_input_creation() {
+    let name = ServiceName::new("new-service");
     let input = CreateServiceInput {
-        name: "new-service",
-        module_name: "api",
-        status: "starting",
+        name: &name,
+        module_name: ServiceModule::Agent,
+        status: ServiceStatus::Starting,
         port: 8080,
         binary_mtime: Some(1700000000),
     };
 
-    assert_eq!(input.name, "new-service");
-    assert_eq!(input.module_name, "api");
-    assert_eq!(input.status, "starting");
+    assert_eq!(input.name.as_str(), "new-service");
+    assert_eq!(input.module_name, ServiceModule::Agent);
+    assert_eq!(input.status, ServiceStatus::Starting);
     assert_eq!(input.port, 8080);
     assert_eq!(input.binary_mtime, Some(1700000000));
 }
 
 #[test]
-fn test_create_service_input_without_mtime() {
-    let input = CreateServiceInput {
-        name: "simple-service",
-        module_name: "mcp",
-        status: "stopped",
-        port: 3000,
-        binary_mtime: None,
-    };
-
-    assert!(input.binary_mtime.is_none());
-}
-
-#[test]
 fn test_create_service_input_debug() {
+    let name = ServiceName::new("debug-test");
     let input = CreateServiceInput {
-        name: "debug-test",
-        module_name: "agent",
-        status: "running",
+        name: &name,
+        module_name: ServiceModule::Agent,
+        status: ServiceStatus::Running,
         port: 4000,
         binary_mtime: None,
     };
@@ -107,85 +122,4 @@ fn test_create_service_input_debug() {
     let debug = format!("{:?}", input);
     assert!(debug.contains("CreateServiceInput"));
     assert!(debug.contains("debug-test"));
-}
-
-#[test]
-fn test_create_service_input_port_range() {
-    let input = CreateServiceInput {
-        name: "high-port",
-        module_name: "test",
-        status: "running",
-        port: 65535,
-        binary_mtime: None,
-    };
-
-    assert_eq!(input.port, 65535);
-}
-
-#[test]
-fn test_create_service_input_zero_port() {
-    let input = CreateServiceInput {
-        name: "zero-port",
-        module_name: "test",
-        status: "starting",
-        port: 0,
-        binary_mtime: None,
-    };
-
-    assert_eq!(input.port, 0);
-}
-
-#[test]
-fn test_service_config_status_running() {
-    let config = ServiceConfig {
-        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: "test".to_string(),
-        module_name: "test".to_string(),
-        status: "running".to_string(),
-        pid: Some(1),
-        port: 80,
-        binary_mtime: None,
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T00:00:00Z".to_string(),
-    };
-
-    assert_eq!(config.status, "running");
-}
-
-#[test]
-fn test_service_config_status_stopped() {
-    let config = ServiceConfig {
-        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: "test".to_string(),
-        module_name: "test".to_string(),
-        status: "stopped".to_string(),
-        pid: None,
-        port: 80,
-        binary_mtime: None,
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T00:00:00Z".to_string(),
-    };
-
-    assert_eq!(config.status, "stopped");
-    assert!(config.pid.is_none());
-}
-
-#[test]
-fn test_service_config_status_error() {
-    let config = ServiceConfig {
-        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: "test".to_string(),
-        module_name: "test".to_string(),
-        status: "error".to_string(),
-        pid: None,
-        port: 80,
-        binary_mtime: None,
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T00:00:00Z".to_string(),
-    };
-
-    assert_eq!(config.status, "error");
 }

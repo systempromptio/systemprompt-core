@@ -12,7 +12,7 @@ use axum::response::IntoResponse;
 use systemprompt_api::routes::content::{
     get_content_handler, get_content_markdown_handler, list_content_by_source_handler,
 };
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
@@ -31,6 +31,7 @@ fn req_ctx() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("content").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

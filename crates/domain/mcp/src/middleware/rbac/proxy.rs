@@ -61,7 +61,7 @@ pub fn try_proxy_verified_auth(
 
     validate_scopes_for_permissions(server_name, &permissions, oauth_config)?;
 
-    let user_id: uuid::Uuid = user_id_str.parse().map_err(|error: uuid::Error| {
+    let user_id = UserId::try_new(user_id_str).map_err(|error| {
         tracing::warn!(%error, "Rejected proxy-verified request with a malformed x-user-id");
         McpError::invalid_request("Invalid user ID in x-user-id header".to_owned(), None)
     })?;
@@ -74,7 +74,7 @@ pub fn try_proxy_verified_auth(
         .map(systemprompt_models::auth::parse_roles)
         .unwrap_or_default();
     let authenticated_user = AuthenticatedUser::new_with_roles(
-        user_id,
+        user_id.clone(),
         String::new(),
         String::new(),
         permissions,
@@ -96,7 +96,7 @@ pub fn try_proxy_verified_auth(
 
     let context = request_context
         .with_user(authenticated_user)
-        .with_actor(Actor::user(UserId::new(user_id_str.to_owned())));
+        .with_actor(Actor::user(user_id));
 
     tracing::info!(
         server = %server_name,

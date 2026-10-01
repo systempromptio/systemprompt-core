@@ -10,7 +10,7 @@ use axum::Extension;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::routes::oauth::{public_router, wellknown_routes};
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
@@ -44,6 +44,7 @@ async fn register_is_forbidden_when_dcr_is_closed() {
         TraceId::new("dcr-disabled"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let app = public_router().with_state(state).layer(Extension(req_ctx));
     let body = serde_json::json!({

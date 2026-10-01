@@ -133,7 +133,7 @@ async fn tracked_request_with_revoked_session_refreshes() -> Result<()> {
 #[tokio::test]
 async fn tracked_request_with_unknown_user_creates_anonymous_session() -> Result<()> {
     let (_db, app) = router().await?;
-    let ghost = UserId::new(format!("ghost-{}", uuid::Uuid::new_v4()));
+    let ghost = UserId::generate();
     let token = mint_admin_jwt(&ghost, "ghost@example.invalid", FIXTURE_JWT_ISSUER);
 
     let resp = app
@@ -149,7 +149,7 @@ async fn tracked_request_with_unknown_user_creates_anonymous_session() -> Result
 #[tokio::test]
 async fn tracked_request_with_valid_user_no_session_row_refreshes() -> Result<()> {
     let (db, app) = router().await?;
-    let user_id = UserId::new(format!("live-user-{}", uuid::Uuid::new_v4()));
+    let user_id = UserId::generate();
     seed_user_row(&db, &user_id, "live@example.invalid").await?;
     let token = mint_admin_jwt(&user_id, "live@example.invalid", FIXTURE_JWT_ISSUER);
 

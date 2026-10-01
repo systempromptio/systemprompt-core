@@ -465,7 +465,6 @@ mod closed_pool_resilience {
 
 mod bootstrap_owner_arms {
     use super::*;
-    use systemprompt_identifiers::UserId;
     use systemprompt_scheduler::JobConfig;
 
     #[tokio::test]
@@ -490,7 +489,7 @@ mod bootstrap_owner_arms {
             enabled: true,
             jobs: vec![
                 JobConfig::new(job_name)
-                    .with_owner(UserId::new("sp-test-no-such-owner"))
+                    .with_owner("sp-test-no-such-owner")
                     .with_schedule("0 0 4 * * *"),
             ],
             bootstrap_jobs: vec![job_name.to_owned()],
@@ -551,7 +550,7 @@ mod bootstrap_owner_arms {
             enabled: true,
             jobs: vec![
                 JobConfig::new(job_name)
-                    .with_owner(UserId::new(owner_name.as_str()))
+                    .with_owner(owner_name.as_str())
                     .with_schedule("0 0 4 * * *"),
             ],
             bootstrap_jobs: vec![job_name.to_owned()],

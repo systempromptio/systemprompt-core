@@ -17,7 +17,7 @@ use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
 use crate::repository::A2ARepositories;
 use crate::repository::content::ArtifactRepository;
 use crate::services::{MessageService, SkillService};
-use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, TaskId, UserId};
+use systemprompt_identifiers::{ContextId, MessageId, TaskId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::execution::CallSource;
 use systemprompt_traits::DynToolExecutionLookup;
@@ -66,7 +66,7 @@ impl ArtifactPublishingService {
         let mut validated = artifact.clone();
 
         if let Some(exec_id) = &validated.metadata.mcp_execution_id {
-            let exec_id = McpExecutionId::new(exec_id);
+            let exec_id = exec_id.clone();
             let exists = self
                 .tool_executions
                 .execution_exists(&exec_id)

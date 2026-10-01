@@ -5,7 +5,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
 use systemprompt_mcp::services::monitoring::MonitoringService;
@@ -96,7 +97,7 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
 
 async fn seed_service(
     db: &systemprompt_database::DbPool,
-    name: &str,
+    name: &ServiceName,
     port: u16,
 ) -> ServiceRepository {
     let repo = ServiceRepository::new(
@@ -105,8 +106,8 @@ async fn seed_service(
     );
     repo.create_service(CreateServiceInput {
         name,
-        module_name: "mcp",
-        status: "running",
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
@@ -123,20 +124,21 @@ async fn health_check_live_mcp_endpoint_reports_healthy() {
     let port = mock.address().port();
 
     let name = format!("hc-live-{}", uuid::Uuid::new_v4().simple());
-    let repo = seed_service(&db, &name, port).await;
+    let name_id = ServiceName::new(name.as_str());
+    let repo = seed_service(&db, &name_id, port).await;
 
     let healthy = life.health_check(&make_config(&name, port)).await.unwrap();
 
     let status = repo
-        .find_service_by_name(&name)
+        .find_service_by_name(&name_id)
         .await
         .unwrap()
         .unwrap()
         .status;
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 
     assert!(healthy);
-    assert_eq!(status, "running");
+    assert_eq!(status, ServiceStatus::Running);
 }
 
 #[tokio::test]
@@ -146,20 +148,21 @@ async fn health_check_non_mcp_listener_marks_service_error() {
     let port = mock.address().port();
 
     let name = format!("hc-err-{}", uuid::Uuid::new_v4().simple());
-    let repo = seed_service(&db, &name, port).await;
+    let name_id = ServiceName::new(name.as_str());
+    let repo = seed_service(&db, &name_id, port).await;
 
     let healthy = life.health_check(&make_config(&name, port)).await.unwrap();
 
     let status = repo
-        .find_service_by_name(&name)
+        .find_service_by_name(&name_id)
         .await
         .unwrap()
         .unwrap()
         .status;
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 
     assert!(!healthy);
-    assert_eq!(status, "error");
+    assert_eq!(status, ServiceStatus::Error);
 }
 
 const MARKER_HELPER: &str = "services::lifecycle_live::marker_helper";
@@ -176,20 +179,21 @@ async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
     let (life, db) = make_lifecycle().await;
 
     let name = format!("stop-live-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65401;
     let mut marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
 
-    let repo = seed_service(&db, &name, port).await;
-    repo.update_service_pid(&name, i32::try_from(marked.pid()).unwrap())
+    let repo = seed_service(&db, &name_id, port).await;
+    repo.update_service_pid(&name_id, i32::try_from(marked.pid()).unwrap())
         .await
         .unwrap();
 
     life.stop_server(&make_config(&name, port)).await.unwrap();
 
-    let row = repo.find_service_by_name(&name).await.unwrap().unwrap();
-    repo.delete_service(&name).await.unwrap();
+    let row = repo.find_service_by_name(&name_id).await.unwrap().unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 
-    assert_eq!(row.status, "stopped");
+    assert_eq!(row.status, ServiceStatus::Stopped);
     assert!(row.pid.is_none());
     assert!(!marked.child.wait().expect("child reaped").success());
 }
@@ -199,16 +203,17 @@ async fn restart_server_sweeps_stale_running_row_then_fails_on_missing_binary() 
     let (life, db) = make_lifecycle().await;
 
     let name = format!("restart-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65402;
-    let repo = seed_service(&db, &name, port).await;
+    let repo = seed_service(&db, &name_id, port).await;
 
     let result = life.restart_server(&make_config(&name, port)).await;
 
-    let row = repo.find_service_by_name(&name).await.unwrap();
+    let row = repo.find_service_by_name(&name_id).await.unwrap();
     if let Some(row) = &row {
-        assert_ne!(row.status, "running");
+        assert_ne!(row.status, ServiceStatus::Running);
     }
-    repo.delete_service(&name).await.ok();
+    repo.delete_service(&name_id).await.ok();
 
     assert!(result.is_err(), "startup cannot succeed without a binary");
 }

@@ -444,9 +444,9 @@ fn every_fixture_host_entry_carries_exactly_the_wire_key_set() {
 // `no-models.json` and `proxy-down.json` had quietly dropped `codex-cli`.
 #[test]
 fn every_fixture_lists_exactly_the_known_hosts() {
-    use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+    use systemprompt_models::bridge::host::HostKind;
 
-    let mut expected: Vec<&str> = KNOWN_HOSTS.to_vec();
+    let mut expected: Vec<&str> = HostKind::ALL.map(HostKind::as_str).to_vec();
     expected.sort_unstable();
     let mut checked = 0_usize;
 
@@ -464,7 +464,7 @@ fn every_fixture_lists_exactly_the_known_hosts() {
         ids.sort_unstable();
         assert_eq!(
             ids, expected,
-            "{name}: fixture host ids have drifted from KNOWN_HOSTS"
+            "{name}: fixture host ids have drifted from HostKind::ALL"
         );
         checked += 1;
     }

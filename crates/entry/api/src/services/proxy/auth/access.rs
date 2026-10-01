@@ -19,6 +19,7 @@ use systemprompt_database::ServiceConfig;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_models::services::ServiceModule;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider, RegistryError};
@@ -100,28 +101,22 @@ async fn lookup_oauth_requirement(
     service_name: &str,
     ctx: &AppContext,
 ) -> Result<OAuthRequirement, ProxyError> {
-    if service.module_name == "agent" {
-        let registry = AgentRegistryProviderService::new()
-            .map_err(|error| registry_lookup_error(service_name, error))?;
-        let info = registry
-            .get_agent(service_name)
-            .await
-            .map_err(|error| registry_lookup_error(service_name, error))?;
-        Ok(OAuthRequirement {
-            module: "agent".to_owned(),
-            required: info.oauth.required,
-            scopes: info.oauth.scopes,
-            audience: info.oauth.audience,
-        })
-    } else if service.module_name == "mcp" {
-        mcp_oauth_requirement(ctx, service_name).await
-    } else {
-        Ok(OAuthRequirement {
-            module: service.module_name.clone(),
-            required: true,
-            scopes: vec![],
-            audience: String::new(),
-        })
+    match service.module_name {
+        ServiceModule::Agent => {
+            let registry = AgentRegistryProviderService::new()
+                .map_err(|error| registry_lookup_error(service_name, error))?;
+            let info = registry
+                .get_agent(service_name)
+                .await
+                .map_err(|error| registry_lookup_error(service_name, error))?;
+            Ok(OAuthRequirement {
+                module: ServiceModule::Agent.as_str().to_owned(),
+                required: info.oauth.required,
+                scopes: info.oauth.scopes,
+                audience: info.oauth.audience,
+            })
+        },
+        ServiceModule::Mcp => mcp_oauth_requirement(ctx, service_name).await,
     }
 }
 

@@ -13,8 +13,8 @@ use super::{CallSource, RequestContext};
 use http::{HeaderMap, HeaderValue};
 use std::str::FromStr;
 use systemprompt_identifiers::{
-    Actor, AgentName, AiToolCallId, ClientId, ContextId, SessionId, TaskId, TraceId, UserId,
-    headers,
+    Actor, AgentName, AiToolCallId, ClientId, ContextId, JwtToken, SessionId, TaskId, TraceId,
+    UserId, headers,
 };
 use systemprompt_traits::{
     ContextPropagation, ContextPropagationError, ContextPropagationResult, InjectContextHeaders,
@@ -81,13 +81,15 @@ impl InjectContextHeaders for RequestContext {
             self.request.client_id.as_ref().map(ClientId::as_str),
         );
 
-        let auth_token = self.auth.auth_token.as_str();
-        if auth_token.is_empty() {
-            tracing::trace!(user_id = %self.auth.actor.user_id, "No auth_token to inject - Authorization header not added");
-        } else {
-            let auth_value = format!("Bearer {}", auth_token);
-            insert_header(hdrs, headers::AUTHORIZATION, &auth_value);
-            tracing::trace!(user_id = %self.auth.actor.user_id, "Injected Authorization header for proxy");
+        match &self.auth.auth_token {
+            Some(auth_token) => {
+                let auth_value = format!("Bearer {}", auth_token.as_str());
+                insert_header(hdrs, headers::AUTHORIZATION, &auth_value);
+                tracing::trace!(user_id = %self.auth.actor.user_id, "Injected Authorization header for proxy");
+            },
+            None => {
+                tracing::trace!(user_id = %self.auth.actor.user_id, "No auth_token to inject - Authorization header not added");
+            },
         }
 
         if let Some(user) = &self.user {
@@ -138,10 +140,11 @@ fn apply_optional_execution_fields(
     if let Some(s) = header_str(hdrs, headers::CLIENT_ID) {
         ctx = ctx.with_client_id(ClientId::new(s.to_owned()));
     }
-    let auth_token =
-        header_str(hdrs, headers::AUTHORIZATION).and_then(|s| s.strip_prefix("Bearer "));
+    let auth_token = header_str(hdrs, headers::AUTHORIZATION)
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .filter(|token| !token.is_empty());
     if let Some(token) = auth_token {
-        ctx = ctx.with_auth_token(token.to_owned());
+        ctx = ctx.with_auth_token(JwtToken::new(token));
     }
     Ok(ctx)
 }
@@ -165,15 +168,11 @@ fn apply_proxy_verified_user(
     let permissions = crate::auth::parse_permissions(raw_permissions)
         .map_err(|e| invalid_header(headers::USER_PERMISSIONS, e))?;
 
-    let user_id_uuid = user_id
-        .as_str()
-        .parse::<uuid::Uuid>()
-        .map_err(|e| invalid_header(headers::USER_ID, e))?;
     let roles = header_str(hdrs, headers::USER_ROLES)
         .map(crate::auth::parse_roles)
         .unwrap_or_default();
     let user = crate::auth::AuthenticatedUser::new_with_roles(
-        user_id_uuid,
+        user_id.clone(),
         String::new(),
         String::new(),
         permissions,
@@ -187,7 +186,8 @@ impl ContextPropagation for RequestContext {
     fn from_headers(hdrs: &HeaderMap) -> ContextPropagationResult<Self> {
         let session_id = required_header(hdrs, headers::SESSION_ID)?;
         let trace_id = required_header(hdrs, headers::TRACE_ID)?;
-        let user_id = UserId::new(required_header(hdrs, headers::USER_ID)?.to_owned());
+        let user_id = UserId::try_new(required_header(hdrs, headers::USER_ID)?)
+            .map_err(|e| invalid_header(headers::USER_ID, e))?;
         let agent_name = required_header(hdrs, headers::AGENT_NAME)?;
 
         let session_id = SessionId::new(session_id.to_owned());
@@ -204,8 +204,8 @@ impl ContextPropagation for RequestContext {
             TraceId::new(trace_id.to_owned()),
             context_id,
             agent_name,
-        )
-        .with_actor(Actor::user(user_id.clone()));
+            Actor::user(user_id.clone()),
+        );
 
         let ctx = apply_optional_execution_fields(ctx, hdrs)?;
         apply_proxy_verified_user(ctx, hdrs, &user_id)

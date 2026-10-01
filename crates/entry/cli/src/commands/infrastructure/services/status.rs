@@ -164,7 +164,7 @@ pub(super) async fn execute(
 
     let state_manager = ServiceStateVerifier::new(
         Arc::clone(ctx.db_pool()),
-        systemprompt_identifiers::InstanceId::new(&ctx.config().instance_id),
+        ctx.config().instance_id.clone(),
     );
     let states = state_manager.get_verified_states(&configs).await?;
 

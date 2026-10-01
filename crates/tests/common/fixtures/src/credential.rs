@@ -68,7 +68,7 @@ pub async fn seed_user_row_with_roles(
 
 pub async fn seed_fixture_system_admin(pool: &DbPool) -> Result<()> {
     let p = pool.pool();
-    let id = format!("usr_testadmin_{}", uuid::Uuid::new_v4().simple());
+    let id = Uuid::new_v4().to_string();
     sqlx::query!(
         "INSERT INTO users (id, name, email, roles)
          VALUES ($1, 'testadmin', 'testadmin@localhost.localdomain', ARRAY['admin', 'user'])
@@ -149,7 +149,7 @@ fn mint_jwt_internal(
 }
 
 pub async fn seed_admin_credential(pool: &DbPool, email_base: &str) -> Result<AuthedFixture> {
-    let user_id = UserId::new(format!("admin-{}", Uuid::new_v4()));
+    let user_id = UserId::generate();
     let session_id = SessionId::generate();
     let email = unique_email(email_base, &user_id);
     seed_user_row(pool, &user_id, &email).await?;
@@ -173,7 +173,7 @@ pub async fn seed_admin_credential(pool: &DbPool, email_base: &str) -> Result<Au
 }
 
 pub async fn seed_bridge_credential(pool: &DbPool, email_base: &str) -> Result<AuthedFixture> {
-    let user_id = UserId::new(format!("bridge-{}", Uuid::new_v4()));
+    let user_id = UserId::generate();
     let session_id = SessionId::generate();
     let email = unique_email(email_base, &user_id);
     seed_user_row(pool, &user_id, &email).await?;

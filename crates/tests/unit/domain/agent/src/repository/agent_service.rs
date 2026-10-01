@@ -152,7 +152,7 @@ async fn unrecognised_stored_status_is_invalid_data() {
         .get_agent_status(&name)
         .await
         .expect_err("a status outside the agent vocabulary is corrupt");
-    assert!(matches!(err, RepositoryError::InvalidData(_)), "got {err}");
+    assert!(matches!(err, RepositoryError::Decode { .. }), "got {err}");
 
     r.agent_services.remove_agent_service(&name).await.ok();
 }

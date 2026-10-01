@@ -8,7 +8,8 @@
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::ServiceRepository;
+use systemprompt_database::{ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::orchestrator::McpOrchestrator;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
@@ -56,10 +57,11 @@ async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let name = format!("orch-run-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: 65509,
         binary_mtime: None,
     })
@@ -71,7 +73,7 @@ async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
         !running.iter().any(|c| c.name == name),
         "a running DB row with no matching registry config is excluded"
     );
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 }
 
 #[tokio::test]

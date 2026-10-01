@@ -157,8 +157,8 @@ fn bot_context() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("user_bot")),
     )
-    .with_actor(Actor::user(UserId::new("user_bot")))
 }
 
 async fn seed_link(db: &DbPool) -> anyhow::Result<String> {

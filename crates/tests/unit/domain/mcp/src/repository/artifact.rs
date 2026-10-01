@@ -27,10 +27,8 @@ pub async fn seed_execution(db: &systemprompt_database::DbPool, server: &str) ->
         TraceId::new(unique("trace")),
         ContextId::generate(),
         AgentName::try_new("artifact-tests").expect("valid AgentName"),
-    )
-    .with_actor(Actor::user(UserId::new(
-        "11111111-1111-4111-8111-111111111abc",
-    )));
+        Actor::user(UserId::new("11111111-1111-4111-8111-111111111abc")),
+    );
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
         tool_name: "seed_tool".to_owned(),

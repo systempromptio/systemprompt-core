@@ -59,7 +59,7 @@ impl ClientId {
         Self("sp_bridge".to_owned())
     }
 
-    pub fn system(service_name: &str) -> Self {
+    pub fn system(service_name: &crate::ServiceName) -> Self {
         Self(format!("sys_{service_name}"))
     }
 }

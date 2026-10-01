@@ -10,6 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
+use systemprompt_identifiers::InstanceId;
 use systemprompt_models::Config;
 use systemprompt_models::config::validate_postgres_url;
 use systemprompt_models::profile::Profile;
@@ -108,7 +109,7 @@ fn require_yaml_path(field: &str, value: Option<&str>) -> ConfigResult<String> {
     Ok(path.to_owned())
 }
 
-pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<String> {
+pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<InstanceId> {
     if let Some(id) = profile
         .server
         .instance_id
@@ -116,10 +117,10 @@ pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<String> {
         .map(str::trim)
         .filter(|id| !id.is_empty())
     {
-        return Ok(id.to_owned());
+        return Ok(InstanceId::new(id));
     }
     match systemprompt_models::config::stable_instance_id(|name| std::env::var(name).ok()) {
-        Some(id) => Ok(id),
+        Some(id) => Ok(InstanceId::new(id)),
         None if profile.target.is_cloud() => Err(ConfigError::InstanceIdUnresolved),
         None => Ok(systemprompt_models::config::random_instance_id()),
     }

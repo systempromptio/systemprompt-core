@@ -38,7 +38,10 @@ pub(super) async fn enforce(
         .pointer("/params/name")
         .and_then(serde_json::Value::as_str)
         .ok_or_else(denied)?;
-    let target = format!("mcp__{service}__{tool}");
+    let target = McpToolName::try_new(format!("mcp__{service}__{tool}")).map_err(|error| {
+        tracing::warn!(%error, service, "External MCP tool name rejected");
+        denied()
+    })?;
     let arguments = value
         .pointer("/params/arguments")
         .cloned()
@@ -46,10 +49,7 @@ pub(super) async fn enforce(
     let input = GovernedInput::tool_arguments(McpToolInput::new(arguments));
     let evaluation = ctx.governance().evaluate(&PolicyContext {
         target: GovernedTarget::Tool {
-            tool: McpToolName::try_new(&target).map_err(|error| {
-                tracing::warn!(%error, service, "External MCP tool name rejected");
-                denied()
-            })?,
+            tool: target.clone(),
         },
         agent_scope: AgentScope::User {
             user_id: request.user_id().clone(),
@@ -79,7 +79,7 @@ pub(super) async fn enforce(
         approver: None,
         act_chain: request.auth.act_chain.clone(),
         context_id: Some(request.context_id().clone()),
-        trace_id: Some(request.trace_id().to_string()),
+        trace_id: Some(request.trace_id().clone()),
     };
     let pool = ctx.db_pool().write_pool();
     record_decision(&pool, &record).await.map_err(|error| {

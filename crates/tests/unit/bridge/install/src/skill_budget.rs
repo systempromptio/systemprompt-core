@@ -37,7 +37,7 @@ fn manifest(marketplaces: Vec<ManifestMarketplace>) -> SignedManifest {
         ManifestVersion::try_new("2026-09-30T00:00:00Z-00000000").unwrap(),
         at,
         at,
-        systemprompt_identifiers::UserId::new("test-user"),
+        systemprompt_identifiers::UserId::new("00000000-0000-4000-8000-00000000beef"),
     )
     .with_marketplaces(marketplaces)
     .build()

@@ -18,8 +18,8 @@ fn ctx() -> RequestContext {
         TraceId::new("t-exec"),
         ContextId::generate(),
         AgentName::try_new("agent-exec").expect("valid AgentName"),
+        Actor::user(UserId::new("user-exec")),
     )
-    .with_actor(Actor::user(UserId::new("user-exec")))
 }
 
 async fn mount_mcp_server(server: &MockServer, tool_response: serde_json::Value) {

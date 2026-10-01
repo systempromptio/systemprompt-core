@@ -9,6 +9,7 @@ use axum::routing::get;
 use axum::{Extension, Router};
 use std::sync::Arc;
 use systemprompt_database::ServiceRepository;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::{ApiError, CollectionResponse, RequestContext};
 use systemprompt_runtime::AppContext;
 
@@ -53,9 +54,10 @@ async fn build_agent_cards(
     let mut agent_cards = Vec::new();
 
     for agent_config in agents {
-        let runtime_status = match service_repo.find_service_by_name(&agent_config.name).await {
+        let service_name = ServiceName::new(agent_config.name.as_str());
+        let runtime_status = match service_repo.find_service_by_name(&service_name).await {
             Ok(Some(service)) => Some((
-                service.status,
+                service.status.to_string(),
                 Some(agent_config.port),
                 service.pid.map(|p| p as u32),
             )),

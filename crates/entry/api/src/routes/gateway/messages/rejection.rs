@@ -49,7 +49,7 @@ pub fn build_rejection_record(
 
     let context_id = partial.context_id.clone().unwrap_or_else(|| {
         partial.session_id.as_ref().map_or_else(
-            systemprompt_identifiers::ContextId::legacy,
+            systemprompt_identifiers::ContextId::generate,
             systemprompt_identifiers::ContextId::derived_from_session,
         )
     });

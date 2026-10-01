@@ -38,8 +38,8 @@ pub async fn handle(
         TraceId::generate(),
         ContextId::generate(),
         AgentName::bridge(),
-    )
-    .with_actor(Actor::user(user.id));
+        Actor::user(user.id),
+    );
 
     create_sse_stream(request_context, &AGUI_BROADCASTER, "bridge")
         .await

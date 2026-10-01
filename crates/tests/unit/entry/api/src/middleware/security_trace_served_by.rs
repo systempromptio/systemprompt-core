@@ -30,7 +30,7 @@ pub(crate) fn ensure_config() {
 
 pub(crate) fn test_config() -> Config {
     Config {
-        instance_id: "unit-test-instance".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("unit-test-instance"),
         metrics_port: None,
         max_concurrent_streams: 16,
         sitename: "test".to_string(),
@@ -217,13 +217,14 @@ async fn raw_xfo_header_without_marker_is_clobbered_to_profile_value() {
 
 #[tokio::test]
 async fn trace_header_present_when_context_attached() {
-    use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+    use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
     let trace = TraceId::new("trace-xyz");
     let ctx = RequestContext::new(
         SessionId::generate(),
         trace.clone(),
         ContextId::generate(),
         AgentName::try_new("agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let app = Router::new()
         .route("/", get(|| async { "ok" }))

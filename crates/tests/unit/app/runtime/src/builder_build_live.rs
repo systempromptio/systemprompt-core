@@ -162,7 +162,7 @@ async fn build_rehomes_the_legacy_context_onto_the_current_system_admin() {
     )
     .await;
     seed_admin(&fixture.database_url, &admin, "active", &["admin", "user"]).await;
-    let legacy = systemprompt_identifiers::ContextId::legacy();
+    let legacy = systemprompt_identifiers::ContextId::legacy_context_row();
     sqlx::query(
         "INSERT INTO user_contexts (context_id, user_id, name, kind) VALUES ($1, $2, 'Legacy (pre-context)', 'legacy')
          ON CONFLICT (context_id) DO UPDATE SET user_id = EXCLUDED.user_id",

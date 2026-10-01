@@ -57,6 +57,7 @@ fn act_chain_round_trips_through_request_context() {
         TraceId::new("t1"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
     .with_act_chain(chain);
 

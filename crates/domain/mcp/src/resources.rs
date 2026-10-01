@@ -15,7 +15,7 @@ use crate::services::ui_renderer::{
     CspPolicy, MCP_APP_MIME_TYPE, RenderTarget, UiMetadata, artifact_ui_resource,
     parse_artifact_resource_uri,
 };
-use systemprompt_identifiers::{ArtifactId, ContextId};
+use systemprompt_identifiers::ArtifactId;
 use systemprompt_models::mcp::McpResourceUiMeta;
 
 const STATIC_TEMPLATE_TTL_MS: u64 = 3_600_000;
@@ -123,11 +123,18 @@ pub async fn read_artifact_resource(
         )
     })?;
 
+    let context_id = record.context_id.clone().ok_or_else(|| {
+        McpError::internal_error(
+            format!("Stored artifact {artifact_id} has no context to render under"),
+            None,
+        )
+    })?;
+
     let target = RenderTarget {
         artifact_id: &artifact_id,
         artifact_type: &record.artifact_type,
         payload,
-        context_id: record.context_id.clone().unwrap_or_else(ContextId::legacy),
+        context_id,
         title: record.title.clone(),
     };
 

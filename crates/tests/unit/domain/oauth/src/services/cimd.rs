@@ -1,6 +1,6 @@
 //! Tests for CIMD fetcher and client validation dispatch
 
-use systemprompt_identifiers::{ClientId, ClientType};
+use systemprompt_identifiers::{ClientId, ClientType, ServiceName};
 use systemprompt_oauth::models::cimd::{CimdMetadata, ClientValidation};
 use systemprompt_oauth::services::cimd::CimdFetcher;
 
@@ -176,7 +176,7 @@ fn test_client_id_cli_is_first_party() {
 
 #[test]
 fn test_client_id_system_factory_produces_system_type() {
-    let id = ClientId::system("event_bus");
+    let id = ClientId::system(&ServiceName::new("event_bus"));
     assert_eq!(id.client_type(), ClientType::System);
     assert_eq!(id.as_str(), "sys_event_bus");
 }
@@ -207,7 +207,7 @@ fn test_client_validation_first_party_exposes_client_id() {
 
 #[test]
 fn test_client_validation_system_exposes_client_id() {
-    let client_id = ClientId::system("sync");
+    let client_id = ClientId::system(&ServiceName::new("sync"));
     let validation = ClientValidation::System {
         client_id: client_id.clone(),
     };

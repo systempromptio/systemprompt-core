@@ -163,8 +163,8 @@ pub use services::{
     ComponentFilter, ComponentSource, DiskHookConfig, DiskSkillConfig, HOOK_CONFIG_FILENAME,
     MarketplaceConfig, OAuthConfig as AgentOAuthConfig, PluginComponentRef, PluginConfig,
     PluginConfigFile, PluginVariableDef, RuntimeStatus, SKILL_CONFIG_FILENAME, SchedulerConfig,
-    ServiceType, ServicesConfig, SkillsConfig, SystemAdmin, WebConfig, split_frontmatter,
-    strip_frontmatter,
+    ServiceModule, ServiceStatus, ServiceType, ServicesConfig, SkillsConfig, SystemAdmin,
+    WebConfig, split_frontmatter, strip_frontmatter,
 };
 pub use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 

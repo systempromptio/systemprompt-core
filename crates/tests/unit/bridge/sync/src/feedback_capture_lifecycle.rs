@@ -94,7 +94,7 @@ fn cowork_capture_keeps_failed_generation_pending_when_its_required_plugin_root_
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("cowork-capture-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();
@@ -202,7 +202,7 @@ fn native_host_readback_failure_keeps_foreign_files_and_retry_records_only_verif
                     let enrollment = Enrollment::new(
                         &server.uri(),
                         DeviceId::try_new(format!("{host_name}-device")).unwrap(),
-                        UserId::new("consumer"),
+                        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                         BearerToken::new("sp_device_capture"),
                     )
                     .unwrap();
@@ -390,7 +390,7 @@ fn claude_native_cache_rejects_mismatched_evidence_then_acknowledges_repaired_ge
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("claude-capture-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();
@@ -492,7 +492,7 @@ fn codex_emitter_roots_require_both_source_and_versioned_cache_before_capture() 
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("codex-capture-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();
@@ -521,7 +521,7 @@ fn manifest() -> SignedManifest {
         manifest_version: ManifestVersion::try_new("2026-04-30T12:00:00Z-deadbeef").unwrap(),
         issued_at: chrono::Utc::now(),
         not_before: chrono::Utc::now(),
-        user_id: UserId::new("consumer"),
+        user_id: UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         tenant_id: None,
         user: None,
         plugins: vec![],
@@ -643,7 +643,7 @@ fn capture_host_materializes_receipt_and_acknowledges_the_durable_outbox() {
             Mock::given(method("POST")).and(path("/api/v1/consumer/receipts")).and(header("authorization", "Bearer sp_device_capture"))
                 .respond_with(ResponseTemplate::new(200).set_body_json(receipt)).expect(1).mount(&server).await;
             let feedback_root = systemprompt_bridge::feedback::metadata_root().unwrap(); fs::create_dir_all(&feedback_root).unwrap();
-            let enrollment = Enrollment::new(&server.uri(), DeviceId::try_new("capture-device").unwrap(), UserId::new("consumer"), BearerToken::new("sp_device_capture")).unwrap(); enrollment.save(&feedback_root).unwrap();
+            let enrollment = Enrollment::new(&server.uri(), DeviceId::try_new("capture-device").unwrap(), UserId::new("00000000-0000-4000-8000-00000000c0c0"), BearerToken::new("sp_device_capture")).unwrap(); enrollment.save(&feedback_root).unwrap();
             let m = manifest(); let bearer = BearerToken::default(); let ctx = context(&m, &server.uri(), &bearer, root);
             let outcome = capture_host("opencode", &ctx).await.unwrap();
             assert_eq!(outcome.recovered, 1); assert_eq!(outcome.remaining, 0); assert!(!outcome.undelivered);
@@ -677,7 +677,7 @@ fn capture_host_keeps_the_reserved_plan_when_the_gateway_cannot_supply_a_bundle(
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("capture-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();
@@ -718,7 +718,7 @@ fn hermes_missing_native_skill_is_rejected_before_reservation_or_networking() {
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("missing-hermes-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();

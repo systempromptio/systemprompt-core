@@ -7,7 +7,7 @@ mod model;
 
 use chrono::{Duration, Utc};
 use sqlx::PgPool;
-use systemprompt_identifiers::{CallId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, McpServerId, McpToolName, SessionId, TraceId, UserId};
 use systemprompt_models::errors::RepositoryError;
 
 pub use model::{
@@ -41,13 +41,13 @@ impl ApprovalRepository {
              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              ON CONFLICT (call_id) DO NOTHING",
             req.call_id.as_str(),
-            req.tool_name,
-            req.server_name,
+            req.tool_name.as_str(),
+            req.server_name.as_str(),
             req.arguments,
             digest,
             req.requested_by.as_str(),
             req.session_id.map(SessionId::as_str),
-            req.trace_id,
+            req.trace_id.map(TraceId::as_str),
             req.rule,
             expires_at,
         )
@@ -72,13 +72,13 @@ impl ApprovalRepository {
 
         Ok(row.map(|r| ApprovalRequest {
             call_id: CallId::new(r.call_id),
-            tool_name: r.tool_name,
-            server_name: r.server_name,
+            tool_name: McpToolName::new(r.tool_name),
+            server_name: McpServerId::new(r.server_name),
             arguments: r.arguments,
             args_digest: r.args_digest,
             requested_by: UserId::new(r.requested_by),
             session_id: r.session_id.map(SessionId::new),
-            trace_id: r.trace_id,
+            trace_id: r.trace_id.map(TraceId::new),
             rule: r.rule,
             status: parse_status(&r.status),
             approver_id: r.approver_id.map(UserId::new),
@@ -108,13 +108,13 @@ impl ApprovalRepository {
             .into_iter()
             .map(|r| ApprovalRequest {
                 call_id: CallId::new(r.call_id),
-                tool_name: r.tool_name,
-                server_name: r.server_name,
+                tool_name: McpToolName::new(r.tool_name),
+                server_name: McpServerId::new(r.server_name),
                 arguments: r.arguments,
                 args_digest: r.args_digest,
                 requested_by: UserId::new(r.requested_by),
                 session_id: r.session_id.map(SessionId::new),
-                trace_id: r.trace_id,
+                trace_id: r.trace_id.map(TraceId::new),
                 rule: r.rule,
                 status: parse_status(&r.status),
                 approver_id: r.approver_id.map(UserId::new),
@@ -145,13 +145,13 @@ impl ApprovalRepository {
             .into_iter()
             .map(|r| ApprovalRequest {
                 call_id: CallId::new(r.call_id),
-                tool_name: r.tool_name,
-                server_name: r.server_name,
+                tool_name: McpToolName::new(r.tool_name),
+                server_name: McpServerId::new(r.server_name),
                 arguments: r.arguments,
                 args_digest: r.args_digest,
                 requested_by: UserId::new(r.requested_by),
                 session_id: r.session_id.map(SessionId::new),
-                trace_id: r.trace_id,
+                trace_id: r.trace_id.map(TraceId::new),
                 rule: r.rule,
                 status: parse_status(&r.status),
                 approver_id: r.approver_id.map(UserId::new),

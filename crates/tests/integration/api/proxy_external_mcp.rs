@@ -16,8 +16,10 @@ use axum::body::{Body, to_bytes};
 use super::common::assert_forwarded_with_execution_stamp;
 use axum::http::Request;
 use http::StatusCode;
-use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_database::{
+    CreateServiceInput, DbPool, ServiceModule, ServiceRepository, ServiceStatus,
+};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
@@ -192,9 +194,9 @@ fn caller_context(user: &str) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new(user)),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
-    .with_auth_token(CALLER_JWT)
+    .with_auth_token(JwtToken::new(CALLER_JWT))
 }
 
 fn tool_call_body(tool: &str) -> String {
@@ -419,6 +421,7 @@ async fn external_with_anonymous_context_is_unauthorized() -> anyhow::Result<()>
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let resp = h
         .app
@@ -443,10 +446,11 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
     // Why: the row carries a port from an earlier run under another offset;
     // the resolver must trust the port this instance spawns, not the row.
     let stale_port = 5321;
+    let int_name = systemprompt_identifiers::ServiceName::new(h.int_name.as_str());
     repo.create_service(CreateServiceInput {
-        name: &h.int_name,
-        module_name: "mcp",
-        status: "running",
+        name: &int_name,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: stale_port,
         binary_mtime: None,
     })
@@ -510,7 +514,7 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
          substitute the callee server's name for it"
     );
     let row = repo
-        .find_service_by_name(&h.int_name)
+        .find_service_by_name(&int_name)
         .await?
         .expect("service row");
     assert_eq!(
@@ -798,9 +802,9 @@ fn caller_context_with_token(user: &str, token: &str) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new(user)),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
-    .with_auth_token(token)
+    .with_auth_token(JwtToken::new(token))
 }
 
 async fn mount_accessor_token(server: &MockServer, caller: &str, provider: &str) {

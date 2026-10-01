@@ -21,7 +21,7 @@ fn claims() -> IdJagClaims {
     }
 }
 
-fn policy(allowed: &[String], now: i64) -> ClaimPolicy<'_> {
+fn policy(allowed: &[ClientId], now: i64) -> ClaimPolicy<'_> {
     ClaimPolicy {
         expected_audience: "https://core.example",
         authenticated_client: "client-a",
@@ -81,9 +81,9 @@ fn azp_used_when_client_id_absent() {
 
 #[test]
 fn enforces_allowed_client_ids() {
-    let allowed = vec!["client-a".to_owned()];
+    let allowed = vec![ClientId::new("client-a")];
     assert!(validate_claims(&claims(), &policy(&allowed, 999_800)).is_ok());
-    let allowed_other = vec!["client-z".to_owned()];
+    let allowed_other = vec![ClientId::new("client-z")];
     assert!(matches!(
         validate_claims(&claims(), &policy(&allowed_other, 999_800)),
         Err(IdJagError::ClientNotAllowed { .. })

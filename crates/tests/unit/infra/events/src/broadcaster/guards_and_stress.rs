@@ -5,7 +5,7 @@ use std::time::Duration;
 use systemprompt_events::{Broadcaster, ConnectionGuard, GenericBroadcaster};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::SystemEvent;
-use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id, unique_user_id};
 
 type TestBroadcaster = GenericBroadcaster<SystemEvent>;
 
@@ -32,7 +32,7 @@ async fn test_connection_guard_debug() {
 
     let debug_str = format!("{:?}", guard);
     assert!(debug_str.contains("ConnectionGuard"));
-    assert!(debug_str.contains("test-user"));
+    assert!(debug_str.contains(FIXTURE_USER_ID));
     assert!(debug_str.contains("test-conn"));
 
     let _ = AGUI_BROADCASTER.total_connections().await;

@@ -7,9 +7,9 @@ use crate::models::JwtClaims;
 use crate::services::validation::{audience, jwt as jwt_validation};
 use http::{HeaderMap, StatusCode};
 use std::str::FromStr;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
 use systemprompt_security::TokenExtractor;
-use uuid::Uuid;
 
 #[derive(Debug, Copy, Clone)]
 pub struct AuthorizationService;
@@ -113,7 +113,7 @@ impl AuthorizationService {
     fn create_authenticated_user_from_claims(
         claims: JwtClaims,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let user_id = Uuid::parse_str(&claims.sub).map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let user_id = UserId::try_new(claims.sub.as_str()).map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();
 

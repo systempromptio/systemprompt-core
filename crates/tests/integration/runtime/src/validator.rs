@@ -19,7 +19,7 @@ static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
 
 fn minimal_config() -> Config {
     Config {
-        instance_id: "test-instance".to_string(),
+        instance_id: systemprompt_models::config::InstanceId::new("test-instance"),
         metrics_port: None,
         max_concurrent_streams: 256,
         sitename: "test".to_string(),

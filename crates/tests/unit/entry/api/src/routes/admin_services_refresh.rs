@@ -10,7 +10,7 @@ use axum::extract::{Extension, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use systemprompt_api::routes::admin::services::{RefreshLock, RefreshQuery, refresh};
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_loader::services_root::{
     ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap,
 };
@@ -30,6 +30,7 @@ fn req_ctx() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("admin").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

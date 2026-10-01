@@ -534,7 +534,7 @@ fn device_enroll_persists_the_server_assigned_device_and_feedback_status_reads_i
             .and(path("/api/v1/consumer-devices/enrollment"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "device_id": "device-from-gateway",
-                "consumer_id": "consumer-from-gateway",
+                "consumer_id": "00000000-0000-4000-8000-00000000c0a7",
             })))
             .mount(&server)
             .await;
@@ -575,7 +575,7 @@ fn feedback_status_summarizes_real_outbox_delivery_and_superseded_installations(
     let enrollment = Enrollment::new(
         "http://127.0.0.1:1",
         DeviceId::try_new("feedback-status-device").expect("valid fixture device"),
-        UserId::new("feedback-status-consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000fb5c"),
         BearerToken::new("sp_device_feedback_status"),
     )
     .expect("valid fixture enrollment");
@@ -767,7 +767,7 @@ fn rejected_device_rotation_preserves_the_working_enrolment_and_a_retry_replaces
             .and(path("/api/v1/consumer-devices/enrollment"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "device_id": "device-before-repair",
-                "consumer_id": "consumer-before-repair"
+                "consumer_id": "00000000-0000-4000-8000-00000000c0b1"
             })))
             .mount(&server)
             .await;
@@ -842,7 +842,7 @@ fn rejected_device_rotation_preserves_the_working_enrolment_and_a_retry_replaces
             .and(path("/api/v1/consumer-devices/enrollment"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "device_id": "device-after-repair",
-                "consumer_id": "consumer-after-repair"
+                "consumer_id": "00000000-0000-4000-8000-00000000c0a2"
             })))
             .mount(&server)
             .await;

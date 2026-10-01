@@ -312,7 +312,7 @@ async fn enforce_authz_allows_under_allow_all_hook() {
         &principal,
         &route,
         "claude-test",
-        &ContextId::legacy(),
+        &ContextId::generate(),
         &hook,
     )
     .await
@@ -332,7 +332,7 @@ async fn enforce_authz_denies_under_deny_all_hook() {
         &principal,
         &route,
         "claude-test",
-        &ContextId::legacy(),
+        &ContextId::generate(),
         &hook,
     )
     .await

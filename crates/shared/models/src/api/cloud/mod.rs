@@ -38,7 +38,7 @@ pub struct CloudApiErrorDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudUserInfo {
-    pub id: systemprompt_identifiers::UserId,
+    pub id: systemprompt_identifiers::CloudUserId,
     pub email: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,

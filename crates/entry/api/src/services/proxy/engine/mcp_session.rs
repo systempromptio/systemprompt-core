@@ -12,11 +12,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::SessionId;
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
-use uuid::Uuid;
 
 fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
     headers
@@ -62,7 +61,7 @@ pub async fn enrich_with_cached_identity(
         },
     };
 
-    let Ok(user_uuid) = Uuid::parse_str(identity.user_id.as_str()) else {
+    if identity.user_id.to_uuid().is_err() {
         tracing::warn!(
             service = %service_name,
             session_id = %session_id,
@@ -70,7 +69,7 @@ pub async fn enrich_with_cached_identity(
             "Stored proxy session identity has a non-UUID user id"
         );
         return req_context;
-    };
+    }
 
     tracing::info!(
         service = %service_name,
@@ -79,11 +78,11 @@ pub async fn enrich_with_cached_identity(
         "Enriching session-only request with stored identity"
     );
     req_context
-        .with_actor(systemprompt_identifiers::Actor::user(identity.user_id))
+        .with_actor(systemprompt_identifiers::Actor::user(identity.user_id.clone()))
         .with_user_type(identity.user_type)
-        .with_auth_token(identity.auth_token.as_str().to_owned())
+        .with_auth_token(identity.auth_token)
         .with_user(AuthenticatedUser::new_with_roles(
-            user_uuid,
+            identity.user_id,
             String::new(),
             String::new(),
             identity.permissions,
@@ -209,12 +208,15 @@ async fn cache_identity_from_response(
     let Some(user) = authenticated_user else {
         return;
     };
+    let Some(auth_token) = req_context.auth_token() else {
+        return;
+    };
     let row = ProxyIdentityRow {
-        user_id: UserId::new(user.id.to_string()),
+        user_id: user.id.clone(),
         user_type: req_context.user_type(),
         permissions: user.permissions.clone(),
         roles: user.roles.clone(),
-        auth_token: req_context.auth_token().clone(),
+        auth_token: auth_token.clone(),
     };
     match identities.upsert(&session_id, &row).await {
         Ok(()) => {

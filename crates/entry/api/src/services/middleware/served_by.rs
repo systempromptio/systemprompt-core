@@ -9,7 +9,7 @@ use axum::response::Response;
 use systemprompt_models::Config;
 
 pub async fn inject_served_by(request: Request, next: Next) -> Response {
-    let instance_id = Config::get().ok().map(|cfg| cfg.instance_id.clone());
+    let instance_id = Config::get().ok().map(|cfg| cfg.instance_id.as_str().to_owned());
 
     let mut response = next.run(request).await;
 

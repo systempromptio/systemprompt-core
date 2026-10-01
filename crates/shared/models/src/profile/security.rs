@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use crate::auth::JwtAudience;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ClientId;
 
 pub const GATEWAY_REQUIRED_RESOURCE_AUDIENCES: &[&str] = &["hook"];
 
@@ -86,7 +87,7 @@ pub struct TrustedIssuer {
     pub typ_allowlist: Vec<String>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub allowed_client_ids: Vec<String>,
+    pub allowed_client_ids: Vec<ClientId>,
 
     #[serde(default)]
     pub can_issue_id_jag: bool,

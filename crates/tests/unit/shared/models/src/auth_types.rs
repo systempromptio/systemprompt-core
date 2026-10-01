@@ -1,14 +1,13 @@
 use std::str::FromStr;
 
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_models::auth::{
     AuthError, AuthenticatedUser, Permission, PkceMethod, ResponseType, UserType,
 };
-use uuid::Uuid;
 
 fn user_with_perms(perms: Vec<Permission>) -> AuthenticatedUser {
     AuthenticatedUser::new(
-        Uuid::new_v4(),
+        UserId::generate(),
         "alice".to_owned(),
         "alice@example.com".to_owned(),
         perms,
@@ -26,7 +25,7 @@ fn authenticated_user_new_defaults_roles_and_attributes() {
 #[test]
 fn authenticated_user_new_with_roles_carries_roles() {
     let u = AuthenticatedUser::new_with_roles(
-        Uuid::new_v4(),
+        UserId::generate(),
         "bob".to_owned(),
         "bob@x".to_owned(),
         vec![],
@@ -59,7 +58,7 @@ fn authenticated_user_has_permission_direct_and_implied() {
 #[test]
 fn authenticated_user_has_role_matches_exact() {
     let u = AuthenticatedUser::new_with_roles(
-        Uuid::new_v4(),
+        UserId::generate(),
         "u".to_owned(),
         "u@x".to_owned(),
         vec![],

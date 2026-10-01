@@ -2,7 +2,7 @@
 
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_analytics::SessionAnalyticsBuilder;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 mod analytics_service_instance_tests {
     use axum::body::Body;
@@ -263,7 +263,7 @@ mod create_analytics_session_input_tests {
         };
 
         input.user_id.expect("expected Some value");
-        assert_eq!(input.user_id.unwrap().as_str(), "test-user");
+        assert_eq!(input.user_id.unwrap().as_str(), FIXTURE_USER_ID);
     }
 
     #[test]

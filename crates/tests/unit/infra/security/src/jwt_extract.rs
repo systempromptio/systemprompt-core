@@ -6,6 +6,8 @@ use systemprompt_security::{AuthError, extract_user_context};
 use systemprompt_test_fixtures::install_test_signing_key;
 
 const ISSUER: &str = "test";
+const ALICE: &str = "00000000-0000-4000-8000-00000000a11c";
+const ADMIN: &str = "00000000-0000-4000-8000-00000000ad01";
 
 fn mint_custom(
     user_id: &str,
@@ -64,7 +66,7 @@ fn mint_with(
 #[test]
 fn extract_user_context_success() {
     let sid = SessionId::generate();
-    let uid = UserId::new("alice");
+    let uid = UserId::new(ALICE);
     let token = mint_custom(
         uid.as_str(),
         Some(sid.clone()),
@@ -73,7 +75,7 @@ fn extract_user_context_success() {
     );
 
     let ctx = extract_user_context(&token, ISSUER).expect("extract");
-    assert_eq!(ctx.user_id.as_str(), "alice");
+    assert_eq!(ctx.user_id.as_str(), ALICE);
     assert_eq!(ctx.session_id, sid);
     assert_eq!(ctx.role, Permission::User);
     assert_eq!(ctx.user_type, UserType::User);
@@ -83,7 +85,7 @@ fn extract_user_context_success() {
 fn extract_user_context_admin() {
     let sid = SessionId::generate();
     let token = mint_custom(
-        "admin-user",
+        ADMIN,
         Some(sid),
         vec![Permission::Admin],
         UserType::Admin,
@@ -170,4 +172,21 @@ fn extract_user_context_rejects_an_over_deep_act_chain() {
         matches!(err, AuthError::ActChainTooDeep { .. }),
         "expected ActChainTooDeep, got {err:?}"
     );
+}
+
+#[test]
+fn extract_user_context_rejects_a_subject_that_is_not_a_user_uuid() {
+    for subject in ["alice", "unset", ""] {
+        let token = mint_custom(
+            subject,
+            Some(SessionId::generate()),
+            vec![Permission::User],
+            UserType::User,
+        );
+        let err = extract_user_context(&token, ISSUER).unwrap_err();
+        assert!(
+            matches!(err, AuthError::InvalidSubject(_)),
+            "expected InvalidSubject for sub {subject:?}, got {err:?}"
+        );
+    }
 }

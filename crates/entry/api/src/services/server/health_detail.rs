@@ -5,18 +5,25 @@
 
 use axum::Json;
 use serde_json::json;
+use systemprompt_models::services::ServiceModule;
 use systemprompt_runtime::AppContext;
 
 use super::health::{HEALTH_CHECK_QUERY, get_process_memory, get_system_stats};
 
 async fn check_service_counts(ctx: &AppContext) -> (usize, &'static str, usize, &'static str) {
     let service_repo = ctx.service_repository();
-    let (ac, as_) = match service_repo.count_running_services("agent").await {
+    let (ac, as_) = match service_repo
+        .count_running_services(ServiceModule::Agent)
+        .await
+    {
         Ok(count) if count > 0 => (count, "healthy"),
         Ok(_) => (0, "none"),
         Err(_) => (0, "error"),
     };
-    let (mc, ms) = match service_repo.count_running_services("mcp").await {
+    let (mc, ms) = match service_repo
+        .count_running_services(ServiceModule::Mcp)
+        .await
+    {
         Ok(count) if count > 0 => (count, "healthy"),
         Ok(_) => (0, "none"),
         Err(_) => (0, "error"),

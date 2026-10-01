@@ -31,7 +31,7 @@ fn test_config() -> Config {
     let database_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable required");
     Config {
-        instance_id: "test-instance".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         metrics_port: None,
         max_concurrent_streams: 256,
         sitename: "test".to_string(),

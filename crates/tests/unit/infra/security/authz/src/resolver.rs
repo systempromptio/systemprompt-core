@@ -4,7 +4,7 @@ use systemprompt_security::authz::subject::{SubjectAttributes, SubjectDimension}
 use systemprompt_security::authz::types::{
     Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType,
 };
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 fn rule(rule_type: RuleType, value: &str, access: Access) -> AccessRule {
     AccessRule {
@@ -87,7 +87,7 @@ fn user_deny_overrides_role_allow() {
     let u = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![
-        rule(RuleType::USER, "test-user", Access::Deny),
+        rule(RuleType::USER, FIXTURE_USER_ID, Access::Deny),
         rule(RuleType::ROLE, "eng", Access::Allow),
     ];
     let d = resolve(input(&e, &rules, &u, &roles, Some(true)));
@@ -96,7 +96,7 @@ fn user_deny_overrides_role_allow() {
             d,
             Decision::Deny {
                 reason: DenyReason::UserDeny { ref user_id, .. }
-            } if user_id.as_str() == "test-user"
+            } if user_id.as_str() == FIXTURE_USER_ID
         ),
         "got {d:?}",
     );
@@ -108,7 +108,7 @@ fn user_allow_beats_role_deny() {
     let u = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![
-        rule(RuleType::USER, "test-user", Access::Allow),
+        rule(RuleType::USER, FIXTURE_USER_ID, Access::Allow),
         rule(RuleType::ROLE, "eng", Access::Deny),
     ];
     let d = resolve(input(&e, &rules, &u, &roles, Some(false)));
@@ -176,7 +176,7 @@ fn user_allow_alone_allows() {
     let e = entity();
     let u = fixture_user_id();
     let roles: Vec<String> = vec![];
-    let rules = vec![rule(RuleType::USER, "test-user", Access::Allow)];
+    let rules = vec![rule(RuleType::USER, FIXTURE_USER_ID, Access::Allow)];
     let d = resolve(input(&e, &rules, &u, &roles, Some(false)));
     assert_eq!(
         d,
@@ -242,7 +242,7 @@ fn user_allow_outranks_department_deny() {
     let roles: Vec<String> = vec![];
     let rules = vec![
         rule(department(), "eng", Access::Deny),
-        rule(RuleType::USER, "test-user", Access::Allow),
+        rule(RuleType::USER, FIXTURE_USER_ID, Access::Allow),
     ];
     let d = resolve_with(
         &e,

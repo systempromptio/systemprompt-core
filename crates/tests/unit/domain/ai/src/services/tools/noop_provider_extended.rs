@@ -35,7 +35,7 @@ mod noop_error_details_tests {
         let provider = NoopToolProvider::new();
         let context = ToolContext::new(fixture_actor(), "token");
         let request = ToolCallRequest {
-            tool_call_id: "id-1".to_string(),
+            tool_call_id: systemprompt_identifiers::AiToolCallId::new("id-1"),
             name: "specific_tool_name".to_string(),
             arguments: json!({}),
         };
@@ -57,7 +57,7 @@ mod noop_error_details_tests {
         let provider = NoopToolProvider::new();
         let context = ToolContext::new(fixture_actor(), "token");
         let request = ToolCallRequest {
-            tool_call_id: "id-2".to_string(),
+            tool_call_id: systemprompt_identifiers::AiToolCallId::new("id-2"),
             name: "any_tool".to_string(),
             arguments: json!({"key": "value"}),
         };
@@ -85,7 +85,7 @@ mod noop_error_details_tests {
         let provider = NoopToolProvider::new();
         let context = ToolContext::new(fixture_actor(), "token");
         let request = ToolCallRequest {
-            tool_call_id: "id-3".to_string(),
+            tool_call_id: systemprompt_identifiers::AiToolCallId::new("id-3"),
             name: "tool".to_string(),
             arguments: json!({}),
         };

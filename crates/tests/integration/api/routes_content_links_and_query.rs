@@ -389,8 +389,8 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
         systemprompt_identifiers::TraceId::generate(),
         systemprompt_identifiers::ContextId::generate(),
         systemprompt_identifiers::AgentName::try_new("link-outage").unwrap(),
-    )
-    .with_actor(systemprompt_identifiers::Actor::user(click_user));
+        systemprompt_identifiers::Actor::user(click_user),
+    );
     let campaign = format!("campaign-{}", Uuid::new_v4().simple());
     let source = systemprompt_content::repository::ContentRepository::new(&db)
         .create(&systemprompt_content::models::CreateContentParams {

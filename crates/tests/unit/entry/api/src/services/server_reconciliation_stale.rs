@@ -5,6 +5,7 @@
 //! since handed to something else, and the next reap signals a stranger.
 
 use systemprompt_api::services::server::lifecycle::reconciliation::service_row_is_stale;
+use systemprompt_models::services::ServiceStatus;
 
 const KEY: &str = "mcp_server";
 const NAME: &str = "some-service";
@@ -13,19 +14,19 @@ const NAME: &str = "some-service";
 // There is nothing to check liveness against, so it cannot be trusted.
 #[test]
 fn a_running_row_without_a_pid_is_stale() {
-    assert!(service_row_is_stale("running", None, KEY, NAME));
+    assert!(service_row_is_stale(ServiceStatus::Running, None, KEY, NAME));
 }
 
 // Why: PIDs are unsigned. A negative value is a corrupt row, not a process —
 // it must be reaped rather than silently converted.
 #[test]
 fn a_running_row_with_a_negative_pid_is_stale() {
-    assert!(service_row_is_stale("running", Some(-1), KEY, NAME));
+    assert!(service_row_is_stale(ServiceStatus::Running, Some(-1), KEY, NAME));
 }
 
 #[test]
 fn error_and_stopped_rows_are_always_stale() {
-    for status in ["error", "stopped"] {
+    for status in [ServiceStatus::Error, ServiceStatus::Stopped] {
         assert!(
             service_row_is_stale(status, Some(1), KEY, NAME),
             "{status} is a terminal state and its row should be reaped"
@@ -38,10 +39,10 @@ fn error_and_stopped_rows_are_always_stale() {
 // every time a service is slow to bind.
 #[test]
 fn a_row_in_any_other_status_is_left_untouched() {
-    for status in ["starting", "stopping", "pending", ""] {
+    for status in [ServiceStatus::Starting, ServiceStatus::Stopping] {
         assert!(
             !service_row_is_stale(status, Some(1), KEY, NAME),
-            "{status:?} is not a status this reap understands, so it must not act on it"
+            "{status:?} is a transition, so the reap must not act on it"
         );
     }
 }
@@ -56,7 +57,7 @@ fn a_live_pid_that_is_not_our_subprocess_is_still_stale() {
     let live_but_unrelated = i32::try_from(std::process::id()).expect("pid fits in i32");
 
     assert!(
-        service_row_is_stale("running", Some(live_but_unrelated), KEY, NAME),
+        service_row_is_stale(ServiceStatus::Running, Some(live_but_unrelated), KEY, NAME),
         "a live PID that does not name our child must not be adopted"
     );
 }
@@ -68,7 +69,7 @@ fn a_running_row_whose_process_is_gone_is_stale() {
     let dead = free_pid();
 
     assert!(
-        service_row_is_stale("running", Some(dead), KEY, NAME),
+        service_row_is_stale(ServiceStatus::Running, Some(dead), KEY, NAME),
         "pid {dead} is not running, so its row is stale"
     );
 }

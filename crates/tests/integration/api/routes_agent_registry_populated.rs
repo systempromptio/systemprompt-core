@@ -63,7 +63,7 @@ async fn the_registry_lists_a_card_for_the_configured_agent() -> anyhow::Result<
 async fn a_card_reports_the_status_of_the_agents_service_row() -> anyhow::Result<()> {
     let agent = test_messaging_agent();
     let (pool, ctx) = setup().await?;
-    seed_running_service(&pool, agent, agent, 9250).await?;
+    seed_running_service(&pool, agent, "agent", 9250).await?;
 
     let app = registry_router(&ctx).layer(Extension(request_context("registry_reader")));
     let resp = app.oneshot(empty_get("/")).await?;

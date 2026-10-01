@@ -1,4 +1,6 @@
-use systemprompt_identifiers::{AgentId, CallId, PluginId, PolicyId, SessionId, SkillId, UserId};
+use systemprompt_identifiers::{
+    AgentId, CallId, McpToolName, PluginId, PolicyId, SessionId, SkillId, UserId,
+};
 use systemprompt_security::authz::types::{Decision, EntityRef, MatchedBy};
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
@@ -24,7 +26,7 @@ fn sample_audit() -> DecisionAudit {
             client_id: None,
         },
         target: AuditTarget {
-            tool_name: "read_file".to_owned(),
+            tool_name: McpToolName::new("read_file"),
             plugin_id: Some(PluginId::new("plug-1")),
             tool_use_id: None,
         },

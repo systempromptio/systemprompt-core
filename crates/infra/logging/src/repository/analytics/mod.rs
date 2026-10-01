@@ -50,17 +50,17 @@ async fn run_insert_query(pool: &PgPool, p: EventParams<'_>) -> Result<u64, Logg
         VALUES
         ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         ",
-        p.user_id,
-        p.session_id,
-        p.context_id,
+        p.user_id.as_str(),
+        p.session_id.as_str(),
+        p.context_id.as_str(),
         p.event_type,
         p.event_category,
         p.severity,
         p.endpoint,
         p.error_code,
         p.response_time_ms,
-        p.agent_id,
-        p.task_id,
+        p.agent_id.map(AgentId::as_str),
+        p.task_id.map(TaskId::as_str),
         p.message,
         p.metadata,
         p.timestamp
@@ -71,14 +71,14 @@ async fn run_insert_query(pool: &PgPool, p: EventParams<'_>) -> Result<u64, Logg
 }
 
 struct EventParams<'a> {
-    user_id: &'a str,
-    session_id: &'a str,
-    context_id: &'a str,
+    user_id: &'a UserId,
+    session_id: &'a SessionId,
+    context_id: &'a ContextId,
     event_type: &'a str,
     event_category: &'a str,
     severity: &'a str,
-    agent_id: Option<&'a str>,
-    task_id: Option<&'a str>,
+    agent_id: Option<&'a AgentId>,
+    task_id: Option<&'a TaskId>,
     endpoint: Option<&'a str>,
     message: Option<&'a str>,
     error_code: Option<i32>,
@@ -90,14 +90,14 @@ struct EventParams<'a> {
 impl<'a> From<&'a AnalyticsEvent> for EventParams<'a> {
     fn from(event: &'a AnalyticsEvent) -> Self {
         Self {
-            user_id: event.user_id.as_str(),
-            session_id: event.session_id.as_str(),
-            context_id: event.context_id.as_str(),
+            user_id: &event.user_id,
+            session_id: &event.session_id,
+            context_id: &event.context_id,
             event_type: &event.event_type,
             event_category: &event.event_category,
             severity: &event.severity,
-            agent_id: event.agent_id.as_ref().map(AgentId::as_str),
-            task_id: event.task_id.as_ref().map(TaskId::as_str),
+            agent_id: event.agent_id.as_ref(),
+            task_id: event.task_id.as_ref(),
             endpoint: event.endpoint.as_deref(),
             message: event.message.as_deref(),
             error_code: event.error_code,

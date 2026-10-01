@@ -25,8 +25,8 @@ pub fn request_context(user: &str) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new(user)),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
 }
 
 pub async fn body_to_string(resp: Response<Body>) -> Result<(http::StatusCode, String)> {

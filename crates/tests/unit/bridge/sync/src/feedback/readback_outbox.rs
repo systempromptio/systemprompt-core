@@ -138,7 +138,7 @@ fn device_or_account_change_cannot_replay_pending_evidence_but_rotation_can() {
         Err(FeedbackError::Scope)
     ));
     let mut different_user = scope("original-device");
-    different_user.consumer_id = UserId::new("other-user");
+    different_user.consumer_id = UserId::new("00000000-0000-4000-8000-0000000007e2");
     assert!(matches!(
         Outbox::new(path.clone(), different_user).entries(),
         Err(FeedbackError::Scope)
@@ -148,14 +148,14 @@ fn device_or_account_change_cannot_replay_pending_evidence_but_rotation_can() {
     let old = Enrollment::new(
         "https://example.invalid",
         DeviceId::try_new("device").expect("nonempty fixture device"),
-        UserId::new("consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_old"),
     )
     .unwrap();
     let new = Enrollment::new(
         "https://example.invalid",
         DeviceId::try_new("device").expect("nonempty fixture device"),
-        UserId::new("consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_rotated"),
     )
     .unwrap();

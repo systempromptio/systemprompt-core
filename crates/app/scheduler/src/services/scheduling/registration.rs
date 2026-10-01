@@ -22,7 +22,7 @@ use super::{RegistrationCtx, SchedulerService, dispatch};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{JobConfig, SkippedJob};
 use std::sync::Arc;
-use systemprompt_identifiers::{Actor, InstanceId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, SessionId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, SystemSpan};
 use systemprompt_traits::Job as JobTrait;
 use tokio_cron_scheduler::Job;
@@ -180,7 +180,7 @@ impl SchedulerService {
             &self.config,
             Some(job_config),
             Some(registered_job),
-            &InstanceId::new(&self.app_context.config().instance_id),
+            &self.app_context.config().instance_id,
         );
 
         let job = Job::new_async(schedule_owned.as_str(), move |_uuid, _lock| {

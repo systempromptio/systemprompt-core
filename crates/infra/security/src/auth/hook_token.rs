@@ -91,13 +91,13 @@ impl HookTokenValidator {
         {
             return Err(AuthError::HookPluginIdMismatch {
                 expected: expected.to_owned(),
-                actual: plugin_id,
+                actual: plugin_id.as_str().to_owned(),
             });
         }
 
         Ok(ValidatedHookClaims {
-            plugin_id: PluginId::new(plugin_id),
-            subject: UserId::new(claims.sub),
+            plugin_id,
+            subject: UserId::try_new(claims.sub).map_err(AuthError::InvalidSubject)?,
             scopes: claims.scope,
         })
     }

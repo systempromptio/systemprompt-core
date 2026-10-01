@@ -5,9 +5,9 @@
 
 use crate::services::validation::jwt as jwt_validation;
 use http::{HeaderMap, StatusCode};
+use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_security::TokenExtractor;
-use uuid::Uuid;
 
 #[derive(Debug, Copy, Clone)]
 pub struct AuthenticationService;
@@ -24,7 +24,7 @@ impl AuthenticationService {
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
                 .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
-        let user_id = Uuid::parse_str(&claims.sub).map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let user_id = UserId::try_new(claims.sub.as_str()).map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();
 

@@ -6,7 +6,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use systemprompt_identifiers::{Actor, InstanceId, UserId};
+use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_traits::{Job as JobTrait, StartupEventExt, StartupEventSender};
 use tokio::sync::Mutex;
 
@@ -71,7 +71,7 @@ impl SchedulerService {
             &self.config,
             config_entry,
             registered,
-            &InstanceId::new(&self.app_context.config().instance_id),
+            &self.app_context.config().instance_id,
         );
         dispatch::execute_job(dispatch::JobDispatch {
             job_name: job_name.to_owned(),

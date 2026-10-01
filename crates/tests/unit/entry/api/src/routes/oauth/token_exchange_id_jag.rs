@@ -226,7 +226,7 @@ async fn a_trusted_issuer_id_jag_whose_jwks_is_unreachable_is_refused() {
         jwks_uri: "http://127.0.0.1:1/jwks".to_owned(),
         audience: config.jwt_issuer.clone(),
         typ_allowlist: vec![],
-        allowed_client_ids: vec![CLIENT.to_owned()],
+        allowed_client_ids: vec![systemprompt_identifiers::ClientId::new(CLIENT)],
         can_issue_id_jag: true,
     }];
     let token = unsigned(

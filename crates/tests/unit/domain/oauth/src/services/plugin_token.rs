@@ -82,7 +82,10 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
             JwtAudience::Resource("plugin".to_owned())
         ]
     );
-    assert_eq!(claims.plugin_id.as_deref(), Some("cowork-bundle"));
+    assert_eq!(
+        claims.plugin_id.as_ref().map(|id| id.as_str()),
+        Some("cowork-bundle")
+    );
     assert!(claims.roles.is_empty());
 }
 

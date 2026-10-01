@@ -41,7 +41,7 @@ async fn probe(ctx: &AppContext, path: &str) -> (StatusCode, serde_json::Value) 
 #[tokio::test]
 async fn livez_answers_alive_and_names_the_replica_that_answered() {
     let ctx = ctx().await;
-    let expected = ctx.config().instance_id.clone();
+    let expected = ctx.config().instance_id.as_str().to_owned();
 
     let (status, body) = probe(&ctx, "/livez").await;
 
@@ -81,7 +81,7 @@ async fn readyz_admits_the_node_once_it_is_ready_and_the_database_answers() {
 
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["status"], "ready");
-    assert_eq!(body["instance"], ctx.config().instance_id, "{body}");
+    assert_eq!(body["instance"], ctx.config().instance_id.as_str(), "{body}");
 }
 
 #[tokio::test]

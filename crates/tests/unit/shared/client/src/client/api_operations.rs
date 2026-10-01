@@ -21,7 +21,7 @@ async fn test_list_contexts_success() {
         "data": [
             {
                 "context_id": "00000000-0000-4000-8000-000000000001",
-                "user_id": "user-456",
+                "user_id": "00000000-0000-4000-8000-000000000456",
                 "name": "Test Context",
                 "kind": "user",
                 "created_at": "2024-01-01T00:00:00Z",

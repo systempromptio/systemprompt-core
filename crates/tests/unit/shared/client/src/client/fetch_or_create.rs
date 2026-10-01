@@ -16,7 +16,7 @@ fn response_meta() -> serde_json::Value {
 fn make_context(id: &str, name: &str) -> serde_json::Value {
     serde_json::json!({
         "context_id": id,
-        "user_id": "user-1",
+        "user_id": "00000000-0000-4000-8000-000000000101",
         "name": name,
         "kind": "user",
         "created_at": "2024-01-01T00:00:00Z",
@@ -27,7 +27,7 @@ fn make_context(id: &str, name: &str) -> serde_json::Value {
 fn make_context_with_stats(id: &str, name: &str) -> serde_json::Value {
     serde_json::json!({
         "context_id": id,
-        "user_id": "user-1",
+        "user_id": "00000000-0000-4000-8000-000000000101",
         "name": name,
         "kind": "user",
         "created_at": "2024-01-01T00:00:00Z",

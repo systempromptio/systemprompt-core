@@ -7,7 +7,7 @@ use systemprompt_oauth::services::validation::{
     scope_param,
 };
 use systemprompt_oauth::{GrantType, ResponseType};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 #[test]
 fn test_required_param_success() {
@@ -148,7 +148,7 @@ fn test_scope_param_tabs_and_newlines() {
 fn test_get_audit_user_success() {
     let user = fixture_user_id();
     let result = get_audit_user(Some(&user));
-    assert_eq!(result.expect("should succeed").as_str(), "test-user");
+    assert_eq!(result.expect("should succeed").as_str(), FIXTURE_USER_ID);
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn test_get_audit_user_empty() {
 fn test_get_audit_user_uuid_format() {
     let user = fixture_user_id();
     let result = get_audit_user(Some(&user));
-    assert_eq!(result.expect("should succeed").as_str(), "test-user");
+    assert_eq!(result.expect("should succeed").as_str(), FIXTURE_USER_ID);
 }
 
 #[test]

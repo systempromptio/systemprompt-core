@@ -11,12 +11,11 @@
 mod status;
 
 use systemprompt_database::{DbPool, ServiceRepository, UpsertServiceProcessInput};
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_models::services::ServiceModule;
 use systemprompt_traits::RepositoryError;
 
 pub use status::AgentServiceStatus;
-
-const AGENT_MODULE: &str = "agent";
 
 #[derive(Debug)]
 pub struct AgentServiceRow {
@@ -72,11 +71,11 @@ impl AgentServiceRepository {
         self.remove_agent_service(name).await?;
         self.services
             .upsert_service_process(UpsertServiceProcessInput {
-                name,
-                module_name: AGENT_MODULE,
+                name: &ServiceName::new(name),
+                module_name: ServiceModule::Agent,
                 pid: db_pid(pid)?,
                 port,
-                status: status.as_str(),
+                status: status.service_status(),
             })
             .await?;
         Ok(())
@@ -84,7 +83,10 @@ impl AgentServiceRepository {
 
     pub async fn mark_running(&self, agent_name: &str) -> Result<(), RepositoryError> {
         self.services
-            .update_service_status(agent_name, AgentServiceStatus::Running.as_str())
+            .update_service_status(
+                &ServiceName::new(agent_name),
+                AgentServiceStatus::Running.service_status(),
+            )
             .await?;
         Ok(())
     }
@@ -93,43 +95,55 @@ impl AgentServiceRepository {
         &self,
         agent_name: &str,
     ) -> Result<Option<AgentServiceRow>, RepositoryError> {
-        let Some(row) = self.services.find_service_by_name(agent_name).await? else {
+        let Some(row) = self
+            .services
+            .find_service_by_name(&ServiceName::new(agent_name))
+            .await?
+        else {
             return Ok(None);
         };
-        if row.module_name != AGENT_MODULE {
+        if row.module_name != ServiceModule::Agent {
             return Ok(None);
         }
         Ok(Some(AgentServiceRow {
-            status: AgentServiceStatus::parse(&row.status)?,
-            name: row.name,
+            status: AgentServiceStatus::from_service_status(row.status)?,
+            name: row.name.as_str().to_owned(),
             pid: row.pid,
             port: row.port,
         }))
     }
 
     pub async fn mark_stopped(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        self.services.update_service_stopped(agent_name).await?;
+        self.services
+            .update_service_stopped(&ServiceName::new(agent_name))
+            .await?;
         Ok(())
     }
 
     pub async fn mark_error(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        self.services.mark_service_crashed(agent_name).await?;
+        self.services
+            .mark_service_crashed(&ServiceName::new(agent_name))
+            .await?;
         Ok(())
     }
 
     pub async fn list_running_agents(&self) -> Result<Vec<AgentServerIdRow>, RepositoryError> {
         let rows = self
             .services
-            .list_running_services_by_module(AGENT_MODULE)
+            .list_running_services_by_module(ServiceModule::Agent)
             .await?;
         Ok(rows
             .into_iter()
-            .map(|r| AgentServerIdRow { name: r.name })
+            .map(|r| AgentServerIdRow {
+                name: r.name.as_str().to_owned(),
+            })
             .collect())
     }
 
     pub async fn remove_agent_service(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        self.services.delete_service(agent_name).await?;
+        self.services
+            .delete_service(&ServiceName::new(agent_name))
+            .await?;
         Ok(())
     }
 }

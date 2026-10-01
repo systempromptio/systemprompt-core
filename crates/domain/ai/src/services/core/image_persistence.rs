@@ -43,7 +43,7 @@ async fn persist_ai_request(
     response: &ImageGenerationResponse,
 ) -> Result<()> {
     let context_id = request.session_id.as_ref().map_or_else(
-        systemprompt_identifiers::ContextId::legacy,
+        systemprompt_identifiers::ContextId::generate,
         systemprompt_identifiers::ContextId::derived_from_session,
     );
     let mut builder = AiRequestRecordBuilder::new(
@@ -91,7 +91,7 @@ async fn persist_file_record(
             .with_resolution(response.resolution.as_str())
             .with_aspect_ratio(response.aspect_ratio.as_str())
             .with_generation_time(response.generation_time_ms as i32)
-            .with_request_id(&response.request_id);
+            .with_request_id(response.request_id.clone());
 
     let generation_info = match response.cost_estimate {
         Some(cost) => generation_info.with_cost_estimate(cost),

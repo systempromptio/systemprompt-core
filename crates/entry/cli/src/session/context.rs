@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_cloud::CliSession;
-use systemprompt_identifiers::{AgentName, ContextId, SessionToken, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionToken, TraceId};
 use systemprompt_models::Profile;
 use systemprompt_models::execution::context::RequestContext;
 
@@ -33,11 +33,9 @@ impl CliSessionContext {
             TraceId::generate(),
             self.session.context_id.clone(),
             agent_name,
+            Actor::user(self.session.user_id.clone()),
         )
-        .with_actor(systemprompt_identifiers::Actor::user(
-            self.session.user_id.clone(),
-        ))
-        .with_auth_token(self.session.session_token.as_str())
+        .with_auth_token(JwtToken::new(self.session.session_token.as_str()))
         .with_user_type(self.session.user_type)
     }
 }

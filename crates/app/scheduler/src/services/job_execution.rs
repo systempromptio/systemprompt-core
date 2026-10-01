@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_identifiers::{Actor, InstanceId};
+use systemprompt_identifiers::Actor;
 use systemprompt_models::SchedulerConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job;
@@ -264,7 +264,7 @@ impl JobExecutionService {
                         .then_some(report.message.as_deref())
                         .flatten(),
                     next_run,
-                    instance_id: &InstanceId::new(&self.ctx.config().instance_id),
+                    instance_id: &self.ctx.config().instance_id,
                 },
             )
             .await

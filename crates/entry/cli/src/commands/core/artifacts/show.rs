@@ -123,7 +123,7 @@ fn render_artifact(artifact: &Artifact, parts: &[ArtifactPartOutput], full: bool
     }
 
     if let Some(ref mcp_id) = artifact.metadata.mcp_execution_id {
-        CliService::key_value("MCP Execution", mcp_id);
+        CliService::key_value("MCP Execution", mcp_id.as_str());
     }
 
     if let Some(ref fingerprint) = artifact.metadata.fingerprint {

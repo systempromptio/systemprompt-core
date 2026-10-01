@@ -44,8 +44,8 @@ async fn started_execution_for(
         TraceId::new(session),
         ContextId::generate(),
         AgentName::try_new("intent-tests").expect("valid AgentName"),
-    )
-    .with_actor(Actor::user(UserId::new("intent-user")));
+        Actor::user(UserId::new("intent-user")),
+    );
     let request = ToolExecutionRequest {
         tool_name: "Read".to_owned(),
         server_name: "intent-tests".to_owned(),

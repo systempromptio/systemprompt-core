@@ -18,8 +18,8 @@ fn context(session: &str) -> RequestContext {
         TraceId::new(session),
         ContextId::generate(),
         AgentName::try_new("artifact-mixed").unwrap(),
+        Actor::user(UserId::new(format!("user-{session}"))),
     )
-    .with_actor(Actor::user(UserId::new(format!("user-{session}"))))
     .with_user_type(UserType::User)
 }
 

@@ -9,6 +9,8 @@ use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_models::services::{ServiceModule, ServiceStatus};
 
 use super::ServiceInfo;
 use crate::McpServerConfig;
@@ -47,10 +49,11 @@ pub async fn register_service(
         "Registering MCP service"
     );
 
+    let service_name = ServiceName::new(config.name.as_str());
     repo.create_service(CreateServiceInput {
-        name: &config.name,
-        module_name: "mcp",
-        status: "running",
+        name: &service_name,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port,
         binary_mtime,
     })
@@ -59,7 +62,7 @@ pub async fn register_service(
         tracing::error!(service = %config.name, error = %e, "Failed to create service record");
     })?;
 
-    repo.update_service_pid(&config.name, pid as i32)
+    repo.update_service_pid(&service_name, pid as i32)
         .await
         .inspect_err(|e| {
             tracing::error!(service = %config.name, error = %e, "Failed to update PID for service");
@@ -73,18 +76,20 @@ pub async fn unregister_service(
     repo: &ServiceRepository,
     service_name: &str,
 ) -> McpDomainResult<()> {
-    repo.delete_service(service_name).await.map_err(Into::into)
+    repo.delete_service(&ServiceName::new(service_name))
+        .await
+        .map_err(Into::into)
 }
 
 pub async fn get_service_by_name(
     repo: &ServiceRepository,
     name: &str,
 ) -> McpDomainResult<Option<ServiceInfo>> {
-    let result = repo.find_service_by_name(name).await?;
+    let result = repo.find_service_by_name(&ServiceName::new(name)).await?;
 
     Ok(result.map(|r| ServiceInfo {
-        name: r.name,
-        status: r.status,
+        name: r.name.as_str().to_owned(),
+        status: r.status.as_str().to_owned(),
         pid: r.pid,
         port: r.port as u16,
         binary_mtime: r.binary_mtime,
@@ -101,8 +106,8 @@ pub async fn get_running_servers(
     let mut running_configs = Vec::new();
 
     for service in all_services {
-        if service.status == "running"
-            && let Some(config) = registry.find_server(&service.name)?
+        if service.status == ServiceStatus::Running
+            && let Some(config) = registry.find_server(service.name.as_str())?
         {
             running_configs.push(config);
         }
@@ -119,16 +124,17 @@ pub async fn register_existing_process(
 ) -> McpDomainResult<String> {
     let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
 
+    let service_name = ServiceName::new(config.name.as_str());
     repo.create_service(CreateServiceInput {
-        name: &config.name,
-        module_name: "mcp",
-        status: "running",
+        name: &service_name,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: config.spawn_port()?,
         binary_mtime,
     })
     .await?;
 
-    repo.update_service_pid(&config.name, pid as i32).await?;
+    repo.update_service_pid(&service_name, pid as i32).await?;
 
     Ok(config.name.clone())
 }

@@ -26,7 +26,7 @@ fn tool_context() -> ToolContext {
     let mut headers = HashMap::new();
     headers.insert("x-context-id".to_owned(), ContextId::generate().to_string());
     headers.insert("x-agent-name".to_owned(), "resilience-agent".to_owned());
-    headers.insert("x-user-id".to_owned(), "user-res".to_owned());
+    headers.insert("x-user-id".to_owned(), "00000000-0000-4000-8000-0000000007f2".to_owned());
     headers.insert("x-task-id".to_owned(), "task-res".to_owned());
 
     let mut context = ToolContext::new(Actor::user(UserId::new("user-res")), "token-res");
@@ -38,7 +38,7 @@ fn tool_context() -> ToolContext {
 
 fn call_request(id: &str) -> ToolCallRequest {
     ToolCallRequest {
-        tool_call_id: id.to_owned(),
+        tool_call_id: systemprompt_identifiers::AiToolCallId::new(id),
         name: "echo".to_owned(),
         arguments: serde_json::json!({"message": "hi"}),
     }

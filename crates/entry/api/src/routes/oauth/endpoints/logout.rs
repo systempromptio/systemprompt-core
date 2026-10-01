@@ -25,19 +25,21 @@ pub async fn handle_logout(
     Extension(req_ctx): Extension<RequestContext>,
     OAuthRepo(repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
-    let jti = req_ctx.jti().to_owned();
-    if jti.is_empty() {
-        return Err(OAuthHttpError::invalid_request("Missing bearer token"));
-    }
+    let jti = req_ctx
+        .jti()
+        .ok_or_else(|| OAuthHttpError::invalid_request("Missing bearer token"))?;
 
-    let exp_unix = req_ctx.token_exp();
-    let exp_dt = DateTime::<Utc>::from_timestamp(exp_unix, 0)
+    let exp_dt = req_ctx
+        .token_exp()
+        .and_then(|exp_unix| DateTime::<Utc>::from_timestamp(exp_unix, 0))
         .ok_or_else(|| OAuthHttpError::invalid_request("Invalid token expiry"))?;
 
-    let user_uuid = Uuid::parse_str(req_ctx.user_id().as_str())
+    let user_uuid = req_ctx
+        .user_id()
+        .to_uuid()
         .map_err(|_e| OAuthHttpError::invalid_request("Invalid user id"))?;
 
-    revoke_jti(&repo, &jti, user_uuid, exp_dt).await?;
+    revoke_jti(&repo, jti.as_str(), user_uuid, exp_dt).await?;
 
     let cookie = HeaderValue::from_str(
         "access_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict",

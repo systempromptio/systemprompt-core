@@ -1,6 +1,6 @@
 //! Unit tests for artifact builders and execution provenance metadata.
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, SkillId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, SkillId, TraceId, UserId};
 use systemprompt_models::artifacts::{
     Artifact, CliArtifact, CopyPasteTextArtifact, ExecutionMetadata, ResearchArtifact,
     SourceCitation, TableArtifact, TextArtifact,
@@ -15,6 +15,7 @@ fn ctx() -> RequestContext {
         TraceId::new("trace-1"),
         ContextId::try_new(CTX).expect("valid ContextId"),
         AgentName::try_new("agent_one").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

@@ -18,7 +18,7 @@ use systemprompt_agent::models::a2a::protocol::MessageSendConfiguration;
 use systemprompt_agent::models::a2a::{
     A2aJsonRpcRequest, Message, MessageRole, MessageSendParams, Part, Task, TextPart,
 };
-use systemprompt_identifiers::{ContextId, MessageId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, ContextId, JwtToken, MessageId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::methods;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, JwtAudience, Permission};
@@ -49,7 +49,7 @@ pub(super) fn authenticated_user(user: &User) -> Result<AuthenticatedUser, Messa
         }
     })?;
     Ok(AuthenticatedUser {
-        id,
+        id: UserId::from_uuid(id),
         username: user.name.clone(),
         email: user.email.clone(),
         permissions: permissions_for(&user.roles),
@@ -133,9 +133,10 @@ pub(super) fn build_a2a_request(
         TraceId::generate(),
         context_id.clone(),
         inbound.agent_name.clone(),
+        Actor::user(authed.id.clone()),
     )
     .with_user(authed.clone())
-    .with_auth_token(token.to_owned());
+    .with_auth_token(JwtToken::new(token));
     request.extensions_mut().insert(req_context);
     Ok(request)
 }

@@ -42,7 +42,12 @@ impl StubProvider {
     }
 
     fn response(text: &str) -> AiResponse {
-        let mut resp = AiResponse::default();
+        let mut resp = AiResponse::new(
+            uuid::Uuid::new_v4(),
+            String::new(),
+            String::new(),
+            String::new(),
+        );
         resp.request_id = Uuid::new_v4();
         resp.content = text.to_owned();
         resp.provider = "stub".to_owned();

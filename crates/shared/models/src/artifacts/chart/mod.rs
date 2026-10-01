@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::artifacts::metadata::ExecutionMetadata;
+use crate::artifacts::metadata::ArtifactProvenance;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::{ArtifactType, AxisType, ChartType};
 use crate::execution::context::RequestContext;
@@ -57,7 +57,7 @@ pub struct ChartArtifact {
     pub y_axis_type: AxisType,
     #[serde(skip)]
     #[schemars(skip)]
-    metadata: ExecutionMetadata,
+    metadata: ArtifactProvenance,
 }
 
 impl ChartArtifact {
@@ -74,12 +74,12 @@ impl ChartArtifact {
             y_axis_label: "Y".to_owned(),
             x_axis_type: AxisType::Category,
             y_axis_type: AxisType::Linear,
-            metadata: ExecutionMetadata::default(),
+            metadata: ArtifactProvenance::default(),
         }
     }
 
     pub fn with_request(mut self, ctx: &RequestContext) -> Self {
-        self.metadata = ExecutionMetadata::with_request(ctx);
+        self.metadata.set_request(ctx);
         self
     }
 
@@ -119,7 +119,7 @@ impl ChartArtifact {
     }
 
     pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
-        self.metadata.execution_id = Some(id.into());
+        self.metadata.set_execution_id(id);
         self
     }
 
@@ -128,8 +128,7 @@ impl ChartArtifact {
         skill_id: impl Into<SkillId>,
         skill_name: impl Into<String>,
     ) -> Self {
-        self.metadata.skill_id = Some(skill_id.into());
-        self.metadata.skill_name = Some(skill_name.into());
+        self.metadata.set_skill(skill_id.into(), skill_name.into());
         self
     }
 }

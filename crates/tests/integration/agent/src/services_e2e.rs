@@ -8,7 +8,7 @@ use systemprompt_agent::services::context::ContextService;
 use systemprompt_agent::services::context_provider::ContextProviderService;
 use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::PlannedTool;
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_test_fixtures::test_db_pool;
@@ -294,6 +294,7 @@ async fn message_service_creates_tool_execution_message() -> Result<()> {
         fx.trace_id.clone(),
         fx.context_id.clone(),
         AgentName::try_new("svc-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
 
     let (msg_id, seq) = svc

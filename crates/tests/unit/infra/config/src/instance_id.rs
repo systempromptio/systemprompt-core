@@ -48,5 +48,5 @@ fn cloud_profile_without_any_stable_id_is_refused() {
 fn local_profile_may_use_a_random_id() {
     fixture::remove_env("HOSTNAME");
     let id = resolve_instance_id(&profile("local", None)).unwrap();
-    assert!(id.starts_with("instance-"), "{id}");
+    assert!(id.as_str().starts_with("instance-"), "{id}");
 }

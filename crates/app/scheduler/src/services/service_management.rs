@@ -15,7 +15,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::{ServiceConfig, ServiceRepository};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::live_pid_is_subprocess;
+use systemprompt_models::services::ServiceModule;
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV};
 use tracing::warn;
 
@@ -65,7 +67,7 @@ impl ServiceManagementService {
 
     pub async fn get_services_by_type(
         &self,
-        module_name: &str,
+        module_name: ServiceModule,
     ) -> SchedulerResult<Vec<ServiceConfig>> {
         self.service_repo
             .list_services_by_type(module_name)
@@ -82,7 +84,7 @@ impl ServiceManagementService {
 
     pub async fn mark_service_stopped(&self, service_name: &str) -> SchedulerResult<()> {
         self.service_repo
-            .update_service_stopped(service_name)
+            .update_service_stopped(&ServiceName::new(service_name))
             .await
             .map_err(SchedulerError::from)
     }
@@ -107,7 +109,7 @@ impl ServiceManagementService {
             ProcessCleanup::kill_port(service.port as u16, pid);
         }
 
-        if let Err(e) = self.mark_service_stopped(&service.name).await {
+        if let Err(e) = self.mark_service_stopped(service.name.as_str()).await {
             warn!(service = %service.name, error = %e, "Failed to mark service stopped");
         }
         Ok(())
@@ -119,7 +121,7 @@ impl ServiceManagementService {
         };
 
         if !ProcessCleanup::process_exists(pid) {
-            if let Err(e) = self.mark_service_stopped(&service.name).await {
+            if let Err(e) = self.mark_service_stopped(service.name.as_str()).await {
                 warn!(service = %service.name, error = %e, "Failed to mark orphaned service stopped");
             }
             return Ok(true);
@@ -129,7 +131,7 @@ impl ServiceManagementService {
             ProcessCleanup::terminate_gracefully(pid, STOP_GRACE_MS).await;
             ProcessCleanup::kill_port(service.port as u16, pid);
         }
-        if let Err(e) = self.mark_service_stopped(&service.name).await {
+        if let Err(e) = self.mark_service_stopped(service.name.as_str()).await {
             warn!(service = %service.name, error = %e, "Failed to mark terminated service stopped");
         }
         Ok(true)
@@ -161,13 +163,13 @@ impl ServiceManagementService {
                 self.cleanup_orphaned_service(service).await?;
                 OrphanDisposition::Stopped
             } else {
-                if let Err(e) = self.mark_service_stopped(&service.name).await {
+                if let Err(e) = self.mark_service_stopped(service.name.as_str()).await {
                     warn!(service = %service.name, error = %e, "mark_service_stopped failed");
                 }
                 OrphanDisposition::StaleEntry
             };
             outcomes.push(OrphanOutcome {
-                name: service.name.clone(),
+                name: service.name.as_str().to_owned(),
                 pid,
                 port: service.port,
                 disposition,
@@ -205,17 +207,9 @@ fn stored_pid(service: &ServiceConfig) -> Option<u32> {
 }
 
 fn pid_is_our_service(pid: u32, service: &ServiceConfig) -> bool {
-    let Some(name_key) = subprocess_name_key(&service.module_name) else {
-        warn!(
-            service = %service.name,
-            module = %service.module_name,
-            pid,
-            "No subprocess identity marker for this module type; refusing to signal stored PID"
-        );
-        return false;
-    };
+    let name_key = subprocess_name_key(service.module_name);
 
-    if live_pid_is_subprocess(pid, name_key, &service.name) {
+    if live_pid_is_subprocess(pid, name_key, service.name.as_str()) {
         return true;
     }
     warn!(
@@ -226,10 +220,9 @@ fn pid_is_our_service(pid: u32, service: &ServiceConfig) -> bool {
     false
 }
 
-fn subprocess_name_key(module_name: &str) -> Option<&'static str> {
+const fn subprocess_name_key(module_name: ServiceModule) -> &'static str {
     match module_name {
-        "agent" => Some(AGENT_NAME_ENV),
-        "mcp" => Some(MCP_SERVICE_ID_ENV),
-        _ => None,
+        ServiceModule::Agent => AGENT_NAME_ENV,
+        ServiceModule::Mcp => MCP_SERVICE_ID_ENV,
     }
 }

@@ -29,7 +29,7 @@ fn manifest_json() -> serde_json::Value {
         "manifest_version": "2026-06-03T00:00:00Z-deadbeef",
         "issued_at": "2026-06-03T00:00:00Z",
         "not_before": "2026-06-03T00:00:00Z",
-        "user_id": "user_abc",
+        "user_id": "00000000-0000-4000-8000-0000000000ab",
         "tenant_id": null,
         "plugins": [],
         "managed_mcp_servers": [],
@@ -159,7 +159,7 @@ async fn fetch_manifest_ok() {
         .unwrap();
     assert!(envelope.signature.as_str().is_empty());
     let manifest = decode_payload(&envelope).unwrap();
-    assert_eq!(manifest.user_id.as_str(), "user_abc");
+    assert_eq!(manifest.user_id.as_str(), "00000000-0000-4000-8000-0000000000ab");
     assert!(manifest.plugins.is_empty());
 }
 
@@ -279,7 +279,7 @@ async fn fetch_whoami_ok() {
         .and(path("/v1/bridge/whoami"))
         .and(header("authorization", format!("Bearer {BEARER}").as_str()))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "user_id": "user_abc",
+            "user_id": "00000000-0000-4000-8000-0000000000ab",
             "email": "ed@example.com",
             "roles": ["admin", "member"]
         })))

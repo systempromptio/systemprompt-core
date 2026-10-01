@@ -180,13 +180,12 @@ impl HttpClientWithContext {
             builder = builder.header(key, value);
         }
 
-        let context_token = self.context.auth_token().as_str();
-        match auth_token {
-            Some(token) => builder.bearer_auth(token),
-            None if self.forward_context && !context_token.is_empty() => {
-                builder.bearer_auth(context_token)
+        match (auth_token, self.context.auth_token()) {
+            (Some(token), _) => builder.bearer_auth(token),
+            (None, Some(context_token)) if self.forward_context => {
+                builder.bearer_auth(context_token.as_str())
             },
-            None => builder,
+            (None, _) => builder,
         }
     }
 }

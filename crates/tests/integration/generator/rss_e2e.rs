@@ -22,7 +22,7 @@ static CONFIG_INIT: Once = Once::new();
 fn install_test_config() {
     CONFIG_INIT.call_once(|| {
         let _ = Config::install(Config {
-            instance_id: "test-instance".to_owned(),
+            instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
             metrics_port: None,
             max_concurrent_streams: 256,
             sitename: "test".to_owned(),

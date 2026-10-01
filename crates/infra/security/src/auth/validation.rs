@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
+use systemprompt_identifiers::{AccessTokenId, Actor, ContextId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::execution::context::RequestContext;
 
@@ -37,13 +37,13 @@ impl AuthValidationService {
         let claims = decode_session_claims(token, &policy)?;
 
         Ok(ValidatedSessionClaims {
-            user_id: UserId::new(claims.sub),
+            user_id: UserId::try_new(claims.sub).map_err(AuthError::InvalidSubject)?,
             session_id: claims
                 .session_id
                 .map(SessionId::new)
                 .ok_or(AuthError::MissingSessionId)?,
             user_type: claims.user_type,
-            jti: claims.jti,
+            jti: (!claims.jti.is_empty()).then(|| AccessTokenId::new(claims.jti)),
             exp: claims.exp,
         })
     }
@@ -59,16 +59,19 @@ impl AuthValidationService {
         let context_id = HeaderExtractor::extract_context_id(headers)
             .unwrap_or_else(|| ContextId::derived_from_session(&session_id));
 
-        RequestContext::new(
+        let ctx = RequestContext::new(
             session_id,
             HeaderExtractor::extract_trace_id(headers),
             context_id,
             HeaderExtractor::extract_agent_name(headers),
+            Actor::user(user_id),
         )
-        .with_actor(Actor::user(user_id))
-        .with_auth_token(token)
+        .with_auth_token(JwtToken::new(token))
         .with_user_type(claims.user_type)
-        .with_jti(claims.jti.clone())
-        .with_token_exp(claims.exp)
+        .with_token_exp(claims.exp);
+        match &claims.jti {
+            Some(jti) => ctx.with_jti(jti.clone()),
+            None => ctx,
+        }
     }
 }

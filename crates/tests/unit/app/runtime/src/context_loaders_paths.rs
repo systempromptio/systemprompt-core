@@ -14,7 +14,7 @@ use systemprompt_runtime::AppContext;
 
 fn fixture_config(geoip: Option<String>) -> Config {
     Config {
-        instance_id: "t".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("t"),
         metrics_port: None,
         max_concurrent_streams: 16,
         sitename: "t".to_string(),

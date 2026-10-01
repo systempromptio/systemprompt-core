@@ -5,7 +5,7 @@
 
 use systemprompt_files::{FileMetadata, InsertFileRequest};
 use systemprompt_identifiers::{FileId, SessionId, TraceId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 #[test]
 fn test_insert_file_request_new() {
@@ -106,7 +106,7 @@ fn test_insert_file_request_with_user_id() {
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_user_id(user_id);
 
     request.user_id.as_ref().expect("user_id should be present");
-    assert_eq!(request.user_id.as_ref().unwrap().as_str(), "test-user");
+    assert_eq!(request.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
 }
 
 #[test]

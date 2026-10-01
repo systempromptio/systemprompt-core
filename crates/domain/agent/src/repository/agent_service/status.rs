@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::services::ServiceStatus;
 use systemprompt_traits::RepositoryError;
 
 /// Lifecycle state of an agent row in the shared `services` table; the only
@@ -17,21 +18,25 @@ pub enum AgentServiceStatus {
 
 impl AgentServiceStatus {
     pub const fn as_str(self) -> &'static str {
+        self.service_status().as_str()
+    }
+
+    pub const fn service_status(self) -> ServiceStatus {
         match self {
-            Self::Starting => "starting",
-            Self::Running => "running",
-            Self::Stopped => "stopped",
-            Self::Error => "error",
+            Self::Starting => ServiceStatus::Starting,
+            Self::Running => ServiceStatus::Running,
+            Self::Stopped => ServiceStatus::Stopped,
+            Self::Error => ServiceStatus::Error,
         }
     }
 
-    pub fn parse(stored: &str) -> Result<Self, RepositoryError> {
+    pub fn from_service_status(stored: ServiceStatus) -> Result<Self, RepositoryError> {
         match stored {
-            "starting" => Ok(Self::Starting),
-            "running" => Ok(Self::Running),
-            "stopped" => Ok(Self::Stopped),
-            "error" => Ok(Self::Error),
-            other => Err(RepositoryError::InvalidData(format!(
+            ServiceStatus::Starting => Ok(Self::Starting),
+            ServiceStatus::Running => Ok(Self::Running),
+            ServiceStatus::Stopped => Ok(Self::Stopped),
+            ServiceStatus::Error => Ok(Self::Error),
+            other @ ServiceStatus::Stopping => Err(RepositoryError::InvalidData(format!(
                 "unrecognised agent service status '{other}'"
             ))),
         }

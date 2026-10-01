@@ -6,7 +6,9 @@
 //! chart, and dashboard artifacts.
 
 use serde_json::json;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, SkillId, SourceId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, SessionId, SkillId, SourceId, TraceId, UserId,
+};
 use systemprompt_models::artifacts::audio::AudioArtifact;
 use systemprompt_models::artifacts::card::{
     CardCta, CardSection, CardTheme, CtaVariant, PresentationCardArtifact, PresentationCardResponse,
@@ -27,6 +29,7 @@ fn test_context() -> RequestContext {
         TraceId::new("trace-media"),
         ContextId::try_new(TEST_CONTEXT_ID).expect("valid ContextId"),
         AgentName::try_new("media-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

@@ -1,4 +1,3 @@
-use systemprompt_identifiers::UserId;
 use systemprompt_models::services::scheduler::JobScope;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 
@@ -14,7 +13,7 @@ mod job_config_tests {
 
     #[test]
     fn with_owner_sets_explicit_owner() {
-        let owner = UserId::new("user-123");
+        let owner = "user-123".to_owned();
         let cfg = JobConfig::new("my_job").with_owner(owner.clone());
         assert_eq!(cfg.owner, Some(owner));
     }
@@ -85,7 +84,7 @@ mod job_config_tests {
 
     #[test]
     fn builder_chain_works() {
-        let owner = UserId::new("user-1");
+        let owner = "user-1".to_owned();
         let cfg = JobConfig::new("complex_job")
             .with_owner(owner.clone())
             .with_extension("scheduler")

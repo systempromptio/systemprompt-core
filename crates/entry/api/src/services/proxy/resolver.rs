@@ -6,8 +6,10 @@
 use std::sync::Arc;
 
 use systemprompt_database::ServiceConfig;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_mcp::services::spawn_target::SpawnTarget;
+use systemprompt_models::services::ServiceStatus;
 use systemprompt_runtime::AppContext;
 
 use super::backend::ProxyError;
@@ -29,8 +31,9 @@ impl ServiceResolver {
         ctx: &AppContext,
     ) -> Result<ServiceConfig, ProxyError> {
         let service_repo = ctx.service_repository();
+        let name = ServiceName::new(service_name);
 
-        let service = match service_repo.find_service_by_name(service_name).await {
+        let service = match service_repo.find_service_by_name(&name).await {
             Ok(svc) => svc,
             Err(e) => {
                 tracing::error!(service = %service_name, error = %e, "Database error when looking up service");
@@ -48,8 +51,8 @@ impl ServiceResolver {
             });
         };
 
-        if service.status != "running" {
-            if service.status == "crashed" {
+        if service.status != ServiceStatus::Running {
+            if service.status == ServiceStatus::Error {
                 tracing::info!(service = %service_name, "Service crashed, attempting restart");
 
                 let restart = Self::attempt_restart(service_name, ctx).await;
@@ -58,7 +61,7 @@ impl ServiceResolver {
                 }
                 if restart.is_ok() {
                     let restarted = service_repo
-                        .find_service_by_name(service_name)
+                        .find_service_by_name(&name)
                         .await
                         .map_err(|e| ProxyError::DatabaseError {
                             service: service_name.to_owned(),
@@ -66,7 +69,7 @@ impl ServiceResolver {
                         })?;
 
                     if let Some(restarted) = restarted
-                        && restarted.status == "running"
+                        && restarted.status == ServiceStatus::Running
                     {
                         tracing::info!(service = %service_name, "Service restarted, retrying proxy");
                         return Ok(restarted);
@@ -82,7 +85,7 @@ impl ServiceResolver {
             tracing::warn!(service = %service_name, status = %service.status, "Service not running");
             return Err(ProxyError::ServiceNotRunning {
                 service: service_name.to_owned(),
-                status: service.status.clone(),
+                status: service.status.to_string(),
             });
         }
 
@@ -116,7 +119,7 @@ impl ServiceResolver {
             );
             if let Err(e) = ctx
                 .service_repository()
-                .update_service_port(service_name, new_port)
+                .update_service_port(&ServiceName::new(service_name), new_port)
                 .await
             {
                 tracing::error!(service = %service_name, error = %e, "Failed to persist reconciled service port");

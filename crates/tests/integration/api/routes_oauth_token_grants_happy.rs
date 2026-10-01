@@ -14,7 +14,7 @@ use axum::http::{Request, Response, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{
-    AgentName, AuthorizationCode, ContextId, SessionId, TraceId, UserId,
+    Actor, AgentName, AuthorizationCode, ContextId, SessionId, TraceId, UserId,
 };
 use systemprompt_models::Config;
 use systemprompt_models::execution::context::RequestContext;
@@ -38,7 +38,7 @@ static CONFIG_INSTALL: Once = Once::new();
 fn ensure_config() {
     CONFIG_INSTALL.call_once(|| {
         let _ = Config::install(Config {
-            instance_id: "test".to_owned(),
+            instance_id: systemprompt_identifiers::InstanceId::new("test"),
             metrics_port: None,
             max_concurrent_streams: 16,
             sitename: "test".to_owned(),
@@ -93,6 +93,7 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
         TraceId::new("grants-happy"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     ));
     next.run(req).await
 }

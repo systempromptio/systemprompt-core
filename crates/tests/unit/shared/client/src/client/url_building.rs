@@ -80,7 +80,7 @@ async fn test_get_context_builds_correct_url() {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "data": {
                 "context_id": "00000000-0000-4000-8000-000000000abc",
-                "user_id": "user-1",
+                "user_id": "00000000-0000-4000-8000-000000000101",
                 "name": "Test",
                 "kind": "user",
                 "created_at": "2024-01-01T00:00:00Z",

@@ -2,7 +2,9 @@
 
 use chrono::Utc;
 use serde_json::json;
-use systemprompt_identifiers::{AgentName, AiToolCallId, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, AiToolCallId, ContextId, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
 
@@ -15,6 +17,7 @@ fn create_test_context() -> RequestContext {
         TraceId::new("test-trace".to_string()),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         AgentName::try_new("test-agent".to_string()).expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

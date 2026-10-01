@@ -9,7 +9,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 use super::{CardCta, CardSection, CardTheme};
-use crate::artifacts::metadata::ExecutionMetadata;
+use crate::artifacts::metadata::ArtifactProvenance;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;
 use crate::execution::context::RequestContext;
@@ -35,7 +35,7 @@ pub struct PresentationCardArtifact {
     pub skill_name: Option<String>,
     #[serde(skip)]
     #[schemars(skip)]
-    metadata: ExecutionMetadata,
+    metadata: ArtifactProvenance,
 }
 
 fn default_card_artifact_type() -> String {
@@ -56,12 +56,12 @@ impl PresentationCardArtifact {
             execution_id: None,
             skill_id: None,
             skill_name: None,
-            metadata: ExecutionMetadata::default(),
+            metadata: ArtifactProvenance::default(),
         }
     }
 
     pub fn with_request(mut self, ctx: &RequestContext) -> Self {
-        self.metadata = ExecutionMetadata::with_request(ctx);
+        self.metadata.set_request(ctx);
         self
     }
 
@@ -99,7 +99,7 @@ impl PresentationCardArtifact {
     pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
         let id_str = id.into();
         self.execution_id = Some(id_str.clone());
-        self.metadata.execution_id = Some(id_str);
+        self.metadata.set_execution_id(id_str);
         self
     }
 
@@ -109,9 +109,10 @@ impl PresentationCardArtifact {
         skill_name: impl Into<String>,
     ) -> Self {
         let id = skill_id.into();
+        let name = skill_name.into();
         self.skill_id = Some(id.clone());
-        self.skill_name = Some(skill_name.into());
-        self.metadata.skill_id = Some(id);
+        self.skill_name = Some(name.clone());
+        self.metadata.set_skill(id, name);
         self
     }
 }

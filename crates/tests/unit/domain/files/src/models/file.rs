@@ -3,7 +3,7 @@
 use chrono::Utc;
 use systemprompt_files::{File, FileMetadata, ImageMetadata};
 use systemprompt_identifiers::{SessionId, TraceId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 fn create_test_file() -> File {
     let now = Utc::now();
@@ -157,7 +157,7 @@ fn test_file_with_all_optional_ids() {
         .as_ref()
         .expect("session_id should be present");
     file.trace_id.as_ref().expect("trace_id should be present");
-    assert_eq!(file.user_id.as_ref().unwrap().as_str(), "test-user");
+    assert_eq!(file.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
     assert_eq!(file.session_id.as_ref().unwrap().as_str(), "session_def");
     assert_eq!(file.trace_id.as_ref().unwrap().as_str(), "trace_ghi");
 }

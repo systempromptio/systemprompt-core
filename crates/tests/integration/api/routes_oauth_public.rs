@@ -28,7 +28,7 @@ fn ensure_config() {
 
 fn test_config() -> Config {
     Config {
-        instance_id: "test".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("test"),
         metrics_port: None,
         max_concurrent_streams: 16,
         sitename: "test".to_string(),

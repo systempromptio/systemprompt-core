@@ -39,12 +39,11 @@ pub(super) async fn resolve_external_bearer(
     context: &RequestContext,
     server: &str,
 ) -> McpDomainResult<String> {
-    let jwt = context.auth_token();
-    if jwt.as_str().is_empty() {
+    let Some(jwt) = context.auth_token() else {
         return Err(McpDomainError::AuthRequired(format!(
             "external MCP server '{server}' requires an authenticated user to resolve its bearer"
         )));
-    }
+    };
 
     let base = Config::get()?.api_external_url.clone();
     let accessor = accessor_url(&base, &ext.token_endpoint);

@@ -26,7 +26,7 @@ fn tool_context() -> ToolContext {
     let mut headers = HashMap::new();
     headers.insert("x-context-id".to_owned(), ContextId::generate().to_string());
     headers.insert("x-agent-name".to_owned(), "harness-agent".to_owned());
-    headers.insert("x-user-id".to_owned(), "user-tp".to_owned());
+    headers.insert("x-user-id".to_owned(), "00000000-0000-4000-8000-0000000007f1".to_owned());
     headers.insert("x-task-id".to_owned(), "task-tp".to_owned());
 
     let mut context = ToolContext::new(Actor::user(UserId::new("user-tp")), "token-tp");
@@ -99,7 +99,7 @@ async fn call_tool_executes_through_resilience_guard() {
     let (provider, server, _mock) = setup("tp_agent_call").await;
 
     let request = ToolCallRequest {
-        tool_call_id: "call-1".to_owned(),
+        tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-1"),
         name: "echo".to_owned(),
         arguments: serde_json::json!({"message": "hi"}),
     };
@@ -122,7 +122,7 @@ async fn call_tool_unknown_server_is_configuration_error() {
     let (provider, _server, _mock) = setup("tp_agent_badsrv").await;
 
     let request = ToolCallRequest {
-        tool_call_id: "call-2".to_owned(),
+        tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-2"),
         name: "echo".to_owned(),
         arguments: serde_json::json!({}),
     };
@@ -143,7 +143,7 @@ async fn call_tool_requires_context_headers() {
     let (provider, server, _mock) = setup("tp_agent_hdrs").await;
 
     let request = ToolCallRequest {
-        tool_call_id: "call-3".to_owned(),
+        tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-3"),
         name: "echo".to_owned(),
         arguments: serde_json::json!({}),
     };

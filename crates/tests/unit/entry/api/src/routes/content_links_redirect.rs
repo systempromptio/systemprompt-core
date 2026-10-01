@@ -13,7 +13,7 @@ use systemprompt_api::routes::content::links::redirect_handler;
 use systemprompt_content::repository::{ContentRepositories, LinkRepository};
 use systemprompt_content::{GenerateLinkParams, LinkGenerationService, LinkType};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
@@ -25,6 +25,7 @@ fn ctx(session_id: &str) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("test").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     ctx.auth.actor = systemprompt_identifiers::Actor::user(UserId::new("link-visitor"));
     ctx

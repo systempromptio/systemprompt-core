@@ -8,12 +8,14 @@
 //! validation errors, whatever text the error was built with, so internal
 //! error text cannot reach a response body. Repository errors convert through
 //! the one canonical `From<RepositoryError>` mapping in the `repository`
-//! module.
+//! module; an identifier that fails to parse converts through
+//! `From<IdValidationError>` (400) in the `identifier` module.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod extension;
+mod identifier;
 mod repository;
 #[cfg(feature = "web")]
 mod response;
@@ -24,6 +26,7 @@ use std::error::Error;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use systemprompt_identifiers::TraceId;
 use systemprompt_traits::BoxedSource;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,7 +83,7 @@ pub struct ApiError {
     pub validation_errors: Vec<ValidationError>,
     pub timestamp: DateTime<Utc>,
     #[serde(default)]
-    pub trace_id: Option<String>,
+    pub trace_id: Option<TraceId>,
     #[serde(skip)]
     source: Option<BoxedSource>,
 }
@@ -125,8 +128,8 @@ impl ApiError {
     }
 
     #[must_use]
-    pub fn with_trace_id(mut self, id: impl Into<String>) -> Self {
-        self.trace_id = Some(id.into());
+    pub fn with_trace_id(mut self, id: TraceId) -> Self {
+        self.trace_id = Some(id);
         self
     }
 

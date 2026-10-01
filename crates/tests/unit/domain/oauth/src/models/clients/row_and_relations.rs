@@ -94,7 +94,7 @@ fn test_oauth_client_row_deserialize() {
         "created_at": null,
         "updated_at": null,
         "last_used_at": null,
-        "owner_user_id": "test-user"
+        "owner_user_id": "00000000-0000-4000-8000-000000000001"
     }"#;
 
     let row: OAuthClientRow = serde_json::from_str(json).unwrap();

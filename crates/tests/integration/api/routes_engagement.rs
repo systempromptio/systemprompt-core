@@ -75,8 +75,8 @@ mod recorded {
             TraceId::generate(),
             ContextId::generate(),
             AgentName::try_new("engagement-test").expect("valid AgentName"),
-        )
-        .with_actor(Actor::user(user));
+            Actor::user(user),
+        );
         Ok(Seeded { req_ctx, session })
     }
 

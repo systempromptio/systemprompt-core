@@ -120,17 +120,13 @@ async fn execute_cli(
         "CLI gateway: executing command"
     );
 
-    let auth_token = req_ctx.auth_token().as_str();
+    let auth_token = req_ctx.auth_token().map(|token| token.as_str().to_owned());
     let context_id = req_ctx.context_id().to_string();
     let session_env = SessionEnv {
         session: req_ctx.session_id().to_string(),
         context: context_id,
         user: req_ctx.user_id().to_string(),
-        auth_token: if auth_token.is_empty() {
-            None
-        } else {
-            Some(auth_token.to_owned())
-        },
+        auth_token,
     };
 
     let stream = create_cli_stream(binary, args, timeout, session_env);

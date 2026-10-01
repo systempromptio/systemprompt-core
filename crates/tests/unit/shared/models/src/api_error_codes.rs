@@ -30,6 +30,15 @@ fn constructors_carry_their_error_codes() {
 }
 
 #[test]
+fn an_unparseable_identifier_is_a_bad_request() {
+    let err = systemprompt_identifiers::UserId::try_new("not-a-uuid").unwrap_err();
+    let api: ApiError = err.into();
+    assert_eq!(api.code, ErrorCode::BadRequest);
+    assert_eq!(api.error_key.as_deref(), Some("invalid_identifier"));
+    assert!(api.message.contains("UserId"), "{}", api.message);
+}
+
+#[test]
 fn an_authentication_failure_answers_401() {
     let error = ApiError::unauthorized("bad signature");
     assert_eq!(error.code.status_code(), 401);

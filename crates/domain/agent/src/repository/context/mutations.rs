@@ -89,7 +89,7 @@ impl ContextRepository {
         system_admin: &UserId,
     ) -> Result<(), RepositoryError> {
         let now = Utc::now();
-        let legacy = ContextId::legacy();
+        let legacy = ContextId::legacy_context_row();
         sqlx::query!(
             "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
              updated_at)

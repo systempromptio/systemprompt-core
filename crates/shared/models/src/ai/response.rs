@@ -36,13 +36,13 @@ pub struct AiResponse {
     pub is_streaming: bool,
 }
 
-impl Default for AiResponse {
-    fn default() -> Self {
+impl AiResponse {
+    pub const fn new(request_id: Uuid, content: String, provider: String, model: String) -> Self {
         Self {
-            request_id: Uuid::nil(),
-            content: String::new(),
-            provider: String::new(),
-            model: String::new(),
+            request_id,
+            content,
+            provider,
+            model,
             tokens_used: None,
             input_tokens: None,
             output_tokens: None,
@@ -55,18 +55,6 @@ impl Default for AiResponse {
             cache_creation_tokens: None,
             reasoning_tokens: None,
             is_streaming: false,
-        }
-    }
-}
-
-impl AiResponse {
-    pub fn new(request_id: Uuid, content: String, provider: String, model: String) -> Self {
-        Self {
-            request_id,
-            content,
-            provider,
-            model,
-            ..Default::default()
         }
     }
 

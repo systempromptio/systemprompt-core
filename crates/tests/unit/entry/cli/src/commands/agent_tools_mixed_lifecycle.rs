@@ -9,8 +9,8 @@ use systemprompt_cli::admin::agents::{self, AgentsCommands};
 use systemprompt_cli::paths::ResolvedPaths;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
-use systemprompt_database::CreateServiceInput;
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_identifiers::{ContextId, Email, ProfileName, ServiceName, SessionId, SessionToken};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
@@ -237,9 +237,9 @@ async fn mixed_agent_tools_helper() {
     .expect("mixed-tools app context");
     app.service_repository()
         .create_service(CreateServiceInput {
-            name: HEALTHY,
-            module_name: "mcp",
-            status: "running",
+            name: &ServiceName::new(HEALTHY),
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Running,
             port: healthy.address().port(),
             binary_mtime: None,
         })

@@ -1,6 +1,6 @@
 //! Unit tests for McpClientHandler and HttpClientWithContext constructors.
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_mcp::services::client::{HttpClientWithContext, rewrite_url_for_internal_use};
 use systemprompt_models::RequestContext;
 
@@ -10,6 +10,7 @@ fn sample_request_context() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("test").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

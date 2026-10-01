@@ -110,7 +110,7 @@ async fn call_tool_with_full_ctx_and_nonexistent_server_errors_gracefully() {
     let p = provider().await;
     let ctx = full_ctx();
     let request = ToolCallRequest {
-        tool_call_id: "call-1".to_owned(),
+        tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-1"),
         name: "my_tool".to_owned(),
         arguments: serde_json::json!({}),
     };
@@ -152,7 +152,7 @@ async fn tool_context_with_ai_tool_call_id_and_task_id() {
         .with_header("x-context-id", ctx_id.as_str())
         .with_header("x-agent-name", "agent-task")
         .with_header("x-task-id", "task-123")
-        .with_header("x-user-id", "user-xyz");
+        .with_header("x-user-id", "00000000-0000-4000-8000-0000000007f4");
     let result = p
         .list_tools(
             &AgentName::try_new("agent-task").expect("valid AgentName"),

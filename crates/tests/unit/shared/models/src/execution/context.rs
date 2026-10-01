@@ -1,5 +1,6 @@
 use systemprompt_identifiers::{
-    AgentName, AiToolCallId, ClientId, ContextId, McpExecutionId, SessionId, TaskId, TraceId,
+    Actor, AgentName, AiToolCallId, ClientId, ContextId, JwtToken, McpExecutionId, SessionId,
+    TaskId, TraceId, UserId,
 };
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::fixture_actor;
@@ -16,6 +17,7 @@ fn test_context() -> RequestContext {
         TraceId::new("trace-1"),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -92,6 +94,14 @@ fn request_context_new_is_not_authenticated() {
 }
 
 #[test]
+fn request_context_new_carries_no_bearer_credential() {
+    let ctx = test_context();
+    assert!(ctx.auth_token().is_none());
+    assert!(ctx.jti().is_none());
+    assert!(ctx.token_exp().is_none());
+}
+
+#[test]
 fn request_context_with_user_id() {
     let ctx = test_context().with_actor(fixture_actor());
     assert_eq!(ctx.user_id().as_str(), "test-user");
@@ -151,8 +161,8 @@ fn request_context_with_user_type() {
 
 #[test]
 fn request_context_with_auth_token() {
-    let ctx = test_context().with_auth_token("my-jwt-token");
-    assert_eq!(ctx.auth_token().as_str(), "my-jwt-token");
+    let ctx = test_context().with_auth_token(JwtToken::new("my-jwt-token"));
+    assert_eq!(ctx.auth_token().map(JwtToken::as_str), Some("my-jwt-token"));
 }
 
 #[test]
@@ -184,14 +194,14 @@ fn request_context_builder_chain_multiple() {
     let ctx = test_context()
         .with_actor(fixture_actor())
         .with_user_type(UserType::User)
-        .with_auth_token("token")
+        .with_auth_token(JwtToken::new("token"))
         .with_task_id(TaskId::new("t1"))
         .with_call_source(CallSource::Direct)
         .with_budget(100);
 
     assert_eq!(ctx.user_id().as_str(), "test-user");
     assert_eq!(ctx.user_type(), UserType::User);
-    assert_eq!(ctx.auth_token().as_str(), "token");
+    assert_eq!(ctx.auth_token().map(JwtToken::as_str), Some("token"));
     assert_eq!(ctx.task_id().unwrap().as_str(), "t1");
     assert_eq!(ctx.call_source(), Some(CallSource::Direct));
     assert_eq!(ctx.settings.max_budget_cents, Some(100));
@@ -229,7 +239,7 @@ fn request_context_validate_authenticated_fails_with_empty_token() {
 
 #[test]
 fn request_context_validate_authenticated_fails_with_anonymous_user() {
-    let ctx = test_context().with_auth_token("some-token");
+    let ctx = test_context().with_auth_token(JwtToken::new("some-token"));
     let result = ctx.validate_authenticated();
     assert!(result.is_err());
     assert!(
@@ -243,7 +253,7 @@ fn request_context_validate_authenticated_fails_with_anonymous_user() {
 #[test]
 fn request_context_validate_authenticated_succeeds_when_valid() {
     let ctx = test_context()
-        .with_auth_token("valid-token")
+        .with_auth_token(JwtToken::new("valid-token"))
         .with_actor(fixture_actor())
         .with_user_type(UserType::User);
     assert!(ctx.validate_authenticated().is_ok());

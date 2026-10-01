@@ -10,7 +10,9 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use std::time::Duration;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionToken, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, JwtToken, McpServerId, SessionId, SessionToken, TraceId, UserId,
+};
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::SpawnTarget;
 use systemprompt_mcp::services::client::HttpClientWithContext;
@@ -22,8 +24,9 @@ fn probe_context(server_name: &str) -> RequestContext {
     RequestContext::new(
         SessionId::new(format!("cli-{server_name}")),
         TraceId::generate(),
-        ContextId::derived_from_cli_probe(server_name),
+        ContextId::derived_from_cli_probe(&McpServerId::new(server_name)),
         AgentName::system(),
+        Actor::anonymous(UserId::generate()),
     )
 }
 
@@ -94,7 +97,7 @@ pub async fn list_tools_authenticated(
 ) -> Result<Vec<ToolInfo>> {
     let config =
         StreamableHttpClientTransportConfig::with_uri(url).auth_header(token.as_str().to_owned());
-    let context = probe_context(server_name).with_auth_token(token.as_str());
+    let context = probe_context(server_name).with_auth_token(JwtToken::new(token.as_str()));
     let transport =
         StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context)?, config);
 
