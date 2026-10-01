@@ -22,5 +22,5 @@ pub use enums::*;
 pub use permission::{
     Permission, parse_permissions, parse_roles, permissions_to_string, roles_to_string,
 };
-pub use roles::{BaseRole, BaseRoles};
+pub use roles::BaseRoles;
 pub use types::{AuthError, AuthenticatedUser, BEARER_PREFIX, PkceMethod, ResponseType};
