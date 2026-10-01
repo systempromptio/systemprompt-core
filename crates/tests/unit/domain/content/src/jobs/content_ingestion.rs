@@ -15,7 +15,7 @@ use systemprompt_models::content_config::{
     ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig,
 };
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 fn app_paths() -> AppPaths {
@@ -77,11 +77,8 @@ fn write_markdown(dir: &std::path::Path, slug: &str, title: &str) {
 
 #[tokio::test]
 async fn ingests_enabled_source_into_content_store() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool: DbPool = fixture_db_pool(&url).await.expect("pool");
+    let pool: DbPool = test_db_pool().await;
 
     let dir = tempfile::tempdir().expect("tempdir");
     let slug = format!("job-{}", Uuid::new_v4().simple());
@@ -124,11 +121,8 @@ async fn ingests_enabled_source_into_content_store() {
 
 #[tokio::test]
 async fn relative_source_path_resolves_and_per_file_errors_are_logged() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool: DbPool = fixture_db_pool(&url).await.expect("pool");
+    let pool: DbPool = test_db_pool().await;
 
     // The source path is relative, so the job resolves it against
     // `paths.system().services()` (the tempdir root here) rather than treating
@@ -178,11 +172,8 @@ async fn relative_source_path_resolves_and_per_file_errors_are_logged() {
 
 #[tokio::test]
 async fn skill_sources_are_filtered_out() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool: DbPool = fixture_db_pool(&url).await.expect("pool");
+    let pool: DbPool = test_db_pool().await;
 
     let dir = tempfile::tempdir().expect("tempdir");
     let slug = format!("skill-{}", Uuid::new_v4().simple());
@@ -225,11 +216,8 @@ async fn skill_sources_are_filtered_out() {
 
 #[tokio::test]
 async fn disabled_source_yields_empty_result() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool: DbPool = fixture_db_pool(&url).await.expect("pool");
+    let pool: DbPool = test_db_pool().await;
 
     let source_id = SourceId::new(format!("disabled-{}", Uuid::new_v4()));
     let mut cfg = source_config("/tmp/does-not-matter", &source_id, &CategoryId::new("docs"));
@@ -253,11 +241,8 @@ async fn disabled_source_yields_empty_result() {
 
 #[tokio::test]
 async fn missing_path_counts_as_error_but_job_succeeds() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool: DbPool = fixture_db_pool(&url).await.expect("pool");
+    let pool: DbPool = test_db_pool().await;
 
     let source_id = SourceId::new(format!("missing-{}", Uuid::new_v4()));
     let missing = format!("/tmp/nonexistent-{}", Uuid::new_v4());
@@ -284,11 +269,8 @@ async fn missing_path_counts_as_error_but_job_succeeds() {
 
 #[tokio::test]
 async fn empty_config_short_circuits() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool: DbPool = fixture_db_pool(&url).await.expect("pool");
+    let pool: DbPool = test_db_pool().await;
 
     let config = ContentConfigRaw::default();
     let result = execute_content_ingestion(&pool, &config, &app_paths())

@@ -9,7 +9,7 @@ use systemprompt_content::models::CreateContentParams;
 use systemprompt_content::repository::{ContentRepository, SearchRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, SourceId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::content::{ContentFilter, ContentProvider};
 use uuid::Uuid;
 
@@ -38,11 +38,8 @@ fn unique_source(prefix: &str) -> SourceId {
 
 #[tokio::test]
 async fn get_content_returns_full_item() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ContentRepository::new(&pool).expect("repo");
     let source = unique_source("cp-getid");
     let slug = format!("post-{}", Uuid::new_v4());
@@ -74,11 +71,8 @@ async fn get_content_returns_full_item() {
 
 #[tokio::test]
 async fn get_content_missing_returns_none() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let provider = DefaultContentProvider::new(
         ContentRepository::new(&pool).expect("content repo"),
         SearchRepository::new(&pool).expect("search repo"),
@@ -91,11 +85,8 @@ async fn get_content_missing_returns_none() {
 
 #[tokio::test]
 async fn get_content_by_slug_round_trips() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ContentRepository::new(&pool).expect("repo");
     let source = unique_source("cp-slug");
     let slug = format!("by-slug-{}", Uuid::new_v4());
@@ -119,11 +110,8 @@ async fn get_content_by_slug_round_trips() {
 
 #[tokio::test]
 async fn get_content_by_source_and_slug_round_trips() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ContentRepository::new(&pool).expect("repo");
     let source = unique_source("cp-srcslug");
     let slug = format!("src-slug-{}", Uuid::new_v4());
@@ -147,11 +135,8 @@ async fn get_content_by_source_and_slug_round_trips() {
 
 #[tokio::test]
 async fn list_content_by_source_returns_only_that_source() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ContentRepository::new(&pool).expect("repo");
     let source = unique_source("cp-list");
 
@@ -183,11 +168,8 @@ async fn list_content_by_source_returns_only_that_source() {
 
 #[tokio::test]
 async fn list_content_unfiltered_respects_limit() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ContentRepository::new(&pool).expect("repo");
     let source = unique_source("cp-limit");
 
@@ -215,11 +197,8 @@ async fn list_content_unfiltered_respects_limit() {
 
 #[tokio::test]
 async fn search_finds_seeded_keyword() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ContentRepository::new(&pool).expect("repo");
     let source = unique_source("cp-search");
     let token = format!("zzqq{}", Uuid::new_v4().simple());

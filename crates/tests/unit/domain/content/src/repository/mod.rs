@@ -7,13 +7,10 @@ async fn catalog_stats_use_primary_with_an_unavailable_replica() {
     use std::sync::Arc;
     use systemprompt_content::repository::ContentRepository;
     use systemprompt_database::Database;
-    use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+    use systemprompt_test_fixtures::test_db_pool;
     use systemprompt_traits::ContentCatalogStats;
 
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let db = fixture_db_pool(&url).await.expect("database");
+    let db = test_db_pool().await;
     let replica =
         sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed").unwrap();
     replica.close().await;

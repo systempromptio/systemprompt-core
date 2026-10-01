@@ -8,14 +8,9 @@ use std::path::Path;
 use systemprompt_content::models::{IngestionOptions, IngestionSource};
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_content::services::IngestionService;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, SourceId};
+use systemprompt_test_fixtures::test_db_pool;
 use tempfile::TempDir;
-
-async fn try_db_or_skip() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
 
 fn write_markdown(dir: &Path, name: &str, body: &str) {
     let path = dir.join(format!("{name}.md"));
@@ -31,9 +26,7 @@ fn sample_frontmatter(slug: &str, title: &str) -> String {
 
 #[tokio::test]
 async fn ingest_directory_dry_run_lists_would_create_for_new_files() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = IngestionService::new(&db, ContentRepository::new(&db).expect("repo"));
     let dir = TempDir::new().expect("tempdir");
     let slug = format!("dry-{}", uuid::Uuid::new_v4().simple());
@@ -68,9 +61,7 @@ async fn ingest_directory_dry_run_lists_would_create_for_new_files() {
 
 #[tokio::test]
 async fn ingest_directory_creates_then_unchanged_on_second_pass() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = IngestionService::new(&db, ContentRepository::new(&db).expect("repo"));
     let dir = TempDir::new().expect("tempdir");
     let slug = format!("ing-{}", uuid::Uuid::new_v4().simple());
@@ -108,9 +99,7 @@ async fn ingest_directory_creates_then_unchanged_on_second_pass() {
 
 #[tokio::test]
 async fn ingest_directory_skips_modified_when_override_disabled() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = IngestionService::new(&db, ContentRepository::new(&db).expect("repo"));
     let dir = TempDir::new().expect("tempdir");
     let slug = format!("skip-{}", uuid::Uuid::new_v4().simple());
@@ -151,9 +140,7 @@ async fn ingest_directory_skips_modified_when_override_disabled() {
 
 #[tokio::test]
 async fn ingest_directory_reports_parse_errors() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = IngestionService::new(&db, ContentRepository::new(&db).expect("repo"));
     let dir = TempDir::new().expect("tempdir");
     fs::write(dir.path().join("broken.md"), "no frontmatter here").expect("write");

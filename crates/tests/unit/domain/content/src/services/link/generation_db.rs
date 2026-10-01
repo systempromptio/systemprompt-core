@@ -11,7 +11,7 @@ use systemprompt_content::services::link::generation::GenerateContentLinkParams;
 use systemprompt_content::{GenerateLinkParams, LinkGenerationService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, SourceId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 async fn seed_content(pool: &DbPool, source: &SourceId) -> ContentId {
@@ -33,11 +33,8 @@ async fn cleanup(pool: &DbPool, source: &SourceId) {
 
 #[tokio::test]
 async fn generate_external_link_persists_and_resolves_external() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
 
     let link = svc
@@ -77,11 +74,8 @@ async fn generate_external_link_persists_and_resolves_external() {
 
 #[tokio::test]
 async fn generate_link_with_utm_serializes_params_and_internal_destination() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
 
     let utm = UtmParams {
@@ -122,11 +116,8 @@ async fn generate_link_with_utm_serializes_params_and_internal_destination() {
 
 #[tokio::test]
 async fn generate_social_media_link_sets_social_utm() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let source = SourceId::new(format!("gen-social-{}", Uuid::new_v4()));
     let content_id = seed_content(&pool, &source).await;
     let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
@@ -154,11 +145,8 @@ async fn generate_social_media_link_sets_social_utm() {
 
 #[tokio::test]
 async fn generate_internal_content_link_is_idempotent_on_source_and_target() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let source = SourceId::new(format!("gen-internal-{}", Uuid::new_v4()));
     let content_id = seed_content(&pool, &source).await;
     let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
@@ -200,11 +188,8 @@ async fn generate_internal_content_link_is_idempotent_on_source_and_target() {
 
 #[tokio::test]
 async fn generate_external_cta_link_marks_cta_position() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
 
     let link = svc
@@ -228,11 +213,8 @@ async fn generate_external_cta_link_marks_cta_position() {
 
 #[tokio::test]
 async fn generate_external_content_link_is_a_redirect_share() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let source = SourceId::new(format!("gen-extcontent-{}", Uuid::new_v4()));
     let content_id = seed_content(&pool, &source).await;
     let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
@@ -266,11 +248,8 @@ async fn generate_external_content_link_is_a_redirect_share() {
 
 #[tokio::test]
 async fn get_link_by_short_code_missing_is_none() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
 
     let result = svc

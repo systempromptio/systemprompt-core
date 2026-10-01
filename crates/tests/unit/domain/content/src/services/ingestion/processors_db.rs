@@ -19,7 +19,7 @@ use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_provider_contracts::{
     FrontmatterContext, FrontmatterProcessor, ProviderError, ProviderResult,
 };
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 struct SkippedProcessor;
@@ -73,11 +73,8 @@ impl Extension for ProcessorExtension {
 
 #[tokio::test]
 async fn ingest_runs_injected_frontmatter_processors() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
 
     set_injected_extensions(InjectedExtensions {
         extensions: vec![Arc::new(ProcessorExtension)],
