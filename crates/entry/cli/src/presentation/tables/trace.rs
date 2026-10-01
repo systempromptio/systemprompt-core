@@ -4,20 +4,21 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 use systemprompt_runtime::{
     AiRequestInfo, ExecutionStep, McpToolExecution, TaskArtifact, TaskInfo, TraceEvent,
 };
 use tabled::settings::Style;
 use tabled::{Table, Tabled};
 
-use super::{dash, millis, truncate_cell};
+use super::{OrDash, dash, millis, truncate_cell};
 
 #[derive(Tabled)]
 struct TaskInfoRow {
     #[tabled(rename = "Task ID")]
     task: String,
     #[tabled(rename = "Agent")]
-    agent_name: String,
+    agent_name: OrDash<AgentName>,
     #[tabled(rename = "Status")]
     status: String,
     #[tabled(rename = "Started")]
@@ -30,7 +31,7 @@ struct TaskInfoRow {
 pub fn task_info_table(task_info: &TaskInfo) -> String {
     let rows = vec![TaskInfoRow {
         task: task_info.task_id.as_str().chars().take(8).collect(),
-        agent_name: task_info.agent_name.clone().unwrap_or_else(dash),
+        agent_name: OrDash(task_info.agent_name.clone()),
         status: task_info.status.clone(),
         started_at: task_info
             .started_at
@@ -115,9 +116,9 @@ pub fn ai_requests_table(requests: &[AiRequestInfo]) -> String {
 #[derive(Tabled)]
 struct ToolCallRow {
     #[tabled(rename = "Tool")]
-    tool_name: String,
+    tool_name: McpToolName,
     #[tabled(rename = "Server")]
-    server: String,
+    server: McpServerId,
     #[tabled(rename = "Status")]
     status: String,
     #[tabled(rename = "Duration")]
@@ -149,7 +150,7 @@ struct TaskArtifactRow {
     #[tabled(rename = "Source")]
     source: String,
     #[tabled(rename = "Tool")]
-    tool_name: String,
+    tool_name: OrDash<McpToolName>,
 }
 
 #[must_use]
@@ -163,7 +164,7 @@ pub fn task_artifacts_table(artifacts: &[TaskArtifact]) -> String {
             artifact_type: a.artifact_type.clone(),
             name: a.name.as_ref().map_or_else(dash, |s| truncate_cell(s, 30)),
             source: a.source.clone().unwrap_or_else(dash),
-            tool_name: a.tool_name.clone().unwrap_or_else(dash),
+            tool_name: OrDash(a.tool_name.clone()),
         })
         .collect();
     Table::new(&rows).with(Style::rounded()).to_string()

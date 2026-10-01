@@ -9,13 +9,14 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_cli::infrastructure::services::status::{
     build_status_output, external_row, health_label, managed_health_label,
 };
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
 use systemprompt_models::mcp::McpServerType;
 use systemprompt_scheduler::{DesiredStatus, RuntimeStatus, ServiceType, VerifiedServiceState};
 
 fn state(name: &str, service_type: ServiceType, runtime: RuntimeStatus) -> VerifiedServiceState {
     VerifiedServiceState::builder(
-        name.to_string(),
+        ServiceName::new(name),
         service_type,
         DesiredStatus::Enabled,
         runtime,

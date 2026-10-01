@@ -17,6 +17,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 
 use crate::context::CommandContext;
 use crate::shared::render_result;
@@ -51,8 +52,8 @@ pub struct ToolStatsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolListRow {
-    pub tool_name: String,
-    pub server_name: String,
+    pub tool_name: McpToolName,
+    pub server_name: McpServerId,
     pub execution_count: i64,
     pub success_rate: f64,
     pub avg_execution_time_ms: i64,
@@ -83,7 +84,7 @@ pub struct ToolTrendsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolShowOutput {
-    pub tool_name: String,
+    pub tool_name: McpToolName,
     pub period: String,
     pub summary: ToolStatsOutput,
     pub status_breakdown: Vec<StatusBreakdownItem>,
@@ -106,7 +107,7 @@ pub struct ErrorItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentUsageItem {
-    pub agent_name: String,
+    pub agent_name: Option<AgentName>,
     pub count: i64,
     pub percentage: f64,
 }

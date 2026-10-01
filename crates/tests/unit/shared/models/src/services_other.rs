@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use systemprompt_identifiers::JobName;
 
 use systemprompt_identifiers::{ExternalAgentId, SkillId, UserId};
 use systemprompt_models::services::{
@@ -139,14 +140,14 @@ extra: nope
 #[test]
 fn job_config_new_and_builders() {
     let owner = "user-1".to_owned();
-    let j = JobConfig::new("hello");
+    let j = JobConfig::new(JobName::new("hello"));
     assert_eq!(j.name, "hello");
     assert!(j.owner.is_none());
     assert!(j.enabled);
     assert!(j.extension.is_none());
     assert!(j.schedule.is_none());
 
-    let j = JobConfig::new("x")
+    let j = JobConfig::new(JobName::new("x"))
         .with_owner(owner.clone())
         .with_extension("core")
         .with_schedule("0 0 * * * *");
@@ -154,7 +155,7 @@ fn job_config_new_and_builders() {
     assert_eq!(j.extension.as_deref(), Some("core"));
     assert_eq!(j.schedule.as_deref(), Some("0 0 * * * *"));
 
-    let j = JobConfig::new("y").disabled();
+    let j = JobConfig::new(JobName::new("y")).disabled();
     assert!(!j.enabled);
 }
 
@@ -178,10 +179,7 @@ fn scheduler_config_with_system_admin_emits_core_cleanup_jobs() {
             .expect("core cleanup job has schedule");
         assert!(!schedule.is_empty());
     }
-    assert_eq!(
-        s.bootstrap_jobs,
-        vec!["cleanup_inactive_sessions".to_owned()]
-    );
+    assert_eq!(s.bootstrap_jobs, vec!["cleanup_inactive_sessions"]);
     for j in &s.jobs {
         let deleting = j.name != "cleanup_inactive_sessions";
         assert_eq!(
@@ -361,6 +359,12 @@ parameters:
 }
 
 #[test]
+fn job_config_yaml_with_blank_name_is_rejected() {
+    assert!(serde_yaml::from_str::<JobConfig>("name: \"  \"\n").is_err());
+    assert!(serde_yaml::from_str::<SchedulerConfig>("bootstrap_jobs: [\"\"]\n").is_err());
+}
+
+#[test]
 fn job_config_yaml_without_parameters_defaults_to_empty_map() {
     let job: JobConfig = serde_yaml::from_str("name: database_cleanup\n").expect("parses");
     assert!(job.parameters.is_empty());
@@ -382,7 +386,8 @@ fn job_config_yaml_rejects_unknown_field() {
 fn with_parameters_sets_the_map() {
     let mut params = std::collections::HashMap::new();
     params.insert("retention_hours".to_owned(), "12".to_owned());
-    let job = JobConfig::new("cleanup_empty_contexts").with_parameters(params.clone());
+    let job =
+        JobConfig::new(JobName::new("cleanup_empty_contexts")).with_parameters(params.clone());
     assert_eq!(job.parameters, params);
 }
 

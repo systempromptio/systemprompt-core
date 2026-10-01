@@ -21,6 +21,7 @@
 mod attrs;
 mod ids;
 mod logs;
+mod records;
 mod spans;
 mod state;
 mod tail;
@@ -34,15 +35,17 @@ use serde::Serialize;
 use sqlx::PgPool;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::InstanceId;
 use systemprompt_models::profile::{OtlpExportConfig, OtlpSignal};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
 pub use ids::{span_id_bytes, trace_id_bytes, unix_nanos};
 pub use logs::{severity_number, to_log_record};
+pub use records::{GovernanceRow, LedgerRow, LogRow, RequestRow};
 pub use spans::{GOVERNANCE_SPAN, REQUEST_SPAN, TOOL_SPAN, TraceBatch, to_spans};
 pub use state::{OtlpExportState, OtlpExportStateRepository, Watermark};
-pub use tail::{BATCH_ROWS, GovernanceRow, LedgerRow, LogRow, RequestRow, SETTLE};
+pub use tail::{BATCH_ROWS, SETTLE};
 pub use transport::{BATCHES_TOTAL, RETRY_DELAYS, is_retryable};
 
 use crate::error::{SchedulerError, SchedulerResult};
@@ -131,9 +134,9 @@ impl Job for OtlpExportJob {
         let pool = db_pool.write_pool();
         let instance_id = job_app_context(ctx)
             .ok()
-            .map(|app| app.config().instance_id.as_str().to_owned());
+            .map(|app| app.config().instance_id.clone());
 
-        let report = run(&pool, config, instance_id.as_deref(), true).await?;
+        let report = run(&pool, config, instance_id.as_ref(), true).await?;
         Ok(JobResult::success()
             .with_stats(report.rows(), report.failed())
             .with_duration(start.elapsed().as_millis() as u64))
@@ -145,7 +148,7 @@ systemprompt_provider_contracts::submit_job!(&OtlpExportJob);
 pub async fn export_now(
     pool: &Arc<PgPool>,
     config: &OtlpExportConfig,
-    instance_id: Option<&str>,
+    instance_id: Option<&InstanceId>,
 ) -> SchedulerResult<ExportReport> {
     run(pool, config, instance_id, false).await
 }
@@ -153,7 +156,7 @@ pub async fn export_now(
 async fn run(
     pool: &Arc<PgPool>,
     config: &OtlpExportConfig,
-    instance_id: Option<&str>,
+    instance_id: Option<&InstanceId>,
     paced: bool,
 ) -> SchedulerResult<ExportReport> {
     let repository = OtlpExportStateRepository::new(pool.as_ref().clone());
@@ -202,7 +205,7 @@ async fn export_signal(
     config: &OtlpExportConfig,
     repository: &OtlpExportStateRepository,
     state: &OtlpExportState,
-    instance_id: Option<&str>,
+    instance_id: Option<&InstanceId>,
 ) -> SchedulerResult<u64> {
     let after = state.watermark();
     let signal =

@@ -15,6 +15,7 @@
 //! `DATABASE_URL` is unset.
 
 use std::sync::Arc;
+use systemprompt_identifiers::JobName;
 
 use systemprompt_identifiers::InstanceId;
 use systemprompt_scheduler::{
@@ -76,7 +77,7 @@ mod bootstrap_dispatch_db {
         // owns it rather than depending on a concurrent test having upserted the
         // same shared, inventory-registered job name.
         let repo = SchedulerRepository::new(&pool);
-        repo.upsert_job(job_name, "0 0 * * * *", true)
+        repo.upsert_job(&JobName::new(job_name), "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
 
@@ -87,7 +88,7 @@ mod bootstrap_dispatch_db {
         // Dispatch records the run in the scheduled_jobs row. After a clean run
         // the row must exist with a Success status.
         let row = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job must succeed")
             .expect("dispatched bootstrap job must have a scheduled_jobs row");
@@ -138,7 +139,7 @@ mod bootstrap_dispatch_db {
         let config = config_with_bootstrap(vec![job_name.to_owned()], true);
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
         SchedulerRepository::new(&pool)
-            .upsert_job(job_name, "0 0 * * * *", true)
+            .upsert_job(&JobName::new(job_name), "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
 
@@ -148,7 +149,7 @@ mod bootstrap_dispatch_db {
 
         let repo = SchedulerRepository::new(&pool);
         let row = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("bootstrap job row must exist after a locked dispatch");
@@ -168,11 +169,11 @@ mod bootstrap_dispatch_db {
         let app_ctx = test_app_context(&pool, &url);
         let job_name = crate::test_jobs::IDLE_JOB;
         let repo = SchedulerRepository::new(&pool);
-        repo.upsert_job(job_name, "0 0 * * * *", true)
+        repo.upsert_job(&JobName::new(job_name), "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
         let before = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("seeded row");
@@ -184,7 +185,7 @@ mod bootstrap_dispatch_db {
             .expect("an idle bootstrap run must succeed");
 
         let after = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("row still present");
@@ -205,7 +206,7 @@ mod dispatch_outcome_arms {
         let app_ctx = test_app_context(&pool, &url);
 
         let repo = SchedulerRepository::new(&pool);
-        repo.upsert_job(PANIC_JOB, "", true)
+        repo.upsert_job(&JobName::new(PANIC_JOB), "", true)
             .await
             .expect("seed scheduled_jobs row");
 
@@ -217,7 +218,7 @@ mod dispatch_outcome_arms {
             .expect("a panicking job must not abort the bootstrap pass");
 
         let row = repo
-            .find_job(PANIC_JOB)
+            .find_job(&JobName::new(PANIC_JOB))
             .await
             .expect("find_job")
             .expect("seeded row must exist");
@@ -241,7 +242,7 @@ mod dispatch_outcome_arms {
         let app_ctx = test_app_context(&pool, &url);
 
         let repo = SchedulerRepository::new(&pool);
-        repo.upsert_job(FAILING_JOB, "", true)
+        repo.upsert_job(&JobName::new(FAILING_JOB), "", true)
             .await
             .expect("seed scheduled_jobs row");
 
@@ -253,7 +254,7 @@ mod dispatch_outcome_arms {
             .expect("a failing job must not abort the bootstrap pass");
 
         let row = repo
-            .find_job(FAILING_JOB)
+            .find_job(&JobName::new(FAILING_JOB))
             .await
             .expect("find_job")
             .expect("seeded row must exist");
@@ -296,7 +297,7 @@ mod dispatch_outcome_arms {
 
         let repo = SchedulerRepository::new(&pool);
         assert!(
-            repo.find_job(FAILING_JOB)
+            repo.find_job(&JobName::new(FAILING_JOB))
                 .await
                 .expect("find_job")
                 .is_none(),
@@ -316,11 +317,11 @@ mod distributed_lock_arms {
 
         let job_name = "cleanup_empty_contexts";
         let repo = SchedulerRepository::new(&pool);
-        repo.upsert_job(job_name, "0 0 * * * *", true)
+        repo.upsert_job(&JobName::new(job_name), "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
         let before = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("seeded row")
@@ -350,7 +351,7 @@ mod distributed_lock_arms {
             .expect("a lock-skipped dispatch must not abort bootstrap");
 
         let after = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("row still present")
@@ -374,11 +375,11 @@ mod distributed_lock_arms {
 
         let job_name = "cleanup_empty_contexts";
         let repo = SchedulerRepository::new(&pool);
-        repo.upsert_job(job_name, "0 0 * * * *", true)
+        repo.upsert_job(&JobName::new(job_name), "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
         repo.update_job_execution(
-            job_name,
+            &JobName::new(job_name),
             JobRunRecord {
                 status: JobStatus::Success,
                 error: None,
@@ -390,7 +391,7 @@ mod distributed_lock_arms {
         .await
         .expect("stamp last_run = now");
         let before = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("seeded row")
@@ -403,7 +404,7 @@ mod distributed_lock_arms {
             .expect("a tick-deduplicated dispatch must not abort bootstrap");
 
         let row = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("row still present");
@@ -475,11 +476,11 @@ mod bootstrap_owner_arms {
 
         let job_name = "cleanup_empty_contexts";
         let repo = SchedulerRepository::new(&pool);
-        repo.upsert_job(job_name, "0 0 * * * *", true)
+        repo.upsert_job(&JobName::new(job_name), "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
         let before = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("seeded row")
@@ -488,11 +489,11 @@ mod bootstrap_owner_arms {
         let config = SchedulerConfig {
             enabled: true,
             jobs: vec![
-                JobConfig::new(job_name)
+                JobConfig::new(JobName::new(job_name))
                     .with_owner("sp-test-no-such-owner")
                     .with_schedule("0 0 4 * * *"),
             ],
-            bootstrap_jobs: vec![job_name.to_owned()],
+            bootstrap_jobs: vec![JobName::new(job_name)],
             distributed_lock: false,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
@@ -502,7 +503,7 @@ mod bootstrap_owner_arms {
             .expect("an unresolved bootstrap owner must skip the job, not abort");
 
         let after = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("row still present")
@@ -536,11 +537,11 @@ mod bootstrap_owner_arms {
 
         let job_name = crate::test_jobs::WORKING_JOB;
         let repo = SchedulerRepository::new(&pool);
-        repo.upsert_job(job_name, "0 0 * * * *", true)
+        repo.upsert_job(&JobName::new(job_name), "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
         let before = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("seeded row")
@@ -549,11 +550,11 @@ mod bootstrap_owner_arms {
         let config = SchedulerConfig {
             enabled: true,
             jobs: vec![
-                JobConfig::new(job_name)
+                JobConfig::new(JobName::new(job_name))
                     .with_owner(owner_name.as_str())
                     .with_schedule("0 0 4 * * *"),
             ],
-            bootstrap_jobs: vec![job_name.to_owned()],
+            bootstrap_jobs: vec![JobName::new(job_name)],
             distributed_lock: false,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
@@ -563,7 +564,7 @@ mod bootstrap_owner_arms {
             .expect("a resolvable explicit owner must dispatch normally");
 
         let after = repo
-            .find_job(job_name)
+            .find_job(&JobName::new(job_name))
             .await
             .expect("find_job")
             .expect("row still present")

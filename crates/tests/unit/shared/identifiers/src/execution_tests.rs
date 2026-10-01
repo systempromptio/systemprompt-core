@@ -108,3 +108,11 @@ fn all_execution_ids_from_str_and_string_equal() {
     let b: ExecutionStepId = String::from("x").into();
     assert_eq!(a, b);
 }
+
+#[test]
+fn log_id_try_new_rejects_non_uuid() {
+    assert!(LogId::try_new("not-a-uuid").is_err());
+    assert!(serde_json::from_str::<LogId>("\"not-a-uuid\"").is_err());
+    let id = LogId::generate();
+    assert_eq!(LogId::try_new(id.as_str()).unwrap(), id);
+}

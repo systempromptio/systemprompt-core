@@ -3,11 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ContextId, TaskId};
-use systemprompt_logging::CliService;
+use systemprompt_identifiers::{ContextId, McpToolName, TaskId};
+use systemprompt_logging::{CliService, LogLevel};
 use systemprompt_runtime::{AiRequestInfo, AiTraceService, McpToolExecution, ToolLogEntry};
 
 use super::ai_display::{print_content_block, print_section, truncate};
+use crate::commands::infrastructure::logs::shared::print_level_line;
 use crate::presentation::tables::mcp_tool_calls_table;
 
 pub(super) async fn print_mcp_executions(
@@ -100,7 +101,7 @@ fn print_tool_content(content: &str) {
 async fn print_mcp_linked_ai_requests(
     service: &AiTraceService,
     requests: &[AiRequestInfo],
-    tool_name: &str,
+    tool_name: &McpToolName,
 ) {
     CliService::info(&format!("  → AI requests made by {tool_name}:"));
 
@@ -167,14 +168,14 @@ async fn print_tool_errors_from_logs(
     for log in &logs {
         let time_str = log.timestamp.format("%H:%M:%S%.3f").to_string();
 
-        let level_symbol = match log.level.as_str() {
-            "ERROR" => {
+        let level_symbol = match log.level {
+            LogLevel::Error => {
                 has_errors = true;
                 "✗"
             },
-            "WARN" => "⚠",
-            "DEBUG" => "·",
-            _ => "•",
+            LogLevel::Warn => "⚠",
+            LogLevel::Debug => "·",
+            LogLevel::Info | LogLevel::Trace => "•",
         };
 
         let log_line = format!(
@@ -183,11 +184,7 @@ async fn print_tool_errors_from_logs(
             truncate(&log.message, 100)
         );
 
-        match log.level.as_str() {
-            "ERROR" => CliService::error(&log_line),
-            "WARN" => CliService::warning(&log_line),
-            _ => CliService::info(&log_line),
-        }
+        print_level_line(log.level, &log_line);
     }
 
     if has_errors {
@@ -198,7 +195,7 @@ async fn print_tool_errors_from_logs(
 fn print_error_details(logs: &[ToolLogEntry]) {
     CliService::error("  Tool Errors:");
     for log in logs {
-        if log.level == "ERROR" {
+        if log.level == LogLevel::Error {
             CliService::error(&format!("    {}: error:", log.module));
             print_content_block(&format!("      {}", log.message));
         }

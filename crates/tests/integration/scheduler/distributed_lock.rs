@@ -21,6 +21,7 @@
 
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_identifiers::JobName;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -59,7 +60,7 @@ systemprompt_traits::submit_job!(&DistributedLockProbeJob);
 fn probe_config(distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
         enabled: true,
-        jobs: vec![JobConfig::new(TEST_JOB_NAME).with_schedule("* * * * * *")],
+        jobs: vec![JobConfig::new(JobName::new(TEST_JOB_NAME)).with_schedule("* * * * * *")],
         bootstrap_jobs: vec![],
         distributed_lock,
     }

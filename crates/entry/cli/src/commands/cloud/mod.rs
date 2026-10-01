@@ -25,6 +25,7 @@ use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use anyhow::Result;
 use clap::Subcommand;
+use systemprompt_identifiers::ProfileName;
 
 #[derive(Debug, Subcommand)]
 pub enum CloudCommands {
@@ -54,8 +55,13 @@ pub enum CloudCommands {
         #[arg(long)]
         skip_push: bool,
 
-        #[arg(long, short = 'p', help = "Profile name to deploy")]
-        profile: Option<String>,
+        #[arg(
+            long,
+            short = 'p',
+            value_parser = crate::shared::parse_profile_name,
+            help = "Profile name to deploy"
+        )]
+        profile: Option<ProfileName>,
 
         #[arg(long, help = "Run the pre-deploy preflight only, without deploying")]
         check: bool,
@@ -63,8 +69,13 @@ pub enum CloudCommands {
 
     #[command(about = "Download the tenant's runtime services/ tree to a local directory")]
     Backup {
-        #[arg(long, short = 'p', help = "Profile name to back up")]
-        profile: Option<String>,
+        #[arg(
+            long,
+            short = 'p',
+            value_parser = crate::shared::parse_profile_name,
+            help = "Profile name to back up"
+        )]
+        profile: Option<ProfileName>,
 
         #[arg(
             long,
@@ -79,8 +90,13 @@ pub enum CloudCommands {
 
     #[command(about = "Run the pre-deploy preflight for a profile without deploying")]
     Doctor {
-        #[arg(long, short = 'p', help = "Profile name to check")]
-        profile: Option<String>,
+        #[arg(
+            long,
+            short = 'p',
+            value_parser = crate::shared::parse_profile_name,
+            help = "Profile name to check"
+        )]
+        profile: Option<ProfileName>,
 
         #[arg(
             long,

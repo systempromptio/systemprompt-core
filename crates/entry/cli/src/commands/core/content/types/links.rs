@@ -6,7 +6,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{CampaignId, ContentId, LinkId, SessionId, UserId};
+use systemprompt_identifiers::{CampaignId, ContentId, LinkClickId, LinkId, SessionId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GenerateLinkOutput {
@@ -92,7 +92,7 @@ pub struct ClicksOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ClickRow {
-    pub click_id: String,
+    pub click_id: LinkClickId,
     pub session_id: SessionId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<UserId>,

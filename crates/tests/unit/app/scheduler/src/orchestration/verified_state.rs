@@ -1,11 +1,12 @@
 //! Tests for VerifiedServiceState
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::{RuntimeStatus, ServiceType};
 use systemprompt_scheduler::{DesiredStatus, ServiceAction, VerifiedServiceState};
 
 fn build_state(desired: DesiredStatus, runtime: RuntimeStatus) -> VerifiedServiceState {
     VerifiedServiceState::builder(
-        "test-service".to_string(),
+        ServiceName::new("test-service"),
         ServiceType::Mcp,
         desired,
         runtime,
@@ -234,7 +235,7 @@ mod builder_tests {
     #[test]
     fn builder_sets_name() {
         let state = VerifiedServiceState::builder(
-            "my-service".to_string(),
+            ServiceName::new("my-service"),
             ServiceType::Mcp,
             DesiredStatus::Enabled,
             RuntimeStatus::Running,
@@ -247,7 +248,7 @@ mod builder_tests {
     #[test]
     fn builder_sets_service_type() {
         let state = VerifiedServiceState::builder(
-            "test".to_string(),
+            ServiceName::new("test"),
             ServiceType::Mcp,
             DesiredStatus::Enabled,
             RuntimeStatus::Running,
@@ -260,7 +261,7 @@ mod builder_tests {
     #[test]
     fn builder_sets_port() {
         let state = VerifiedServiceState::builder(
-            "test".to_string(),
+            ServiceName::new("test"),
             ServiceType::Mcp,
             DesiredStatus::Enabled,
             RuntimeStatus::Running,
@@ -273,7 +274,7 @@ mod builder_tests {
     #[test]
     fn builder_with_pid() {
         let state = VerifiedServiceState::builder(
-            "test".to_string(),
+            ServiceName::new("test"),
             ServiceType::Mcp,
             DesiredStatus::Enabled,
             RuntimeStatus::Running,
@@ -287,7 +288,7 @@ mod builder_tests {
     #[test]
     fn builder_without_pid_is_none() {
         let state = VerifiedServiceState::builder(
-            "test".to_string(),
+            ServiceName::new("test"),
             ServiceType::Mcp,
             DesiredStatus::Enabled,
             RuntimeStatus::Running,
@@ -300,7 +301,7 @@ mod builder_tests {
     #[test]
     fn builder_with_error() {
         let state = VerifiedServiceState::builder(
-            "test".to_string(),
+            ServiceName::new("test"),
             ServiceType::Mcp,
             DesiredStatus::Enabled,
             RuntimeStatus::Crashed,
@@ -314,7 +315,7 @@ mod builder_tests {
     #[test]
     fn builder_without_error_is_none() {
         let state = VerifiedServiceState::builder(
-            "test".to_string(),
+            ServiceName::new("test"),
             ServiceType::Mcp,
             DesiredStatus::Enabled,
             RuntimeStatus::Running,

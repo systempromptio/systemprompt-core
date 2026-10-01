@@ -12,8 +12,8 @@ use systemprompt_models::content_config::{
     ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig, SitemapConfig,
 };
 
-pub fn ensure_category_exists(config: &ContentConfigRaw, category_id: &str) -> Result<()> {
-    if config.categories.contains_key(category_id) {
+pub fn ensure_category_exists(config: &ContentConfigRaw, category_id: &CategoryId) -> Result<()> {
+    if config.categories.contains_key(category_id.as_str()) {
         return Ok(());
     }
     let available: Vec<&String> = config.categories.keys().collect();

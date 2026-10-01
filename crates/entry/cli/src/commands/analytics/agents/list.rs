@@ -7,6 +7,7 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::AgentAnalyticsRepository;
+use systemprompt_identifiers::AgentName;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
@@ -96,7 +97,7 @@ async fn execute_internal(
             };
 
             AgentListRow {
-                agent_name: row.agent_name.to_string(),
+                agent_name: row.agent_name,
                 task_count: row.task_count,
                 success_rate,
                 avg_execution_time_ms: row.avg_execution_time_ms,

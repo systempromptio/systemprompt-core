@@ -5,6 +5,7 @@
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use systemprompt_identifiers::JobName;
 
 use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::config::config_section::{
@@ -281,8 +282,10 @@ fn validate_accepts_a_scheduler_config_of_registered_jobs() {
 #[test]
 fn validate_names_every_unregistered_scheduler_job() {
     let mut config = SchedulerConfig::with_system_admin();
-    config.jobs.push(JobConfig::new("access_control_sync"));
-    config.bootstrap_jobs.push("content_sync".to_owned());
+    config
+        .jobs
+        .push(JobConfig::new(JobName::new("access_control_sync")));
+    config.bootstrap_jobs.push(JobName::new("content_sync"));
 
     let message = unknown_jobs_message(&config).expect("phantom job names must fail validation");
     assert!(message.contains("access_control_sync"), "got: {message}");

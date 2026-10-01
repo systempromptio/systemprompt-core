@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{ProfilePath, SessionKey};
+use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
 
@@ -12,11 +13,11 @@ use super::types::SwitchOutput;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
 
-pub(super) fn execute(profile_name: &str) -> Result<CommandOutput> {
+pub(super) fn execute(profile_name: &ProfileName) -> Result<CommandOutput> {
     let paths = ResolvedPaths::discover();
     let profiles_dir = paths.profiles_dir();
 
-    let target_dir = profiles_dir.join(profile_name);
+    let target_dir = profiles_dir.join(profile_name.as_str());
     let profile_config_path = ProfilePath::Config.resolve(&target_dir);
 
     if !profile_config_path.exists() {
@@ -54,9 +55,9 @@ pub(super) fn execute(profile_name: &str) -> Result<CommandOutput> {
 
     let output = SwitchOutput {
         previous_profile,
-        new_profile: profile_name.to_owned(),
+        new_profile: profile_name.clone(),
         session_key: session_key.as_storage_key(),
-        tenant: new_tenant_id.as_ref().map(|t| t.as_str().to_owned()),
+        tenant: new_tenant_id,
         message,
     };
 

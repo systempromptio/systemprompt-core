@@ -5,6 +5,7 @@
 
 use std::collections::HashSet;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::JobName;
 use systemprompt_traits::Job;
 
 use super::types::{JobInfo, JobListOutput};
@@ -42,7 +43,7 @@ pub(super) fn execute() -> CommandOutput {
     .with_title("Available Jobs")
 }
 
-fn job_info(name: &str, job: &dyn Job, configured: &HashSet<String>) -> JobInfo {
+fn job_info(name: &str, job: &dyn Job, configured: &HashSet<JobName>) -> JobInfo {
     JobInfo {
         name: name.to_owned(),
         description: job.description().to_owned(),
@@ -52,7 +53,7 @@ fn job_info(name: &str, job: &dyn Job, configured: &HashSet<String>) -> JobInfo 
     }
 }
 
-fn configured_job_names() -> HashSet<String> {
+fn configured_job_names() -> HashSet<JobName> {
     let Ok(config) = systemprompt_loader::ConfigLoader::load() else {
         return HashSet::new();
     };

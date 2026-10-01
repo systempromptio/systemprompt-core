@@ -8,6 +8,7 @@
 //! is unset.
 
 use std::sync::Arc;
+use systemprompt_identifiers::JobName;
 
 use systemprompt_logging::{LogLevel, LoggingRepository};
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
@@ -24,7 +25,10 @@ mod start_owner_resolution_db {
 
         let config = SchedulerConfig {
             enabled: true,
-            jobs: vec![JobConfig::new("cleanup_inactive_sessions").with_schedule("0 0 4 * * *")],
+            jobs: vec![
+                JobConfig::new(JobName::new("cleanup_inactive_sessions"))
+                    .with_schedule("0 0 4 * * *"),
+            ],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
@@ -52,8 +56,9 @@ mod start_owner_resolution_db {
         let config = SchedulerConfig {
             enabled: true,
             jobs: vec![
-                JobConfig::new("cleanup_inactive_sessions").with_schedule("0 0 4 * * *"),
-                JobConfig::new("cleanup_empty_contexts")
+                JobConfig::new(JobName::new("cleanup_inactive_sessions"))
+                    .with_schedule("0 0 4 * * *"),
+                JobConfig::new(JobName::new("cleanup_empty_contexts"))
                     .with_owner(bad_owner)
                     .with_schedule("0 0 4 * * *"),
             ],
@@ -110,7 +115,7 @@ mod start_lifecycle_db {
 
         let config = SchedulerConfig {
             enabled: false,
-            jobs: vec![JobConfig::new("cleanup_inactive_sessions")],
+            jobs: vec![JobConfig::new(JobName::new("cleanup_inactive_sessions"))],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
@@ -135,7 +140,9 @@ mod start_lifecycle_db {
 
         let config = SchedulerConfig {
             enabled: true,
-            jobs: vec![JobConfig::new("sp_no_such_job_qqq").with_schedule("0 0 4 * * *")],
+            jobs: vec![
+                JobConfig::new(JobName::new("sp_no_such_job_qqq")).with_schedule("0 0 4 * * *"),
+            ],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
@@ -167,7 +174,7 @@ mod start_lifecycle_db {
         let config = SchedulerConfig {
             enabled: true,
             jobs: vec![
-                JobConfig::new(job_name)
+                JobConfig::new(JobName::new(job_name))
                     .with_schedule("0 0 4 * * *")
                     .disabled(),
             ],
@@ -179,7 +186,10 @@ mod start_lifecycle_db {
         let startup = svc.start().await.expect("start must succeed");
         let repo = SchedulerRepository::new(&pool);
         assert!(
-            repo.find_job(job_name).await.expect("find_job").is_none(),
+            repo.find_job(&JobName::new(job_name))
+                .await
+                .expect("find_job")
+                .is_none(),
             "a disabled job config must not be upserted into scheduled_jobs"
         );
 
@@ -206,7 +216,7 @@ mod start_lifecycle_db {
         // bootstrap/manual-only and start() must not cron-register or upsert it.
         let config = SchedulerConfig {
             enabled: true,
-            jobs: vec![JobConfig::new(job_name)],
+            jobs: vec![JobConfig::new(JobName::new(job_name))],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
@@ -215,7 +225,10 @@ mod start_lifecycle_db {
         let startup = svc.start().await.expect("start must succeed");
         let repo = SchedulerRepository::new(&pool);
         assert!(
-            repo.find_job(job_name).await.expect("find_job").is_none(),
+            repo.find_job(&JobName::new(job_name))
+                .await
+                .expect("find_job")
+                .is_none(),
             "an empty-schedule job must not gain a scheduled_jobs row from start()"
         );
 
@@ -237,7 +250,7 @@ mod start_lifecycle_db {
 
         let config = SchedulerConfig {
             enabled: true,
-            jobs: vec![JobConfig::new(SLOW_JOB).with_schedule("* * * * * *")],
+            jobs: vec![JobConfig::new(JobName::new(SLOW_JOB)).with_schedule("* * * * * *")],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };

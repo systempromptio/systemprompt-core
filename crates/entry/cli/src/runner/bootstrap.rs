@@ -19,6 +19,7 @@ use systemprompt_cloud::{CredentialsBootstrap, SessionStore};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
+use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::LogLevel;
 use systemprompt_models::{Config, Profile};
@@ -32,7 +33,7 @@ use crate::paths::ResolvedPaths;
 use crate::shared::{ProfileSource, ResolvedProfile, resolve_profile_path};
 
 pub(super) struct ProfileContext {
-    pub profile_name: String,
+    pub profile: &'static Profile,
     pub source: ProfileSource,
     pub is_cloud: bool,
     pub external_db_access: bool,
@@ -67,7 +68,7 @@ pub(super) fn resolve_and_display_profile(
     let env = crate::environment::ExecutionEnvironment::from_env(env);
 
     Ok(ProfileContext {
-        profile_name: profile.name.clone(),
+        profile,
         source: resolved.source,
         is_cloud: profile.target.is_cloud(),
         external_db_access: profile.database.external_db_access,
@@ -112,7 +113,7 @@ fn get_active_session_profile_path() -> Result<Option<PathBuf>> {
         return Ok(None);
     };
 
-    if let Some(profile_name) = store.active_profile_name.as_deref()
+    if let Some(profile_name) = store.active_profile_name.as_ref()
         && let Some(path) = resolve_profile_path_by_name(&paths, profile_name)
     {
         return Ok(Some(path));
@@ -128,8 +129,8 @@ fn get_active_session_profile_path() -> Result<Option<PathBuf>> {
     Ok(None)
 }
 
-fn resolve_profile_path_by_name(paths: &ResolvedPaths, name: &str) -> Option<PathBuf> {
-    let profile_dir = paths.profiles_dir().join(name);
+fn resolve_profile_path_by_name(paths: &ResolvedPaths, name: &ProfileName) -> Option<PathBuf> {
+    let profile_dir = paths.profiles_dir().join(name.as_str());
     let config_path = systemprompt_cloud::ProfilePath::Config.resolve(&profile_dir);
     config_path.exists().then_some(config_path)
 }

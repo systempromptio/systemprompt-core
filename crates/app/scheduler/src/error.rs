@@ -18,6 +18,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::JobName;
 use systemprompt_models::profile::OtlpSignal;
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_traits::{BoxedSource, RepositoryError};
@@ -26,7 +27,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum SchedulerError {
     #[error("Job not found: {job_name}")]
-    JobNotFound { job_name: String },
+    JobNotFound { job_name: JobName },
 
     #[error(
         "Scheduler config references job(s) not present in the inventory catalog: {names}. \
@@ -39,7 +40,7 @@ pub enum SchedulerError {
 
     #[error("Job execution failed: {job_name} - {source}")]
     JobExecutionFailed {
-        job_name: String,
+        job_name: JobName,
         #[source]
         source: ProviderError,
     },
@@ -104,10 +105,8 @@ pub enum SchedulerError {
 }
 
 impl SchedulerError {
-    pub fn job_not_found(job_name: impl Into<String>) -> Self {
-        Self::JobNotFound {
-            job_name: job_name.into(),
-        }
+    pub const fn job_not_found(job_name: JobName) -> Self {
+        Self::JobNotFound { job_name }
     }
 
     pub fn invalid_schedule(schedule: impl Into<String>) -> Self {
@@ -116,11 +115,8 @@ impl SchedulerError {
         }
     }
 
-    pub fn job_execution_failed(job_name: impl Into<String>, source: ProviderError) -> Self {
-        Self::JobExecutionFailed {
-            job_name: job_name.into(),
-            source,
-        }
+    pub const fn job_execution_failed(job_name: JobName, source: ProviderError) -> Self {
+        Self::JobExecutionFailed { job_name, source }
     }
 
     pub fn config_error(message: impl Into<String>) -> Self {

@@ -39,7 +39,7 @@ pub async fn delete_tenant(
     let tenant = store
         .tenants
         .iter()
-        .find(|t| t.id == tenant_id.as_str())
+        .find(|t| t.id == tenant_id)
         .ok_or_else(|| anyhow!("Tenant not found: {}", tenant_id.as_str()))?
         .clone();
 
@@ -59,7 +59,7 @@ pub async fn delete_tenant(
         cleanup_managed_container_tenant(&tenant, prompter, config)?;
     }
 
-    store.tenants.retain(|t| t.id != tenant_id.as_str());
+    store.tenants.retain(|t| t.id != tenant_id);
     store.save_to_path(&tenants_path)?;
 
     let output = SuccessOutput::new(format!("Deleted tenant: {}", tenant_id.as_str()));
@@ -72,13 +72,13 @@ pub async fn delete_tenant(
 }
 
 fn resolve_delete_target(
-    id: Option<String>,
+    id: Option<TenantId>,
     prompter: &dyn Prompter,
     store: &TenantStore,
     config: &CliConfig,
 ) -> Result<TenantId> {
     if let Some(id) = id {
-        return Ok(TenantId::new(id));
+        return Ok(id);
     }
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
@@ -88,9 +88,7 @@ fn resolve_delete_target(
     if store.tenants.is_empty() {
         bail!("No tenants configured.");
     }
-    Ok(TenantId::new(
-        select_tenant(prompter, &store.tenants)?.id.clone(),
-    ))
+    Ok(select_tenant(prompter, &store.tenants)?.id.clone())
 }
 
 fn confirm_delete(

@@ -44,7 +44,10 @@ fn fresh_session_reports_expiry_countdown_and_no_stale_warning() {
     let expires = info.expires_in.unwrap();
     assert!(expires.ends_with('m'));
     assert!(info.stale_warning.is_none());
-    assert_eq!(info.profile_name, "alpha");
+    assert_eq!(
+        info.profile_name.as_ref().map(ProfileName::as_str),
+        Some("alpha")
+    );
     assert_eq!(info.user_email, "a@b.test");
     assert!(info.session_id.is_some());
     assert!(info.context_id.is_some());
@@ -72,8 +75,10 @@ fn stale_context_warns_after_a_day() {
 
 #[test]
 fn missing_active_session_prefers_profile_name() {
-    let info = missing_active_session(Some("tenant_t1"), Some("prod"));
+    let prod = ProfileName::try_new("prod").expect("valid ProfileName");
+    let info = missing_active_session(Some("tenant_t1"), Some(&prod));
     assert_eq!(info.key, "prod");
+    assert_eq!(info.profile_name, Some(prod));
     assert!(info.is_active);
     assert!(info.stale_warning.unwrap().contains("No session"));
 }
@@ -83,4 +88,9 @@ fn missing_active_session_falls_back_to_key_forms() {
     assert_eq!(missing_active_session(Some("local"), None).key, "local");
     assert_eq!(missing_active_session(Some("tenant_t9"), None).key, "t9");
     assert_eq!(missing_active_session(None, None).key, "unknown");
+    assert!(
+        missing_active_session(Some("local"), None)
+            .profile_name
+            .is_none()
+    );
 }

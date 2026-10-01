@@ -21,14 +21,14 @@ use crate::repository::SchedulerRepository;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_identifiers::{Actor, JobName, UserId};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobContext};
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
 
-pub(crate) type RunningJobs = Arc<Mutex<HashSet<String>>>;
+pub(crate) type RunningJobs = Arc<Mutex<HashSet<JobName>>>;
 
 /// Live handle to a started scheduler, returned by [`SchedulerService::start`].
 ///
@@ -82,31 +82,31 @@ struct RegistrationCtx<'a> {
     scheduler: &'a JobScheduler,
     registered_jobs: &'a HashMap<&'a str, &'static dyn JobTrait>,
     running_jobs: &'a RunningJobs,
-    owners: &'a HashMap<String, UserId>,
+    owners: &'a HashMap<JobName, UserId>,
 }
 
 #[must_use]
-pub fn unknown_job_names(config: &SchedulerConfig) -> Vec<String> {
+pub fn unknown_job_names(config: &SchedulerConfig) -> Vec<JobName> {
     let registered: HashSet<&'static str> = inventory::iter::<&'static dyn JobTrait>
         .into_iter()
         .map(|job| job.name())
         .collect();
-    collect_unknown_job_names(config, |name| registered.contains(name))
+    collect_unknown_job_names(config, |name| registered.contains(name.as_str()))
         .into_iter()
-        .map(str::to_owned)
+        .cloned()
         .collect()
 }
 
 fn collect_unknown_job_names(
     config: &SchedulerConfig,
-    is_registered: impl Fn(&str) -> bool,
-) -> Vec<&str> {
-    let mut unknown: Vec<&str> = Vec::new();
+    is_registered: impl Fn(&JobName) -> bool,
+) -> Vec<&JobName> {
+    let mut unknown: Vec<&JobName> = Vec::new();
     for name in config
         .jobs
         .iter()
-        .map(|job| job.name.as_str())
-        .chain(config.bootstrap_jobs.iter().map(String::as_str))
+        .map(|job| &job.name)
+        .chain(config.bootstrap_jobs.iter())
     {
         if !is_registered(name) && !unknown.contains(&name) {
             unknown.push(name);
@@ -192,9 +192,9 @@ impl SchedulerService {
         &self,
         registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
     ) {
-        let known: Vec<String> = registered_jobs
+        let known: Vec<JobName> = registered_jobs
             .keys()
-            .map(|&name| name.to_owned())
+            .map(|&name| JobName::new(name))
             .collect();
         match self.repository.delete_jobs_not_in(&known).await {
             Ok(0) => {},
@@ -217,13 +217,18 @@ impl SchedulerService {
         &self,
         registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
     ) -> SchedulerResult<()> {
-        let unknown =
-            collect_unknown_job_names(&self.config, |name| registered_jobs.contains_key(name));
+        let unknown = collect_unknown_job_names(&self.config, |name| {
+            registered_jobs.contains_key(name.as_str())
+        });
         if unknown.is_empty() {
             Ok(())
         } else {
             Err(SchedulerError::UnknownJob {
-                names: unknown.join(", "),
+                names: unknown
+                    .iter()
+                    .map(|name| name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
             })
         }
     }
@@ -237,7 +242,7 @@ impl SchedulerService {
             .jobs
             .iter()
             .map(|job| job.name.as_str())
-            .chain(self.config.bootstrap_jobs.iter().map(String::as_str))
+            .chain(self.config.bootstrap_jobs.iter().map(JobName::as_str))
             .collect();
         for (name, job) in registered_jobs {
             if !configured.contains(name) && job.schedulable() {

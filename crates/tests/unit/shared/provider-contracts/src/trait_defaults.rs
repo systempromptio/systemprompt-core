@@ -113,7 +113,7 @@ impl ToolProvider for TwoToolProvider {
                 McpServerId::try_new("svc").expect("valid McpServerId"),
             ),
             ToolDefinition::new(
-                "beta",
+                &McpToolName::new("beta"),
                 McpServerId::try_new("svc").expect("valid McpServerId"),
             ),
         ]))

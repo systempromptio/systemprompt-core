@@ -12,6 +12,7 @@ use regex::Regex;
 use std::path::Path;
 use systemprompt_cloud::constants::container;
 use systemprompt_config::write_private_atomic;
+use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 use systemprompt_models::{CliPaths, Profile};
 
@@ -53,7 +54,7 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
     crate::shared::profile::save_profile_yaml(profile, profile_path, Some(&header))
 }
 
-pub fn save_dockerfile(path: &Path, profile_name: &str, project_root: &Path) -> Result<()> {
+pub fn save_dockerfile(path: &Path, profile_name: &ProfileName, project_root: &Path) -> Result<()> {
     let content = DockerfileBuilder::new(project_root)
         .with_profile(profile_name)
         .build();

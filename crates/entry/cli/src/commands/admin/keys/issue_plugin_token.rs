@@ -29,9 +29,10 @@ pub struct IssuePluginTokenArgs {
     #[arg(
         long,
         default_value = "cowork-bundle",
+        value_parser = crate::shared::parse_plugin_id,
         help = "Plugin identifier to embed in the token's `plugin_id` claim."
     )]
-    pub plugin_id: String,
+    pub plugin_id: PluginId,
 
     #[arg(
         long,
@@ -63,9 +64,6 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
             args.duration_days
         );
     }
-
-    let plugin_id =
-        PluginId::try_new(args.plugin_id.clone()).context("--plugin-id must not be empty")?;
 
     let email = match args.email.clone() {
         Some(e) => e,
@@ -105,14 +103,14 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
     let issued = PluginTokenService::issue(
         subject,
         &profile.security.issuer,
-        plugin_id.clone(),
+        args.plugin_id.clone(),
         args.duration_days,
         &session_id,
     )
     .context("Failed to mint plugin-scope JWT")?;
 
     let output = IssuePluginTokenOutput {
-        plugin_id,
+        plugin_id: args.plugin_id,
         email,
         expires_in_days: args.duration_days,
         jti: issued.jti,

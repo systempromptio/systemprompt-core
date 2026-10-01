@@ -9,7 +9,7 @@ use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
+use systemprompt_identifiers::{AiRequestId, McpToolName, TaskId, TraceId};
 use systemprompt_models::text::truncate_with_ellipsis;
 use systemprompt_runtime::{AuditPage, TraceQueryService};
 
@@ -117,7 +117,7 @@ pub struct AuditOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AuditToolCall {
-    pub tool_name: String,
+    pub tool_name: McpToolName,
     pub tool_input: String,
     pub sequence: i32,
 }
@@ -175,7 +175,7 @@ async fn execute_with_pool_inner(
         cost_dollars: row.cost_microdollars as f64 / 1_000_000.0,
         latency_ms: i64::from(row.latency_ms.unwrap_or(0)),
         task_id: row.task_id,
-        trace_id: row.trace_id.map(TraceId::new),
+        trace_id: row.trace_id,
         message_count,
         tool_call_count,
         offset: page.offset,

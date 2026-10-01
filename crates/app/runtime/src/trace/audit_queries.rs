@@ -8,7 +8,7 @@ pub(super) type Result<T> = std::result::Result<T, TraceError>;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
+use systemprompt_identifiers::{AiRequestId, McpServerId, McpToolName, TaskId, TraceId};
 
 use super::models::{
     AuditLookupResult, AuditPage, AuditToolCallRow, ConversationMessage, LinkedMcpCall,
@@ -37,19 +37,6 @@ struct MsgRow {
     role: String,
     content: String,
     sequence_number: i32,
-}
-
-struct ToolCallDbRow {
-    tool_name: String,
-    tool_input: String,
-    sequence_number: i32,
-}
-
-struct LinkedMcpDbRow {
-    tool_name: String,
-    server_name: String,
-    status: String,
-    execution_time_ms: Option<i32>,
 }
 
 pub(super) async fn find_ai_request_for_audit(
@@ -240,8 +227,7 @@ pub(super) async fn list_audit_tool_calls(
     request_id: &AiRequestId,
     page: AuditPage,
 ) -> Result<Vec<AuditToolCallRow>> {
-    let rows = sqlx::query_as!(
-        ToolCallDbRow,
+    let rows = sqlx::query!(
         r#"
         SELECT tool_name as "tool_name!", tool_input as "tool_input!",
             sequence_number as "sequence_number!"
@@ -258,7 +244,7 @@ pub(super) async fn list_audit_tool_calls(
     Ok(rows
         .into_iter()
         .map(|t| AuditToolCallRow {
-            tool_name: t.tool_name,
+            tool_name: McpToolName::new(t.tool_name),
             tool_input: t.tool_input,
             sequence_number: t.sequence_number,
         })
@@ -269,8 +255,7 @@ pub(super) async fn list_linked_mcp_calls(
     pool: &Arc<PgPool>,
     request_id: &AiRequestId,
 ) -> Result<Vec<LinkedMcpCall>> {
-    let rows = sqlx::query_as!(
-        LinkedMcpDbRow,
+    let rows = sqlx::query!(
         r#"
         SELECT
             mte.tool_name as "tool_name!",
@@ -289,8 +274,8 @@ pub(super) async fn list_linked_mcp_calls(
     Ok(rows
         .into_iter()
         .map(|r| LinkedMcpCall {
-            tool_name: r.tool_name,
-            server_name: r.server_name,
+            tool_name: McpToolName::new(r.tool_name),
+            server_name: McpServerId::new(r.server_name),
             status: r.status,
             execution_time_ms: r.execution_time_ms,
         })

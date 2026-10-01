@@ -182,7 +182,7 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
         .map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
 
     let cli_session = CliSession::builder(
-        SessionBinding::new(profile_name, issuer.to_owned()),
+        SessionBinding::new(profile_name.clone(), issuer.to_owned()),
         session_token,
         session_id,
         context_id,
@@ -194,7 +194,7 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
     .build();
 
     store.upsert_session(session_key, cli_session);
-    store.set_active_with_profile(session_key, profile_name_str);
+    store.set_active_with_profile(session_key, &profile_name);
     store.save(sessions_dir)?;
 
     tracing::debug!(sessions_dir = %sessions_dir.display(), "session saved to index.json");

@@ -66,7 +66,7 @@ pub struct TraceSummaries<'a> {
 
 struct FormattedDisplayContext<'a> {
     events: &'a [TraceEvent],
-    trace_id: &'a str,
+    trace_id: &'a TraceId,
     task_id: Option<&'a TaskId>,
     verbose: bool,
     ai_summary: &'a systemprompt_runtime::AiRequestSummary,
@@ -98,6 +98,7 @@ async fn execute_trace_view(
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let service = TraceQueryService::new(Arc::clone(pool));
+    let trace_id = TraceId::try_new(args.id.as_str())?;
 
     let (
         log_events,
@@ -108,9 +109,7 @@ async fn execute_trace_view(
         mcp_summary,
         step_summary,
         task_id,
-    ) = service
-        .get_all_trace_data(&TraceId::new(args.id.as_str()))
-        .await?;
+    ) = service.get_all_trace_data(&trace_id).await?;
     let task_id: Option<TaskId> = task_id.map(TaskId::new);
 
     let filtered_log_events = filter_log_events(log_events, args.verbose);
@@ -133,26 +132,32 @@ async fn execute_trace_view(
         mcp: &mcp_summary,
         step: &step_summary,
     };
-    let output = build_trace_output(&args.id, &events, &summaries, task_id.as_ref(), duration_ms);
+    let output = build_trace_output(
+        &trace_id,
+        &events,
+        &summaries,
+        task_id.as_ref(),
+        duration_ms,
+    );
 
     let result = CommandOutput::card_value("Trace Details", &output);
 
     if events.is_empty() {
         if !args.json {
-            report_empty_trace(&args.id, &ai_summary, &mcp_summary);
+            report_empty_trace(&trace_id, &ai_summary, &mcp_summary);
         }
         return Ok(result.with_skip_render());
     }
 
     if args.json {
-        let json_result = build_json(&events, &args.id, &ai_summary, &mcp_summary, &step_summary);
+        let json_result = build_json(&events, &trace_id, &ai_summary, &mcp_summary, &step_summary);
         render_result(&json_result, config);
         return Ok(result.with_skip_render());
     }
 
     let display_ctx = FormattedDisplayContext {
         events: &events,
-        trace_id: &args.id,
+        trace_id: &trace_id,
         task_id: task_id.as_ref(),
         verbose: args.verbose,
         ai_summary: &ai_summary,
@@ -165,7 +170,7 @@ async fn execute_trace_view(
 }
 
 fn report_empty_trace(
-    trace_id: &str,
+    trace_id: &TraceId,
     ai_summary: &systemprompt_runtime::AiRequestSummary,
     mcp_summary: &systemprompt_runtime::McpExecutionSummary,
 ) {
@@ -226,7 +231,7 @@ fn print_formatted(ctx: &FormattedDisplayContext<'_>) {
 }
 
 pub fn build_trace_output(
-    trace_id: &str,
+    trace_id: &TraceId,
     events: &[TraceEvent],
     summaries: &TraceSummaries<'_>,
     task_id: Option<&TaskId>,
@@ -260,7 +265,7 @@ pub fn build_trace_output(
     };
 
     TraceViewOutput {
-        trace_id: TraceId::new(trace_id),
+        trace_id: trace_id.clone(),
         events: event_rows,
         ai_summary: AiSummaryRow {
             request_count: summaries.ai.request_count,

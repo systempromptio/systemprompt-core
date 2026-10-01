@@ -6,6 +6,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::JobName;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobInfo {
@@ -24,7 +25,7 @@ pub struct JobListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobRunOutput {
-    pub job_name: String,
+    pub job_name: JobName,
     pub status: String,
     pub duration_ms: u64,
     pub result: JobRunResult,
@@ -54,7 +55,7 @@ pub struct JobShowOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobHistoryEntry {
-    pub job_name: String,
+    pub job_name: JobName,
     pub status: String,
     pub run_at: DateTime<Utc>,
     pub error: Option<String>,
@@ -68,7 +69,7 @@ pub struct JobHistoryOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobEnableOutput {
-    pub job_name: String,
+    pub job_name: JobName,
     pub enabled: bool,
     pub message: String,
 }

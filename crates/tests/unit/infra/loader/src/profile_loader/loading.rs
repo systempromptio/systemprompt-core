@@ -174,7 +174,8 @@ system_admin:
     let profile_path = profiles_dir.join("dev.secrets.profile.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
-    let profile = ProfileLoader::load(temp_dir.path(), "dev").expect("should load profile by name");
+    let profile = ProfileLoader::load(temp_dir.path(), &profile_name("dev"))
+        .expect("should load profile by name");
     assert_eq!(profile.name, "dev");
 }
 
@@ -184,5 +185,9 @@ fn test_load_by_name_not_found() {
     let profiles_dir = temp_dir.path().join("profiles");
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
-    ProfileLoader::load(temp_dir.path(), "nonexistent").unwrap_err();
+    ProfileLoader::load(temp_dir.path(), &profile_name("nonexistent")).unwrap_err();
+}
+
+fn profile_name(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

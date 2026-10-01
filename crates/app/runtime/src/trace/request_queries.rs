@@ -5,35 +5,12 @@
 
 use super::TraceError;
 pub(super) type Result<T> = std::result::Result<T, TraceError>;
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
 use systemprompt_identifiers::{AiRequestId, TraceId, UserId};
 
 use super::models::{AiRequestClientEvidence, AiRequestDetail, AiRequestFilter, AiRequestListItem};
-
-struct ListRow {
-    id: AiRequestId,
-    created_at: DateTime<Utc>,
-    trace_id: Option<String>,
-    user_id: UserId,
-    actor_kind: String,
-    actor_id: String,
-    client_kind: String,
-    client_attestation: String,
-    provider: Option<String>,
-    model: Option<String>,
-    input_tokens: Option<i32>,
-    output_tokens: Option<i32>,
-    cache_read_tokens: Option<i32>,
-    cache_creation_tokens: Option<i32>,
-    reasoning_tokens: Option<i32>,
-    cost_microdollars: i64,
-    latency_ms: Option<i32>,
-    status: String,
-    finish_reason: Option<String>,
-}
 
 struct DetailRow {
     id: AiRequestId,
@@ -76,8 +53,7 @@ pub(super) async fn list_ai_requests(
     let provider = filter.provider.as_deref();
     let user = filter.user.as_deref();
     let limit = filter.limit;
-    let rows = sqlx::query_as!(
-        ListRow,
+    let rows = sqlx::query!(
         r#"
         SELECT
             id as "id!: AiRequestId",

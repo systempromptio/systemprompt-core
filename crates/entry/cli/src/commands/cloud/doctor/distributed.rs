@@ -60,9 +60,7 @@ pub fn check_instance_id(profile: &Profile) -> CheckResult {
     profile
         .server
         .instance_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|id| !id.is_empty())
+        .as_ref()
         .map_or_else(
             || {
                 // Why: Fly does not automatically export HOSTNAME to application processes.

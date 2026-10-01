@@ -28,7 +28,7 @@ fn oauth_deployment(port: u16) -> Deployment {
 #[test]
 fn failure_output_maps_detail_fields() {
     let out = failure_output(
-        "svc",
+        &ServiceName::new("svc"),
         FailureDetail {
             health_status: "stopped",
             validation_type: "not_running",
@@ -65,7 +65,7 @@ fn success_output_copies_connection_result_and_server_info() {
         validation_type: "full".to_owned(),
     };
 
-    let out = success_output("svc", result);
+    let out = success_output(&ServiceName::new("svc"), result);
 
     assert!(out.valid);
     assert_eq!(out.tools_count, Some(4));
@@ -90,7 +90,7 @@ fn success_output_surfaces_error_message_as_issue() {
         validation_type: "partial".to_owned(),
     };
 
-    let out = success_output("svc", result);
+    let out = success_output(&ServiceName::new("svc"), result);
 
     assert!(!out.valid);
     assert_eq!(out.issues, vec!["handshake refused"]);
@@ -109,7 +109,11 @@ fn success_output_ignores_empty_error_message() {
         validation_type: "partial".to_owned(),
     };
 
-    assert!(success_output("svc", result).issues.is_empty());
+    assert!(
+        success_output(&ServiceName::new("svc"), result)
+            .issues
+            .is_empty()
+    );
 }
 
 #[tokio::test]
@@ -118,7 +122,8 @@ async fn run_connection_validation_reports_connection_error_for_closed_port() {
     let port = listener.local_addr().unwrap().port();
     drop(listener);
 
-    let out = run_connection_validation("svc", &deployment(port), port, 30).await;
+    let out =
+        run_connection_validation(&ServiceName::new("svc"), &deployment(port), port, 30).await;
 
     assert!(!out.valid);
     assert_eq!(out.validation_type, "connection_failed");
@@ -140,7 +145,7 @@ async fn run_connection_validation_times_out_against_silent_listener() {
         }
     });
 
-    let out = run_connection_validation("svc", &deployment(port), port, 1).await;
+    let out = run_connection_validation(&ServiceName::new("svc"), &deployment(port), port, 1).await;
     hold.abort();
 
     assert!(!out.valid);
@@ -158,7 +163,13 @@ async fn run_connection_validation_accepts_an_oauth_protected_reachable_service(
         peer
     });
 
-    let out = run_connection_validation("oauth-svc", &oauth_deployment(port), port, 1).await;
+    let out = run_connection_validation(
+        &ServiceName::new("oauth-svc"),
+        &oauth_deployment(port),
+        port,
+        1,
+    )
+    .await;
     let peer = accepted.await.unwrap();
 
     assert!(peer.ip().is_loopback());
@@ -175,7 +186,13 @@ async fn run_connection_validation_reports_an_unavailable_oauth_port() {
     let port = listener.local_addr().unwrap().port();
     drop(listener);
 
-    let out = run_connection_validation("oauth-svc", &oauth_deployment(port), port, 1).await;
+    let out = run_connection_validation(
+        &ServiceName::new("oauth-svc"),
+        &oauth_deployment(port),
+        port,
+        1,
+    )
+    .await;
 
     assert!(!out.valid);
     assert_eq!(out.health_status, "unhealthy");

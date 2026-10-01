@@ -303,7 +303,7 @@ fn load_and_validate_by_name_valid() {
     )
     .expect("write profile");
 
-    let profile = ProfileLoader::load_and_validate(temp.path(), "byname")
+    let profile = ProfileLoader::load_and_validate(temp.path(), &profile_name("byname"))
         .expect("valid named profile should load and validate");
     assert_eq!(profile.name, "byname");
 }
@@ -321,7 +321,7 @@ fn load_and_validate_by_name_invalid_port_errors() {
     )
     .expect("write profile");
 
-    let err = ProfileLoader::load_and_validate(temp.path(), "badport")
+    let err = ProfileLoader::load_and_validate(temp.path(), &profile_name("badport"))
         .expect_err("port 0 must fail validation through the by-name path");
     assert!(err.to_string().contains("port"));
 }
@@ -331,6 +331,10 @@ fn load_and_validate_by_name_missing_errors() {
     let temp = TempDir::new().expect("Failed to create temp dir");
     prepare_dirs(&temp);
 
-    ProfileLoader::load_and_validate(temp.path(), "absent")
+    ProfileLoader::load_and_validate(temp.path(), &profile_name("absent"))
         .expect_err("a missing named profile must error before validation");
+}
+
+fn profile_name(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

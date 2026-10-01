@@ -18,11 +18,11 @@ use crate::error::SchedulerResult;
 
 #[derive(Debug, Default)]
 pub struct ReconciliationResult {
-    pub started: Vec<String>,
-    pub stopped: Vec<String>,
-    pub restarted: Vec<String>,
-    pub cleaned_up: Vec<String>,
-    pub failed: Vec<(String, String)>,
+    pub started: Vec<ServiceName>,
+    pub stopped: Vec<ServiceName>,
+    pub restarted: Vec<ServiceName>,
+    pub cleaned_up: Vec<ServiceName>,
+    pub failed: Vec<(ServiceName, String)>,
 }
 
 impl ReconciliationResult {
@@ -65,7 +65,7 @@ impl ServiceReconciler {
         start_service: F,
     ) -> SchedulerResult<ReconciliationResult>
     where
-        F: Fn(String, u16) -> Fut + Send + Sync,
+        F: Fn(ServiceName, u16) -> Fut + Send + Sync,
         Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
     {
         let states = self.state_verifier.get_verified_states(configs).await?;
@@ -85,7 +85,7 @@ impl ServiceReconciler {
         start_service: &F,
         result: &mut ReconciliationResult,
     ) where
-        F: Fn(String, u16) -> Fut + Send + Sync,
+        F: Fn(ServiceName, u16) -> Fut + Send + Sync,
         Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
     {
         match state.needs_action {
@@ -114,7 +114,7 @@ impl ServiceReconciler {
         start_service: &F,
         result: &mut ReconciliationResult,
     ) where
-        F: Fn(String, u16) -> Fut + Send + Sync,
+        F: Fn(ServiceName, u16) -> Fut + Send + Sync,
         Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
     {
         match start_service(state.name.clone(), state.port).await {
@@ -136,7 +136,7 @@ impl ServiceReconciler {
         start_service: &F,
         result: &mut ReconciliationResult,
     ) where
-        F: Fn(String, u16) -> Fut + Send + Sync,
+        F: Fn(ServiceName, u16) -> Fut + Send + Sync,
         Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
     {
         if let Err(e) = self.stop_service(&state).await {
@@ -188,17 +188,13 @@ impl ServiceReconciler {
         }
     }
 
-    async fn cleanup_db_entry(&self, name: &str) -> SchedulerResult<()> {
-        self.services
-            .delete_service(&ServiceName::new(name))
-            .await?;
+    async fn cleanup_db_entry(&self, name: &ServiceName) -> SchedulerResult<()> {
+        self.services.delete_service(name).await?;
         Ok(())
     }
 
-    async fn update_service_stopped(&self, name: &str) -> SchedulerResult<()> {
-        self.services
-            .update_service_stopped(&ServiceName::new(name))
-            .await?;
+    async fn update_service_stopped(&self, name: &ServiceName) -> SchedulerResult<()> {
+        self.services.update_service_stopped(name).await?;
         Ok(())
     }
 }

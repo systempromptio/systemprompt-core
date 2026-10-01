@@ -372,14 +372,22 @@ fn coverage_deploy_selection_excludes_local_profiles_and_resolves_named_profiles
         selected.cloud.unwrap().tenant_id.unwrap().as_str(),
         "coverage-tenant"
     );
-    let (_, explicit) =
-        resolve_profile(&ScriptedPrompter::default(), Some("coverage"), &config).unwrap();
+    let (_, explicit) = resolve_profile(
+        &ScriptedPrompter::default(),
+        Some(&pname("coverage")),
+        &config,
+    )
+    .unwrap();
     assert_eq!(explicit, project.profile);
     assert!(
-        resolve_profile(&ScriptedPrompter::default(), Some("missing"), &config)
-            .unwrap_err()
-            .to_string()
-            .contains("not found")
+        resolve_profile(
+            &ScriptedPrompter::default(),
+            Some(&pname("missing")),
+            &config
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("not found")
     );
     let noninteractive = CliConfig::new().with_interactive(false);
     assert!(resolve_profile(&ScriptedPrompter::default(), None, &noninteractive).is_err());
@@ -521,7 +529,7 @@ async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::new();
     store.upsert_session(&key, session);
-    store.set_active_with_profile(&key, "malformed");
+    store.set_active_with_profile(&key, &pname("malformed"));
     store
         .save(&sessions_dir)
         .expect("persist malformed-profile session");
@@ -544,4 +552,8 @@ async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
         before,
         "profile parse failure must preserve the bound session for repair"
     );
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

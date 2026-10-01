@@ -1,6 +1,7 @@
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::JobName;
 
 use systemprompt_models::SchedulerConfig;
 use systemprompt_scheduler::{JobStatus, SchedulerRepository, SchedulerService};
@@ -46,14 +47,14 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
     let context = test_app_context(&pool, database.url());
     let repository = SchedulerRepository::new(&pool);
     repository
-        .upsert_job(CANCELLABLE_CLUSTER_JOB, "", true)
+        .upsert_job(&JobName::new(CANCELLABLE_CLUSTER_JOB), "", true)
         .await
         .unwrap();
     let service = Arc::new(SchedulerService::new(
         SchedulerConfig {
             enabled: true,
             jobs: Vec::new(),
-            bootstrap_jobs: vec![CANCELLABLE_CLUSTER_JOB.to_owned()],
+            bootstrap_jobs: vec![JobName::new(CANCELLABLE_CLUSTER_JOB)],
             distributed_lock: true,
         },
         Arc::clone(&pool),
@@ -76,7 +77,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
     );
 
     let cancelled = repository
-        .find_job(CANCELLABLE_CLUSTER_JOB)
+        .find_job(&JobName::new(CANCELLABLE_CLUSTER_JOB))
         .await
         .unwrap()
         .unwrap();
@@ -115,7 +116,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
         }
     }
     let recovered = repository
-        .find_job(CANCELLABLE_CLUSTER_JOB)
+        .find_job(&JobName::new(CANCELLABLE_CLUSTER_JOB))
         .await
         .unwrap()
         .unwrap();

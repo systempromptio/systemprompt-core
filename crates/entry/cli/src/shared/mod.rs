@@ -22,7 +22,12 @@ pub use command_result::{
     render_result,
 };
 pub use identity::{IdentityBundle, generate_identity};
-pub use parsers::{parse_email, parse_profile_name};
+pub use parsers::{
+    parse_agent_name, parse_ai_request_id, parse_campaign_id, parse_category_id, parse_email,
+    parse_job_name, parse_link_click_id, parse_link_id, parse_mcp_server_id, parse_mcp_tool_name,
+    parse_model_id, parse_plugin_id, parse_profile_name, parse_provider_id, parse_secret_name,
+    parse_service_name, parse_tenant_id, parse_trace_id,
+};
 pub use profile::{
     ProfileResolutionError, ProfileSource, ResolvedProfile, is_path_input,
     resolve_profile_from_path, resolve_profile_path, resolve_profile_with_data,

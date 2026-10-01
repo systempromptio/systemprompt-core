@@ -4,7 +4,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{ManagedMcpServerName, PluginId, Sha256Digest, SkillId, SkillName};
-use systemprompt_identifiers::HookId;
+use systemprompt_identifiers::{HookId, TenantId};
 use systemprompt_models::services::hooks::{HookCategory, HookEvent};
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -217,7 +217,9 @@ fn with_enabled_hosts_populates_field() {
 
 #[test]
 fn with_tenant_id_populates_field() {
-    let manifest = builder("09aaaaaa").with_tenant_id("tenant-abc").build();
+    let manifest = builder("09aaaaaa")
+        .with_tenant_id(TenantId::new("tenant-abc"))
+        .build();
 
     let tenant = manifest.tenant_id.expect("tenant_id set");
     assert_eq!(tenant.as_str(), "tenant-abc");
@@ -242,7 +244,7 @@ fn all_setters_round_trip_together() {
         .with_managed_mcp_servers(vec![sample_mcp_server()])
         .with_revocations(vec!["rev-1".into()])
         .with_enabled_hosts(vec!["claude-desktop".into()])
-        .with_tenant_id("tenant-abc")
+        .with_tenant_id(TenantId::new("tenant-abc"))
         .with_user(sample_user())
         .build();
 

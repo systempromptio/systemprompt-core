@@ -17,6 +17,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AgentName;
 
 use crate::context::CommandContext;
 use crate::shared::render_result;
@@ -51,7 +52,7 @@ pub struct AgentStatsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentListRow {
-    pub agent_name: String,
+    pub agent_name: AgentName,
     pub task_count: i64,
     pub success_rate: f64,
     pub avg_execution_time_ms: i64,
@@ -83,7 +84,7 @@ pub struct AgentTrendsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentShowOutput {
-    pub agent_name: String,
+    pub agent_name: AgentName,
     pub period: String,
     pub summary: AgentStatsOutput,
     pub status_breakdown: Vec<StatusBreakdownItem>,

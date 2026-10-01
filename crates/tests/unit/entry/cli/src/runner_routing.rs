@@ -162,7 +162,7 @@ fn only_a_jobs_run_command_is_confirmed_before_it_reaches_a_remote_profile() {
     confirm_remote_job_run(
         &cli(&["infra", "services", "status"]),
         &config,
-        "prod",
+        &fixture_profile(),
         "example.invalid",
     )
     .expect("a command that is not a jobs run needs no confirmation");
@@ -179,8 +179,9 @@ fn a_remote_jobs_run_is_refused_without_a_terminal_to_confirm_on() {
         vec!["infra", "jobs", "run", "--all"],
         vec!["infra", "jobs", "run", "--tag", "nightly"],
     ] {
-        let err = confirm_remote_job_run(&cli(&args), &config, "prod", "example.invalid")
-            .expect_err("an unconfirmable remote jobs run must not proceed");
+        let err =
+            confirm_remote_job_run(&cli(&args), &config, &fixture_profile(), "example.invalid")
+                .expect_err("an unconfirmable remote jobs run must not proceed");
 
         assert!(
             !message(&err).is_empty(),
@@ -198,7 +199,7 @@ fn a_confirmed_jobs_run_passes_the_gate() {
     confirm_remote_job_run(
         &cli(&["infra", "jobs", "run", "publish_pipeline", "--yes"]),
         &config,
-        "prod",
+        &fixture_profile(),
         "example.invalid",
     )
     .expect("--yes is the non-interactive confirmation");

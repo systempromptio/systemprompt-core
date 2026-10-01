@@ -7,7 +7,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_logging::models::LogEntry;
-use systemprompt_logging::{CliService, LogFilter, LoggingMaintenanceService};
+use systemprompt_logging::{CliService, LogFilter, LogLevel, LoggingMaintenanceService};
 
 use super::duration::parse_since;
 use super::shared::display_log_row;
@@ -19,7 +19,7 @@ use crate::shared::CommandOutput;
 #[derive(Debug, Args)]
 pub struct ViewArgs {
     #[arg(long, help = "Filter by log level (error, warn, info, debug, trace)")]
-    pub level: Option<String>,
+    pub level: Option<LogLevel>,
 
     #[arg(long, help = "Filter by module name (partial match)")]
     pub module: Option<String>,
@@ -72,8 +72,8 @@ fn build_filter(args: &ViewArgs) -> Result<LogFilter> {
 
     let mut filter = LogFilter::new(1, args.tail.try_into().unwrap_or(20));
 
-    if let Some(ref level) = args.level {
-        filter = filter.with_level(level.to_uppercase());
+    if let Some(level) = args.level {
+        filter = filter.with_level(level.as_str());
     }
     if let Some(ref module) = args.module {
         filter = filter.with_module(module);
@@ -101,7 +101,7 @@ fn build_output(logs: &[LogEntry], args: &ViewArgs) -> LogViewOutput {
         total: log_rows.len() as u64,
         logs: log_rows,
         filters: LogFilters {
-            level: args.level.clone(),
+            level: args.level,
             module: args.module.clone(),
             since: args.since.clone(),
             pattern: None,
@@ -115,7 +115,7 @@ fn log_to_row(log: &LogEntry) -> LogEntryRow {
         id: log.id.clone(),
         trace_id: log.trace_id.clone(),
         timestamp: log.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-        level: format!("{:?}", log.level).to_uppercase(),
+        level: log.level,
         module: log.module.clone(),
         message: log.message.clone(),
         metadata: log.metadata.clone(),
@@ -129,8 +129,8 @@ fn render_logs(output: &LogViewOutput) {
         || output.filters.module.is_some()
         || output.filters.since.is_some()
     {
-        if let Some(ref level) = output.filters.level {
-            CliService::key_value("Level", level);
+        if let Some(level) = output.filters.level {
+            CliService::key_value("Level", level.as_str());
         }
         if let Some(ref module) = output.filters.module {
             CliService::key_value("Module", module);

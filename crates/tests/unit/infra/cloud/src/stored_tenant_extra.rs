@@ -8,7 +8,7 @@ use systemprompt_identifiers::TenantId;
 
 fn make_tenant_info(id: &str, db_url: &str) -> CloudTenantInfo {
     CloudTenantInfo {
-        id: id.to_string(),
+        id: TenantId::new(id),
         name: "Test Tenant".to_string(),
         subscription_id: None,
         subscription_status: None,
@@ -125,7 +125,7 @@ fn update_from_tenant_info_updates_name() {
 fn update_from_tenant_info_updates_app_id() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     let info = CloudTenantInfo {
-        id: "t-1".to_string(),
+        id: TenantId::new("t-1"),
         name: "Name".to_string(),
         subscription_id: None,
         subscription_status: None,
@@ -145,7 +145,7 @@ fn update_from_tenant_info_updates_app_id() {
 fn update_from_tenant_info_updates_hostname() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     let info = CloudTenantInfo {
-        id: "t-1".to_string(),
+        id: TenantId::new("t-1"),
         name: "Name".to_string(),
         subscription_id: None,
         subscription_status: None,
@@ -165,7 +165,7 @@ fn update_from_tenant_info_updates_hostname() {
 fn update_from_tenant_info_updates_region() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     let info = CloudTenantInfo {
-        id: "t-1".to_string(),
+        id: TenantId::new("t-1"),
         name: "Name".to_string(),
         subscription_id: None,
         subscription_status: None,
@@ -185,7 +185,7 @@ fn update_from_tenant_info_updates_region() {
 fn update_from_tenant_info_updates_external_db_access() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     let info = CloudTenantInfo {
-        id: "t-1".to_string(),
+        id: TenantId::new("t-1"),
         name: "Name".to_string(),
         subscription_id: None,
         subscription_status: None,

@@ -441,7 +441,7 @@ async fn tenant_show_by_id_from_store() {
     cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::Show {
-                id: Some(TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
             }),
         },
         &json_ctx(),
@@ -456,7 +456,7 @@ async fn tenant_show_missing_id_errors() {
     let err = cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::Show {
-                id: Some("does-not-exist".to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new("does-not-exist")),
             }),
         },
         &json_ctx(),
@@ -478,7 +478,7 @@ async fn tenant_delete_cloud_tenant_calls_api() {
     cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::Delete(TenantDeleteArgs {
-                id: Some(TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
                 yes: true,
             })),
         },
@@ -494,7 +494,7 @@ async fn tenant_delete_without_yes_errors_non_interactive() {
     let err = cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::Delete(TenantDeleteArgs {
-                id: Some(TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
                 yes: false,
             })),
         },
@@ -524,7 +524,7 @@ async fn tenant_rotate_credentials_updates_store() {
     cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::RotateCredentials(TenantRotateArgs {
-                id: Some(TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
                 yes: true,
             })),
         },
@@ -540,7 +540,7 @@ async fn tenant_rotate_local_tenant_rejected() {
     let err = cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::RotateCredentials(TenantRotateArgs {
-                id: Some(OTHER_TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(OTHER_TENANT_ID)),
                 yes: true,
             })),
         },

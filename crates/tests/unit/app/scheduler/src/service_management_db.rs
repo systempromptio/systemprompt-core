@@ -6,6 +6,7 @@
 //! `DATABASE_URL` is unset.
 
 use systemprompt_database::ServiceModule;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_scheduler::ServiceManagementService;
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -96,7 +97,7 @@ mod service_management_db {
 
         // An UPDATE that matches zero rows is still a successful query; the
         // service must not error when the name is not in the table.
-        svc.mark_service_stopped("nonexistent-service-xyz-987")
+        svc.mark_service_stopped(&ServiceName::new("nonexistent-service-xyz-987"))
             .await
             .expect("mark_service_stopped must not error for an unknown service name");
     }

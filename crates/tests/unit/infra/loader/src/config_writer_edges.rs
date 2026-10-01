@@ -2,6 +2,7 @@
 //! include removal (quoted/unquoted), the expected-file-miss scan fallback,
 //! and malformed-file error propagation.
 
+use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
@@ -47,7 +48,7 @@ fn created_agent_round_trips_through_loader() {
 
     let file = ConfigWriter::create_agent(&agent, temp.path()).expect("create");
 
-    let found = ConfigWriter::find_agent_file("round_trip", temp.path())
+    let found = ConfigWriter::find_agent_file(&AgentName::new("round_trip"), temp.path())
         .expect("find ok")
         .expect("agent present");
     assert_eq!(found, file, "find must locate the file create just wrote");
@@ -79,7 +80,7 @@ fn delete_agent_strips_quoted_include_line() {
     );
     std::fs::write(&agent_file, yaml).expect("write agent");
 
-    ConfigWriter::delete_agent("quoted", temp.path()).expect("delete");
+    ConfigWriter::delete_agent(&AgentName::new("quoted"), temp.path()).expect("delete");
 
     assert!(!agent_file.exists(), "agent file removed");
     let updated = std::fs::read_to_string(config_dir.join("config.yaml")).expect("read config");
@@ -121,7 +122,7 @@ fn find_agent_file_falls_back_to_scan_when_expected_file_wrong_agent() {
     )
     .expect("write decoy");
 
-    let found = ConfigWriter::find_agent_file("target", temp.path())
+    let found = ConfigWriter::find_agent_file(&AgentName::new("target"), temp.path())
         .expect("find ok")
         .expect("agent present via scan");
     assert!(
@@ -142,7 +143,7 @@ fn find_agent_file_propagates_malformed_yaml_error() {
     )
     .expect("write malformed");
 
-    let err = ConfigWriter::find_agent_file("looked_up", temp.path())
+    let err = ConfigWriter::find_agent_file(&AgentName::new("looked_up"), temp.path())
         .expect_err("malformed agent file must surface a parse error");
     assert!(
         !err.to_string().is_empty(),
@@ -159,7 +160,7 @@ fn delete_agent_without_config_file_errors() {
     let yaml = "agents:\n  orphan:\n    name: orphan\n    port: 4000\n    endpoint: http://localhost:4000/orphan\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: O\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n      supportsAuthenticatedExtendedCard: false\n    metadata: {}\n";
     std::fs::write(agents_dir.join("orphan.yaml"), yaml).expect("write agent");
 
-    let err = ConfigWriter::delete_agent("orphan", temp.path())
+    let err = ConfigWriter::delete_agent(&AgentName::new("orphan"), temp.path())
         .expect_err("missing config.yaml must error after file removal");
     assert!(!err.to_string().is_empty());
 }
@@ -191,7 +192,7 @@ fn update_agent_writes_through_content_scan_when_filename_differs() {
 
     let mut updated = test_agent("scanned");
     updated.card.description = "updated via scan".to_string();
-    ConfigWriter::update_agent("scanned", &updated, temp.path())
+    ConfigWriter::update_agent(&AgentName::new("scanned"), &updated, temp.path())
         .expect("update must locate the file via the content scan and rewrite it");
 
     let content = std::fs::read_to_string(&mismatched_file).expect("read rewritten file");

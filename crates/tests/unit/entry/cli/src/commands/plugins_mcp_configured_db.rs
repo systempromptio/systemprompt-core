@@ -97,7 +97,7 @@ fn seed_cli_session(b: &TestBootstrap) {
     let mut store =
         SessionStore::load_or_create(&sessions_dir).expect("load the CLI session store");
     store.upsert_session(&SessionKey::Local, session);
-    store.set_active_with_profile(&SessionKey::Local, profile_name_str.as_str());
+    store.set_active_with_profile(&SessionKey::Local, &pname(profile_name_str.as_str()));
     store
         .save(&sessions_dir)
         .expect("persist the CLI session store");
@@ -544,4 +544,8 @@ fn validation_reports_exact_named_and_batch_stopped_results() {
             serde_json::json!(["Service is not currently running"])
         );
     }
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

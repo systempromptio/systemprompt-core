@@ -9,6 +9,7 @@ use std::path::Path;
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
+use systemprompt_identifiers::HookId;
 use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 
@@ -62,7 +63,7 @@ pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
             Ok(content) => content,
             Err(e) => {
                 results.push(HookValidateEntry {
-                    plugin_id: dir_name,
+                    hook_id: HookId::new(dir_name),
                     valid: false,
                     errors: vec![format!("Failed to read {HOOK_CONFIG_FILENAME}: {e}")],
                 });
@@ -74,7 +75,7 @@ pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
             Ok(c) => c,
             Err(e) => {
                 results.push(HookValidateEntry {
-                    plugin_id: dir_name,
+                    hook_id: HookId::new(dir_name),
                     valid: false,
                     errors: vec![format!("Failed to parse {HOOK_CONFIG_FILENAME}: {e}")],
                 });
@@ -83,10 +84,7 @@ pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
         };
 
         let mut errors = Vec::new();
-        let id_str = config
-            .id
-            .as_ref()
-            .map_or_else(|| dir_name.clone(), ToString::to_string);
+        let hook_id = config.id.clone().unwrap_or_else(|| HookId::new(dir_name));
 
         if config.command.is_empty() {
             errors.push("command must not be empty".to_owned());
@@ -95,7 +93,7 @@ pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
         }
 
         results.push(HookValidateEntry {
-            plugin_id: id_str,
+            hook_id,
             valid: errors.is_empty(),
             errors,
         });

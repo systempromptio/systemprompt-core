@@ -11,6 +11,7 @@ use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_ai::{AiService, AiServiceProviders};
+use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpToolProvider;
 use systemprompt_oauth::JwtValidationProviderImpl;
@@ -19,8 +20,8 @@ use systemprompt_users::UsersAiSessionProvider;
 
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {
-    #[arg(long, help = "Agent name to run")]
-    pub agent_name: systemprompt_identifiers::AgentName,
+    #[arg(long, help = "Agent name to run", value_parser = crate::shared::parse_agent_name)]
+    pub agent_name: AgentName,
 
     #[arg(long, help = "Port to listen on")]
     pub port: u16,
@@ -69,7 +70,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
     );
 
     let provider: Arc<dyn systemprompt_models::AiProvider> = Arc::<AiService>::clone(&ai_service);
-    let served = run_standalone(agent_state, provider, &args.agent_name, args.port)
+    let served = run_standalone(agent_state, provider, args.agent_name.as_str(), args.port)
         .await
         .context("Failed to run agent server");
     ai_service.audit_tasks().close();

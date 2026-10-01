@@ -17,13 +17,17 @@ use crate::CliConfig;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::AgentName;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {
-    #[arg(help = "Agent name (required in non-interactive mode)")]
-    pub name: Option<String>,
+    #[arg(
+        help = "Agent name (required in non-interactive mode)",
+        value_parser = crate::shared::parse_agent_name
+    )]
+    pub name: Option<AgentName>,
 
     #[arg(
         long = "set",
@@ -57,11 +61,12 @@ pub(super) fn execute(
 
     let name = resolve_required(args.name.clone(), "name", config, || {
         super::shared::prompt_agent_selection(prompter, "Select agent to edit", &services_config)
+            .map(AgentName::new)
     })?;
 
     let mut agent = services_config
         .agents
-        .get(&name)
+        .get(name.as_str())
         .ok_or_else(|| anyhow!("Agent '{}' not found", name))?
         .clone();
 

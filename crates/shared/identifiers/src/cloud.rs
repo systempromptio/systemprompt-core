@@ -7,7 +7,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-crate::define_id!(PriceId, schema);
+crate::define_id!(PriceId, checked, |value| {
+    crate::macros::validate_non_empty("PriceId", value)
+});
 crate::define_id!(CloudUserId, checked, |value| {
     crate::macros::validate_non_empty("CloudUserId", value)
 });

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::McpToolName;
 use tabled::{Table, Tabled};
 
 use crate::commands::core::artifacts::ArtifactSummary;
@@ -10,7 +11,7 @@ use crate::commands::core::contexts::ContextSummary;
 use crate::commands::infrastructure::db::TableInfo;
 use crate::shared::truncate_with_ellipsis;
 
-use super::dash;
+use super::{OrDash, dash};
 
 #[derive(Tabled)]
 struct ArtifactListRow {
@@ -21,7 +22,7 @@ struct ArtifactListRow {
     #[tabled(rename = "Type")]
     artifact_type: String,
     #[tabled(rename = "Tool")]
-    tool_name: String,
+    tool_name: OrDash<McpToolName>,
     #[tabled(rename = "Created")]
     created_at: String,
 }
@@ -34,7 +35,7 @@ pub fn artifact_list_table(artifacts: &[ArtifactSummary]) -> String {
             id: truncate_with_ellipsis(a.artifact_id.as_str(), 12),
             name: a.name.clone().unwrap_or_else(dash),
             artifact_type: a.artifact_type.clone(),
-            tool_name: a.tool_name.clone().unwrap_or_else(dash),
+            tool_name: OrDash(a.tool_name.clone().map(McpToolName::new)),
             created_at: a.created_at.format("%Y-%m-%d %H:%M").to_string(),
         })
         .collect();

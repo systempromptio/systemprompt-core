@@ -66,7 +66,7 @@ async fn execute_with_pool_inner(
     };
 
     let output = RequestShowOutput {
-        request_id: request_id.as_str().to_owned(),
+        request_id,
         user_id: row.user_id,
         actor_kind: row.actor_kind,
         actor_id: row.actor_id,

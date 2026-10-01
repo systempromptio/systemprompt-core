@@ -12,6 +12,7 @@
 
 use anyhow::{Context, Result, bail};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_identifiers::JobName;
 
 use super::routing_decision::{RoutingDecision, decide_routing};
 use super::{args, bootstrap};
@@ -70,7 +71,7 @@ async fn enforce_routing_policy(
         bail!(
             "Export with cloud profile '{}' requires external database access.\nEnable \
              external_db_access in the profile or use a local profile.",
-            ctx.profile_name
+            ctx.profile.name
         );
     }
 
@@ -82,7 +83,7 @@ async fn enforce_routing_policy(
         bail!(
             "Cloud profile '{}' selected but this command doesn't support remote execution.\nUse \
              a local profile with --profile <name> or enable external database access.",
-            ctx.profile_name
+            ctx.profile.name
         );
     }
 
@@ -177,7 +178,7 @@ async fn try_remote_routing(
         return Ok(BootstrapOutcome::ContinueLocal);
     };
 
-    confirm_remote_job_run(cli, cli_config, &profile.name, &hostname)?;
+    confirm_remote_job_run(cli, cli_config, profile, &hostname)?;
     let args = args::reconstruct_args();
     let exit_code = routing::execute_remote(&hostname, &token, &context, &args, 300).await?;
     if exit_code != 0 {
@@ -189,7 +190,7 @@ async fn try_remote_routing(
 pub fn confirm_remote_job_run(
     cli: &args::Cli,
     cli_config: &CliConfig,
-    profile_name: &str,
+    profile: &systemprompt_models::Profile,
     hostname: &str,
 ) -> Result<()> {
     let Some(args::Commands::Infra(infrastructure::InfraCommands::Jobs(
@@ -204,12 +205,18 @@ pub fn confirm_remote_job_run(
     } else if let Some(tag) = &run_args.tag {
         format!("jobs tagged '{tag}'")
     } else {
-        run_args.job_names.join(", ")
+        run_args
+            .job_names
+            .iter()
+            .map(JobName::as_str)
+            .collect::<Vec<_>>()
+            .join(", ")
     };
 
     let message = format!(
-        "Run {selection} against REMOTE profile '{profile_name}' ({hostname})?\nPass --profile \
-         <local-profile> to target a local environment instead. Continue?"
+        "Run {selection} against REMOTE profile '{}' ({hostname})?\nPass --profile \
+         <local-profile> to target a local environment instead. Continue?",
+        profile.name
     );
 
     interactive::require_confirmation(

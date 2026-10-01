@@ -7,6 +7,7 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::{ToolAnalyticsRepository, ToolListParams};
+use systemprompt_identifiers::{McpServerId, McpToolName};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
@@ -101,8 +102,8 @@ async fn execute_internal(args: ListArgs, repo: &ToolAnalyticsRepository) -> Res
             };
 
             ToolListRow {
-                tool_name: row.tool_name.to_string(),
-                server_name: row.server_name.to_string(),
+                tool_name: row.tool_name,
+                server_name: row.server_name,
                 execution_count: row.execution_count,
                 success_rate,
                 avg_execution_time_ms: row.avg_time as i64,

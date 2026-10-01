@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_models::{CliPaths, ServicesConfig};
 
@@ -16,7 +17,7 @@ use crate::constants::{container, storage};
 #[derive(Debug)]
 pub struct DockerfileBuilder<'a> {
     project_root: &'a Path,
-    profile_name: Option<&'a str>,
+    profile_name: Option<&'a ProfileName>,
     services_config: Option<ServicesConfig>,
 }
 
@@ -44,7 +45,7 @@ impl<'a> DockerfileBuilder<'a> {
     }
 
     #[must_use]
-    pub const fn with_profile(mut self, name: &'a str) -> Self {
+    pub const fn with_profile(mut self, name: &'a ProfileName) -> Self {
         self.profile_name = Some(name);
         self
     }
@@ -207,7 +208,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         format!(
             "    {}={} \\",
             systemprompt_models::subprocess::DEPLOYMENT_HOST_ENV,
-            self.profile_name.unwrap_or("container")
+            self.profile_name.map_or("container", ProfileName::as_str)
         )
     }
 

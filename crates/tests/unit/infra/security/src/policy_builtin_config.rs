@@ -195,7 +195,7 @@ fn every_instantiated_policy_exposes_a_distinct_operator_facing_name_and_descrip
             "{} exposes no usable description",
             cfg.id
         );
-        seen.push((cfg.id.clone(), policy.name(), policy.description()));
+        seen.push((String::from(&cfg.id), policy.name(), policy.description()));
     }
 
     assert_eq!(

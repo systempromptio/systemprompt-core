@@ -11,8 +11,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
-use systemprompt_identifiers::{InstanceId, ScheduledJobId};
+use systemprompt_identifiers::{InstanceId, JobName, ScheduledJobId};
 
 pub use systemprompt_models::services::{JobConfig, SchedulerConfig};
 
@@ -22,7 +21,7 @@ pub use systemprompt_models::services::{JobConfig, SchedulerConfig};
 /// so a misconfigured owner is observable rather than silently dropped.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkippedJob {
-    pub job_name: String,
+    pub job_name: JobName,
     pub owner: String,
     pub reason: String,
 }
@@ -63,17 +62,17 @@ pub struct JobRunRecord<'a> {
     pub instance_id: &'a InstanceId,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduledJob {
     pub id: ScheduledJobId,
-    pub job_name: String,
+    pub job_name: JobName,
     pub schedule: String,
     pub enabled: bool,
     pub last_run: Option<DateTime<Utc>>,
     pub next_run: Option<DateTime<Utc>>,
     pub last_status: Option<String>,
     pub last_error: Option<String>,
-    pub last_instance_id: Option<String>,
+    pub last_instance_id: Option<InstanceId>,
     pub run_count: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

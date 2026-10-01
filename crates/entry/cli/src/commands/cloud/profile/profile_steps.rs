@@ -1,8 +1,8 @@
 //! Shared steps for building a profile from a stored tenant.
 //!
-//! Provides [`create_profile_for_tenant`] and the helpers that resolve a
-//! tenant from CLI args and refresh masked cloud database credentials before a
-//! profile is written.
+//! Provides [`create_profile_for_tenant`] and the helpers that write a
+//! tenant's profile, secrets and Docker assets and resolve a tenant from CLI
+//! args.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,15 +10,12 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use systemprompt_cloud::{
-    CloudApiClient, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType,
-};
+use systemprompt_cloud::{ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType};
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::ProfileName;
 
-use crate::commands::cloud::tenant::get_credentials;
 
 use systemprompt_models::profile::TrustedIssuer;
 
@@ -33,19 +30,19 @@ use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBui
 
 #[derive(Debug)]
 pub struct CreatedProfile {
-    pub name: String,
+    pub name: ProfileName,
 }
 
 pub fn create_profile_for_tenant(
     prompter: &dyn Prompter,
     tenant: &StoredTenant,
     api_keys: &ApiKeys,
-    profile_name: &str,
+    profile_name: &ProfileName,
     control_plane_api_url: Option<&str>,
 ) -> Result<CreatedProfile> {
     let ctx = ProjectContext::discover();
     let name = resolve_unique_profile_name(prompter, &ctx, profile_name)?;
-    let profile_dir = ctx.profile_dir(&name);
+    let profile_dir = ctx.profile_dir(name.as_str());
 
     std::fs::create_dir_all(ctx.profiles_dir())
         .with_context(|| format!("Failed to create {}", ctx.profiles_dir().display()))?;
@@ -55,7 +52,8 @@ pub fn create_profile_for_tenant(
     update_ai_config_default_provider(api_keys.selected_provider())?;
 
     let profile_path = ProfilePath::Config.resolve(&profile_dir);
-    let built_profile = build_tenant_profile(tenant, &name, control_plane_api_url, &profile_path)?;
+    let built_profile =
+        build_tenant_profile(tenant, name.as_str(), control_plane_api_url, &profile_path)?;
 
     save_profile(&built_profile, &profile_path)?;
     CliService::success(&format!("Created: {}", profile_path.display()));
@@ -69,12 +67,12 @@ pub fn create_profile_for_tenant(
 fn resolve_unique_profile_name(
     prompter: &dyn Prompter,
     ctx: &ProjectContext,
-    profile_name: &str,
-) -> Result<String> {
-    let mut name = profile_name.to_owned();
+    profile_name: &ProfileName,
+) -> Result<ProfileName> {
+    let mut name = profile_name.clone();
 
     loop {
-        let profile_dir = ctx.profile_dir(&name);
+        let profile_dir = ctx.profile_dir(name.as_str());
         if !profile_dir.exists() {
             return Ok(name);
         }
@@ -85,7 +83,17 @@ fn resolve_unique_profile_name(
             profile_dir.display()
         ));
 
-        name = prompter.input("Enter a different profile name")?;
+        name = prompt_profile_name(prompter, "Enter a different profile name")?;
+    }
+}
+
+fn prompt_profile_name(prompter: &dyn Prompter, prompt: &str) -> Result<ProfileName> {
+    loop {
+        let input = prompter.input(prompt)?;
+        match ProfileName::try_new(input) {
+            Ok(name) => return Ok(name),
+            Err(e) => CliService::warning(&format!("Invalid profile name: {e}")),
+        }
     }
 }
 
@@ -164,20 +172,20 @@ fn build_tenant_profile(
     })
 }
 
-pub(super) fn write_docker_assets(ctx: &ProjectContext, name: &str) -> Result<()> {
-    let docker_dir = ctx.profile_docker_dir(name);
+pub(super) fn write_docker_assets(ctx: &ProjectContext, name: &ProfileName) -> Result<()> {
+    let docker_dir = ctx.profile_docker_dir(name.as_str());
     std::fs::create_dir_all(&docker_dir)
         .with_context(|| format!("Failed to create docker directory {}", docker_dir.display()))?;
 
-    let dockerfile_path = ctx.profile_dockerfile(name);
+    let dockerfile_path = ctx.profile_dockerfile(name.as_str());
     save_dockerfile(&dockerfile_path, name, ctx.root())?;
     CliService::success(&format!("Created: {}", dockerfile_path.display()));
 
-    let entrypoint_path = ctx.profile_entrypoint(name);
+    let entrypoint_path = ctx.profile_entrypoint(name.as_str());
     save_entrypoint(&entrypoint_path)?;
     CliService::success(&format!("Created: {}", entrypoint_path.display()));
 
-    let dockerignore_path = ctx.profile_dockerignore(name);
+    let dockerignore_path = ctx.profile_dockerignore(name.as_str());
     save_dockerignore(&dockerignore_path)?;
     CliService::success(&format!("Created: {}", dockerignore_path.display()));
 
@@ -199,7 +207,7 @@ pub fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Resul
         )
     })?;
 
-    let tenant = store.find_tenant(&TenantId::new(tenant_id)).ok_or_else(|| {
+    let tenant = store.find_tenant(tenant_id).ok_or_else(|| {
         anyhow::anyhow!(
             "Tenant '{}' not found.\nList available tenants with: systemprompt cloud tenant list",
             tenant_id
@@ -221,76 +229,4 @@ pub fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Resul
     }
 
     Ok(tenant.clone())
-}
-
-struct RefreshedCredentials {
-    pub external_database_url: String,
-    pub internal_database_url: String,
-}
-
-async fn refresh_tenant_credentials(
-    client: &CloudApiClient,
-    tenant_id: &TenantId,
-) -> Result<RefreshedCredentials> {
-    let status = client.get_tenant_status(tenant_id).await?;
-    let secrets_url = status
-        .secrets_url
-        .ok_or_else(|| anyhow::anyhow!("No secrets URL available for tenant"))?;
-    let secrets = client.fetch_secrets(&secrets_url).await?;
-    Ok(RefreshedCredentials {
-        external_database_url: secrets.database_url,
-        internal_database_url: secrets.internal_database_url,
-    })
-}
-
-pub async fn ensure_unmasked_credentials(
-    tenant: StoredTenant,
-    tenants_path: &Path,
-) -> Result<StoredTenant> {
-    if tenant.tenant_type != TenantType::Cloud {
-        return Ok(tenant);
-    }
-
-    let external_url = tenant.database_url.as_deref();
-    let internal_url = tenant.internal_database_url.as_deref();
-
-    let needs_external = tenant.external_db_access && external_url.is_none();
-    let needs_refresh = needs_external
-        || external_url.is_some_and(Profile::is_masked_database_url)
-        || internal_url.is_none_or(Profile::is_masked_database_url);
-
-    if !needs_refresh {
-        return Ok(tenant);
-    }
-
-    CliService::info("Fetching database credentials...");
-    let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
-
-    match refresh_tenant_credentials(&client, &TenantId::new(&tenant.id)).await {
-        Ok(creds) => {
-            let mut updated_tenant = tenant.clone();
-            updated_tenant.internal_database_url = Some(creds.internal_database_url);
-            if updated_tenant.external_db_access {
-                updated_tenant.database_url = Some(creds.external_database_url);
-            }
-
-            let mut store = TenantStore::load_from_path(tenants_path)
-                .unwrap_or_else(|_| TenantStore::default());
-            if let Some(t) = store.tenants.iter_mut().find(|t| t.id == tenant.id) {
-                *t = updated_tenant.clone();
-                store.save_to_path(tenants_path)?;
-            }
-
-            CliService::success("Database credentials retrieved");
-            Ok(updated_tenant)
-        },
-        Err(e) => {
-            CliService::warning(&format!("Could not fetch credentials: {}", e));
-            CliService::warning(
-                "Run 'systemprompt cloud tenant rotate-credentials' to fetch real credentials.",
-            );
-            Ok(tenant)
-        },
-    }
 }

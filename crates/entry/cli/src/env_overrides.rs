@@ -11,7 +11,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
 
 /// `is_deployment_host` means the process runs on the host the active profile
 /// describes, so a command must run locally instead of routing to the
@@ -34,7 +34,7 @@ pub struct SessionEnv {
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
-    pub auth_token: Option<String>,
+    pub auth_token: Option<SessionToken>,
 }
 
 impl EnvOverrides {
@@ -68,8 +68,23 @@ impl EnvOverrides {
             is_deployment_host: systemprompt_models::subprocess::is_deployment_host(&lookup),
             is_remote_cli: lookup("SYSTEMPROMPT_CLI_REMOTE").is_some(),
             session: SessionEnv {
-                user_id: lookup("SYSTEMPROMPT_USER_ID").map(UserId::new),
-                session_id: lookup("SYSTEMPROMPT_SESSION_ID").map(SessionId::new),
+                user_id: lookup("SYSTEMPROMPT_USER_ID").and_then(|value| {
+                    UserId::try_new(value)
+                        .inspect_err(|error| {
+                            tracing::warn!(error = %error, "ignoring malformed SYSTEMPROMPT_USER_ID");
+                        })
+                        .ok()
+                }),
+                session_id: lookup("SYSTEMPROMPT_SESSION_ID").and_then(|value| {
+                    SessionId::try_new(value)
+                        .inspect_err(|error| {
+                            tracing::warn!(
+                                error = %error,
+                                "ignoring malformed SYSTEMPROMPT_SESSION_ID"
+                            );
+                        })
+                        .ok()
+                }),
                 context_id: lookup("SYSTEMPROMPT_CONTEXT_ID").and_then(|value| {
                     ContextId::try_new(value)
                         .inspect_err(|error| {
@@ -80,7 +95,7 @@ impl EnvOverrides {
                         })
                         .ok()
                 }),
-                auth_token: lookup("SYSTEMPROMPT_AUTH_TOKEN"),
+                auth_token: lookup("SYSTEMPROMPT_AUTH_TOKEN").map(SessionToken::new),
             },
         }
     }

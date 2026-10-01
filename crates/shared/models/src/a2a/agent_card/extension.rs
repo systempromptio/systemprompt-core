@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AgentName;
 
 pub const ARTIFACT_RENDERING_URI: &str = "https://systemprompt.io/extensions/artifact-rendering/v1";
 
@@ -73,13 +74,13 @@ impl AgentExtension {
     }
 
     #[must_use]
-    pub fn agent_identity(agent_name: &str) -> Self {
+    pub fn agent_identity(agent_name: &AgentName) -> Self {
         Self {
             uri: "systemprompt:agent-identity".to_owned(),
             description: Some("systemprompt.io platform agent name".to_owned()),
             required: Some(true),
             params: Some(serde_json::json!({
-                "name": agent_name
+                "name": agent_name.as_str()
             })),
         }
     }

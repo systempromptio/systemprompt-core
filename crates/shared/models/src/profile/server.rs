@@ -7,6 +7,7 @@ use std::net::IpAddr;
 
 use ipnet::IpNet;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use systemprompt_identifiers::InstanceId;
 
 pub use systemprompt_extension::FrameOptions;
 
@@ -35,8 +36,8 @@ pub struct ServerConfig {
     #[serde(default)]
     pub security_headers: SecurityHeadersConfig,
 
-    #[serde(default)]
-    pub instance_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_instance_id")]
+    pub instance_id: Option<InstanceId>,
 
     #[serde(default)]
     pub metrics_port: Option<u16>,
@@ -79,6 +80,18 @@ where
         .filter(|s| !s.is_empty())
         .map(|s| parse_trusted_proxy(s).map_err(serde::de::Error::custom))
         .collect()
+}
+
+fn deserialize_instance_id<'de, D>(deserializer: D) -> Result<Option<InstanceId>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer)?
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(|id| InstanceId::try_new(id).map_err(serde::de::Error::custom))
+        .transpose()
 }
 
 fn serialize_trusted_proxies<S>(nets: &[IpNet], serializer: S) -> Result<S::Ok, S::Error>

@@ -160,7 +160,7 @@ fn select_profile_tenant_picks_clone() {
 // they forget `--tenant` on a local profile.
 #[test]
 fn an_explicit_tenant_flag_is_taken_as_given() {
-    let id = systemprompt_cli::cloud::tenant::resolve_tenant_id(Some("tenant_abc".to_owned()))
+    let id = systemprompt_cli::cloud::tenant::resolve_tenant_id(Some(tid("tenant_abc")))
         .expect("an explicit id needs no profile at all");
 
     assert_eq!(id.as_str(), "tenant_abc");
@@ -177,4 +177,8 @@ fn a_profile_with_no_tenant_refuses_and_names_the_flag_that_supplies_one() {
         format!("{err:#}").contains("--tenant"),
         "the refusal must name the flag, got: {err:#}"
     );
+}
+
+fn tid(id: &str) -> systemprompt_identifiers::TenantId {
+    systemprompt_identifiers::TenantId::try_new(id).expect("valid TenantId")
 }

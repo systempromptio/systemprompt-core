@@ -50,8 +50,8 @@ pub enum ProviderCommands {
     Add(ProviderAddArgs),
     #[command(about = "Remove a provider by name")]
     Remove {
-        #[arg(long)]
-        name: String,
+        #[arg(long, value_parser = crate::shared::parse_provider_id)]
+        name: ProviderId,
     },
 }
 
@@ -61,17 +61,21 @@ pub enum ModelCommands {
     Add(ModelAddArgs),
     #[command(about = "Remove a model by id from a provider")]
     Remove {
-        #[arg(long, help = "Provider that serves the model")]
-        provider: String,
-        #[arg(long)]
-        id: String,
+        #[arg(
+            long,
+            help = "Provider that serves the model",
+            value_parser = crate::shared::parse_provider_id
+        )]
+        provider: ProviderId,
+        #[arg(long, value_parser = crate::shared::parse_model_id)]
+        id: ModelId,
     },
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct ProviderAddArgs {
-    #[arg(long)]
-    pub name: String,
+    #[arg(long, value_parser = crate::shared::parse_provider_id)]
+    pub name: ProviderId,
     #[arg(
         long,
         help = "Wire codec: anthropic | openai-chat | openai-responses | gemini"
@@ -84,20 +88,28 @@ pub struct ProviderAddArgs {
     pub surface: String,
     #[arg(long)]
     pub endpoint: String,
-    #[arg(long)]
-    pub api_key_secret: String,
+    #[arg(long, value_parser = crate::shared::parse_secret_name)]
+    pub api_key_secret: SecretName,
     #[arg(long = "header", help = "Extra header as KEY=VALUE (repeatable)")]
     pub headers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct ModelAddArgs {
-    #[arg(long, help = "Provider that serves this model")]
-    pub provider: String,
-    #[arg(long)]
-    pub id: String,
-    #[arg(long = "alias", help = "Model alias (repeatable)")]
-    pub aliases: Vec<String>,
+    #[arg(
+        long,
+        help = "Provider that serves this model",
+        value_parser = crate::shared::parse_provider_id
+    )]
+    pub provider: ProviderId,
+    #[arg(long, value_parser = crate::shared::parse_model_id)]
+    pub id: ModelId,
+    #[arg(
+        long = "alias",
+        help = "Model alias (repeatable)",
+        value_parser = crate::shared::parse_model_id
+    )]
+    pub aliases: Vec<ModelId>,
     #[arg(
         long,
         help = "Vendor-side model name to forward upstream (defaults to id)"
@@ -121,7 +133,7 @@ pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()
         },
         CatalogCommands::Provider(ProviderCommands::Remove { name }) => {
             apply(config, |registry| {
-                ProviderCatalogService::remove_provider(registry, &ProviderId::new(name))?;
+                ProviderCatalogService::remove_provider(registry, name)?;
                 Ok(format!("Provider {} removed", name))
             })
             .await
@@ -135,11 +147,7 @@ pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()
         },
         CatalogCommands::Model(ModelCommands::Remove { provider, id }) => {
             apply(config, |registry| {
-                ProviderCatalogService::remove_model(
-                    registry,
-                    &ProviderId::new(provider),
-                    &ModelId::new(id),
-                )?;
+                ProviderCatalogService::remove_model(registry, provider, id)?;
                 Ok(format!("Model {} removed from {}", id, provider))
             })
             .await
@@ -210,20 +218,20 @@ fn parse_headers(raw: &[String]) -> Result<HashMap<String, String>> {
 
 fn provider_spec(args: &ProviderAddArgs) -> Result<ProviderSpec> {
     Ok(ProviderSpec {
-        name: ProviderId::new(&args.name),
+        name: args.name.clone(),
         wire: parse_wire(&args.wire)?,
         surface: parse_surface(&args.surface)?,
         endpoint: args.endpoint.clone(),
-        api_key_secret: SecretName::new(&args.api_key_secret),
+        api_key_secret: args.api_key_secret.clone(),
         extra_headers: parse_headers(&args.headers)?,
     })
 }
 
 fn model_spec(args: &ModelAddArgs) -> ModelSpec {
     ModelSpec {
-        provider: ProviderId::new(&args.provider),
-        id: ModelId::new(&args.id),
-        aliases: args.aliases.iter().map(ModelId::new).collect(),
+        provider: args.provider.clone(),
+        id: args.id.clone(),
+        aliases: args.aliases.clone(),
         upstream_model: args.upstream_model.clone(),
     }
 }

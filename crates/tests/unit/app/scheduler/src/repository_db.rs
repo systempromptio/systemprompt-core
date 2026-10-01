@@ -12,7 +12,7 @@
 //! executes and returns a well-formed (possibly empty) result set against the
 //! freshly-migrated DB.
 
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{InstanceId, JobName};
 use systemprompt_scheduler::repository::{AnalyticsRepository, SecurityRepository};
 use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus, SchedulerRepository};
 use systemprompt_test_fixtures::test_db_pool;
@@ -34,6 +34,10 @@ fn unique_job_name(prefix: &str) -> String {
     format!("{prefix}_{}_{}_{}", std::process::id(), seq, nanos)
 }
 
+fn unique_job(prefix: &str) -> JobName {
+    JobName::new(unique_job_name(prefix))
+}
+
 mod scheduler_repository {
     use super::*;
 
@@ -47,7 +51,7 @@ mod scheduler_repository {
     async fn upsert_then_find_returns_inserted_row() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
-        let name = unique_job_name("sched_upsert");
+        let name = unique_job("sched_upsert");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
@@ -67,7 +71,7 @@ mod scheduler_repository {
     async fn find_missing_job_returns_none() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
-        let missing = unique_job_name("sched_absent");
+        let missing = unique_job("sched_absent");
 
         let found = repo.find_job(&missing).await.expect("find should succeed");
         assert!(found.is_none(), "a never-inserted job must not be found");
@@ -77,7 +81,7 @@ mod scheduler_repository {
     async fn upsert_conflict_updates_schedule_and_enabled() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
-        let name = unique_job_name("sched_conflict");
+        let name = unique_job("sched_conflict");
 
         repo.upsert_job(&name, "0 0 1 * * *", true)
             .await
@@ -99,7 +103,7 @@ mod scheduler_repository {
     async fn update_job_execution_persists_status_and_error() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
-        let name = unique_job_name("sched_exec");
+        let name = unique_job("sched_exec");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
@@ -131,7 +135,7 @@ mod scheduler_repository {
     async fn update_job_execution_success_clears_error() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
-        let name = unique_job_name("sched_success");
+        let name = unique_job("sched_success");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
@@ -177,7 +181,7 @@ mod scheduler_repository {
     async fn each_recorded_run_advances_run_count() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
-        let name = unique_job_name("sched_runcount");
+        let name = unique_job("sched_runcount");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
@@ -209,8 +213,8 @@ mod scheduler_repository {
     async fn list_enabled_jobs_includes_enabled_excludes_disabled() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
-        let enabled = unique_job_name("sched_list_on");
-        let disabled = unique_job_name("sched_list_off");
+        let enabled = unique_job("sched_list_on");
+        let disabled = unique_job("sched_list_off");
 
         repo.upsert_job(&enabled, "0 0 * * * *", true)
             .await
@@ -260,7 +264,7 @@ mod job_repository {
     async fn set_enabled_toggles_flag() {
         let pool = test_db_pool().await;
         let repo = JobRepository::new(&pool);
-        let name = unique_job_name("job_set_enabled");
+        let name = unique_job("job_set_enabled");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
@@ -291,7 +295,7 @@ mod job_repository {
     async fn list_recent_runs_includes_executed_job() {
         let pool = test_db_pool().await;
         let repo = JobRepository::new(&pool);
-        let name = unique_job_name("job_recent");
+        let name = unique_job("job_recent");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
@@ -334,7 +338,7 @@ mod job_repository {
     async fn list_recent_runs_excludes_never_run_job() {
         let pool = test_db_pool().await;
         let repo = JobRepository::new(&pool);
-        let name = unique_job_name("job_never_run");
+        let name = unique_job("job_never_run");
 
         // Inserted but never executed: last_run stays NULL, so it must not
         // appear in the recent-runs view regardless of limit.
@@ -775,7 +779,7 @@ mod forget_retired_jobs {
     async fn an_empty_inventory_forgets_nothing() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
-        let name = unique_job_name("sched_empty_inventory");
+        let name = unique_job("sched_empty_inventory");
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
             .expect("upsert");
@@ -799,12 +803,12 @@ mod forget_retired_jobs {
     async fn a_job_another_version_still_runs_is_kept() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
-        let other_version = unique_job_name("sched_other_version");
+        let other_version = unique_job("sched_other_version");
         repo.upsert_job(&other_version, "0 0 * * * *", true)
             .await
             .expect("upsert");
 
-        repo.delete_jobs_not_in(&[unique_job_name("sched_this_build")])
+        repo.delete_jobs_not_in(&[unique_job("sched_this_build")])
             .await
             .expect("delete retired jobs");
 

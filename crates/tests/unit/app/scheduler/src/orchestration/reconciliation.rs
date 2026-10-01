@@ -1,5 +1,6 @@
 //! Tests for ReconciliationResult
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_scheduler::ReconciliationResult;
 
 mod new_tests {
@@ -59,28 +60,28 @@ mod is_success_tests {
     #[test]
     fn result_with_started_is_success() {
         let mut result = ReconciliationResult::new();
-        result.started.push("service1".to_string());
+        result.started.push(ServiceName::new("service1"));
         assert!(result.is_success());
     }
 
     #[test]
     fn result_with_stopped_is_success() {
         let mut result = ReconciliationResult::new();
-        result.stopped.push("service1".to_string());
+        result.stopped.push(ServiceName::new("service1"));
         assert!(result.is_success());
     }
 
     #[test]
     fn result_with_restarted_is_success() {
         let mut result = ReconciliationResult::new();
-        result.restarted.push("service1".to_string());
+        result.restarted.push(ServiceName::new("service1"));
         assert!(result.is_success());
     }
 
     #[test]
     fn result_with_cleaned_up_is_success() {
         let mut result = ReconciliationResult::new();
-        result.cleaned_up.push("service1".to_string());
+        result.cleaned_up.push(ServiceName::new("service1"));
         assert!(result.is_success());
     }
 
@@ -89,7 +90,7 @@ mod is_success_tests {
         let mut result = ReconciliationResult::new();
         result
             .failed
-            .push(("service1".to_string(), "error".to_string()));
+            .push((ServiceName::new("service1"), "error".to_string()));
         assert!(!result.is_success());
     }
 
@@ -98,21 +99,21 @@ mod is_success_tests {
         let mut result = ReconciliationResult::new();
         result
             .failed
-            .push(("service1".to_string(), "error1".to_string()));
+            .push((ServiceName::new("service1"), "error1".to_string()));
         result
             .failed
-            .push(("service2".to_string(), "error2".to_string()));
+            .push((ServiceName::new("service2"), "error2".to_string()));
         assert!(!result.is_success());
     }
 
     #[test]
     fn result_with_mixed_success_and_failure_is_not_success() {
         let mut result = ReconciliationResult::new();
-        result.started.push("service1".to_string());
-        result.stopped.push("service2".to_string());
+        result.started.push(ServiceName::new("service1"));
+        result.stopped.push(ServiceName::new("service2"));
         result
             .failed
-            .push(("service3".to_string(), "error".to_string()));
+            .push((ServiceName::new("service3"), "error".to_string()));
         assert!(!result.is_success());
     }
 }
@@ -129,28 +130,28 @@ mod total_actions_tests {
     #[test]
     fn counts_started() {
         let mut result = ReconciliationResult::new();
-        result.started.push("service1".to_string());
+        result.started.push(ServiceName::new("service1"));
         assert_eq!(result.total_actions(), 1);
     }
 
     #[test]
     fn counts_stopped() {
         let mut result = ReconciliationResult::new();
-        result.stopped.push("service1".to_string());
+        result.stopped.push(ServiceName::new("service1"));
         assert_eq!(result.total_actions(), 1);
     }
 
     #[test]
     fn counts_restarted() {
         let mut result = ReconciliationResult::new();
-        result.restarted.push("service1".to_string());
+        result.restarted.push(ServiceName::new("service1"));
         assert_eq!(result.total_actions(), 1);
     }
 
     #[test]
     fn counts_cleaned_up() {
         let mut result = ReconciliationResult::new();
-        result.cleaned_up.push("service1".to_string());
+        result.cleaned_up.push(ServiceName::new("service1"));
         assert_eq!(result.total_actions(), 1);
     }
 
@@ -159,38 +160,42 @@ mod total_actions_tests {
         let mut result = ReconciliationResult::new();
         result
             .failed
-            .push(("service1".to_string(), "error".to_string()));
+            .push((ServiceName::new("service1"), "error".to_string()));
         assert_eq!(result.total_actions(), 0);
     }
 
     #[test]
     fn counts_all_action_types() {
         let mut result = ReconciliationResult::new();
-        result.started.push("s1".to_string());
-        result.stopped.push("s2".to_string());
-        result.restarted.push("s3".to_string());
-        result.cleaned_up.push("s4".to_string());
+        result.started.push(ServiceName::new("s1"));
+        result.stopped.push(ServiceName::new("s2"));
+        result.restarted.push(ServiceName::new("s3"));
+        result.cleaned_up.push(ServiceName::new("s4"));
         assert_eq!(result.total_actions(), 4);
     }
 
     #[test]
     fn counts_multiple_per_type() {
         let mut result = ReconciliationResult::new();
-        result.started.push("s1".to_string());
-        result.started.push("s2".to_string());
-        result.stopped.push("s3".to_string());
-        result.stopped.push("s4".to_string());
-        result.stopped.push("s5".to_string());
+        result.started.push(ServiceName::new("s1"));
+        result.started.push(ServiceName::new("s2"));
+        result.stopped.push(ServiceName::new("s3"));
+        result.stopped.push(ServiceName::new("s4"));
+        result.stopped.push(ServiceName::new("s5"));
         assert_eq!(result.total_actions(), 5);
     }
 
     #[test]
     fn counts_correctly_with_mixed_success_and_failure() {
         let mut result = ReconciliationResult::new();
-        result.started.push("s1".to_string());
-        result.started.push("s2".to_string());
-        result.failed.push(("s3".to_string(), "error".to_string()));
-        result.failed.push(("s4".to_string(), "error".to_string()));
+        result.started.push(ServiceName::new("s1"));
+        result.started.push(ServiceName::new("s2"));
+        result
+            .failed
+            .push((ServiceName::new("s3"), "error".to_string()));
+        result
+            .failed
+            .push((ServiceName::new("s4"), "error".to_string()));
         assert_eq!(result.total_actions(), 2);
     }
 }
@@ -202,7 +207,7 @@ mod debug_tests {
     #[test]
     fn debug_shows_started() {
         let mut result = ReconciliationResult::new();
-        result.started.push("test-service".to_string());
+        result.started.push(ServiceName::new("test-service"));
         let debug = format!("{:?}", result);
         assert!(debug.contains("test-service"));
     }

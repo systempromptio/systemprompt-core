@@ -9,7 +9,8 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{LogId, TraceId};
+use systemprompt_identifiers::{LogId, McpServerId, McpToolName, TraceId};
+use systemprompt_logging::LogLevel;
 
 use super::models::{LogSearchItem, ToolExecutionItem};
 
@@ -23,20 +24,11 @@ struct LogRow {
     metadata: Option<String>,
 }
 
-struct ToolRow {
-    timestamp: DateTime<Utc>,
-    trace_id: TraceId,
-    tool_name: String,
-    server_name: Option<String>,
-    status: String,
-    execution_time_ms: Option<i32>,
-}
-
 pub(super) async fn search_logs(
     pool: &Arc<PgPool>,
     pattern: &str,
     since: Option<DateTime<Utc>>,
-    level: Option<&str>,
+    level: Option<LogLevel>,
     limit: i64,
 ) -> Result<Vec<LogSearchItem>> {
     let rows = sqlx::query_as!(
@@ -59,24 +51,25 @@ pub(super) async fn search_logs(
         "#,
         pattern,
         since,
-        level,
+        level.map(LogLevel::as_str),
         limit
     )
     .fetch_all(&**pool)
     .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| LogSearchItem {
-            id: r.id,
-            trace_id: r.trace_id,
-            timestamp: r.timestamp,
-            level: r.level,
-            module: r.module,
-            message: r.message,
-            metadata: r.metadata,
+    rows.into_iter()
+        .map(|r| -> Result<LogSearchItem> {
+            Ok(LogSearchItem {
+                id: r.id,
+                trace_id: r.trace_id,
+                timestamp: r.timestamp,
+                level: r.level.parse()?,
+                module: r.module,
+                message: r.message,
+                metadata: r.metadata,
+            })
         })
-        .collect())
+        .collect()
 }
 
 pub(super) async fn search_tool_executions(
@@ -85,8 +78,7 @@ pub(super) async fn search_tool_executions(
     since: Option<DateTime<Utc>>,
     limit: i64,
 ) -> Result<Vec<ToolExecutionItem>> {
-    let rows = sqlx::query_as!(
-        ToolRow,
+    let rows = sqlx::query!(
         r#"
         SELECT
             started_at as "timestamp!",
@@ -113,8 +105,8 @@ pub(super) async fn search_tool_executions(
         .map(|r| ToolExecutionItem {
             timestamp: r.timestamp,
             trace_id: r.trace_id,
-            tool_name: r.tool_name,
-            server_name: r.server_name,
+            tool_name: McpToolName::new(r.tool_name),
+            server_name: r.server_name.map(McpServerId::new),
             status: r.status,
             execution_time_ms: r.execution_time_ms,
         })

@@ -10,7 +10,8 @@ use systemprompt_cli::infrastructure::services::ServicesCommands;
 #[test]
 fn session_switch_needs_no_profile_context() {
     let desc = SessionCommands::Switch {
-        profile_name: "production".to_owned(),
+        profile_name: systemprompt_identifiers::ProfileName::try_new("production")
+            .expect("valid ProfileName"),
     }
     .descriptor();
     assert!(

@@ -97,7 +97,7 @@ async fn collect_source_urls(
     let mut urls = fetch_urls_from_database(FetchParams {
         content_repo: &ctx.content_repo,
         web_config: &ctx.web_config,
-        source_id: source.source_id.as_str(),
+        source_id: &source.source_id,
         url_pattern: &sitemap_config.url_pattern,
         priority: sitemap_config.priority,
         changefreq: &sitemap_config.changefreq,
@@ -236,7 +236,7 @@ async fn write_sitemap_index(
 struct FetchParams<'a> {
     content_repo: &'a ContentRepository,
     web_config: &'a WebConfig,
-    source_id: &'a str,
+    source_id: &'a SourceId,
     url_pattern: &'a str,
     priority: f32,
     changefreq: &'a str,
@@ -246,9 +246,8 @@ struct FetchParams<'a> {
 async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<SitemapUrl>> {
     let repo = params.content_repo;
 
-    let source_id = SourceId::new(params.source_id);
     let pairs = repo
-        .list_slugs_with_locales_by_source(&source_id)
+        .list_slugs_with_locales_by_source(params.source_id)
         .await
         .map_err(|e| PublishError::content("Failed to fetch content for sitemap", e))?;
 

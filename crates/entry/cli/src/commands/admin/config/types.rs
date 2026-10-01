@@ -10,6 +10,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ProfileName;
 
 pub use super::config_section::*;
 pub use super::rate_limit_types::*;
@@ -22,7 +23,7 @@ pub struct ConfigMutationOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ConfigOverviewOutput {
-    pub profile_name: String,
+    pub profile_name: ProfileName,
     pub profile_path: String,
     pub server: ServerOverview,
     pub runtime: RuntimeOverview,

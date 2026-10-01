@@ -18,6 +18,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
+use systemprompt_identifiers::AgentName;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -110,7 +111,7 @@ pub enum ConfigWriteError {
     AgentFileExists(PathBuf),
 
     #[error("Agent '{0}' not found in any configuration file")]
-    AgentNotFound(String),
+    AgentNotFound(AgentName),
 }
 
 #[derive(Debug, Error)]

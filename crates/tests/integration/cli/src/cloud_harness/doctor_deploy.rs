@@ -69,7 +69,7 @@ async fn doctor_reports_blocking_failures() {
 
     let err = cloud::execute(
         CloudCommands::Doctor {
-            profile: Some("doc-fail".to_owned()),
+            profile: Some(pname("doc-fail")),
             distributed: false,
         },
         &json_ctx(),
@@ -98,7 +98,7 @@ async fn doctor_passes_with_complete_profile() {
 
     cloud::execute(
         CloudCommands::Doctor {
-            profile: Some("doc-pass".to_owned()),
+            profile: Some(pname("doc-pass")),
             distributed: false,
         },
         &json_ctx(),
@@ -144,7 +144,7 @@ async fn doctor_missing_profile_name_errors() {
     let _env = enter().await;
     let err = cloud::execute(
         CloudCommands::Doctor {
-            profile: Some("ghost".to_owned()),
+            profile: Some(pname("ghost")),
             distributed: false,
         },
         &json_ctx(),
@@ -157,7 +157,7 @@ async fn doctor_missing_profile_name_errors() {
 fn deploy_cmd(profile: Option<&str>, check: bool) -> CloudCommands {
     CloudCommands::Deploy {
         skip_push: false,
-        profile: profile.map(str::to_owned),
+        profile: profile.map(pname),
         check,
     }
 }
@@ -279,7 +279,7 @@ fn write_cloud_profile_with_hook(env: &Env, name: &str, hook_url: &str) {
 async fn run_doctor(name: &str) {
     cloud::execute(
         CloudCommands::Doctor {
-            profile: Some(name.to_owned()),
+            profile: Some(pname(name)),
             distributed: false,
         },
         &json_ctx(),
@@ -432,7 +432,7 @@ async fn deploy_skip_push_builds_owned_image_syncs_secrets_and_requests_deploy()
     .expect("write owned release artifact");
     systemprompt_cli::cloud::profile::templates::save_dockerfile(
         &profile_dir.join("docker/Dockerfile"),
-        name,
+        &pname(name),
         env.root(),
     )
     .expect("write validated profile Dockerfile");
@@ -507,7 +507,7 @@ async fn deploy_skip_push_builds_owned_image_syncs_secrets_and_requests_deploy()
         cloud::execute(
             CloudCommands::Deploy {
                 skip_push: true,
-                profile: Some(name.to_owned()),
+                profile: Some(pname(name)),
                 check: false,
             },
             &json_ctx(),
@@ -723,7 +723,7 @@ fn prepare_failure_deploy(env: &Env, name: &str) -> std::path::PathBuf {
     .expect("write owned release artifact");
     systemprompt_cli::cloud::profile::templates::save_dockerfile(
         &profile_dir.join("docker/Dockerfile"),
-        name,
+        &pname(name),
         env.root(),
     )
     .expect("write validated profile Dockerfile");
@@ -768,7 +768,7 @@ async fn run_failure_deploy(name: &str) -> Result<(), String> {
         cloud::execute(
             CloudCommands::Deploy {
                 skip_push: true,
-                profile: Some(name.to_owned()),
+                profile: Some(pname(name)),
                 check: false,
             },
             &json_ctx(),
@@ -996,7 +996,7 @@ async fn deployment_logs_in_with_stdin_pushes_exact_image_then_provisions() {
         cloud::execute(
             CloudCommands::Deploy {
                 skip_push: false,
-                profile: Some(name.to_owned()),
+                profile: Some(pname(name)),
                 check: false,
             },
             &json_ctx(),
@@ -1048,4 +1048,8 @@ async fn deployment_logs_in_with_stdin_pushes_exact_image_then_provisions() {
     );
 
     remove_profile(&env, name);
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

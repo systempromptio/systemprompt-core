@@ -7,7 +7,8 @@
 //! Seeded-row mapping is covered in `seeded_queries.rs`.
 
 use chrono::{Duration as ChronoDuration, Utc};
-use systemprompt_identifiers::{AiRequestId, TraceId};
+use systemprompt_identifiers::{AiRequestId, LogId, TraceId};
+use systemprompt_logging::LogLevel;
 use systemprompt_runtime::trace::{
     AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
 };
@@ -121,7 +122,7 @@ async fn trace_service_search_finds_nothing_for_random_pattern() {
         svc.search_logs(
             &pattern,
             Some(Utc::now() - ChronoDuration::hours(1)),
-            Some("INFO"),
+            Some(LogLevel::Info),
             10,
         )
         .await
@@ -217,7 +218,12 @@ async fn trace_service_log_lookups_on_random_ids() {
     let svc = TraceQueryService::new(pool);
     let missing = nonexistent_tag();
 
-    assert!(svc.find_log_by_id(&missing).await.unwrap().is_none());
+    assert!(
+        svc.find_log_by_id(&LogId::generate())
+            .await
+            .unwrap()
+            .is_none()
+    );
     assert!(
         svc.find_log_by_partial_id(&missing)
             .await
@@ -225,10 +231,14 @@ async fn trace_service_log_lookups_on_random_ids() {
             .is_none()
     );
     assert!(
-        svc.list_logs_filtered(Some(Utc::now() + ChronoDuration::days(1)), Some("ERROR"), 5)
-            .await
-            .unwrap()
-            .is_empty()
+        svc.list_logs_filtered(
+            Some(Utc::now() + ChronoDuration::days(1)),
+            Some(LogLevel::Error),
+            5
+        )
+        .await
+        .unwrap()
+        .is_empty()
     );
     assert!(
         svc.list_logs_filtered(None, None, 10).await.unwrap().len() <= 10,
@@ -312,9 +322,9 @@ fn filter_builders_retain_limits() {
     assert_eq!(ai.provider.as_deref(), Some("p"));
     let since = Utc::now() - ChronoDuration::hours(1);
     let log = LogSearchFilter::new("p".to_owned(), 10)
-        .with_level("WARN".to_owned())
+        .with_level(LogLevel::Warn)
         .with_since(since);
-    assert_eq!(log.level.as_deref(), Some("WARN"));
+    assert_eq!(log.level, Some(LogLevel::Warn));
     assert_eq!(log.since, Some(since));
 }
 

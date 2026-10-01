@@ -8,7 +8,7 @@
 //! the detail/metadata formatting and the failed-status truncation branches.
 
 use chrono::{Duration as ChronoDuration, Utc};
-use systemprompt_identifiers::{ContextId, TaskId, TraceId};
+use systemprompt_identifiers::{ContextId, McpServerId, TaskId, TraceId};
 use systemprompt_runtime::trace::{ToolExecutionFilter, TraceListFilter};
 use systemprompt_runtime::{AiTraceService, TraceQueryService};
 use systemprompt_test_fixtures::test_pg_pool;
@@ -299,7 +299,7 @@ async fn mcp_trace_queries_map_seeded_rows() {
 
     let executions = svc.get_mcp_executions(&task_id, &ctx_id).await.unwrap();
     assert_eq!(executions.len(), 1);
-    assert_eq!(executions[0].tool_name, seed.tool_name);
+    assert_eq!(executions[0].tool_name.as_str(), seed.tool_name);
     assert_eq!(executions[0].server_name, "srv");
     assert_eq!(executions[0].status, "success");
     assert_eq!(executions[0].execution_time_ms, Some(11));
@@ -351,8 +351,11 @@ async fn filtered_lists_surface_seeded_rows() {
         "unique tool name must match exactly once"
     );
     assert_eq!(executions[0].trace_id.as_str(), seed.trace_id);
-    assert_eq!(executions[0].tool_name, seed.tool_name);
-    assert_eq!(executions[0].server_name.as_deref(), Some("srv"));
+    assert_eq!(executions[0].tool_name.as_str(), seed.tool_name);
+    assert_eq!(
+        executions[0].server_name.as_ref().map(McpServerId::as_str),
+        Some("srv")
+    );
     assert_eq!(executions[0].status, "success");
     assert_eq!(executions[0].execution_time_ms, Some(21));
 

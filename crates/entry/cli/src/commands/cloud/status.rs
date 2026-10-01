@@ -10,6 +10,7 @@
 use anyhow::Result;
 use systemprompt_cloud::{CloudApiClient, CloudPath, CredentialsBootstrap, get_cloud_paths};
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
@@ -19,7 +20,7 @@ use crate::shared::CommandOutput;
 pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
     let (profile_info, tenant_id_from_profile) = load_profile_info();
     let (credentials_info, tenant_statuses) =
-        load_credentials_and_tenants(config, tenant_id_from_profile.as_deref()).await?;
+        load_credentials_and_tenants(config, tenant_id_from_profile.as_ref()).await?;
 
     let output = CloudStatusOutput {
         profile: profile_info.clone(),
@@ -34,7 +35,7 @@ pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
     Ok(CommandOutput::card_value("Cloud Status", &output))
 }
 
-fn load_profile_info() -> (Option<ProfileInfo>, Option<String>) {
+fn load_profile_info() -> (Option<ProfileInfo>, Option<TenantId>) {
     let profile = match ProfileBootstrap::get() {
         Ok(p) => p,
         Err(e) => {
@@ -63,7 +64,7 @@ fn load_profile_info() -> (Option<ProfileInfo>, Option<String>) {
         info.validation_mode = Some(format!("{:?}", cloud.validation));
         if let Some(ref tid) = cloud.tenant_id {
             info.tenant_id = Some(tid.clone());
-            tenant_id_from_profile = Some(tid.as_str().to_owned());
+            tenant_id_from_profile = Some(tid.clone());
         }
     }
 
@@ -72,7 +73,7 @@ fn load_profile_info() -> (Option<ProfileInfo>, Option<String>) {
 
 async fn load_credentials_and_tenants(
     config: &CliConfig,
-    tenant_id_from_profile: Option<&str>,
+    tenant_id_from_profile: Option<&TenantId>,
 ) -> Result<(CredentialsInfo, Vec<TenantStatusInfo>)> {
     let mut credentials_info = CredentialsInfo {
         authenticated: false,
@@ -116,12 +117,9 @@ async fn load_credentials_and_tenants(
             status: "unknown".to_owned(),
             url: None,
             message: None,
-            configured_in_profile: tenant_id_from_profile == Some(tenant.id.as_str()),
+            configured_in_profile: tenant_id_from_profile == Some(&tenant.id),
         };
-        match api_client
-            .get_tenant_status(&systemprompt_identifiers::TenantId::new(&tenant.id))
-            .await
-        {
+        match api_client.get_tenant_status(&tenant.id).await {
             Ok(status) => {
                 status_info.status = status.status;
                 status_info.url = status.app_url;

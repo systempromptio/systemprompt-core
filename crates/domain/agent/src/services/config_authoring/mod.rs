@@ -173,7 +173,7 @@ impl AgentConfigAuthoringService {
         )?)
     }
 
-    pub fn delete(&self, name: &str) -> Result<(), ConfigAuthoringError> {
+    pub fn delete(&self, name: &AgentName) -> Result<(), ConfigAuthoringError> {
         Ok(ConfigWriter::delete_agent(name, &self.services_dir)?)
     }
 }

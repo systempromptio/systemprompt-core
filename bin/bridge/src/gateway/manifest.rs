@@ -196,8 +196,8 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
-    pub fn with_tenant_id(mut self, tenant_id: impl Into<TenantId>) -> Self {
-        self.tenant_id = Some(tenant_id.into());
+    pub fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
+        self.tenant_id = Some(tenant_id);
         self
     }
 

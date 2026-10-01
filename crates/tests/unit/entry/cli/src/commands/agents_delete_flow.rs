@@ -9,6 +9,7 @@ use std::path::Path;
 
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_cli::admin::agents::delete::{delete_single_agent, stop_verified_port_holder};
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
@@ -67,12 +68,20 @@ fn write_agent(services: &Path, name: &str) {
 
 #[test]
 fn nothing_recorded_and_no_port_is_stopped() {
-    assert!(stop_verified_port_holder("ghost", None, None));
+    assert!(stop_verified_port_holder(
+        &AgentName::new("ghost"),
+        None,
+        None
+    ));
 }
 
 #[test]
 fn a_recorded_process_without_a_port_to_verify_is_not_assumed_stopped() {
-    assert!(!stop_verified_port_holder("ghost", None, Some(424242)));
+    assert!(!stop_verified_port_holder(
+        &AgentName::new("ghost"),
+        None,
+        Some(424242)
+    ));
 }
 
 #[test]
@@ -81,7 +90,11 @@ fn an_unoccupied_port_is_stopped() {
     let port = listener.local_addr().unwrap().port();
     drop(listener);
 
-    assert!(stop_verified_port_holder("ghost", Some(port), None));
+    assert!(stop_verified_port_holder(
+        &AgentName::new("ghost"),
+        Some(port),
+        None
+    ));
 }
 
 #[test]
@@ -92,7 +105,7 @@ fn delete_removes_agent_file_and_include() {
     assert!(agent_file.exists());
 
     let authoring = AgentConfigAuthoringService::new(tmp.path());
-    delete_single_agent("doomed", true, &authoring, false).unwrap();
+    delete_single_agent(&AgentName::new("doomed"), true, &authoring, false).unwrap();
 
     assert!(!agent_file.exists());
     let config = fs::read_to_string(tmp.path().join("config/config.yaml")).unwrap();
@@ -104,7 +117,7 @@ fn delete_reports_missing_agent_as_error() {
     let tmp = tempfile::tempdir().unwrap();
     let authoring = AgentConfigAuthoringService::new(tmp.path());
 
-    let err = delete_single_agent("absent", true, &authoring, false).unwrap_err();
+    let err = delete_single_agent(&AgentName::new("absent"), true, &authoring, false).unwrap_err();
 
     assert!(format!("{err:#}").contains("absent"));
 }
@@ -119,7 +132,7 @@ fn delete_failure_preserves_the_profile_include_for_repair() {
     fs::write(agent_path.join("keep"), "not an agent definition").unwrap();
 
     let authoring = AgentConfigAuthoringService::new(tmp.path());
-    let error = delete_single_agent("undeletable", true, &authoring, false)
+    let error = delete_single_agent(&AgentName::new("undeletable"), true, &authoring, false)
         .expect_err("a directory cannot be removed through the agent-file authoring path");
 
     assert!(format!("{error:#}").contains("undeletable"), "{error:#}");
@@ -145,7 +158,7 @@ fn a_failed_stop_preserves_config_until_force_is_requested() {
     let original_config = fs::read(&config_file).unwrap();
     let authoring = AgentConfigAuthoringService::new(tmp.path());
 
-    let error = delete_single_agent("force-owned", false, &authoring, false)
+    let error = delete_single_agent(&AgentName::new("force-owned"), false, &authoring, false)
         .expect_err("a failed process stop must prevent ordinary deletion");
     assert!(
         error.to_string().contains("Use --force to delete anyway"),
@@ -154,7 +167,7 @@ fn a_failed_stop_preserves_config_until_force_is_requested() {
     assert_eq!(fs::read(&agent_file).unwrap(), original_agent);
     assert_eq!(fs::read(&config_file).unwrap(), original_config);
 
-    delete_single_agent("force-owned", false, &authoring, true)
+    delete_single_agent(&AgentName::new("force-owned"), false, &authoring, true)
         .expect("force permits config deletion after the same stop failure");
     assert!(!agent_file.exists());
 }
@@ -219,9 +232,13 @@ fn an_unverified_port_holder_is_never_killed() {
     let (_child, child_pid, port) = spawn_owned_listener();
     assert_eq!(ProcessCleanup::check_port(port), Some(child_pid));
 
-    assert!(!stop_verified_port_holder("stranger", Some(port), None));
     assert!(!stop_verified_port_holder(
-        "stranger",
+        &AgentName::new("stranger"),
+        Some(port),
+        None
+    ));
+    assert!(!stop_verified_port_holder(
+        &AgentName::new("stranger"),
         Some(port),
         Some(child_pid.wrapping_add(1))
     ));
@@ -240,7 +257,7 @@ fn the_recorded_agent_process_is_stopped() {
     assert_eq!(ProcessCleanup::check_port(port), Some(child_pid));
 
     assert!(stop_verified_port_holder(
-        "owned-running",
+        &AgentName::new("owned-running"),
         Some(port),
         Some(child_pid)
     ));

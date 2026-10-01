@@ -1,3 +1,4 @@
+use systemprompt_identifiers::JobName;
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::SchedulerError;
 use systemprompt_traits::RepositoryError;
@@ -131,9 +132,12 @@ mod error_source_chain {
                 .is_some()
         );
         assert!(
-            SchedulerError::job_execution_failed("j", ProviderError::InvalidInput("e".to_owned()))
-                .source()
-                .is_some()
+            SchedulerError::job_execution_failed(
+                JobName::new("j"),
+                ProviderError::InvalidInput("e".to_owned())
+            )
+            .source()
+            .is_some()
         );
     }
 
@@ -147,7 +151,11 @@ mod error_source_chain {
     fn structured_variants_have_no_source() {
         assert!(SchedulerError::AlreadyRunning.source().is_none());
         assert!(SchedulerError::NotInitialized.source().is_none());
-        assert!(SchedulerError::job_not_found("j").source().is_none());
+        assert!(
+            SchedulerError::job_not_found(JobName::new("j"))
+                .source()
+                .is_none()
+        );
         assert!(SchedulerError::invalid_schedule("s").source().is_none());
         assert!(SchedulerError::config_error("c").source().is_none());
     }
@@ -158,9 +166,9 @@ mod error_constructor_round_trips {
 
     #[test]
     fn job_not_found_constructor_matches_struct_variant() {
-        let via_ctor = SchedulerError::job_not_found("j").to_string();
+        let via_ctor = SchedulerError::job_not_found(JobName::new("j")).to_string();
         let via_struct = SchedulerError::JobNotFound {
-            job_name: "j".to_string(),
+            job_name: JobName::new("j"),
         }
         .to_string();
         assert_eq!(via_ctor, via_struct);
@@ -178,11 +186,13 @@ mod error_constructor_round_trips {
 
     #[test]
     fn job_execution_failed_constructor_matches_struct_variant() {
-        let via_ctor =
-            SchedulerError::job_execution_failed("j", ProviderError::InvalidInput("boom".into()))
-                .to_string();
+        let via_ctor = SchedulerError::job_execution_failed(
+            JobName::new("j"),
+            ProviderError::InvalidInput("boom".into()),
+        )
+        .to_string();
         let via_struct = SchedulerError::JobExecutionFailed {
-            job_name: "j".to_string(),
+            job_name: JobName::new("j"),
             source: ProviderError::InvalidInput("boom".into()),
         }
         .to_string();

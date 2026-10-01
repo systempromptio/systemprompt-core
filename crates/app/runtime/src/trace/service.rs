@@ -14,9 +14,9 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
+use systemprompt_identifiers::{AiRequestId, LogId, TaskId, TraceId};
 
-use systemprompt_logging::models::LogEntry;
+use systemprompt_logging::models::{LogEntry, LogLevel};
 
 use super::TraceError;
 
@@ -123,7 +123,7 @@ impl TraceQueryService {
         &self,
         pattern: &str,
         since: Option<DateTime<Utc>>,
-        level: Option<&str>,
+        level: Option<LogLevel>,
         limit: i64,
     ) -> Result<Vec<LogSearchItem>> {
         log_search_queries::search_logs(&self.pool, pattern, since, level, limit).await
@@ -191,7 +191,7 @@ impl TraceQueryService {
         audit_queries::list_linked_mcp_calls(&self.pool, request_id).await
     }
 
-    pub async fn find_log_by_id(&self, id: &str) -> Result<Option<LogEntry>> {
+    pub async fn find_log_by_id(&self, id: &LogId) -> Result<Option<LogEntry>> {
         log_lookup_queries::find_log_by_id(&self.pool, id).await
     }
 
@@ -206,7 +206,7 @@ impl TraceQueryService {
     pub async fn list_logs_filtered(
         &self,
         since: Option<DateTime<Utc>>,
-        level: Option<&str>,
+        level: Option<LogLevel>,
         limit: i64,
     ) -> Result<Vec<LogEntry>> {
         log_lookup_queries::list_logs_filtered(&self.pool, since, level, limit).await

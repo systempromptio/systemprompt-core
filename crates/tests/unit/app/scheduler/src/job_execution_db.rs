@@ -3,6 +3,7 @@
 //! tests fail when `DATABASE_URL` is unset.
 
 use std::collections::HashMap;
+use systemprompt_identifiers::JobName;
 
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_scheduler::{
@@ -101,10 +102,10 @@ mod selection_resolution {
         let (service, _pool) = db_service!();
 
         let names = service
-            .resolve_job_names(&JobSelection::Names(vec!["anything".to_owned()]))
+            .resolve_job_names(&JobSelection::Names(vec![JobName::new("anything")]))
             .expect("explicit names resolve as given");
 
-        assert_eq!(names, vec!["anything".to_owned()]);
+        assert_eq!(names, vec!["anything"]);
     }
 
     #[tokio::test]
@@ -129,7 +130,9 @@ mod execution {
     async fn unknown_job_reports_failure_without_erroring() {
         let (service, _pool) = db_service!();
 
-        let report = service.run_job("no_such_job", &HashMap::new()).await;
+        let report = service
+            .run_job(&JobName::new("no_such_job"), &HashMap::new())
+            .await;
 
         assert!(!report.success);
         assert_eq!(report.job_name, "no_such_job");
@@ -146,8 +149,8 @@ mod execution {
         let batch = service
             .run_jobs(
                 &JobSelection::Names(vec![
-                    "cleanup_inactive_sessions".to_owned(),
-                    "no_such_job".to_owned(),
+                    JobName::new("cleanup_inactive_sessions"),
+                    JobName::new("no_such_job"),
                 ]),
                 &HashMap::new(),
             )
@@ -166,17 +169,21 @@ mod execution {
         let (service, pool) = db_service!();
 
         let repo = JobRepository::new(&pool);
-        repo.upsert_job("cleanup_inactive_sessions", "0 0 * * * *", true)
-            .await
-            .expect("seed scheduled_jobs row");
+        repo.upsert_job(
+            &JobName::new("cleanup_inactive_sessions"),
+            "0 0 * * * *",
+            true,
+        )
+        .await
+        .expect("seed scheduled_jobs row");
 
         let report = service
-            .run_job("cleanup_inactive_sessions", &HashMap::new())
+            .run_job(&JobName::new("cleanup_inactive_sessions"), &HashMap::new())
             .await;
         assert!(report.success, "job must succeed on an empty DB");
 
         let row = repo
-            .find_job("cleanup_inactive_sessions")
+            .find_job(&JobName::new("cleanup_inactive_sessions"))
             .await
             .expect("find_job must succeed")
             .expect("seeded row must exist");
@@ -203,16 +210,18 @@ mod manual_run_recording_arms {
         let (service, pool) = db_service!();
 
         let repo = JobRepository::new(&pool);
-        repo.upsert_job(FAILING_JOB, "", true)
+        repo.upsert_job(&JobName::new(FAILING_JOB), "", true)
             .await
             .expect("seed scheduled_jobs row");
 
-        let report = service.run_job(FAILING_JOB, &HashMap::new()).await;
+        let report = service
+            .run_job(&JobName::new(FAILING_JOB), &HashMap::new())
+            .await;
         assert!(!report.success);
         assert_eq!(report.message.as_deref(), Some("deliberate test failure"));
 
         let row = repo
-            .find_job(FAILING_JOB)
+            .find_job(&JobName::new(FAILING_JOB))
             .await
             .expect("find_job")
             .expect("seeded row must exist");
@@ -233,12 +242,14 @@ mod manual_run_recording_arms {
         .await
         .expect("clear test-job row");
 
-        let report = service.run_job(FAILING_JOB, &HashMap::new()).await;
+        let report = service
+            .run_job(&JobName::new(FAILING_JOB), &HashMap::new())
+            .await;
         assert!(!report.success, "the job itself still runs and fails");
 
         let repo = JobRepository::new(&pool);
         assert!(
-            repo.find_job(FAILING_JOB)
+            repo.find_job(&JobName::new(FAILING_JOB))
                 .await
                 .expect("find_job")
                 .is_none(),
@@ -265,7 +276,9 @@ mod dead_pool_recording {
 
         // The job body and every recording query hit the closed pool; the run
         // still yields a report instead of propagating the DB failure.
-        let report = service.run_job(FAILING_JOB, &HashMap::new()).await;
+        let report = service
+            .run_job(&JobName::new(FAILING_JOB), &HashMap::new())
+            .await;
         assert!(!report.success);
         assert_eq!(report.message.as_deref(), Some("deliberate test failure"));
     }

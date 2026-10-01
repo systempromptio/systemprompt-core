@@ -86,6 +86,18 @@ fn parse_rejects_entries_without_an_id() {
 }
 
 #[test]
+fn parse_rejects_entries_with_a_blank_id() {
+    let err = GovernanceConfig::parse(
+        "governance:\n  policies:\n    - id: secret_scan\n    - id: \"  \"\n",
+    )
+    .unwrap_err();
+    assert!(matches!(
+        err,
+        GovernanceConfigError::MissingPolicyId { index: 1 }
+    ));
+}
+
+#[test]
 fn parse_rejects_non_string_and_unknown_policy_modes() {
     for mode in ["7", "enforce-ish"] {
         let yaml = format!("governance:\n  mode: {mode}\n  policies:\n    - id: secret_scan\n");

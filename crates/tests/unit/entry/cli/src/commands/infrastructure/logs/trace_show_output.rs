@@ -5,7 +5,7 @@
 
 use chrono::{Duration, TimeZone, Utc};
 use systemprompt_cli::infrastructure::logs::trace::show::{TraceSummaries, build_trace_output};
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{TaskId, TraceId};
 use systemprompt_runtime::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
@@ -39,7 +39,13 @@ fn build_trace_output_computes_deltas_from_first_event() {
     let step = ExecutionStepSummary::default();
     let events = vec![event(0, "log"), event(250, "ai_request"), event(900, "log")];
 
-    let output = build_trace_output("trace-1", &events, &summaries(&ai, &mcp, &step), None, None);
+    let output = build_trace_output(
+        &TraceId::new("trace-1"),
+        &events,
+        &summaries(&ai, &mcp, &step),
+        None,
+        None,
+    );
 
     assert_eq!(output.trace_id.as_str(), "trace-1");
     let deltas: Vec<i64> = output.events.iter().map(|e| e.delta_ms).collect();
@@ -70,7 +76,7 @@ fn build_trace_output_converts_microdollars_and_sums_tokens() {
     let task_id = TaskId::generate();
 
     let output = build_trace_output(
-        "trace-2",
+        &TraceId::new("trace-2"),
         &[],
         &summaries(&ai, &mcp, &step),
         Some(&task_id),
@@ -96,7 +102,13 @@ fn build_trace_output_derives_status_from_step_counts() {
         failed: 1,
         pending: 1,
     };
-    let out = build_trace_output("t", &[], &summaries(&ai, &mcp, &failed), None, None);
+    let out = build_trace_output(
+        &TraceId::new("t"),
+        &[],
+        &summaries(&ai, &mcp, &failed),
+        None,
+        None,
+    );
     assert_eq!(out.status, "failed");
 
     let pending = ExecutionStepSummary {
@@ -105,10 +117,22 @@ fn build_trace_output_derives_status_from_step_counts() {
         failed: 0,
         pending: 1,
     };
-    let out = build_trace_output("t", &[], &summaries(&ai, &mcp, &pending), None, None);
+    let out = build_trace_output(
+        &TraceId::new("t"),
+        &[],
+        &summaries(&ai, &mcp, &pending),
+        None,
+        None,
+    );
     assert_eq!(out.status, "in_progress");
 
     let done = ExecutionStepSummary::default();
-    let out = build_trace_output("t", &[], &summaries(&ai, &mcp, &done), None, None);
+    let out = build_trace_output(
+        &TraceId::new("t"),
+        &[],
+        &summaries(&ai, &mcp, &done),
+        None,
+        None,
+    );
     assert_eq!(out.status, "completed");
 }

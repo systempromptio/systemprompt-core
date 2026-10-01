@@ -5,7 +5,8 @@
 //! `log_summary_queries` execute against real rows.
 
 use chrono::{Duration as ChronoDuration, Utc};
-use systemprompt_identifiers::{AiRequestId, ContextId, TaskId, TraceId};
+use systemprompt_identifiers::{AgentName, AiRequestId, ContextId, LogId, TaskId, TraceId};
+use systemprompt_logging::LogLevel;
 use systemprompt_runtime::{AiRequestFilter, AiTraceService, AuditPage, TraceQueryService};
 use systemprompt_test_fixtures::test_pg_pool;
 
@@ -273,7 +274,10 @@ async fn ai_trace_service_maps_seeded_task_and_message_rows() {
     let info = svc.get_task_info(&task_id).await.unwrap();
     assert_eq!(info.task_id.as_str(), seed.task_id);
     assert_eq!(info.context_id.as_str(), seed.context_id);
-    assert_eq!(info.agent_name.as_deref(), Some("auditor"));
+    assert_eq!(
+        info.agent_name.as_ref().map(AgentName::as_str),
+        Some("auditor")
+    );
     assert_eq!(info.status, "TASK_STATE_COMPLETED");
     assert_eq!(info.execution_time_ms, Some(77));
     assert_eq!(info.error_message.as_deref(), Some("boom"));
@@ -549,7 +553,7 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
     let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
 
     let found = svc
-        .find_log_by_id(&good_id)
+        .find_log_by_id(&LogId::new(good_id.as_str()))
         .await
         .unwrap()
         .expect("log by id");
@@ -593,14 +597,19 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
     );
 
     let filtered = svc
-        .list_logs_filtered(Some(since), Some("ERROR"), 50)
+        .list_logs_filtered(Some(since), Some(LogLevel::Error), 50)
         .await
         .unwrap();
     assert!(filtered.iter().any(|l| l.id.as_str() == good_id));
     assert!(filtered.iter().all(|l| l.level.as_str() == "ERROR"));
 
     let searched = svc
-        .search_logs("%seeded lookup marker%", Some(since), Some("ERROR"), 10)
+        .search_logs(
+            "%seeded lookup marker%",
+            Some(since),
+            Some(LogLevel::Error),
+            10,
+        )
         .await
         .unwrap();
     assert_eq!(searched.len(), 1);
@@ -610,7 +619,7 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
     let levels = svc.count_logs_by_level(Some(since)).await.unwrap();
     let error_count = levels
         .iter()
-        .find(|l| l.level == "ERROR")
+        .find(|l| l.level == LogLevel::Error)
         .map_or(0, |l| l.count);
     assert!(error_count >= 1);
 

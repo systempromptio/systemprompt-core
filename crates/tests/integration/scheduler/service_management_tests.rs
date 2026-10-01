@@ -82,7 +82,7 @@ async fn mark_service_stopped_for_unknown_succeeds() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     ));
     let result = svc
-        .mark_service_stopped("nonexistent-service-name-zzz")
+        .mark_service_stopped(&ServiceName::new("nonexistent-service-name-zzz"))
         .await;
     let _ = result;
 }
@@ -95,7 +95,7 @@ async fn state_verifier_get_verified_states_handles_unknown_service() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let configs = vec![ServiceConfig {
-        name: format!("test_svc_{}", uuid::Uuid::new_v4().simple()),
+        name: ServiceName::new(format!("test_svc_{}", uuid::Uuid::new_v4().simple())),
         service_type: ServiceType::Mcp,
         port: 1,
         enabled: false,
@@ -115,7 +115,7 @@ async fn state_verifier_get_running_services_filters_correctly() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let configs = vec![ServiceConfig {
-        name: format!("test_running_{}", uuid::Uuid::new_v4().simple()),
+        name: ServiceName::new(format!("test_running_{}", uuid::Uuid::new_v4().simple())),
         service_type: ServiceType::Mcp,
         port: 1,
         enabled: false,
@@ -139,7 +139,7 @@ async fn state_verifier_get_services_needing_action_filters() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let configs = vec![ServiceConfig {
-        name: format!("test_action_{}", uuid::Uuid::new_v4().simple()),
+        name: ServiceName::new(format!("test_action_{}", uuid::Uuid::new_v4().simple())),
         service_type: ServiceType::Mcp,
         port: 1,
         enabled: false,

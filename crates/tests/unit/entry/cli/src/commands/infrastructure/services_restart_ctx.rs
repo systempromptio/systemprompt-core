@@ -13,6 +13,7 @@ use std::sync::Arc;
 use systemprompt_cli::infrastructure::services::restart;
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, install_test_signing_key, test_app_context, test_database_url,
@@ -206,9 +207,14 @@ async fn restarting_an_unknown_mcp_server_by_name_is_an_error() {
         (false, text_config()),
         (true, json_config()),
     ] {
-        let err = restart::execute_mcp(&ctx, "no-such-mcp-server", build, &config)
-            .await
-            .expect_err("an unregistered MCP server cannot be restarted");
+        let err = restart::execute_mcp(
+            &ctx,
+            &McpServerId::new("no-such-mcp-server"),
+            build,
+            &config,
+        )
+        .await
+        .expect_err("an unregistered MCP server cannot be restarted");
         assert!(
             err.to_string().contains("no-such-mcp-server"),
             "the failure must name the server that was asked for (build={build}), got {err}"

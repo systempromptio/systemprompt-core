@@ -120,7 +120,7 @@ fn test_stored_tenant_new_cloud_minimal() {
 #[test]
 fn test_stored_tenant_from_tenant_info() {
     let info = CloudTenantInfo {
-        id: "info-123".to_string(),
+        id: TenantId::new("info-123"),
         name: "From Info".to_string(),
         subscription_id: Some("sub-456".to_string()),
         subscription_status: None,
@@ -146,7 +146,7 @@ fn test_stored_tenant_from_tenant_info() {
 #[test]
 fn test_stored_tenant_from_tenant_info_minimal() {
     let info = CloudTenantInfo {
-        id: "minimal".to_string(),
+        id: TenantId::new("minimal"),
         name: "Minimal Info".to_string(),
         subscription_id: None,
         subscription_status: None,
@@ -246,7 +246,7 @@ fn test_tenant_store_synced_at() {
 fn test_tenant_store_from_tenant_infos() {
     let infos = vec![
         CloudTenantInfo {
-            id: "i1".to_string(),
+            id: TenantId::new("i1"),
             name: "Info 1".to_string(),
             subscription_id: None,
             subscription_status: None,
@@ -259,7 +259,7 @@ fn test_tenant_store_from_tenant_infos() {
             database_url: "postgres://i1".to_string(),
         },
         CloudTenantInfo {
-            id: "i2".to_string(),
+            id: TenantId::new("i2"),
             name: "Info 2".to_string(),
             subscription_id: None,
             subscription_status: None,

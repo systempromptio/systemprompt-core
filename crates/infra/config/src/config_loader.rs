@@ -110,14 +110,8 @@ fn require_yaml_path(field: &str, value: Option<&str>) -> ConfigResult<String> {
 }
 
 pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<InstanceId> {
-    if let Some(id) = profile
-        .server
-        .instance_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|id| !id.is_empty())
-    {
-        return Ok(InstanceId::new(id));
+    if let Some(id) = &profile.server.instance_id {
+        return Ok(id.clone());
     }
     match systemprompt_models::config::stable_instance_id(|name| std::env::var(name).ok()) {
         Some(id) => Ok(InstanceId::new(id)),

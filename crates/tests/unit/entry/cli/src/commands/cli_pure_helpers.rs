@@ -167,7 +167,7 @@ fn a_dockerfile_is_written_for_the_named_profile() {
 
     save_dockerfile(
         &path,
-        "covprofile",
+        &pname("covprofile"),
         Path::new("/var/www/html/systemprompt-core"),
     )
     .unwrap();
@@ -196,4 +196,8 @@ fn process_environment_overrides_are_read_without_panicking() {
         from_process.profile.is_some(),
         std::env::var("SYSTEMPROMPT_PROFILE").is_ok()
     );
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

@@ -131,7 +131,7 @@ pub async fn create_cli_context(
     db_pool: DbPool,
     user: &systemprompt_users::User,
     session_id: &SessionId,
-    profile_name: &str,
+    profile_name: &ProfileName,
 ) -> Result<ContextId> {
     let context_repo = ContextRepository::new(&db_pool);
     context_repo
@@ -157,13 +157,11 @@ pub(super) fn build_cli_session(
     admin_user: &systemprompt_users::User,
     issuer: &str,
 ) -> Result<CliSession> {
-    let profile_name = ProfileName::try_new(profile_ctx.name)
-        .map_err(|e| anyhow::anyhow!("Invalid profile name: {}", e))?;
     let email =
         Email::try_new(&admin_user.email).map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
 
     Ok(CliSession::builder(
-        SessionBinding::new(profile_name, issuer.to_owned()),
+        SessionBinding::new(profile_ctx.name.clone(), issuer.to_owned()),
         components.session_token,
         components.session_id,
         components.context_id,

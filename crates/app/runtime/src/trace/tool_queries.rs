@@ -5,29 +5,18 @@
 
 use super::TraceError;
 pub(super) type Result<T> = std::result::Result<T, TraceError>;
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{McpServerId, McpToolName, TraceId};
 
 use super::models::{ToolExecutionFilter, ToolExecutionItem};
-
-struct DbRow {
-    timestamp: DateTime<Utc>,
-    trace_id: TraceId,
-    tool_name: String,
-    server_name: Option<String>,
-    status: String,
-    execution_time_ms: Option<i32>,
-}
 
 pub(super) async fn list_tool_executions(
     pool: &Arc<PgPool>,
     filter: &ToolExecutionFilter,
 ) -> Result<Vec<ToolExecutionItem>> {
-    let rows = sqlx::query_as!(
-        DbRow,
+    let rows = sqlx::query!(
         r#"
         SELECT
             started_at as "timestamp!",
@@ -58,8 +47,8 @@ pub(super) async fn list_tool_executions(
         .map(|r| ToolExecutionItem {
             timestamp: r.timestamp,
             trace_id: r.trace_id,
-            tool_name: r.tool_name,
-            server_name: r.server_name,
+            tool_name: McpToolName::new(r.tool_name),
+            server_name: r.server_name.map(McpServerId::new),
             status: r.status,
             execution_time_ms: r.execution_time_ms,
         })

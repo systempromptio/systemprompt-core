@@ -7,7 +7,7 @@ use serde_json::Value;
 use systemprompt_cli::infrastructure::jobs::history::{self, HistoryArgs};
 use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{InstanceId, JobName};
 use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
@@ -23,8 +23,8 @@ fn contains(out: &CommandOutput, needle: &str) -> bool {
         .contains(needle)
 }
 
-async fn seed_job_run(pool: &DbPool, status: JobStatus, error: Option<&str>) -> String {
-    let name = format!("cov-job-{}", Uuid::new_v4().simple());
+async fn seed_job_run(pool: &DbPool, status: JobStatus, error: Option<&str>) -> JobName {
+    let name = JobName::new(format!("cov-job-{}", Uuid::new_v4().simple()));
     let repo = JobRepository::new(pool);
     repo.upsert_job(&name, "0 * * * *", true).await.unwrap();
     repo.update_job_execution(
@@ -58,14 +58,14 @@ async fn history_filters_by_job_name() {
     .await
     .unwrap();
 
-    assert!(contains(&out, &name));
+    assert!(contains(&out, name.as_str()));
     assert!(contains(&out, "success"));
 }
 
 #[tokio::test]
 async fn history_missing_job_yields_empty() {
     let pool = test_db_pool().await;
-    let ghost = format!("no-such-{}", Uuid::new_v4().simple());
+    let ghost = JobName::new(format!("no-such-{}", Uuid::new_v4().simple()));
 
     let out = history::execute_with_pool(
         HistoryArgs {
@@ -78,7 +78,7 @@ async fn history_missing_job_yields_empty() {
     .await
     .unwrap();
 
-    assert!(!contains(&out, &ghost));
+    assert!(!contains(&out, ghost.as_str()));
 }
 
 #[tokio::test]
@@ -96,7 +96,7 @@ async fn history_status_filter_excludes_mismatch() {
     )
     .await
     .unwrap();
-    assert!(contains(&listed, &failed));
+    assert!(contains(&listed, failed.as_str()));
 
     let filtered = history::execute_with_pool(
         HistoryArgs {
@@ -108,5 +108,5 @@ async fn history_status_filter_excludes_mismatch() {
     )
     .await
     .unwrap();
-    assert!(!contains(&filtered, &failed));
+    assert!(!contains(&filtered, failed.as_str()));
 }

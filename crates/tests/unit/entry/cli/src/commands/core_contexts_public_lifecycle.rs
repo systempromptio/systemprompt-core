@@ -114,7 +114,7 @@ async fn public_context_lifecycle_helper() {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir).expect("session store");
     store.upsert_session(&SessionKey::Local, session);
-    store.set_active_with_profile(&SessionKey::Local, "coverage");
+    store.set_active_with_profile(&SessionKey::Local, &pname("coverage"));
     store
         .save(&sessions_dir)
         .expect("persist active CLI session");
@@ -294,4 +294,8 @@ fn public_context_commands_switch_persist_and_protect_the_active_context() {
     assert_eq!(rows[0][1], "Active New Context", "{state}");
     assert_eq!(rows[1][1], "Initial Context", "{state}");
     assert_eq!(state["active_context"], rows[0][0], "{state}");
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

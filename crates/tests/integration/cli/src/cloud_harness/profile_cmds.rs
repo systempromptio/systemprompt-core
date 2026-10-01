@@ -297,8 +297,8 @@ async fn edit_interactive_api_keys_menu() {
 
 fn create_args(name: &str, tenant: Option<&str>, tenant_type: TenantTypeArg) -> CreateArgs {
     CreateArgs {
-        name: name.to_owned(),
-        tenant: tenant.map(str::to_owned),
+        name: pname(name),
+        tenant: tenant.map(|t| systemprompt_identifiers::TenantId::new(t)),
         tenant_type,
         anthropic_key: None,
         openai_key: None,
@@ -538,11 +538,11 @@ async fn create_profile_for_tenant_handles_name_collision_and_issuer() {
         &prompter,
         &tenant,
         &api_keys,
-        "collide",
+        &pname("collide"),
         Some("https://control.example.com/"),
     )
     .expect("create profile for tenant");
-    assert_eq!(created.name, "collide-renamed");
+    assert_eq!(created.name.as_str(), "collide-renamed");
 
     let profile_yaml = std::fs::read_to_string(
         env.root()
@@ -566,4 +566,8 @@ async fn redact_database_url_variants() {
     );
     assert_eq!(redact_database_url("no-credentials"), "no-credentials");
     assert_eq!(redact_database_url("user@host"), "user@host");
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

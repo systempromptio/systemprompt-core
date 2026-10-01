@@ -7,6 +7,7 @@
 //! up its rows afterwards so shards do not interfere.
 
 use std::sync::Arc;
+use systemprompt_identifiers::ServiceName;
 
 use systemprompt_models::ServiceType;
 use systemprompt_scheduler::{
@@ -79,7 +80,7 @@ mod state_verifier_seeded {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 29100,
             enabled: true,
@@ -92,7 +93,7 @@ mod state_verifier_seeded {
 
         let state = states
             .iter()
-            .find(|s| s.name == name)
+            .find(|s| s.name == name.as_str())
             .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
@@ -123,7 +124,7 @@ mod state_verifier_seeded {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,
             port: 29101,
             enabled: true,
@@ -136,7 +137,7 @@ mod state_verifier_seeded {
 
         let state = states
             .iter()
-            .find(|s| s.name == name)
+            .find(|s| s.name == name.as_str())
             .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
@@ -162,7 +163,7 @@ mod state_verifier_seeded {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 29102,
             enabled: true,
@@ -175,7 +176,7 @@ mod state_verifier_seeded {
 
         let state = states
             .iter()
-            .find(|s| s.name == name)
+            .find(|s| s.name == name.as_str())
             .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
@@ -206,7 +207,7 @@ mod state_verifier_seeded {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 29103,
             enabled: true,
@@ -219,7 +220,7 @@ mod state_verifier_seeded {
 
         let state = states
             .iter()
-            .find(|s| s.name == name)
+            .find(|s| s.name == name.as_str())
             .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
@@ -245,7 +246,7 @@ mod state_verifier_seeded {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 29104,
             enabled: false,
@@ -258,7 +259,7 @@ mod state_verifier_seeded {
 
         let state = states
             .iter()
-            .find(|s| s.name == name)
+            .find(|s| s.name == name.as_str())
             .expect("state present");
 
         assert_eq!(state.desired_status, DesiredStatus::Disabled);
@@ -284,7 +285,7 @@ mod state_verifier_seeded {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,
             port: 29105,
             enabled: false,
@@ -297,7 +298,7 @@ mod state_verifier_seeded {
 
         let state = states
             .iter()
-            .find(|s| s.name == name)
+            .find(|s| s.name == name.as_str())
             .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
@@ -333,7 +334,7 @@ mod state_verifier_seeded {
             .await
             .expect("get_verified_states must succeed with empty configs");
 
-        let orphan = states.iter().find(|s| s.name == name);
+        let orphan = states.iter().find(|s| s.name == name.as_str());
         assert!(
             orphan.is_some(),
             "a DB row not present in the config slice must appear as an orphan state"
@@ -369,19 +370,19 @@ mod state_verifier_seeded {
         );
         let configs = vec![
             ServiceConfig {
-                name: name_a.clone(),
+                name: ServiceName::new(name_a.as_str()),
                 service_type: ServiceType::Mcp,
                 port: 29110,
                 enabled: true,
             },
             ServiceConfig {
-                name: name_b.clone(),
+                name: ServiceName::new(name_b.as_str()),
                 service_type: ServiceType::Agent,
                 port: 29111,
                 enabled: true,
             },
             ServiceConfig {
-                name: name_c.clone(),
+                name: ServiceName::new(name_c.as_str()),
                 service_type: ServiceType::Mcp,
                 port: 29112,
                 enabled: false,
@@ -395,19 +396,19 @@ mod state_verifier_seeded {
 
         for n in [&name_a, &name_b, &name_c] {
             assert!(
-                states.iter().any(|s| &s.name == n),
+                states.iter().any(|s| s.name == n.as_str()),
                 "state for {n} must be present"
             );
         }
 
-        let state_a = states.iter().find(|s| &s.name == &name_a).unwrap();
+        let state_a = states.iter().find(|s| s.name == name_a.as_str()).unwrap();
         use systemprompt_models::RuntimeStatus;
         assert_eq!(state_a.runtime_status, RuntimeStatus::Crashed);
 
-        let state_b = states.iter().find(|s| &s.name == &name_b).unwrap();
+        let state_b = states.iter().find(|s| s.name == name_b.as_str()).unwrap();
         assert_eq!(state_b.runtime_status, RuntimeStatus::Stopped);
 
-        let state_c = states.iter().find(|s| &s.name == &name_c).unwrap();
+        let state_c = states.iter().find(|s| s.name == name_c.as_str()).unwrap();
         assert_eq!(state_c.needs_action, ServiceAction::CleanupDb);
 
         delete_service(&pg, &name_a).await;
@@ -435,7 +436,7 @@ mod reconciler_seeded {
             ),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 29120,
             enabled: false,
@@ -468,7 +469,7 @@ mod reconciler_seeded {
             ),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,
             port: 29121,
             enabled: true,
@@ -509,7 +510,7 @@ mod reconciler_seeded {
             ),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 29122,
             enabled: false,
@@ -554,13 +555,13 @@ mod reconciler_seeded {
         );
         let configs = vec![
             ServiceConfig {
-                name: name_start.clone(),
+                name: ServiceName::new(name_start.as_str()),
                 service_type: ServiceType::Mcp,
                 port: 29131,
                 enabled: true,
             },
             ServiceConfig {
-                name: name_cleanup.clone(),
+                name: ServiceName::new(name_cleanup.as_str()),
                 service_type: ServiceType::Mcp,
                 port: 29130,
                 enabled: false,
@@ -594,7 +595,7 @@ mod reconciler_seeded {
             ),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 29132,
             enabled: true,
@@ -624,7 +625,7 @@ mod reconciler_seeded {
             ),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 29133,
             enabled: false,
@@ -662,7 +663,7 @@ mod verifier_query_methods_seeded {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 29140,
             enabled: true,
@@ -674,7 +675,7 @@ mod verifier_query_methods_seeded {
             .expect("get_crashed_services must succeed");
 
         assert!(
-            crashed.iter().any(|s| s.name == name),
+            crashed.iter().any(|s| s.name == name.as_str()),
             "a running row with a dead PID must appear in get_crashed_services"
         );
 
@@ -694,7 +695,7 @@ mod verifier_query_methods_seeded {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,
             port: 29141,
             enabled: true,
@@ -706,7 +707,7 @@ mod verifier_query_methods_seeded {
             .expect("get_services_needing_action must succeed");
 
         assert!(
-            needing.iter().any(|s| s.name == name),
+            needing.iter().any(|s| s.name == name.as_str()),
             "Enabled+Crashed service must be returned by get_services_needing_action"
         );
 
@@ -759,7 +760,7 @@ mod state_verifier_live {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port,
             enabled: true,
@@ -768,7 +769,10 @@ mod state_verifier_live {
             .get_verified_states(&configs)
             .await
             .expect("get_verified_states");
-        let state = states.iter().find(|s| s.name == name).expect("state");
+        let state = states
+            .iter()
+            .find(|s| s.name == name.as_str())
+            .expect("state");
 
         assert_eq!(state.runtime_status, RuntimeStatus::Running);
         assert_eq!(state.pid, Some(child.id()));
@@ -801,7 +805,7 @@ mod state_verifier_live {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port,
             enabled: false,
@@ -810,7 +814,10 @@ mod state_verifier_live {
             .get_verified_states(&configs)
             .await
             .expect("get_verified_states");
-        let state = states.iter().find(|s| s.name == name).expect("state");
+        let state = states
+            .iter()
+            .find(|s| s.name == name.as_str())
+            .expect("state");
 
         assert_eq!(state.runtime_status, RuntimeStatus::Running);
         assert_eq!(
@@ -841,7 +848,7 @@ mod state_verifier_live {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port,
             enabled: true,
@@ -850,7 +857,10 @@ mod state_verifier_live {
             .get_verified_states(&configs)
             .await
             .expect("get_verified_states");
-        let state = states.iter().find(|s| s.name == name).expect("state");
+        let state = states
+            .iter()
+            .find(|s| s.name == name.as_str())
+            .expect("state");
 
         assert_eq!(
             state.runtime_status,
@@ -885,7 +895,7 @@ mod state_verifier_live {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,
             port,
             enabled: true,
@@ -894,7 +904,10 @@ mod state_verifier_live {
             .get_verified_states(&configs)
             .await
             .expect("get_verified_states");
-        let state = states.iter().find(|s| s.name == name).expect("state");
+        let state = states
+            .iter()
+            .find(|s| s.name == name.as_str())
+            .expect("state");
 
         assert_eq!(state.runtime_status, RuntimeStatus::Starting);
         assert_eq!(state.pid, Some(child.id()));
@@ -917,7 +930,7 @@ mod state_verifier_live {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         );
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port,
             enabled: true,
@@ -926,7 +939,10 @@ mod state_verifier_live {
             .get_verified_states(&configs)
             .await
             .expect("get_verified_states");
-        let state = states.iter().find(|s| s.name == name).expect("state");
+        let state = states
+            .iter()
+            .find(|s| s.name == name.as_str())
+            .expect("state");
 
         assert_eq!(
             state.runtime_status,

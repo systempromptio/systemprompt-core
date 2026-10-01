@@ -5,7 +5,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::PluginId;
+use systemprompt_identifiers::{JobName, PluginId};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilitySummary {
@@ -85,7 +85,7 @@ impl CapabilitySummary {
 pub struct JobWithExtension {
     pub extension_id: PluginId,
     pub extension_name: String,
-    pub job_name: String,
+    pub job_name: JobName,
     pub schedule: String,
     pub enabled: bool,
 }

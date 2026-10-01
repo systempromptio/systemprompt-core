@@ -20,11 +20,11 @@ use systemprompt_models::execution::context::RequestContext;
 use tokio::time::timeout;
 use tracing::debug;
 
-fn probe_context(server_name: &str) -> RequestContext {
+fn probe_context(server_name: &McpServerId) -> RequestContext {
     RequestContext::new(
         SessionId::new(format!("cli-{server_name}")),
         TraceId::generate(),
-        ContextId::derived_from_cli_probe(&McpServerId::new(server_name)),
+        ContextId::derived_from_cli_probe(server_name),
         AgentName::system(),
         Actor::anonymous(UserId::generate()),
     )
@@ -49,7 +49,7 @@ pub fn direct_url(server: &McpServerConfig) -> Result<String> {
 }
 
 pub async fn list_tools_unauthenticated(
-    server_name: &str,
+    server_name: &McpServerId,
     url: &str,
     timeout_secs: u64,
 ) -> Result<Vec<ToolInfo>> {
@@ -90,7 +90,7 @@ pub async fn list_tools_unauthenticated(
 }
 
 pub async fn list_tools_authenticated(
-    server_name: &str,
+    server_name: &McpServerId,
     url: &str,
     token: &SessionToken,
     timeout_secs: u64,

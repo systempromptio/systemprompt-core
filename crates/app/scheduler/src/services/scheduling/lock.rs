@@ -16,6 +16,7 @@
 
 use sqlx::pool::PoolConnection;
 use sqlx::{PgPool, Postgres};
+use systemprompt_identifiers::JobName;
 use systemprompt_traits::RepositoryError;
 use tracing::warn;
 
@@ -26,7 +27,7 @@ use crate::error::{SchedulerError, SchedulerResult};
 pub(super) struct JobLockGuard {
     conn: Option<PoolConnection<Postgres>>,
     key: i64,
-    job_name: String,
+    job_name: JobName,
 }
 
 impl Drop for JobLockGuard {
@@ -73,14 +74,17 @@ impl std::fmt::Debug for JobLockGuard {
 
 pub(super) async fn try_acquire_job_lock(
     write_pool: &PgPool,
-    job_name: &str,
+    job_name: &JobName,
 ) -> SchedulerResult<Option<JobLockGuard>> {
     let mut conn = write_pool.acquire().await.map_err(lock_error)?;
 
-    let key = sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, job_name)
-        .fetch_one(conn.as_mut())
-        .await
-        .map_err(lock_error)?;
+    let key = sqlx::query_scalar!(
+        r#"SELECT hashtext($1)::bigint AS "key!""#,
+        job_name.as_str()
+    )
+    .fetch_one(conn.as_mut())
+    .await
+    .map_err(lock_error)?;
 
     let acquired = sqlx::query_scalar!(r#"SELECT pg_try_advisory_lock($1) AS "acquired!""#, key)
         .fetch_one(conn.as_mut())
@@ -91,7 +95,7 @@ pub(super) async fn try_acquire_job_lock(
         Ok(Some(JobLockGuard {
             conn: Some(conn),
             key,
-            job_name: job_name.to_owned(),
+            job_name: job_name.clone(),
         }))
     } else {
         Ok(None)

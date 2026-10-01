@@ -5,6 +5,7 @@
 
 use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use super::select::select_tenant;
@@ -15,7 +16,7 @@ use crate::shared::CommandOutput;
 
 pub fn show_tenant(
     prompter: &dyn Prompter,
-    id: Option<&String>,
+    id: Option<&TenantId>,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
@@ -29,7 +30,7 @@ pub fn show_tenant(
 
     let tenant = match id {
         Some(id) => store
-            .find_tenant(&systemprompt_identifiers::TenantId::new(id))
+            .find_tenant(id)
             .ok_or_else(|| anyhow!("Tenant not found: {}", id))?,
         None if config.is_interactive() => {
             if store.tenants.is_empty() {
@@ -41,7 +42,7 @@ pub fn show_tenant(
     };
 
     let output = TenantDetailOutput {
-        id: tenant.id.as_str().to_owned(),
+        id: tenant.id.clone(),
         name: tenant.name.clone(),
         tenant_type: format!("{:?}", tenant.tenant_type).to_lowercase(),
         app_id: tenant.app_id.clone(),
