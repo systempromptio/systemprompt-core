@@ -35,16 +35,13 @@ mod webauthn_tests;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{
-    ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
 use systemprompt_users::UserRepository;
 use uuid::Uuid;
 
 pub async fn setup_test_db() -> DbPool {
     ensure_test_secrets_bootstrap();
-    let url = fixture_database_url().expect("DATABASE_URL");
-    let db = fixture_db_pool(&url).await.expect("connect test database");
+    let db = test_db_pool().await;
     seed_fixture_user(&db).await;
     db
 }

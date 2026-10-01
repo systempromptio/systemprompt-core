@@ -3,9 +3,7 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ModelId, UserId};
-use systemprompt_test_fixtures::{
-    ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> CanonicalRequest {
@@ -40,10 +38,7 @@ pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> Canonical
 pub async fn setup_db() -> DbPool {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     ensure_test_secrets_bootstrap();
-    let url = fixture_database_url().expect("DATABASE_URL required for gateway audit tests");
-    fixture_db_pool(&url)
-        .await
-        .expect("connect to test database")
+    test_db_pool().await
 }
 
 pub async fn seed_user(db: &DbPool) -> UserId {

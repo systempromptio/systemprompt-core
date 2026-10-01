@@ -6,10 +6,8 @@ use uuid::Uuid;
 
 #[tokio::test]
 async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_requests() {
-    let database = DisposableDb::installed("analytics_per_user_cost_boundaries")
-        .await
-        .expect("isolated analytics database");
-    let pool = database.pool().await.expect("analytics database pool");
+    let database = DisposableDb::with_schema("analytics_per_user_cost_boundaries").await;
+    let pool = database.test_pool().await;
     let raw = pool.write_pool_arc().expect("analytics write pool");
     let suffix = Uuid::new_v4().simple().to_string();
     let owner = UserId::new(format!("cost-owner-{suffix}"));

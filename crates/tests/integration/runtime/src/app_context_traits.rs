@@ -1,26 +1,26 @@
 //! Exercises trait implementations on [`AppContext`] via the
-//! [`fixture_app_context`] helper. Each test holds the context, dispatches
-//! via the relevant trait (`AppContextTrait`, `ExtensionContext`,
-//! `HasAnalytics`, `HasFingerprint`, `HasUserService`,
-//! `HasRouteClassifier`), and checks the resulting provider Arc / inner
-//! reference is wired through unchanged.
+//! [`test_app_context`](systemprompt_test_fixtures::test_app_context) helper.
+//! Each test holds the context, dispatches via the relevant trait
+//! (`AppContextTrait`, `ExtensionContext`, `HasAnalytics`, `HasFingerprint`,
+//! `HasUserService`, `HasRouteClassifier`), and checks the resulting provider
+//! Arc / inner reference is wired through unchanged.
 
 use anyhow::Result;
 use systemprompt_extension::{
     ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
 };
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_traits::AppContext as AppContextTrait;
 
-async fn build_ctx() -> Result<std::sync::Arc<systemprompt_runtime::AppContext>> {
-    let url = fixture_database_url()?;
-    let pool = fixture_db_pool(&url).await?;
-    fixture_app_context(&pool, &url)
+async fn build_ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    test_app_context(&pool, &url)
 }
 
 #[tokio::test]
 async fn app_context_trait_config_handle_db_handle() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     let cfg = AppContextTrait::config(ctx.as_ref());
     assert!(!cfg.database_url().is_empty());
     let _db = AppContextTrait::database_handle(ctx.as_ref());
@@ -29,7 +29,7 @@ async fn app_context_trait_config_handle_db_handle() -> Result<()> {
 
 #[tokio::test]
 async fn app_context_trait_optional_providers_present() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     assert!(AppContextTrait::analytics_provider(ctx.as_ref()).is_some());
     assert!(AppContextTrait::fingerprint_provider(ctx.as_ref()).is_some());
     assert!(AppContextTrait::user_provider(ctx.as_ref()).is_some());
@@ -38,7 +38,7 @@ async fn app_context_trait_optional_providers_present() -> Result<()> {
 
 #[tokio::test]
 async fn extension_context_dispatch() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     let _cfg = ExtensionContext::config(ctx.as_ref());
     let _db = ExtensionContext::database(ctx.as_ref());
     let none = ExtensionContext::get_extension(ctx.as_ref(), "unknown_xxx");
@@ -48,35 +48,35 @@ async fn extension_context_dispatch() -> Result<()> {
 
 #[tokio::test]
 async fn has_analytics_returns_inner_arc() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     let _ana = HasAnalytics::analytics(ctx.as_ref());
     Ok(())
 }
 
 #[tokio::test]
 async fn has_fingerprint_some_when_wired() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     assert!(HasFingerprint::fingerprint(ctx.as_ref()).is_some());
     Ok(())
 }
 
 #[tokio::test]
 async fn has_user_service_some_when_wired() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     assert!(HasUserService::user_service(ctx.as_ref()).is_some());
     Ok(())
 }
 
 #[tokio::test]
 async fn has_route_classifier_present() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     let _ = HasRouteClassifier::route_classifier(ctx.as_ref());
     Ok(())
 }
 
 #[tokio::test]
 async fn app_context_accessors_via_from_parts_path() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     let _ = ctx.config();
     let _ = ctx.db_pool();
     let _ = ctx.api_registry();
@@ -106,7 +106,7 @@ async fn app_context_builder_accessor() {
 
 #[tokio::test]
 async fn module_api_registry_get_routes_unknown_returns_none() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     let reg = ctx.api_registry();
     let r = reg.get_routes("nonexistent-x", ctx.as_ref());
     assert!(r.is_none());
@@ -116,7 +116,7 @@ async fn module_api_registry_get_routes_unknown_returns_none() -> Result<()> {
 
 #[tokio::test]
 async fn database_context_from_urls_read_only() -> Result<()> {
-    let url = systemprompt_test_fixtures::fixture_database_url()?;
+    let url = test_database_url();
     let dbc = systemprompt_runtime::DatabaseContext::from_urls(&url, None).await?;
     let _ = dbc.db_pool();
     Ok(())
@@ -124,7 +124,7 @@ async fn database_context_from_urls_read_only() -> Result<()> {
 
 #[tokio::test]
 async fn validate_system_passes_against_live_db() -> Result<()> {
-    let ctx = build_ctx().await?;
+    let ctx = build_ctx().await;
     systemprompt_runtime::validate_system(ctx.as_ref()).await?;
     Ok(())
 }

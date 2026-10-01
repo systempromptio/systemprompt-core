@@ -8,15 +8,10 @@ use systemprompt_database::DbPool;
 use systemprompt_events::{ANALYTICS_BROADCASTER, Broadcaster, EventRouter};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::AnalyticsEventBuilder;
-use systemprompt_test_fixtures::{
-    closed_db_pool, fixture_database_url, fixture_db_pool, unique_user_id,
-};
+use systemprompt_test_fixtures::{closed_db_pool, test_db_pool, unique_user_id};
 
 async fn fixture_pool() -> sqlx::PgPool {
-    let url = fixture_database_url().expect("events database fixture URL");
-    let db: DbPool = fixture_db_pool(&url)
-        .await
-        .expect("connect to migrated events database fixture");
+    let db: DbPool = test_db_pool().await;
     let arc = db.pool_arc().expect("events database fixture pool");
     let pool = (*arc).clone();
     sqlx::query("SELECT 1 FROM event_outbox LIMIT 0")

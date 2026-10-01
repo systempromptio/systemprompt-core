@@ -8,7 +8,7 @@ use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource};
 use systemprompt_models::ContentRouting;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::{CreateSessionInput, ExtractSignals};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
@@ -47,8 +47,7 @@ impl Fixture {
     async fn new() -> Result<Self> {
         // The in-process guard orders tests inside one process.
         let guard = acquire_serial().await;
-        let url = fixture_database_url()?;
-        let db = fixture_db_pool(&url).await?;
+        let db = test_db_pool().await;
         let pool = db.pool_arc()?.as_ref().clone();
         let tag = Uuid::new_v4().simple().to_string();
         Ok(Self {

@@ -26,7 +26,7 @@ use systemprompt_models::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentOAuthConfig as AgentConfigOAuth,
     AiProvider, CapabilitiesConfig,
 };
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_test_mocks::MockAiProvider;
 use systemprompt_traits::{
     AgentJwtClaims, DynJwtValidationProvider, GenerateTokenParams, JwtProviderError, JwtResult,
@@ -84,7 +84,7 @@ fn fixture_agent_config() -> AgentConfig {
 
 async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
     let bootstrap = ensure_test_bootstrap();
-    let db_pool = fixture_db_pool(&bootstrap.database_url).await?;
+    let db_pool = test_db_pool().await;
 
     let global_config = Arc::new(systemprompt_test_fixtures::fixture_config(
         &bootstrap.database_url,

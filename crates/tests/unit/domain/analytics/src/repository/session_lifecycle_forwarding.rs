@@ -31,8 +31,8 @@ async fn isolated_repository(
     systemprompt_database::DbPool,
     systemprompt_analytics::SessionRepository,
 ) {
-    let database = DisposableDb::installed(prefix).await.unwrap();
-    let pool = database.pool().await.unwrap();
+    let database = DisposableDb::with_schema(prefix).await;
+    let pool = database.test_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .unwrap()
         .sessions;

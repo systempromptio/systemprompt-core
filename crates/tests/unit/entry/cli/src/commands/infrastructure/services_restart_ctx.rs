@@ -1,7 +1,7 @@
 //! `infra services restart` against a fixture `AppContext`.
 //!
 //! The batch and single restart entry points take `&Arc<AppContext>` directly
-//! rather than a `CommandContext`, so `fixture_app_context` reaches them where
+//! rather than a `CommandContext`, so `test_app_context` reaches them where
 //! a `--database-url` command context cannot. The fixture registry is empty,
 //! which is exactly the "nothing to restart" shape the plan computation and
 //! the batch message renderers have to handle.
@@ -21,7 +21,7 @@ use systemprompt_test_fixtures::{
 
 // The restart entry points build a JWT provider and an MCP orchestrator from
 // the process-global config, so the bootstrap has to run before the context is
-// assembled — a bare `fixture_app_context` leaves both unresolvable.
+// assembled — a bare `test_app_context` leaves both unresolvable.
 async fn app_ctx() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     install_test_signing_key();

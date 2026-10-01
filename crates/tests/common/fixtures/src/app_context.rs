@@ -6,9 +6,8 @@
 //! assembles a context directly via `AppContext::from_parts`. The fixture wires
 //! in an [`AllowAllHook`] so route handlers behave like permissive auth.
 //!
-//! [`test_app_context`] is the panicking form of [`fixture_app_context`]: a
-//! test whose context cannot be assembled fails rather than skips (see
-//! [`crate::db`]).
+//! [`test_app_context`] panics when the context cannot be assembled: a test
+//! whose context is missing fails rather than skips (see [`crate::db`]).
 
 use std::sync::{Arc, OnceLock};
 
@@ -106,12 +105,8 @@ pub fn fixture_config(database_url: &str) -> Config {
     }
 }
 
-pub fn fixture_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppContext>> {
-    fixture_app_context_with_filter(pool, database_url, Arc::new(AllowAllFilter))
-}
-
 pub fn test_app_context(pool: &DbPool, database_url: &str) -> Arc<AppContext> {
-    fixture_app_context(pool, database_url)
+    fixture_app_context_with_filter(pool, database_url, Arc::new(AllowAllFilter))
         .unwrap_or_else(|e| panic!("fixture AppContext over the test database: {e:#}"))
 }
 
@@ -331,16 +326,16 @@ fn fixture_app_context_assembled(
     Ok(Arc::new(ctx))
 }
 
-// The vendor-neutral warn-only chain: what a deployment without a
-// `<services>/governance/config.yaml` boots with.
-/// An ingest over the fixture pool with no scanners: the narrow waist itself,
-/// not the installation's policy.
+// An ingest over the fixture pool with no scanners: the narrow waist itself,
+// not the installation's policy.
 pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::ArtifactIngest>> {
     Ok(Arc::new(systemprompt_mcp::ArtifactIngest::from_db(
         db, None,
     )?))
 }
 
+// The vendor-neutral warn-only chain: what a deployment without a
+// `<services>/governance/config.yaml` boots with.
 pub fn default_governance_engine() -> Arc<systemprompt_security::policy::GovernanceEngine> {
     Arc::new(
         systemprompt_security::policy::GovernanceEngine::from_config(

@@ -7999,6 +7999,7 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-test-fixtures",
  "tokio",
 ]
 

@@ -111,8 +111,8 @@ async fn insert_persists_a_decision_row() {
 #[tokio::test]
 async fn trace_lookup_is_distinct_and_filters_by_decision_and_time()
 -> Result<(), Box<dyn std::error::Error>> {
-    let owned = DisposableDb::installed("governance_trace_lookup").await?;
-    let db = owned.pool().await?;
+    let owned = DisposableDb::with_schema("governance_trace_lookup").await;
+    let db = owned.test_pool().await;
     let pool = db.write_pool_arc().expect("write pool");
     let actor = Actor::user(UserId::new("audit-trace-user"));
     seed_user_row(&db, &actor.user_id, "audit-trace-user@example.invalid").await?;

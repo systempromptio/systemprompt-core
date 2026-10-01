@@ -10,17 +10,14 @@ use systemprompt_security::authz::{
     Access, AccessControlRepository, ChainIndexCache, ChainSources, EntityKind, RuleType,
     UpsertRuleParams,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 const KIND: EntityKind = EntityKind::Plugin;
 const LONG: Duration = Duration::from_secs(3600);
 
 async fn fixture_repository() -> (AccessControlRepository, DbPool) {
-    let url = fixture_database_url().expect("authz database fixture URL");
-    let db = fixture_db_pool(&url)
-        .await
-        .expect("connect to migrated authz database fixture");
+    let db = test_db_pool().await;
     let repo = AccessControlRepository::new(&db)
         .expect("construct access-control repository from fixture database");
     (repo, db)

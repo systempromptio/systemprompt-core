@@ -21,13 +21,11 @@ use systemprompt_security::policy::{
     ApprovalOutcome, ApprovalRepository, ApprovalStatus, ApprovalVerdict, NewApprovalRequest,
     args_digest, wait_for_decision,
 };
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 
 async fn repo() -> ApprovalRepository {
-    let b = ensure_test_bootstrap();
-    let db = fixture_db_pool(&b.database_url)
-        .await
-        .expect("the approval tests need a reachable test database");
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
     let pool = db.pool_arc().expect("read pool");
     ApprovalRepository::new((*pool).clone())
 }

@@ -58,9 +58,8 @@ fn card_field<'a>(card: &'a Value, heading: &str) -> &'a Value {
 
 async fn raw_pool(database: &DisposableDb) -> sqlx::PgPool {
     database
-        .pool()
+        .test_pool()
         .await
-        .expect("open isolated database")
         .pool_arc()
         .expect("raw PostgreSQL pool")
         .as_ref()

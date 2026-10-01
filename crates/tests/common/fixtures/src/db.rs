@@ -9,10 +9,6 @@
 //! `DATABASE_URL` for each shard and `just test-shard <group>` does the same
 //! locally. The caller is responsible for the database having been migrated
 //! (the `systemprompt-test-migrate` binary handles that).
-//!
-//! [`fixture_database_url`] and [`db_pool_or_skip!`](crate::db_pool_or_skip)
-//! are the older skip-on-missing API, kept only until their call sites move to
-//! the panicking helpers above.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -33,49 +29,13 @@ pub fn test_database_url() -> String {
 
 pub async fn test_db_pool() -> DbPool {
     let url = test_database_url();
-    fixture_db_pool(&url)
+    connect(&url)
         .await
         .unwrap_or_else(|e| panic!("DATABASE_URL is set but unusable: {e:#}"))
 }
 
 pub async fn test_pg_pool() -> sqlx::PgPool {
     test_db_pool().await.write_pool().as_ref().clone()
-}
-
-pub fn fixture_database_url() -> Result<String> {
-    dotenvy::dotenv().ok();
-    let url = std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|u| !u.trim().is_empty());
-    match url {
-        Some(url) => Ok(url),
-        None => {
-            crate::skip::skip_or_panic("DATABASE_URL", "DB-backed tests need a live Postgres");
-            Err(anyhow::anyhow!(
-                "DATABASE_URL must be set for DB-backed integration tests"
-            ))
-        },
-    }
-}
-
-pub fn fixture_database_url_opt() -> Option<String> {
-    fixture_database_url().ok()
-}
-
-// Why: the only sanctioned way for a DB-backed test to give up. The `return`
-// is unreachable under CI -- `fixture_database_url` panics first -- so the
-// early exit is a developer-machine convenience, not a hole in the tier.
-#[macro_export]
-macro_rules! db_pool_or_skip {
-    () => {{
-        let Some(url) = $crate::db::fixture_database_url_opt() else {
-            return; // skip-ok: fixture_database_url panics under CI
-        };
-        let pool = $crate::db::fixture_db_pool(&url)
-            .await
-            .expect("DATABASE_URL is set, so connecting to it must succeed");
-        (pool, url)
-    }};
 }
 
 // Connection ceiling for a single test's pool.
@@ -114,12 +74,12 @@ pub async fn closed_db_pool() -> DbPool {
     Arc::new(Database::from_pools(Arc::new(pool), None))
 }
 
-/// The pool belongs to the calling test: a sqlx connection registers its socket
-/// with the reactor of the runtime that opened it, so one shared across
-/// `#[tokio::test]` runtimes hands a later test a connection whose runtime is
-/// gone ("Tokio 1.x context ... is being shutdown"). Callers that need the same
-/// pool twice should clone the handle rather than call this again.
-pub async fn fixture_db_pool(url: &str) -> Result<DbPool> {
+// The pool belongs to the calling test: a sqlx connection registers its socket
+// with the reactor of the runtime that opened it, so one shared across
+// `#[tokio::test]` runtimes hands a later test a connection whose runtime is
+// gone ("Tokio 1.x context ... is being shutdown"). Callers that need the same
+// pool twice should clone the handle rather than call this again.
+pub(crate) async fn connect(url: &str) -> Result<DbPool> {
     let cfg = PoolConfig {
         max_connections: FIXTURE_POOL_MAX_CONNECTIONS,
         idle_timeout: FIXTURE_POOL_IDLE_TIMEOUT,

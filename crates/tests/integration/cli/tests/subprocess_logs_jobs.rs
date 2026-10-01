@@ -142,9 +142,8 @@ fn card_field<'a>(card: &'a Value, heading: &str) -> &'a Value {
 async fn seeded_logs_database(prefix: &str) -> (DisposableDb, sqlx::PgPool, String, String) {
     let database = DisposableDb::with_schema(prefix).await;
     let pool = database
-        .pool()
+        .test_pool()
         .await
-        .expect("open isolated log database")
         .pool_arc()
         .expect("raw PostgreSQL pool")
         .as_ref()
@@ -457,9 +456,8 @@ async fn jobs_history_filters_seeded_status_and_job_name() {
     let _scheduler_extension = systemprompt_scheduler::SchedulerExtension;
     let database = DisposableDb::with_schema("cli_jobs_history").await;
     let pool = database
-        .pool()
+        .test_pool()
         .await
-        .expect("open jobs history database")
         .pool_arc()
         .expect("raw PostgreSQL pool")
         .as_ref()

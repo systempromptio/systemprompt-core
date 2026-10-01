@@ -44,7 +44,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
                 Ok(())
             })
         })
-        .connect(&crate::fixture_database_url())
+        .connect(&systemprompt_test_fixtures::test_database_url())
         .await
         .unwrap();
     sqlx::raw_sql(include_str!(
