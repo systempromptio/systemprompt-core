@@ -13,6 +13,15 @@ default:
 lint-raw-ids:
     ./scripts/lint-raw-ids.sh
 
+# Strict raw-ID lint: names derived from systemprompt_identifiers, fields and fn
+# arguments, String/&str/Uuid. Not in check-gates until the wave-3 lanes land.
+lint-raw-ids-strict:
+    ./scripts/lint-raw-ids.sh --strict
+
+# Per-crate and per-name counts for the strict raw-ID lint (always exits 0).
+lint-raw-ids-report:
+    ./scripts/lint-raw-ids.sh --report
+
 # Security-critical lookups read the primary, never a lagging replica.
 lint-authoritative-reads:
     ./scripts/lint-authoritative-reads.sh
