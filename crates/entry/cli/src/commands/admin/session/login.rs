@@ -32,12 +32,7 @@ use crate::session::api::create_local_session_row;
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
-    #[arg(
-        long,
-        env = "SYSTEMPROMPT_ADMIN_EMAIL",
-        hide = true,
-        help = "Override email from credentials"
-    )]
+    #[arg(long, hide = true, help = "Override email from credentials")]
     pub email: Option<String>,
 
     #[arg(long, default_value = "24", help = "Session duration in hours")]

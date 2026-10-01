@@ -11,7 +11,7 @@ use systemprompt_database::{
 };
 use systemprompt_extension::{ExtensionRegistry, LoaderError};
 use systemprompt_logging::CliService;
-use systemprompt_models::Config;
+use systemprompt_models::{Config, Profile};
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
@@ -29,7 +29,10 @@ pub(super) async fn execute_migrate(
     if config.should_show_verbose() {
         CliService::info(&format!("System path: {}", sys_config.system_path));
         CliService::info(&format!("Database type: {}", sys_config.database_type));
-        CliService::info(&format!("Database URL: {}", sys_config.database_url));
+        CliService::info(&format!(
+            "Database URL: {}",
+            Profile::mask_database_url(&sys_config.database_url)
+        ));
     }
 
     let database = Arc::new(

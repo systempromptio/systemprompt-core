@@ -23,6 +23,7 @@ use anyhow::Result;
 use clap::Subcommand;
 
 use crate::context::CommandContext;
+use crate::descriptor::DataImpact;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -102,5 +103,33 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
         AdminCommands::AccessControl(cmd) => access_control::execute(cmd, ctx).await,
         AdminCommands::Keys(cmd) => keys::execute(cmd, ctx).await,
         AdminCommands::Identity(cmd) => identity::execute(cmd, ctx),
+    }
+}
+
+impl AdminCommands {
+    pub const fn data_impact(&self) -> DataImpact {
+        match self {
+            Self::Users(cmd) => cmd.data_impact(),
+            Self::Agents(cmd) => cmd.data_impact(),
+            Self::Bootstrap(_) | Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_)) => {
+                DataImpact::Destructive
+            },
+            Self::Bridge(
+                bridge::BridgeCommands::EnrollCert(_)
+                | bridge::BridgeCommands::IssueCode(_)
+                | bridge::BridgeCommands::List(_),
+            )
+            | Self::AccessControl(
+                access_control::AccessControlCommands::ExportYaml(_)
+                | access_control::AccessControlCommands::Lint(_),
+            )
+            | Self::Keys(
+                keys::KeysCommands::Generate(_) | keys::KeysCommands::IssuePluginToken(_),
+            )
+            | Self::Config(_)
+            | Self::Setup(_)
+            | Self::Session(_)
+            | Self::Identity(_) => DataImpact::Preserving,
+        }
     }
 }

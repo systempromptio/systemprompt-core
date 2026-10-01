@@ -22,6 +22,7 @@ use anyhow::Result;
 use clap::Subcommand;
 
 use crate::context::CommandContext;
+use crate::descriptor::DataImpact;
 
 #[derive(Debug, Subcommand)]
 pub enum CoreCommands {
@@ -72,5 +73,65 @@ pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
         CoreCommands::Marketplace(cmd) => marketplace::execute(cmd, ctx).await,
         CoreCommands::Hooks(cmd) => hooks::execute(cmd, ctx),
         CoreCommands::Services(cmd) => Box::pin(services::execute(cmd, ctx)).await,
+    }
+}
+
+impl CoreCommands {
+    pub const fn data_impact(&self) -> DataImpact {
+        use content::ContentCommands;
+        use content::link::LinkCommands;
+
+        match self {
+            Self::Content(
+                ContentCommands::Delete(_)
+                | ContentCommands::DeleteSource(_)
+                | ContentCommands::Link(LinkCommands::Delete(_)),
+            )
+            | Self::Files(files::FilesCommands::Delete(_))
+            | Self::Contexts(contexts::ContextsCommands::Delete(_)) => DataImpact::Destructive,
+            Self::Content(
+                ContentCommands::List(_)
+                | ContentCommands::Show(_)
+                | ContentCommands::Search(_)
+                | ContentCommands::Edit(_)
+                | ContentCommands::Popular(_)
+                | ContentCommands::Verify(_)
+                | ContentCommands::Status(_)
+                | ContentCommands::Link(
+                    LinkCommands::Generate(_)
+                    | LinkCommands::Show(_)
+                    | LinkCommands::List(_)
+                    | LinkCommands::Performance(_),
+                )
+                | ContentCommands::Analytics(_)
+                | ContentCommands::Files(_),
+            )
+            | Self::Files(
+                files::FilesCommands::List(_)
+                | files::FilesCommands::Show(_)
+                | files::FilesCommands::Upload(_)
+                | files::FilesCommands::Validate(_)
+                | files::FilesCommands::Config(_)
+                | files::FilesCommands::Search(_)
+                | files::FilesCommands::Stats(_)
+                | files::FilesCommands::Ai(_),
+            )
+            | Self::Contexts(
+                contexts::ContextsCommands::List(_)
+                | contexts::ContextsCommands::Show(_)
+                | contexts::ContextsCommands::Create(_)
+                | contexts::ContextsCommands::Edit(_)
+                | contexts::ContextsCommands::Use(_)
+                | contexts::ContextsCommands::New(_),
+            )
+            | Self::Artifacts(
+                artifacts::ArtifactsCommands::List(_) | artifacts::ArtifactsCommands::Show(_),
+            )
+            | Self::Skills(_)
+            | Self::Plugins(_)
+            | Self::Marketplace(_)
+            | Self::Hooks(_)
+            | Self::Services(_) => DataImpact::Preserving,
+        }
     }
 }

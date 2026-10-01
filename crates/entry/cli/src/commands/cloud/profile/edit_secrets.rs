@@ -10,6 +10,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use crate::interactive::Prompter;
+use crate::shared::write_private_atomic;
 
 pub(super) fn edit_api_keys(prompter: &dyn Prompter, profile_dir: &Path) -> Result<()> {
     CliService::section("API Keys (secrets.json)");
@@ -51,14 +52,7 @@ pub(super) fn edit_api_keys(prompter: &dyn Prompter, profile_dir: &Path) -> Resu
     }
 
     let content = serde_json::to_string_pretty(&secrets)?;
-    std::fs::write(&secrets_path, content)?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let permissions = std::fs::Permissions::from_mode(0o600);
-        std::fs::set_permissions(&secrets_path, permissions)?;
-    }
+    write_private_atomic(&secrets_path, &content)?;
 
     CliService::success("API keys updated");
     Ok(())

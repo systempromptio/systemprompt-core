@@ -11,7 +11,7 @@ pub mod types;
 pub mod list;
 pub mod validate;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
 use crate::context::CommandContext;
@@ -34,8 +34,12 @@ pub fn execute(command: HooksCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         HooksCommands::Validate(args) => {
-            let result = validate::execute(args, &ctx.cli).context("Failed to validate hooks")?;
+            let (result, valid) =
+                validate::execute(args, &ctx.cli).context("Failed to validate hooks")?;
             render_result(&result, &ctx.cli);
+            if !valid {
+                bail!("Hook validation failed");
+            }
             Ok(())
         },
     }

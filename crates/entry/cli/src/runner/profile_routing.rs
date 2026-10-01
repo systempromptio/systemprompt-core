@@ -13,6 +13,7 @@
 use anyhow::{Context, Result, bail};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 
+use super::routing_decision::{RoutingDecision, decide_routing};
 use super::{args, bootstrap};
 use crate::cli_settings::CliConfig;
 use crate::commands::{admin, infrastructure};
@@ -31,17 +32,6 @@ pub enum BootstrapOutcome {
     RemoteExecuted,
     ContinueLocal,
     ExternalDbUrl(String),
-}
-
-/// Where a command runs once the routing target is known.
-#[derive(Debug, PartialEq, Eq)]
-pub enum RoutingDecision {
-    ExecuteRemote {
-        hostname: String,
-        token: systemprompt_identifiers::SessionToken,
-        context: systemprompt_identifiers::ContextId,
-    },
-    ContinueLocal,
 }
 
 pub(super) async fn bootstrap_profile(
@@ -73,7 +63,7 @@ async fn enforce_routing_policy(
     let class = desc.routing_class();
     if !ctx.env.is_deployment_host && class != RoutingClass::LocalOnly && !ctx.has_export {
         let profile = ProfileBootstrap::get()?;
-        return try_remote_routing(cli, profile, cli_config, class).await;
+        return try_remote_routing(cli, profile, cli_config, desc).await;
     }
 
     if ctx.has_export && ctx.is_cloud && !ctx.external_db_access {
@@ -104,7 +94,7 @@ pub fn require_explicit_cloud_profile(
     source: ProfileSource,
     desc: &CommandDescriptor,
 ) -> Result<()> {
-    if !desc.requires_explicit_cloud_profile() || source.is_explicit() {
+    if !desc.is_destructive() || source.is_explicit() {
         return Ok(());
     }
 
@@ -168,11 +158,16 @@ async fn try_remote_routing(
     cli: &args::Cli,
     profile: &systemprompt_models::Profile,
     cli_config: &CliConfig,
-    class: RoutingClass,
+    desc: &CommandDescriptor,
 ) -> Result<BootstrapOutcome> {
     use super::routing;
 
-    let decision = decide_routing(routing::determine_execution_target(), profile, class)?;
+    let decision = decide_routing(
+        routing::determine_execution_target(),
+        profile,
+        desc.routing_class(),
+        desc.data_impact(),
+    )?;
     let RoutingDecision::ExecuteRemote {
         hostname,
         token,
@@ -183,46 +178,12 @@ async fn try_remote_routing(
     };
 
     confirm_remote_job_run(cli, cli_config, &profile.name, &hostname)?;
-    let args = args::reconstruct_args(cli);
+    let args = args::reconstruct_args();
     let exit_code = routing::execute_remote(&hostname, &token, &context, &args, 300).await?;
     if exit_code != 0 {
         bail!("Remote command exited with code {}", exit_code);
     }
     Ok(BootstrapOutcome::RemoteExecuted)
-}
-
-pub fn decide_routing(
-    target: Result<super::routing::ExecutionTarget>,
-    profile: &systemprompt_models::Profile,
-    class: RoutingClass,
-) -> Result<RoutingDecision> {
-    use super::routing::ExecutionTarget;
-
-    let is_cloud = profile.target.is_cloud();
-    match target {
-        Ok(ExecutionTarget::Remote {
-            hostname,
-            token,
-            context,
-        }) => Ok(RoutingDecision::ExecuteRemote {
-            hostname,
-            token,
-            context,
-        }),
-        Ok(ExecutionTarget::Local) if is_cloud => {
-            allow_local_execution(profile, class, "no tenant is configured")?;
-            Ok(RoutingDecision::ContinueLocal)
-        },
-        Err(e) if is_cloud => {
-            allow_local_execution(profile, class, &format!("routing failed: {}", e))?;
-            Ok(RoutingDecision::ContinueLocal)
-        },
-        Ok(ExecutionTarget::Local) => Ok(RoutingDecision::ContinueLocal),
-        Err(e) => {
-            tracing::debug!(error = %e, "Routing failed on a local profile; continuing locally");
-            Ok(RoutingDecision::ContinueLocal)
-        },
-    }
 }
 
 pub fn confirm_remote_job_run(
@@ -257,44 +218,4 @@ pub fn confirm_remote_job_run(
         run_args.yes,
         cli_config,
     )
-}
-
-pub fn allow_local_execution(
-    profile: &systemprompt_models::Profile,
-    class: RoutingClass,
-    reason: &str,
-) -> Result<()> {
-    if profile.database.external_db_access {
-        tracing::debug!(
-            profile_name = %profile.name,
-            reason = reason,
-            "Cloud profile allowing local execution via external_db_access"
-        );
-        return Ok(());
-    }
-
-    if class == RoutingClass::ReadOnly {
-        tracing::warn!(
-            profile_name = %profile.name,
-            reason = reason,
-            "Cloud profile could not route remotely; reading local data instead"
-        );
-        return Ok(());
-    }
-
-    bail!(
-        "Cloud profile '{}' requires remote execution but {}.\n{}",
-        profile.name,
-        reason,
-        remediation_for(reason)
-    )
-}
-
-pub fn remediation_for(reason: &str) -> &'static str {
-    if reason.contains("load tenants") || reason.contains("tenant") {
-        "Run 'systemprompt cloud tenant list' to sync the tenant store, and check you are in the \
-         project directory this profile belongs to."
-    } else {
-        "Run 'systemprompt admin session login' to authenticate."
-    }
 }

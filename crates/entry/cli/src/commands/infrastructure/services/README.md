@@ -461,18 +461,3 @@ sp --json infra services status | jq '.agents[] | select(.status == "running")'
 # Get health status
 sp --json infra services status --health | jq '.agents[] | {name, health}'
 ```
-
----
-
-## Compliance Checklist
-
-- [x] Group dispatch accepts `ctx: &CommandContext`; leaf `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] JSON output supported via `--json` flag
-- [x] Graceful shutdown handling
-
-
----

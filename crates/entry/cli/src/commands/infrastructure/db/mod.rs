@@ -33,6 +33,7 @@ use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor};
 
 use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
+use crate::interactive::require_confirmation;
 use crate::shared::render_result;
 use dispatch::{dispatch_profile_migration, dispatch_standalone_migration};
 
@@ -54,9 +55,17 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
 
     match cmd {
         DbCommands::Query { sql, limit, offset } => {
-            run_query(&query_executor, &sql, limit, offset, config).await
+            run_query(&query_executor, &admin_service, &sql, limit, offset, config).await
         },
-        DbCommands::Execute { sql } => run_write(&query_executor, &sql, config).await,
+        DbCommands::Execute { sql, yes } => {
+            require_confirmation(
+                ctx.prompter(),
+                &format!("Execute this write against the database?\n  {sql}"),
+                yes,
+                config,
+            )?;
+            run_write(&query_executor, &sql, config).await
+        },
         DbCommands::Tables { filter, exact } => {
             schema::execute_tables(&admin_service, filter, exact, config).await
         },
@@ -126,13 +135,14 @@ async fn connect_services(
 
 async fn run_query(
     executor: &QueryExecutor,
+    admin_service: &DatabaseAdminService,
     sql: &str,
     limit: Option<u32>,
     offset: Option<u32>,
     config: &CliConfig,
 ) -> Result<()> {
     let params = query::QueryParams { sql, limit, offset };
-    let result = query::execute_query(executor, &params, config).await?;
+    let result = query::execute_query(executor, admin_service, &params, config).await?;
     render_result(&result, config);
     Ok(())
 }

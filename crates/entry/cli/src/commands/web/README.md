@@ -1044,21 +1044,3 @@ sp --json web validate | jq '.errors[]'
 
 sp --json web validate | jq 'if .valid then "Configuration OK" else "Issues found" end'
 ```
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] `delete` commands require `--yes` / `-y` flag
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] `resolve_input` pattern used for interactive/non-interactive selection
-- [x] JSON output supported via `--json` flag
-- [x] Proper error messages for missing required flags
-- [x] No inline comments per Rust standards
-
-
----

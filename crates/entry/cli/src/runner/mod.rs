@@ -12,6 +12,7 @@ mod bootstrap;
 mod db_url;
 pub mod profile_routing;
 pub mod routing;
+pub mod routing_decision;
 mod structured_output;
 
 use anyhow::{Context, Result, bail};

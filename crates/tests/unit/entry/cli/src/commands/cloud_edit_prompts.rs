@@ -182,3 +182,40 @@ fn edit_runtime_settings_exhausted_prompter_errors() {
     let err = edit_runtime_settings(&prompter, &mut profile).unwrap_err();
     assert!(err.to_string().contains("exhausted"));
 }
+
+const HOST_PLACEHOLDER: &str = "${SP_EDIT_DOC_UNSET_HOST:-127.0.0.1}";
+
+fn read_raw(path: &std::path::Path) -> serde_yaml::Value {
+    serde_yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+// Why: the edit used to save the interpolated struct, so every `${VAR}` in
+// the profile was replaced by the operator's shell value (or its default).
+#[test]
+fn saving_an_edit_keeps_untouched_placeholders_and_writes_the_changed_leaf() {
+    use systemprompt_cli::cloud::profile::edit_document::ProfileDocument;
+
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("profile.yaml");
+    let mut raw = serde_yaml::to_value(make_profile()).unwrap();
+    raw["server"]["host"] = serde_yaml::Value::String(HOST_PLACEHOLDER.to_owned());
+    let text = serde_yaml::to_string(&raw).unwrap();
+    std::fs::write(&path, &text).unwrap();
+
+    let before = Profile::from_yaml(&text, &path).unwrap();
+    assert_eq!(before.server.host, "127.0.0.1");
+    let mut after = before.clone();
+    after.server.port = 9090;
+
+    let mut document = ProfileDocument::open(&path).unwrap();
+    document.apply_changes(&before, &after).unwrap();
+    document.save().unwrap();
+
+    let saved = read_raw(&path);
+    assert_eq!(
+        saved["server"]["host"],
+        serde_yaml::Value::String(HOST_PLACEHOLDER.to_owned()),
+        "an untouched placeholder must survive the save"
+    );
+    assert_eq!(saved["server"]["port"], serde_yaml::Value::from(9090));
+}

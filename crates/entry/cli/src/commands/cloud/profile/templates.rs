@@ -15,6 +15,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::{CliPaths, Profile};
 
 use crate::commands::cloud::init::templates::ai_config;
+use crate::shared::write_private_atomic;
 
 use systemprompt_cloud::deploy::DockerfileBuilder;
 
@@ -188,19 +189,7 @@ pub fn save_secrets(
     }
 
     let content = serde_json::to_string_pretty(&secrets).context("Failed to serialize secrets")?;
-
-    std::fs::write(secrets_path, content)
-        .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let permissions = std::fs::Permissions::from_mode(0o600);
-        std::fs::set_permissions(secrets_path, permissions)
-            .with_context(|| format!("Failed to set permissions on {}", secrets_path.display()))?;
-    }
-
-    Ok(())
+    write_private_atomic(secrets_path, &content)
 }
 
 pub fn get_services_path() -> Result<String> {

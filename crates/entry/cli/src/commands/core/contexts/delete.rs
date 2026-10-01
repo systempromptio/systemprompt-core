@@ -52,7 +52,11 @@ pub async fn execute_with_pool(
         .await
         .context("Failed to fetch context details")?;
 
-    if !args.yes && config.is_interactive() {
+    if !args.yes && !config.is_interactive() {
+        bail!("--yes is required in non-interactive mode");
+    }
+
+    if !args.yes {
         CliService::warning(&format!(
             "You are about to delete context '{}' ({})",
             context.name,

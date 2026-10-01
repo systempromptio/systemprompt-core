@@ -39,22 +39,6 @@ pub struct JobRunResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SessionCleanupOutput {
-    pub job_name: String,
-    pub sessions_cleaned: i64,
-    pub hours_threshold: i32,
-    pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct LogCleanupOutput {
-    pub job_name: String,
-    pub entries_deleted: i64,
-    pub days_threshold: i32,
-    pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobShowOutput {
     pub name: String,
     pub description: String,

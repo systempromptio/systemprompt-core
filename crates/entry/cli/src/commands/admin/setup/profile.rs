@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_identifiers::Email;
@@ -174,5 +174,8 @@ pub(super) fn run_migrations(profile_path: &Path) -> Result<()> {
         CliPaths::db_migrate_cmd()
     ));
 
-    Ok(())
+    bail!(
+        "Database migrations failed ({}); the profile was written but setup did not complete",
+        output.status
+    )
 }

@@ -14,6 +14,7 @@ mod create_setup;
 pub mod create_tenant;
 pub(super) mod delete;
 mod edit;
+pub mod edit_document;
 mod edit_secrets;
 pub mod edit_settings;
 mod list;

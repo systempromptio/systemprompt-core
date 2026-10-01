@@ -73,7 +73,11 @@ async fn execute_runs_write_statements() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     db::execute(
-        parse(&["execute", "DELETE FROM logs WHERE id = 'log_never_exists'"]),
+        parse(&[
+            "execute",
+            "DELETE FROM logs WHERE id = 'log_never_exists'",
+            "--yes",
+        ]),
         &ctx,
     )
     .await

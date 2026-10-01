@@ -356,20 +356,3 @@ sp plugins mcp list
 # Run a test query
 sp infra db query "SELECT version()"
 ```
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] `resolve_input` pattern used for interactive/non-interactive selection
-- [x] JSON output supported via `--json` flag
-- [x] Proper error messages for missing required flags
-- [x] Environment variables supported as fallback for API keys
-
-
----

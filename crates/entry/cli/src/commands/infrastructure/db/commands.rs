@@ -16,7 +16,11 @@ pub enum DbCommands {
         offset: Option<u32>,
     },
     #[command(about = "Execute write operation (INSERT, UPDATE, DELETE)")]
-    Execute { sql: String },
+    Execute {
+        sql: String,
+        #[arg(short = 'y', long, help = "Skip the confirmation prompt")]
+        yes: bool,
+    },
     #[command(
         about = "List all tables with row counts and sizes",
         long_about = "List all tables. Row counts come from the planner statistics \

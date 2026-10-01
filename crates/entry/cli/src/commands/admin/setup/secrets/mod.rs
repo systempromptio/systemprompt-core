@@ -19,7 +19,7 @@ use systemprompt_logging::CliService;
 use super::SetupArgs;
 use crate::CliConfig;
 use crate::interactive::Prompter;
-use crate::shared::generate_identity;
+use crate::shared::{generate_identity, write_private_atomic};
 use data::resolve_primary;
 use prompts::{resolve_interactive_primary, select_provider_keys};
 
@@ -127,23 +127,8 @@ fn validate_secrets(secrets: &SecretsData) -> Result<()> {
 }
 
 pub(super) fn save(secrets: &SecretsData, secrets_path: &Path) -> Result<()> {
-    if let Some(parent) = secrets_path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create directory {}", parent.display()))?;
-    }
-
     let content = serde_json::to_string_pretty(secrets).context("Failed to serialize secrets")?;
-
-    std::fs::write(secrets_path, content)
-        .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let permissions = std::fs::Permissions::from_mode(0o600);
-        std::fs::set_permissions(secrets_path, permissions)
-            .with_context(|| format!("Failed to set permissions on {}", secrets_path.display()))?;
-    }
+    write_private_atomic(secrets_path, &content)?;
 
     CliService::success(&format!("Saved secrets to {}", secrets_path.display()));
 

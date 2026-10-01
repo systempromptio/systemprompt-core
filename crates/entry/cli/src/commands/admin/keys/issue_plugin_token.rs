@@ -22,8 +22,6 @@ use crate::shared::CommandOutput;
 pub struct IssuePluginTokenArgs {
     #[arg(
         long,
-        env = "SYSTEMPROMPT_ADMIN_EMAIL",
-        hide_env_values = true,
         help = "Admin email to mint the token for. Defaults to the active credentials profile."
     )]
     pub email: Option<String>,

@@ -56,7 +56,6 @@ fn no_sensitive_env_bound_arg_renders_its_value_in_help() {
 fn admin_setup_help_names_the_provider_vars_without_their_values() {
     unsafe {
         std::env::set_var("GEMINI_API_KEY", SENTINEL);
-        std::env::set_var("SYSTEMPROMPT_DB_PASSWORD", SENTINEL);
     }
 
     let mut cmd = Cli::command();
@@ -72,21 +71,25 @@ fn admin_setup_help_names_the_provider_vars_without_their_values() {
         "admin setup --help leaked an env value:\n{help}"
     );
     assert!(help.contains("GEMINI_API_KEY"), "{help}");
-    assert!(help.contains("SYSTEMPROMPT_DB_PASSWORD"), "{help}");
+    assert!(
+        !help.contains("SYSTEMPROMPT_DB_PASSWORD"),
+        "the database target is a flag, never an ambient variable:\n{help}"
+    );
 }
 
+// Why: an exported shell variable is implicit targeting. The flag bypasses
+// profile resolution, so it must be typed on the command line every time.
 #[test]
-fn the_global_database_url_does_not_leak_into_an_unrelated_subcommand() {
-    unsafe {
-        std::env::set_var("SYSTEMPROMPT_DATABASE_URL", SENTINEL);
-    }
-
-    let mut cmd = Cli::command();
-    let sub = cmd.find_subcommand_mut("admin").expect("admin");
-    let help = sub.render_long_help().to_string();
+fn the_global_database_url_is_a_flag_with_no_env_binding() {
+    let cmd = Cli::command();
+    let arg = cmd
+        .get_arguments()
+        .find(|arg| arg.get_id() == "database_url")
+        .expect("the global --database-url flag");
 
     assert!(
-        !help.contains(SENTINEL),
-        "the global --database-url leaked into `admin --help`:\n{help}"
+        arg.get_env().is_none(),
+        "--database-url must not read {:?}",
+        arg.get_env()
     );
 }

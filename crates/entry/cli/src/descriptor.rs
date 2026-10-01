@@ -10,9 +10,9 @@
 /// discovery) is set only for the server; every other command loads the YAML
 /// catalog as authored and must not reach for the network.
 ///
-/// `requires_explicit_cloud_profile` marks commands that mutate whatever
-/// database the profile resolves to: they refuse a cloud profile that arrived
-/// implicitly (stored session or directory discovery) and demand `--profile`.
+/// `is_destructive` is never set by hand: it is projected from the command's
+/// exhaustive [`DataImpact`] classification, so a command cannot be added
+/// without deciding whether it destroys data.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CommandDescriptor {
     flags: u16,
@@ -27,7 +27,7 @@ impl CommandDescriptor {
     const FLAG_SKIP_VALIDATION: u16 = 0b0000_0010_0000;
     const FLAG_READ_ONLY: u16 = 0b0000_0100_0000;
     const FLAG_MODEL_DISCOVERY: u16 = 0b0000_1000_0000;
-    const FLAG_EXPLICIT_CLOUD_PROFILE: u16 = 0b0001_0000_0000;
+    const FLAG_DESTRUCTIVE: u16 = 0b0001_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -109,15 +109,39 @@ impl CommandDescriptor {
         }
     }
 
-    pub const fn requires_explicit_cloud_profile(&self) -> bool {
-        self.flags & Self::FLAG_EXPLICIT_CLOUD_PROFILE != 0
+    pub const fn is_destructive(&self) -> bool {
+        self.flags & Self::FLAG_DESTRUCTIVE != 0
     }
 
-    pub const fn with_explicit_cloud_profile(self) -> Self {
-        Self {
-            flags: self.flags | Self::FLAG_EXPLICIT_CLOUD_PROFILE,
+    pub const fn data_impact(&self) -> DataImpact {
+        if self.is_destructive() {
+            DataImpact::Destructive
+        } else {
+            DataImpact::Preserving
         }
     }
+
+    pub const fn with_data_impact(self, impact: DataImpact) -> Self {
+        match impact {
+            DataImpact::Destructive => Self {
+                flags: self.flags | Self::FLAG_DESTRUCTIVE,
+            },
+            DataImpact::Preserving => self,
+        }
+    }
+}
+
+/// How a command treats the data behind the profile it resolves.
+///
+/// `Destructive` commands delete rows, rewrite schema, run jobs or change
+/// privilege. They refuse a cloud profile that arrived implicitly (stored
+/// session or directory discovery), and a failed remote route never falls
+/// back to direct database access for them. Every command enum classifies
+/// its variants in an exhaustive `match` with no wildcard arm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DataImpact {
+    Preserving,
+    Destructive,
 }
 
 /// What a command is allowed to do when the active profile is a cloud profile.

@@ -789,19 +789,3 @@ sp --json core content list | jq '.items[].title'
 sp --json core content show content_abc | jq '.body'
 sp --json core content popular --source blog | jq '.items[] | {title, kind}'
 ```
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandOutput` with proper artifact type
-- [x] `delete` commands require `--yes` / `-y` flag
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `render_result()`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] JSON output supported via `--json` flag
-- [x] Uses `config.is_interactive()` for interactive checks
-
-
----
