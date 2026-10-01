@@ -231,7 +231,7 @@ mod config_backed {
                 user_type: "user".to_owned(),
                 session_id: SessionId::generate(),
                 permissions: vec![],
-                audiences: vec![],
+                audiences: vec!["api".to_owned()],
                 expires_in_hours: None,
             })
             .expect("a non-UUID user id is a valid principal");

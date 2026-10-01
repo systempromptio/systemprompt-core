@@ -319,8 +319,7 @@ async fn non_uuid_link_user_fails_before_reservation_without_consuming_token() {
         .await
         .expect_err("passkey user handle requires a UUID");
     assert!(
-        matches!(&error, OauthError::Validation(message)
-            if message.contains("Invalid user UUID") && message.contains(user_id.as_str())),
+        matches!(&error, OauthError::InvalidUserId { user_id: rejected, .. } if *rejected == user_id),
         "{error}"
     );
     assert_eq!(

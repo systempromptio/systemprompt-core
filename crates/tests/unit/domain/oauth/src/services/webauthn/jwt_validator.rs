@@ -50,16 +50,30 @@ async fn validate_token_rejects_wrong_issuer() {
 }
 
 #[tokio::test]
-async fn validate_token_rejects_non_uuid_subject() {
+async fn validate_token_accepts_non_uuid_subject() {
     ensure_test_bootstrap();
     let user_id = UserId::new("not-a-uuid-subject");
     let token = mint_admin_jwt(&user_id, "badsub@test.invalid", "https://issuer.test");
 
     let validator = JwtTokenValidator::from_config().expect("from_config");
+    let user = validator
+        .validate_token(token.as_str())
+        .await
+        .expect("a non-UUID sub is a valid user id");
+    assert_eq!(user.id, user_id);
+}
+
+#[tokio::test]
+async fn validate_token_rejects_sentinel_subject() {
+    ensure_test_bootstrap();
+    let user_id = UserId::new("unset");
+    let token = mint_admin_jwt(&user_id, "unset@test.invalid", "https://issuer.test");
+
+    let validator = JwtTokenValidator::from_config().expect("from_config");
     let err = validator
         .validate_token(token.as_str())
         .await
-        .expect_err("non-uuid sub must fail");
+        .expect_err("the retired sentinel is not a subject");
     assert!(
         matches!(err, AuthError::InvalidTokenFormat),
         "expected InvalidTokenFormat, got {err:?}"

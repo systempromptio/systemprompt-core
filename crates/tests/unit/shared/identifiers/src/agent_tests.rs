@@ -191,5 +191,8 @@ fn agent_name_try_new_rejects_empty() {
 #[test]
 fn agent_name_try_new_rejects_unknown() {
     let err = AgentName::try_new("unknown").expect_err("AgentName must reject `unknown`");
-    assert!(err.to_string().contains("'unknown' is reserved"), "{err}");
+    assert!(
+        err.to_string().contains("'unknown' is a reserved sentinel"),
+        "{err}"
+    );
 }

@@ -46,13 +46,24 @@ fn authenticate_rejects_garbage_token() {
 }
 
 #[test]
-fn authenticate_rejects_non_uuid_subject() {
+fn authenticate_accepts_non_uuid_subject() {
     ensure_test_bootstrap();
     let user_id = UserId::new("service-account");
     let token = mint_admin_jwt(&user_id, "svc@test.invalid", "https://issuer.test");
 
+    let user = AuthenticationService::authenticate(&bearer_headers(token.as_str()))
+        .expect("a non-UUID sub is a valid user id");
+    assert_eq!(user.id, user_id);
+}
+
+#[test]
+fn authenticate_rejects_sentinel_subject() {
+    ensure_test_bootstrap();
+    let user_id = UserId::new("unset");
+    let token = mint_admin_jwt(&user_id, "unset@test.invalid", "https://issuer.test");
+
     let err = AuthenticationService::authenticate(&bearer_headers(token.as_str()))
-        .expect_err("non-uuid sub");
+        .expect_err("the retired sentinel is not a subject");
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
 

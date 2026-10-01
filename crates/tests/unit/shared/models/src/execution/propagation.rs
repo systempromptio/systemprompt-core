@@ -74,8 +74,8 @@ fn an_empty_bearer_is_not_restored_as_a_token() {
 }
 
 #[test]
-fn a_non_uuid_user_id_header_is_rejected() {
-    for raw in ["unset", "user-1", ""] {
+fn a_malformed_user_id_header_is_rejected() {
+    for raw in ["unset", "user 1", ""] {
         let mut hdrs = base_context().to_headers();
         hdrs.insert(headers::USER_ID, raw.parse().unwrap());
         let err = RequestContext::from_headers(&hdrs).unwrap_err();
@@ -174,7 +174,7 @@ fn proxy_verified_without_a_roles_header_carries_no_roles() {
 }
 
 #[test]
-fn proxy_verified_with_invalid_user_uuid_is_an_error() {
+fn proxy_verified_with_malformed_user_id_is_an_error() {
     let user = AuthenticatedUser::new(
         UserId::generate(),
         "u".to_owned(),
@@ -182,7 +182,7 @@ fn proxy_verified_with_invalid_user_uuid_is_an_error() {
         vec![Permission::User],
     );
     let mut hdrs = base_context().with_user(user).to_headers();
-    hdrs.insert(headers::USER_ID, "not-a-uuid".parse().unwrap());
+    hdrs.insert(headers::USER_ID, "unset".parse().unwrap());
     let err = RequestContext::from_headers(&hdrs).unwrap_err();
     assert!(matches!(
         err,
@@ -283,4 +283,12 @@ fn reserved_agent_name_header_is_an_invalid_header_error() {
         matches!(err, ContextPropagationError::InvalidHeader { ref name, .. } if name == headers::AGENT_NAME),
         "got {err:?}"
     );
+}
+
+#[test]
+fn a_non_uuid_user_id_header_is_accepted() {
+    let mut hdrs = base_context().to_headers();
+    hdrs.insert(headers::USER_ID, "seeded-admin".parse().unwrap());
+    let restored = RequestContext::from_headers(&hdrs).unwrap();
+    assert_eq!(restored.user_id().as_str(), "seeded-admin");
 }

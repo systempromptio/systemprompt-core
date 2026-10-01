@@ -540,7 +540,7 @@ async fn start_link_rejects_non_uuid_user_id() {
         .await
         .expect_err("non-uuid user id must fail");
     let msg = err.to_string();
-    assert!(msg.contains("Invalid user UUID"), "got: {msg}");
+    assert!(msg.contains("is not a valid UUID"), "got: {msg}");
 }
 
 #[tokio::test]
