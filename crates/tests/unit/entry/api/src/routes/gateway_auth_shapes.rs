@@ -50,10 +50,14 @@ async fn the_advertised_auth_modes_are_the_ones_the_bridge_can_use() {
 #[test]
 fn a_dispatch_failure_renders_one_apologetic_line_per_variant() {
     let variants = [
-        MessagingError::Identity("no linked account".to_owned()),
-        MessagingError::Token("mint refused".to_owned()),
-        MessagingError::Dispatch("agent unreachable".to_owned()),
-        MessagingError::Response("not json".to_owned()),
+        MessagingError::AgentRejected {
+            code: -32603,
+            message: "agent unreachable".to_owned(),
+        },
+        MessagingError::Response(
+            serde_json::from_str::<serde_json::Value>("not json").unwrap_err(),
+        ),
+        MessagingError::Encode(serde_json::from_str::<serde_json::Value>("{").unwrap_err()),
     ];
 
     for err in variants {
@@ -67,7 +71,10 @@ fn a_dispatch_failure_renders_one_apologetic_line_per_variant() {
 
 #[test]
 fn the_reply_surface_never_names_the_failing_subsystem_to_the_user() {
-    let err = MessagingError::Token("vault credentials expired".to_owned());
+    let err = MessagingError::AgentRejected {
+        code: -32000,
+        message: "vault credentials expired".to_owned(),
+    };
 
     let rendered = err.user_message();
     assert_eq!(rendered, "Sorry — something went wrong handling that.");

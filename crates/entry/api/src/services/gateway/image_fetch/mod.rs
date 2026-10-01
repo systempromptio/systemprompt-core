@@ -16,6 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod error;
 mod guard;
 
 use base64::Engine as _;
@@ -23,6 +24,7 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use systemprompt_client::GuardedConnectError;
 use systemprompt_models::net::trusted_http_hosts_from_env;
 
+pub use self::error::{GuardedRejection, ImageFetchFailed, ImageFetchFault};
 use super::protocol::canonical::{CanonicalContent, CanonicalRequest, ImageSource};
 
 // Why: Gemini limits inline generateContent requests to 20 MB; base64 expands
@@ -45,17 +47,6 @@ const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 /// `caller_fault` separates "this URL was never going to work" — blocked host,
 /// wrong content type, too large — from a transport failure reaching an
 /// otherwise legitimate host, so the route layer can answer 400 or 502.
-#[derive(Debug, thiserror::Error)]
-#[error("image url {url} could not be inlined: {message}")]
-pub struct ImageFetchFailed {
-    pub url: String,
-    pub message: String,
-    pub caller_fault: bool,
-}
-
-/// Per-request bounds, so a test can point the fetcher at a loopback mock
-/// without the process-wide trust list that production reads from the
-/// environment.
 #[derive(Debug, Clone)]
 pub struct ImageFetchPolicy {
     pub timeout: std::time::Duration,
@@ -112,79 +103,70 @@ pub async fn inline_url_images(
 }
 
 pub async fn fetch(url: &str, policy: &ImageFetchPolicy) -> Result<InlineImage, ImageFetchFailed> {
-    let fail = |message: String, caller_fault: bool| ImageFetchFailed {
-        url: url.to_owned(),
-        message,
-        caller_fault,
-    };
     tokio::time::timeout(policy.timeout, fetch_inner(url, policy))
         .await
-        .map_or_else(
-            |_| Err(fail(format!("fetch exceeded {:?}", policy.timeout), false)),
-            |result| result.map_err(|(message, caller_fault)| fail(message, caller_fault)),
-        )
+        .unwrap_or(Err(ImageFetchFault::Timeout(policy.timeout)))
+        .map_err(|fault| ImageFetchFailed {
+            url: url.to_owned(),
+            fault,
+        })
 }
 
-type FetchError = (String, bool);
-
-async fn fetch_inner(url: &str, policy: &ImageFetchPolicy) -> Result<InlineImage, FetchError> {
-    let checked = guard::checked_url(url, &policy.trusted_hosts).map_err(|e| (e, true))?;
-    let client = guard::client(policy).map_err(|e| (e, false))?;
+async fn fetch_inner(url: &str, policy: &ImageFetchPolicy) -> Result<InlineImage, ImageFetchFault> {
+    let checked = guard::checked_url(url, &policy.trusted_hosts)?;
+    let client = guard::client(policy)?;
     let response = client
         .get(checked)
         .send()
         .await
-        .map_err(|e| describe_send_error(&e, policy))?;
+        .map_err(|e| classify_send_error(e, policy))?;
     read_image(response, policy).await
 }
 
-// Why: reqwest reports a refused redirect and a timeout as generic send
-// failures; the guard's verdict and the deadline sit in the source chain.
-fn describe_send_error(error: &reqwest::Error, policy: &ImageFetchPolicy) -> FetchError {
+fn classify_send_error(error: reqwest::Error, policy: &ImageFetchPolicy) -> ImageFetchFault {
     if error.is_timeout() {
-        return (format!("fetch exceeded {:?}", policy.timeout), false);
+        return ImageFetchFault::Timeout(policy.timeout);
     }
+    match guarded_rejection(&error) {
+        Some(rejection) => ImageFetchFault::Guarded {
+            rejection,
+            source: error,
+        },
+        None => ImageFetchFault::Request(error),
+    }
+}
+
+// Why: the guarded client's resolver refuses a connection from inside
+// `reqwest`, which only surfaces it as an opaque source in its own chain.
+fn guarded_rejection(error: &reqwest::Error) -> Option<GuardedRejection> {
     let mut source = std::error::Error::source(error);
     while let Some(inner) = source {
         if let Some(guarded) = inner.downcast_ref::<GuardedConnectError>() {
-            return match guarded {
-                GuardedConnectError::RedirectRefused { .. }
-                | GuardedConnectError::TooManyRedirects(_) => {
-                    (format!("redirect rejected: {guarded}"), true)
-                },
-                GuardedConnectError::Unresolvable(_)
-                | GuardedConnectError::BlockedAddress { .. } => {
-                    (format!("host rejected: {guarded}"), true)
-                },
-            };
+            return Some(GuardedRejection::from(guarded));
         }
         source = inner.source();
     }
-    (format!("request failed: {error}"), error.is_redirect())
+    None
 }
 
 async fn read_image(
     mut response: reqwest::Response,
     policy: &ImageFetchPolicy,
-) -> Result<InlineImage, FetchError> {
+) -> Result<InlineImage, ImageFetchFault> {
     let status = response.status();
     if !status.is_success() {
-        return Err((format!("host returned {status}"), true));
+        return Err(ImageFetchFault::HostStatus(status));
     }
     let media_type = declared_mime(&response)?;
     let mut body: Vec<u8> = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|e| (format!("read failed: {e}"), false))?
-    {
+    while let Some(chunk) = response.chunk().await.map_err(ImageFetchFault::Read)? {
         if body.len() + chunk.len() > policy.max_bytes {
-            return Err((format!("larger than {} bytes", policy.max_bytes), true));
+            return Err(ImageFetchFault::TooLarge(policy.max_bytes));
         }
         body.extend_from_slice(&chunk);
     }
     if body.is_empty() {
-        return Err(("empty response body".to_owned(), true));
+        return Err(ImageFetchFault::EmptyBody);
     }
     Ok(InlineImage {
         media_type,
@@ -192,12 +174,12 @@ async fn read_image(
     })
 }
 
-fn declared_mime(response: &reqwest::Response) -> Result<String, FetchError> {
+fn declared_mime(response: &reqwest::Response) -> Result<String, ImageFetchFault> {
     let raw = response
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
-        .ok_or_else(|| ("no content-type".to_owned(), true))?;
+        .ok_or(ImageFetchFault::NoContentType)?;
     let mime = raw
         .split(';')
         .next()
@@ -207,8 +189,5 @@ fn declared_mime(response: &reqwest::Response) -> Result<String, FetchError> {
     if ACCEPTED_MIME.contains(&mime.as_str()) {
         return Ok(mime);
     }
-    Err((
-        format!("content-type {mime} is not an inlineable image"),
-        true,
-    ))
+    Err(ImageFetchFault::UnsupportedType(mime))
 }

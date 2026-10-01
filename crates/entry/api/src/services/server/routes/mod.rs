@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod error;
 mod extension_mount;
 mod gateway;
 mod managed;
@@ -21,6 +22,8 @@ mod static_setup;
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
+
+pub(super) use error::RouteMountError;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 
@@ -34,15 +37,11 @@ use crate::services::middleware::{
 pub(super) fn configure_routes(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
-) -> Result<Router, LoaderError> {
+) -> Result<Router, RouteMountError> {
     let mut router = Router::new();
 
-    super::metrics::install_recorder(&ctx.config().instance_id).map_err(|e| {
-        LoaderError::InitializationFailed {
-            extension: "prometheus_metrics".to_owned(),
-            message: e.to_string(),
-        }
-    })?;
+    super::metrics::install_recorder(&ctx.config().instance_id)
+        .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
 
     let jwt_extractor = build_jwt_extractor(ctx)?;
     let limits = RateLimitState::from_context(ctx);

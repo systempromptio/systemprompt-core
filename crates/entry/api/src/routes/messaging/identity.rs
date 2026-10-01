@@ -30,5 +30,5 @@ pub async fn resolve_or_link_user(
     let repo = ctx.user_repository();
     repo.find_or_create_federated(issuer, external_user_id, claims)
         .await
-        .map_err(|e| MessagingError::Identity(e.to_string()))
+        .map_err(MessagingError::Identity)
 }

@@ -48,7 +48,7 @@ fn test_response_type_token_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("response_type"));
+    assert!(err.to_string().contains("response_type"));
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn test_response_mode_fragment_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("response_mode"));
+    assert!(err.to_string().contains("response_mode"));
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn test_code_challenge_missing_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("code_challenge is required"));
+    assert!(err.to_string().contains("code_challenge is required"));
 }
 
 #[test]
@@ -105,7 +105,7 @@ fn test_code_challenge_too_short_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("too short"));
+    assert!(err.to_string().contains("too short"));
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn test_code_challenge_129_chars_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("too long"));
+    assert!(err.to_string().contains("too long"));
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn test_code_challenge_invalid_base64url_chars_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("base64url"));
+    assert!(err.to_string().contains("base64url"));
 }
 
 #[test]
@@ -163,7 +163,7 @@ fn test_code_challenge_with_equals_padding_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("base64url"));
+    assert!(err.to_string().contains("base64url"));
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn test_code_challenge_all_same_char_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("entropy"));
+    assert!(err.to_string().contains("entropy"));
 }
 
 #[test]
@@ -185,7 +185,7 @@ fn test_code_challenge_repeating_pattern_2char_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("entropy"));
+    assert!(err.to_string().contains("entropy"));
 }
 
 #[test]
@@ -196,7 +196,7 @@ fn test_code_challenge_repeating_pattern_3char_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("entropy"));
+    assert!(err.to_string().contains("entropy"));
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn test_code_challenge_repeating_pattern_4char_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("entropy"));
+    assert!(err.to_string().contains("entropy"));
 }
 
 #[test]
@@ -219,7 +219,7 @@ fn test_code_challenge_sequential_ascending_run_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("entropy"));
+    assert!(err.to_string().contains("entropy"));
 }
 
 #[test]
@@ -234,7 +234,7 @@ fn test_code_challenge_low_diversity_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("entropy"));
+    assert!(err.to_string().contains("entropy"));
 }
 
 #[test]
@@ -250,7 +250,7 @@ fn test_code_challenge_method_plain_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("plain"));
+    assert!(err.to_string().contains("plain"));
 }
 
 #[test]
@@ -260,7 +260,10 @@ fn test_code_challenge_method_missing_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("code_challenge_method is required"));
+    assert!(
+        err.to_string()
+            .contains("code_challenge_method is required")
+    );
 }
 
 #[test]
@@ -270,7 +273,7 @@ fn test_code_challenge_method_unknown_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("S512"));
+    assert!(err.to_string().contains("S512"));
 }
 
 #[test]
@@ -294,7 +297,7 @@ fn test_display_invalid_value_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("fullscreen"));
+    assert!(err.to_string().contains("fullscreen"));
 }
 
 #[test]
@@ -327,7 +330,7 @@ fn test_prompt_invalid_value_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("force"));
+    assert!(err.to_string().contains("force"));
 }
 
 #[test]
@@ -337,7 +340,7 @@ fn test_prompt_mixed_valid_and_invalid_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("force"));
+    assert!(err.to_string().contains("force"));
 }
 
 #[test]
@@ -365,7 +368,7 @@ fn test_max_age_negative_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("max_age"));
+    assert!(err.to_string().contains("max_age"));
 }
 
 #[test]
@@ -393,7 +396,7 @@ fn test_resource_with_fragment_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("fragment"));
+    assert!(err.to_string().contains("fragment"));
 }
 
 #[test]
@@ -403,7 +406,7 @@ fn test_resource_localhost_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -413,7 +416,7 @@ fn test_resource_127_0_0_1_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -423,7 +426,7 @@ fn test_resource_0_0_0_0_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -433,7 +436,7 @@ fn test_resource_internal_domain_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -443,7 +446,7 @@ fn test_resource_local_domain_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -453,7 +456,7 @@ fn test_resource_10_x_private_range_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -463,7 +466,7 @@ fn test_resource_192_168_x_private_range_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -473,7 +476,7 @@ fn test_resource_172_16_private_range_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -483,7 +486,7 @@ fn test_resource_172_31_private_range_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -502,7 +505,7 @@ fn test_resource_169_254_link_local_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -512,7 +515,7 @@ fn test_resource_invalid_uri_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("Invalid resource URI"));
+    assert!(err.to_string().contains("Invalid resource URI"));
 }
 
 #[test]
@@ -522,7 +525,7 @@ fn test_resource_ftp_scheme_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
-    assert!(err.contains("https or http"));
+    assert!(err.to_string().contains("https or http"));
 }
 
 #[test]
@@ -543,7 +546,7 @@ fn test_resource_different_port_localhost_rejected() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &self_origin).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 #[test]
@@ -564,7 +567,7 @@ fn test_resource_non_self_local_suffix_still_rejected_with_loopback_self() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &self_origin).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }
 
 fn dual_origins(primary: &str, request: &str) -> SelfOrigins {
@@ -608,5 +611,5 @@ fn test_resource_unrelated_loopback_rejected_even_with_dual_origins() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &origins).unwrap_err();
-    assert!(err.contains("internal or private"));
+    assert!(err.to_string().contains("internal or private"));
 }

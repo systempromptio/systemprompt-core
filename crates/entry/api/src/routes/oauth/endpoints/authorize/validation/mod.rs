@@ -15,10 +15,13 @@ mod resource;
 pub use redirect::{RegisteredRedirect, resolve_registered_redirect};
 
 use super::AuthorizeQuery;
-use anyhow::Result;
+use systemprompt_models::net::OutboundUrlError;
+use systemprompt_oauth::OauthError;
 use systemprompt_oauth::models::clients::OAuthClient;
 use systemprompt_oauth::repository::OAuthRepository;
 use url::Origin;
+
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Clone)]
 pub struct ValidatedAuthorizeRequest {
@@ -49,31 +52,52 @@ impl SelfOrigins {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum AuthorizeRequestError {
+    #[error("{0}")]
+    Denied(String),
+    #[error("Invalid scopes requested: {0}")]
+    Scope(#[source] OauthError),
+    #[error(transparent)]
+    Oauth(#[from] OauthError),
+}
+
+impl From<AuthorizeRequestError> for OAuthHttpError {
+    fn from(error: AuthorizeRequestError) -> Self {
+        match error {
+            AuthorizeRequestError::Denied(message) => Self::invalid_request(message),
+            AuthorizeRequestError::Scope(source) => {
+                internal::classify_validation(source, Self::invalid_request)
+            },
+            AuthorizeRequestError::Oauth(source) => Self::from(source),
+        }
+    }
+}
+
 pub async fn validate_authorize_request(
     state: &systemprompt_oauth::OAuthState,
     params: &AuthorizeQuery,
     repo: &OAuthRepository,
-) -> Result<ValidatedAuthorizeRequest> {
+) -> Result<ValidatedAuthorizeRequest, AuthorizeRequestError> {
     if params.response_type != "code" {
-        return Err(anyhow::anyhow!(
-            "Unsupported response_type. Only 'code' is supported"
+        return Err(AuthorizeRequestError::Denied(
+            "Unsupported response_type. Only 'code' is supported".to_owned(),
         ));
     }
 
     let client = repo
         .find_client_by_id(&params.client_id)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("Invalid client_id"))?;
+        .ok_or_else(|| AuthorizeRequestError::Denied("Invalid client_id".to_owned()))?;
 
     if let Some(redirect_uri) = &params.redirect_uri {
         use systemprompt_oauth::services::validation::validate_redirect_uri;
 
         validate_redirect_uri(&client.redirect_uris, Some(redirect_uri)).map_err(|_e| {
-            anyhow::anyhow!(
-                "redirect_uri '{}' not registered for client '{}'",
-                redirect_uri,
+            AuthorizeRequestError::Denied(format!(
+                "redirect_uri '{redirect_uri}' not registered for client '{}'",
                 params.client_id
-            )
+            ))
         })?;
     }
 
@@ -87,8 +111,8 @@ pub async fn validate_authorize_request(
     } else if let Some(ref rs) = resource_scopes {
         rs.clone()
     } else if client.scopes.is_empty() {
-        return Err(anyhow::anyhow!(
-            "Client has no registered scopes and none provided in request"
+        return Err(AuthorizeRequestError::Denied(
+            "Client has no registered scopes and none provided in request".to_owned(),
         ));
     } else {
         client.scopes.join(" ")
@@ -96,31 +120,40 @@ pub async fn validate_authorize_request(
 
     let requested_scopes = OAuthRepository::parse_scopes(&scope);
 
-    OAuthRepository::validate_scopes(&requested_scopes)
-        .map_err(|e| anyhow::anyhow!("Invalid scopes requested: {e}"))?;
+    OAuthRepository::validate_scopes(&requested_scopes).map_err(AuthorizeRequestError::Scope)?;
     OAuthRepository::validate_scopes_for_client(&client.scopes, &requested_scopes)
-        .map_err(|e| anyhow::anyhow!("Invalid scopes requested: {e}"))?;
+        .map_err(AuthorizeRequestError::Scope)?;
 
     Ok(ValidatedAuthorizeRequest { client, scope })
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AuthorizeParamError {
+    #[error("{0}")]
+    Invalid(String),
+    #[error("Resource URI points to an internal or private network address: {0}")]
+    BlockedResource(#[source] OutboundUrlError),
+    #[error("Invalid resource URI: {0}")]
+    InvalidResource(#[source] OutboundUrlError),
 }
 
 pub fn validate_oauth_parameters(
     params: &AuthorizeQuery,
     self_origins: &SelfOrigins,
-) -> Result<(), String> {
+) -> Result<(), AuthorizeParamError> {
     if params.response_type != "code" {
-        return Err(format!(
+        return Err(AuthorizeParamError::Invalid(format!(
             "Unsupported response_type '{}'. Only 'code' is supported.",
             params.response_type
-        ));
+        )));
     }
 
     if let Some(response_mode) = &params.response_mode
         && response_mode != "query"
     {
-        return Err(format!(
+        return Err(AuthorizeParamError::Invalid(format!(
             "Unsupported response_mode '{response_mode}'. Only 'query' mode is supported."
-        ));
+        )));
     }
 
     validate_pkce(params)?;
@@ -129,7 +162,9 @@ pub fn validate_oauth_parameters(
     if let Some(max_age) = params.max_age
         && max_age < 0
     {
-        return Err("max_age must be a non-negative integer".to_owned());
+        return Err(AuthorizeParamError::Invalid(
+            "max_age must be a non-negative integer".to_owned(),
+        ));
     }
 
     if let Some(resource) = &params.resource {
@@ -139,22 +174,24 @@ pub fn validate_oauth_parameters(
     Ok(())
 }
 
-fn validate_pkce(params: &AuthorizeQuery) -> Result<(), String> {
+fn validate_pkce(params: &AuthorizeQuery) -> Result<(), AuthorizeParamError> {
     let Some(code_challenge) = &params.code_challenge else {
-        return Err("code_challenge is required. PKCE with S256 method must be used.".to_owned());
+        return Err(AuthorizeParamError::Invalid(
+            "code_challenge is required. PKCE with S256 method must be used.".to_owned(),
+        ));
     };
 
     if code_challenge.len() < systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MIN_LENGTH {
-        return Err(format!(
+        return Err(AuthorizeParamError::Invalid(format!(
             "code_challenge too short. Must be at least {} characters for security.",
             systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MIN_LENGTH
-        ));
+        )));
     }
     if code_challenge.len() > systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MAX_LENGTH {
-        return Err(format!(
+        return Err(AuthorizeParamError::Invalid(format!(
             "code_challenge too long. Must be at most {} characters.",
             systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MAX_LENGTH
-        ));
+        )));
     }
 
     let is_valid_base64url = code_challenge
@@ -162,35 +199,43 @@ fn validate_pkce(params: &AuthorizeQuery) -> Result<(), String> {
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
 
     if !is_valid_base64url {
-        return Err("code_challenge must be base64url encoded (A-Z, a-z, 0-9, -, _)".to_owned());
+        return Err(AuthorizeParamError::Invalid(
+            "code_challenge must be base64url encoded (A-Z, a-z, 0-9, -, _)".to_owned(),
+        ));
     }
 
     if entropy::is_low_entropy_challenge(code_challenge) {
-        return Err("code_challenge appears to have insufficient entropy for security".to_owned());
+        return Err(AuthorizeParamError::Invalid(
+            "code_challenge appears to have insufficient entropy for security".to_owned(),
+        ));
     }
 
     let method = params.code_challenge_method.as_deref().ok_or_else(|| {
-        "code_challenge_method is required when code_challenge is provided".to_owned()
+        AuthorizeParamError::Invalid(
+            "code_challenge_method is required when code_challenge is provided".to_owned(),
+        )
     })?;
 
     match method {
         "S256" => Ok(()),
-        "plain" => Err("PKCE method 'plain' is not allowed. Use 'S256' for security.".to_owned()),
-        _ => Err(format!(
-            "Unsupported code_challenge_method '{method}'. Only 'S256' is allowed."
+        "plain" => Err(AuthorizeParamError::Invalid(
+            "PKCE method 'plain' is not allowed. Use 'S256' for security.".to_owned(),
         )),
+        _ => Err(AuthorizeParamError::Invalid(format!(
+            "Unsupported code_challenge_method '{method}'. Only 'S256' is allowed."
+        ))),
     }
 }
 
-fn validate_display_and_prompt(params: &AuthorizeQuery) -> Result<(), String> {
+fn validate_display_and_prompt(params: &AuthorizeQuery) -> Result<(), AuthorizeParamError> {
     if let Some(display) = &params.display {
         match display.as_str() {
             "page" | "popup" | "touch" | "wap" => {},
             _ => {
-                return Err(format!(
+                return Err(AuthorizeParamError::Invalid(format!(
                     "Unsupported display value '{display}'. Supported values: page, popup, touch, \
                      wap."
-                ));
+                )));
             },
         }
     }
@@ -200,10 +245,10 @@ fn validate_display_and_prompt(params: &AuthorizeQuery) -> Result<(), String> {
             match prompt_value {
                 "none" | "login" | "consent" | "select_account" | "passkey" => {},
                 _ => {
-                    return Err(format!(
+                    return Err(AuthorizeParamError::Invalid(format!(
                         "Unsupported prompt value '{prompt_value}'. Supported values: none, \
                          login, consent, select_account, passkey."
-                    ));
+                    )));
                 },
             }
         }

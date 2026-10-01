@@ -24,9 +24,11 @@ where
 
 pub(in crate::services::gateway) fn raw_sse_stream<S>(
     stream: S,
-) -> futures_util::stream::BoxStream<'static, Result<bytes::Bytes, String>>
+) -> futures_util::stream::BoxStream<'static, Result<bytes::Bytes, WireStreamError>>
 where
     S: futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
 {
-    stream.map(|chunk| chunk.map_err(|e| e.to_string())).boxed()
+    stream
+        .map(|chunk| chunk.map_err(WireStreamError::transport))
+        .boxed()
 }

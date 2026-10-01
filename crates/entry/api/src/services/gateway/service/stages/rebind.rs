@@ -12,6 +12,7 @@ use super::{ScannedDispatch, automatic_prompt_caching};
 use crate::services::gateway::audit::GatewayAudit;
 use crate::services::gateway::image_fetch::{ImageFetchPolicy, inline_url_images};
 use crate::services::gateway::protocol::outbound::OutboundOutcome;
+use crate::services::gateway::service::GatewayError;
 use crate::services::gateway::service::resolve::ResolvedUpstream;
 
 impl ScannedDispatch {
@@ -20,7 +21,7 @@ impl ScannedDispatch {
         upstream: &ResolvedUpstream<'_>,
         forward_headers: &[(String, String)],
         audit: &GatewayAudit,
-    ) -> anyhow::Result<OutboundOutcome> {
+    ) -> Result<OutboundOutcome, GatewayError> {
         let prepared = &self.0;
         let ctx = outbound_ctx(
             upstream,
@@ -45,7 +46,7 @@ impl ScannedDispatch {
         &mut self,
         upstream: &ResolvedUpstream<'_>,
         audit: &GatewayAudit,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), GatewayError> {
         let prepared = &mut self.0;
         let requested = prepared.request.model.as_str().to_owned();
         let upstream_model = upstream

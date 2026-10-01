@@ -19,14 +19,13 @@ pub mod resolve;
 pub mod stages;
 
 pub use self::error::{
-    DispatchError, GovernanceDenied, GuardForbidden, GuardUnavailable, PolicyDenied,
-    PromptRepairRequired, QuotaExceeded, SafetyBlocked,
+    DispatchError, GatewayError, GovernanceDenied, GuardForbidden, GuardUnavailable, PolicyDenied,
+    PromptRepairRequired, QuotaExceeded, SafetyBlocked, upstream_status,
 };
 pub(super) use self::finalize::run_response_safety_scan;
 
 use std::sync::Arc;
 
-use anyhow::{Result, anyhow};
 use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
@@ -157,7 +156,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     } = opened;
     audit
         .pin_pricing(pricing)
-        .map_err(DispatchError::PreAudit)?;
+        .map_err(|e| DispatchError::PreAudit(GatewayError::internal("pricing pin failed", e)))?;
 
     if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
         audit.set_route_match(descriptor).await;
@@ -218,16 +217,14 @@ async fn dispatch_policy(
     fault_mode: QuotaFaultMode,
 ) -> Result<GatewayPolicySpec, DispatchError> {
     if ctx.session_id.is_none() {
-        return Err(DispatchError::PreAudit(anyhow!(
-            "gateway dispatch missing authenticated session (session_id)"
-        )));
+        return Err(DispatchError::pre_audit(GatewayError::MissingSession));
     }
 
     let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
     let policy = resolver
         .resolve(fault_mode)
         .await
-        .map_err(|e| DispatchError::PreAudit(anyhow!(PolicyDenied(e.to_string()))))?;
+        .map_err(DispatchError::pre_audit)?;
     Ok(policy)
 }
 
@@ -246,7 +243,10 @@ async fn open_audit(
         {
             tracing::error!(%settlement_error, "Could not record failed gateway admission");
         }
-        return Err(DispatchError::PreAudit(error));
+        return Err(DispatchError::PreAudit(GatewayError::internal(
+            "audit admission failed",
+            error,
+        )));
     }
     if !identity_headers.is_empty() {
         tracing::info!(

@@ -2,6 +2,7 @@
 //! session-binding enforcement for JWT vs API-key credentials.
 
 use std::collections::BTreeMap;
+use systemprompt_api::routes::gateway::messages::error::RejectionError;
 
 use axum::http::StatusCode;
 use serde_json::json;
@@ -74,7 +75,9 @@ fn session_binding_accepts_matching_session() {
 fn session_binding_rejects_mismatched_session() {
     let session = SessionId::generate();
     let other = SessionId::generate();
-    let (status, message) = jwt_principal(&session)
+    let RejectionError {
+        status, message, ..
+    } = jwt_principal(&session)
         .enforce_session_binding(&other)
         .expect_err("mismatched session must be rejected");
     assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -95,7 +98,9 @@ fn session_binding_accepts_attested_api_key_session() {
 fn session_binding_rejects_mismatched_api_key_session() {
     let session = SessionId::generate();
     let other = SessionId::generate();
-    let (status, message) = api_key_principal(&session)
+    let RejectionError {
+        status, message, ..
+    } = api_key_principal(&session)
         .enforce_session_binding(&other)
         .expect_err("an api-key principal is bound to its attested session too");
     assert_eq!(status, StatusCode::UNAUTHORIZED);

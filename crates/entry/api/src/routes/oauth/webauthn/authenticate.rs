@@ -13,7 +13,7 @@ use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 use webauthn_rs::prelude::*;
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct StartAuthQuery {
@@ -42,7 +42,7 @@ pub async fn start_auth(
         .await?;
 
     let challenge_json = serde_json::to_value(&challenge)
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to serialize challenge: {e}")))?;
+        .map_err(|e| internal::server_error("Failed to serialize challenge", e))?;
 
     let mut public_key = challenge_json
         .get("publicKey")
@@ -87,7 +87,7 @@ pub async fn finish_auth(
     let (user_id, oauth_state) = webauthn_service
         .finish_authentication(request.challenge_id.as_str(), &request.credential)
         .await
-        .map_err(|e| OAuthHttpError::authentication_failed(e.to_string()))?;
+        .map_err(|e| internal::reclassify(e, OAuthHttpError::authentication_failed))?;
 
     let auth_token = systemprompt_oauth::services::generate_secure_token("webauthn_verified");
     webauthn_service

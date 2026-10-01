@@ -31,7 +31,7 @@ use super::finalize::{
     apply_system_prompt_override, request_finding_blocks, run_request_safety_scan,
 };
 use super::resolve::ResolvedUpstream;
-use super::{DispatchError, GovernanceDenied, PromptRepairRequired, SafetyBlocked};
+use super::{DispatchError, GatewayError, GovernanceDenied, PromptRepairRequired, SafetyBlocked};
 
 const UNSANITIZABLE_SECRET_MESSAGE: &str = "Secret content could not be safely sanitized; remove \
                                             the affected content or restart with a corrected \
@@ -111,7 +111,7 @@ impl PreparedDispatch {
         let body = upstream
             .adapter
             .build_body(&ctx)
-            .map_err(DispatchError::Recorded)?;
+            .map_err(DispatchError::recorded)?;
         audit.set_prepared_body_digest(&body.bytes).await;
 
         Ok(Self {
@@ -191,7 +191,7 @@ impl GovernedDispatch {
 
         record_governance_decision(db, ctx, evaluation, call_id, session_id)
             .await
-            .map_err(DispatchError::Recorded)?;
+            .map_err(|e| DispatchError::recorded(GatewayError::internal("governance record", e)))?;
 
         let Some(reason) = denied else {
             return Ok(Self(prepared));
@@ -212,12 +212,12 @@ impl GovernedDispatch {
 
 fn governance_denial(policy: String, message: String, mut locations: Vec<String>) -> DispatchError {
     if policy != SECRET_SCAN_ID {
-        return DispatchError::Recorded(GovernanceDenied { policy, message }.into());
+        return DispatchError::recorded(GovernanceDenied { policy, message });
     }
     if locations.is_empty() {
         locations.push(FALLBACK_REPAIR_LOCATION.to_owned());
     }
-    DispatchError::Recorded(PromptRepairRequired { message, locations }.into())
+    DispatchError::recorded(PromptRepairRequired { message, locations })
 }
 
 impl ScannedDispatch {
@@ -252,13 +252,10 @@ impl ScannedDispatch {
         if let Err(e) = audit.fail(&msg).await {
             tracing::warn!(error = %e, "safety-block audit fail failed");
         }
-        Err(DispatchError::Recorded(
-            SafetyBlocked {
-                category: finding.category.clone(),
-                message: msg,
-            }
-            .into(),
-        ))
+        Err(DispatchError::recorded(SafetyBlocked {
+            category: finding.category.clone(),
+            message: msg,
+        }))
     }
 
     pub(super) const fn recovery_count(&self) -> usize {

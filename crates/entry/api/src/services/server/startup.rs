@@ -23,6 +23,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
+use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::ShutdownRequest;
 use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
@@ -123,11 +124,8 @@ async fn starting_readyz() -> impl IntoResponse {
     )
 }
 
-async fn starting_fallback() -> impl IntoResponse {
-    (
-        StatusCode::SERVICE_UNAVAILABLE,
-        Json(json!({ "error": "service starting" })),
-    )
+async fn starting_fallback() -> ApiError {
+    ApiError::service_unavailable("service starting").with_error_key("service_starting")
 }
 
 #[derive(Clone)]

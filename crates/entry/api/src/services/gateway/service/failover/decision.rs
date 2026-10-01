@@ -6,6 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::gateway::protocol::outbound::UpstreamError;
+use crate::services::gateway::service::GatewayError;
 
 /// Why a request left its primary provider.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,8 +33,8 @@ pub const fn is_failover_status(status: u16) -> bool {
 }
 
 #[must_use]
-pub fn failover_reason(error: &anyhow::Error) -> Option<FailoverReason> {
-    match error.downcast_ref::<UpstreamError>()? {
+pub fn failover_reason(error: &GatewayError) -> Option<FailoverReason> {
+    match error.upstream()? {
         UpstreamError::Status { status, .. } if is_failover_status(*status) => {
             Some(FailoverReason::Status(*status))
         },

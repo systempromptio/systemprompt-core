@@ -4,8 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::RouteMountError;
 use axum::Router;
-use systemprompt_extension::LoaderError;
 use systemprompt_models::modules::ApiPaths;
 
 use super::protocol::MountCtx;
@@ -15,15 +15,10 @@ use crate::services::middleware::authz::AuthzPolicy;
 pub(super) fn mount_gateway(
     mut router: Router,
     mount: &MountCtx<'_>,
-) -> Result<Router, LoaderError> {
+) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
-    let gateway =
-        crate::routes::gateway::gateway_mount_router(ctx, mount.limits).map_err(|error| {
-            LoaderError::InitializationFailed {
-                extension: "gateway".to_owned(),
-                message: error.to_string(),
-            }
-        })?;
+    let gateway = crate::routes::gateway::gateway_mount_router(ctx, mount.limits)
+        .map_err(|source| RouteMountError::initialization("gateway", source))?;
     router = router.nest(ApiPaths::GATEWAY_BASE, gateway);
     router = router.nest(
         ApiPaths::GATEWAY_PUBLIC_BASE,

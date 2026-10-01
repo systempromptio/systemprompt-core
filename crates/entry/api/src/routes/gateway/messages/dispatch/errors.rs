@@ -1,31 +1,34 @@
 //! Dispatch-error classification and the JSON error responses the gateway
 //! returns to clients, including verbatim upstream passthrough.
 //!
+//! [`map_dispatch_error`] is the one place a [`GatewayError`] becomes a
+//! provider-shaped answer: a rendered envelope for the failures that carry
+//! their own headers or body, or a [`RejectionError`] the handler renders
+//! through the inbound wire. Classification is a `match` on the variant; a 5xx
+//! never carries the error's own text.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::body::Body;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use systemprompt_ai::UpstreamTargetError;
 
-use crate::services::gateway::image_fetch::ImageFetchFailed;
-use crate::services::gateway::pricing::MissingPricing;
 use crate::services::gateway::protocol::outbound::UpstreamError;
-use crate::services::gateway::service::{
-    DispatchError, GovernanceDenied, GuardForbidden, GuardUnavailable, PolicyDenied,
-    PromptRepairRequired, QuotaExceeded, SafetyBlocked,
-};
+use crate::services::gateway::service::{DispatchError, GatewayError, upstream_status};
+
+pub use crate::services::gateway::protocol::inbound::error_type_for_status as error_type_for;
 
 use super::RejectionError;
 
-const ERROR_TYPE_API: &str = "api_error";
 const ERROR_TYPE_PERMISSION: &str = "permission_error";
 const ERROR_TYPE_INVALID_REQUEST: &str = "invalid_request_error";
 
 const POLICY_DENIAL_PREFIX: &str = "blocked by systemprompt governance";
 const PROMPT_REPAIR_ACTION: &str = "Remove secret-bearing content, correct system instructions, \
                                     or shorten the conversation before retrying";
+const UNSERVABLE_MODEL_MESSAGE: &str = "The requested model is not served by this gateway";
+const IMAGE_FETCH_FAILED_MESSAGE: &str = "An image URL in the request could not be fetched";
 
 pub fn build_policy_denial(message: &str) -> Response<Body> {
     build_error_response(
@@ -43,130 +46,122 @@ pub fn policy_denial_message(message: &str) -> String {
     format!("{POLICY_DENIAL_PREFIX}: {message}")
 }
 
-#[must_use]
-pub fn error_type_for(status: StatusCode) -> &'static str {
-    match status {
-        StatusCode::UNAUTHORIZED => "authentication_error",
-        StatusCode::FORBIDDEN => ERROR_TYPE_PERMISSION,
-        StatusCode::NOT_FOUND => "not_found_error",
-        StatusCode::TOO_MANY_REQUESTS => "rate_limit_error",
-        s if s.is_client_error() => ERROR_TYPE_INVALID_REQUEST,
-        _ => ERROR_TYPE_API,
-    }
-}
-
 pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionError> {
-    let (persist, inner) = match e {
-        DispatchError::PreAudit(inner) => (true, inner),
-        DispatchError::Recorded(inner) => (false, inner),
+    let (persist, error) = match e {
+        DispatchError::PreAudit(error) => (true, error),
+        DispatchError::Recorded(error) => (false, error),
     };
-    if let Some(quota) = inner.downcast_ref::<QuotaExceeded>() {
-        let mut resp = build_error_response(
-            StatusCode::TOO_MANY_REQUESTS,
-            error_type_for(StatusCode::TOO_MANY_REQUESTS),
-            &quota.message,
-        );
-        if let Ok(v) = HeaderValue::from_str(&quota.retry_after_seconds.to_string()) {
-            resp.headers_mut().insert("retry-after", v);
-        }
-        return Ok(resp);
-    }
-    if let Some(unavailable) = inner.downcast_ref::<GuardUnavailable>() {
-        let mut response = build_error_response(
-            StatusCode::SERVICE_UNAVAILABLE,
-            error_type_for(StatusCode::SERVICE_UNAVAILABLE),
-            &unavailable.message,
-        );
-        if let Ok(value) = HeaderValue::from_str(&unavailable.retry_after_seconds.to_string()) {
-            response.headers_mut().insert("retry-after", value);
-        }
+    if let Some(response) = render_error(&error) {
         return Ok(response);
     }
-    if let Some(forbidden) = inner.downcast_ref::<GuardForbidden>() {
-        return Ok(build_error_response(
-            StatusCode::FORBIDDEN,
+    Err(classify_dispatch_error(error).with_persist(persist))
+}
+
+fn render_error(error: &GatewayError) -> Option<Response<Body>> {
+    match error {
+        GatewayError::Quota(quota) => Some(with_retry_after(
+            build_error_response(error.status(), error.error_type(), &quota.message),
+            quota.retry_after_seconds,
+        )),
+        GatewayError::GuardUnavailable(unavailable) => Some(with_retry_after(
+            build_error_response(error.status(), error.error_type(), &unavailable.message),
+            unavailable.retry_after_seconds,
+        )),
+        GatewayError::GuardForbidden(forbidden) => Some(build_error_response(
+            error.status(),
             ERROR_TYPE_PERMISSION,
             &forbidden.message,
-        ));
+        )),
+        GatewayError::PromptRepair(repair) => {
+            Some(build_prompt_repair(&repair.message, &repair.locations))
+        },
+        GatewayError::Governance(denied) => Some(build_policy_denial(&denied.message)),
+        GatewayError::ImageFetch(_) => {
+            let rejection = classify_dispatch_error_ref(error);
+            Some(build_error_response(
+                rejection.status,
+                error.error_type(),
+                rejection.public_message(),
+            ))
+        },
+        // Why: Claude Code matches provider error wording to retry without
+        // rejected capabilities.
+        GatewayError::Upstream(upstream) => build_upstream_passthrough(upstream),
+        GatewayError::PolicyDenied(_)
+        | GatewayError::PolicyUnavailable(_)
+        | GatewayError::Safety(_)
+        | GatewayError::MissingPricing(_)
+        | GatewayError::UpstreamTarget(_)
+        | GatewayError::NoRoute { .. }
+        | GatewayError::UndeclaredProvider { .. }
+        | GatewayError::NoAdapter { .. }
+        | GatewayError::MissingSession
+        | GatewayError::Internal { .. } => None,
     }
-    if let Some(repair) = inner.downcast_ref::<PromptRepairRequired>() {
-        return Ok(build_prompt_repair(&repair.message, &repair.locations));
-    }
-    if let Some(denied) = inner.downcast_ref::<GovernanceDenied>() {
-        return Ok(build_policy_denial(&denied.message));
-    }
-    if let Some(image) = inner.downcast_ref::<ImageFetchFailed>() {
-        let status = if image.caller_fault {
-            StatusCode::BAD_REQUEST
-        } else {
-            StatusCode::BAD_GATEWAY
-        };
-        return Ok(build_error_response(
-            status,
-            error_type_for(status),
-            &image.to_string(),
-        ));
-    }
-    // Why: Claude Code matches provider error wording to retry without rejected
-    // capabilities.
-    if let Some(upstream) = inner.downcast_ref::<UpstreamError>()
-        && let Some(response) = build_upstream_passthrough(upstream)
-    {
-        return Ok(response);
-    }
-    let (status, message) = classify_dispatch_error(&inner);
-    Err(RejectionError {
-        status,
-        message,
-        persist,
-    })
 }
 
-pub fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
-    if let Some(repair) = e.downcast_ref::<PromptRepairRequired>() {
-        return (
-            StatusCode::BAD_REQUEST,
-            policy_denial_message(&repair.message),
-        );
+pub fn classify_dispatch_error(error: GatewayError) -> RejectionError {
+    let rejection = classify_dispatch_error_ref(&error);
+    if rejection.status.is_server_error() {
+        return rejection.with_cause(error);
     }
-    if let Some(denied) = e.downcast_ref::<PolicyDenied>() {
-        return (
-            StatusCode::BAD_REQUEST,
-            policy_denial_message(&denied.to_string()),
-        );
-    }
-    if let Some(blocked) = e.downcast_ref::<SafetyBlocked>() {
-        return (
-            StatusCode::BAD_REQUEST,
-            policy_denial_message(&blocked.to_string()),
-        );
-    }
-    if let Some(upstream) = e.downcast_ref::<UpstreamError>() {
-        return map_upstream_error(upstream);
-    }
-    if is_unservable_model(e) {
-        return (StatusCode::NOT_FOUND, e.to_string());
-    }
-    (StatusCode::BAD_GATEWAY, e.to_string())
+    rejection
 }
 
-// Why: a missing credential or price is a deployment that cannot serve this
-// model, not an outage. Any 5xx makes the Anthropic and OpenAI SDKs retry a
-// request that can never succeed; 404 is what both providers answer for a
-// model they do not serve, so clients surface it once instead of looping.
-fn is_unservable_model(e: &anyhow::Error) -> bool {
-    if e.downcast_ref::<MissingPricing>().is_some() {
-        return true;
+fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {
+    let status = error.status();
+    match error {
+        GatewayError::PolicyDenied(denied) => {
+            RejectionError::client(status, policy_denial_message(&denied.0))
+        },
+        GatewayError::Governance(denied) => {
+            RejectionError::client(status, policy_denial_message(&denied.message))
+        },
+        GatewayError::PromptRepair(repair) => {
+            RejectionError::client(status, policy_denial_message(&repair.message))
+        },
+        GatewayError::Safety(blocked) => {
+            RejectionError::client(status, policy_denial_message(&blocked.message))
+        },
+        GatewayError::Quota(quota) => RejectionError::client(status, quota.message.clone()),
+        GatewayError::GuardForbidden(forbidden) => {
+            RejectionError::client(status, forbidden.message.clone())
+        },
+        GatewayError::GuardUnavailable(_) => {
+            RejectionError::server(status, "request guard unavailable")
+        },
+        GatewayError::PolicyUnavailable(_) => {
+            RejectionError::server(status, "gateway policy unavailable")
+        },
+        GatewayError::ImageFetch(image) if !status.is_server_error() => {
+            RejectionError::client(status, image.to_string())
+        },
+        GatewayError::ImageFetch(_) => RejectionError::server(status, IMAGE_FETCH_FAILED_MESSAGE),
+        GatewayError::Upstream(upstream) => map_upstream_error(upstream),
+        GatewayError::MissingPricing(_)
+        | GatewayError::NoRoute { .. }
+        | GatewayError::UndeclaredProvider { .. }
+        | GatewayError::NoAdapter { .. } => {
+            RejectionError::client(status, UNSERVABLE_MODEL_MESSAGE)
+        },
+        GatewayError::UpstreamTarget(_) if !status.is_server_error() => {
+            RejectionError::client(status, UNSERVABLE_MODEL_MESSAGE)
+        },
+        GatewayError::UpstreamTarget(_) => {
+            RejectionError::server(status, "upstream credential unavailable")
+        },
+        GatewayError::MissingSession => {
+            RejectionError::server(status, "dispatch without an authenticated session")
+        },
+        GatewayError::Internal { context, .. } => RejectionError::server(status, *context),
     }
-    matches!(
-        e.downcast_ref::<UpstreamTargetError>(),
-        Some(
-            UpstreamTargetError::MissingSecret { .. }
-                | UpstreamTargetError::ApiKeyOnVertex { .. }
-                | UpstreamTargetError::MalformedCredential { .. }
-                | UpstreamTargetError::Endpoint { .. }
-        )
-    )
+}
+
+fn with_retry_after(mut response: Response<Body>, seconds: i32) -> Response<Body> {
+    if let Ok(value) = HeaderValue::from_str(&seconds.to_string()) {
+        response.headers_mut().insert("retry-after", value);
+    }
+    response
 }
 
 fn build_upstream_passthrough(e: &UpstreamError) -> Option<Response<Body>> {
@@ -196,32 +191,19 @@ fn build_upstream_passthrough(e: &UpstreamError) -> Option<Response<Body>> {
     builder.body(Body::from(body.clone())).ok()
 }
 
-pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
-    let UpstreamError::Status {
-        provider,
-        status,
-        message,
-        ..
-    } = e
-    else {
-        return (
-            StatusCode::BAD_GATEWAY,
-            "upstream provider unreachable".to_owned(),
-        );
-    };
-    let mapped = match *status {
-        400 | 404 | 422 => StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_REQUEST),
-        429 => StatusCode::TOO_MANY_REQUESTS,
-        408 | 504 => StatusCode::GATEWAY_TIMEOUT,
-        _ => StatusCode::BAD_GATEWAY,
-    };
-    if mapped.is_server_error() {
-        (mapped, "upstream provider error".to_owned())
-    } else {
-        (
+pub fn map_upstream_error(e: &UpstreamError) -> RejectionError {
+    let mapped = upstream_status(e);
+    match e {
+        UpstreamError::Status {
+            provider, message, ..
+        } if !mapped.is_server_error() => RejectionError::client(
             mapped,
             format!("{provider} rejected the request: {message}"),
-        )
+        ),
+        UpstreamError::Status { .. } => RejectionError::server(mapped, "upstream provider error"),
+        UpstreamError::Transport { .. } => {
+            RejectionError::server(mapped, "upstream provider unreachable")
+        },
     }
 }
 

@@ -19,7 +19,7 @@ use systemprompt_api::services::gateway::protocol::outbound::retry::{
     parse_retry_after, with_policy,
 };
 use systemprompt_api::services::gateway::protocol::outbound::{
-    OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError,
+    OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, UpstreamError,
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
@@ -86,7 +86,7 @@ fn ok_body() -> serde_json::Value {
 
 // Why: the adapter owns both halves of a send, and the retry sits between
 // them, so the tests must go through the pair rather than either alone.
-async fn send_once(endpoint: &str) -> anyhow::Result<OutboundOutcome> {
+async fn send_once(endpoint: &str) -> Result<OutboundOutcome, OutboundError> {
     let adapter = AnthropicOutbound;
     let route = route();
     let req = request();
@@ -104,7 +104,7 @@ async fn send_once(endpoint: &str) -> anyhow::Result<OutboundOutcome> {
     adapter.send(ctx, &body).await
 }
 
-async fn send_counting(endpoint: &str) -> (anyhow::Result<OutboundOutcome>, u32) {
+async fn send_counting(endpoint: &str) -> (Result<OutboundOutcome, OutboundError>, u32) {
     with_policy(
         RetryPolicy::immediate(),
         observing_retries(send_once(endpoint)),
@@ -167,7 +167,7 @@ async fn assert_not_retried(status: u16) {
     let (outcome, retries) = send_counting(&server.uri()).await;
 
     let err = outcome.map(|_| ()).expect_err("upstream error");
-    let upstream = err.downcast_ref::<UpstreamError>().expect("upstream kind");
+    let upstream = err.upstream().expect("upstream kind");
     match upstream {
         UpstreamError::Status { status: got, .. } => assert_eq!(*got, status),
         UpstreamError::Transport { .. } => panic!("expected a status error"),
@@ -207,7 +207,7 @@ async fn exhausted_budget_relays_the_final_429_verbatim() {
     let (outcome, retries) = send_counting(&server.uri()).await;
 
     let err = outcome.map(|_| ()).expect_err("upstream error");
-    let upstream = err.downcast_ref::<UpstreamError>().expect("upstream kind");
+    let upstream = err.upstream().expect("upstream kind");
     match upstream {
         UpstreamError::Status {
             status,

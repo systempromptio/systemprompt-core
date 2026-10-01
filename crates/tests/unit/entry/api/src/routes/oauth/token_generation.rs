@@ -66,9 +66,10 @@ async fn token_error_invalid_client_secret_yields_401() {
 
 #[tokio::test]
 async fn token_error_server_error_yields_500() {
-    let resp = OAuthHttpError::from(TokenError::ServerError {
-        message: "db timeout".to_string(),
-    })
+    let resp = OAuthHttpError::from(TokenError::server(
+        "Token generation failed",
+        std::io::Error::other("db timeout"),
+    ))
     .into_response();
     assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }

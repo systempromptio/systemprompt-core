@@ -19,7 +19,6 @@ use std::cell::Cell;
 use std::future::Future;
 use std::time::Duration;
 
-use anyhow::Result;
 use chrono::{DateTime, Utc};
 
 use super::UpstreamError;
@@ -173,7 +172,7 @@ pub async fn send_with_retry(
     provider: &str,
     req: reqwest::RequestBuilder,
     policy: &RetryPolicy,
-) -> Result<(reqwest::Response, u32)> {
+) -> Result<(reqwest::Response, u32), UpstreamError> {
     let mut attempt = 1;
     loop {
         let Some(this_try) = req.try_clone() else {
@@ -189,9 +188,7 @@ pub async fn send_with_retry(
             Err(SendFailure::Upstream(response)) => response,
         };
         if attempt >= policy.max_attempts {
-            return Err(anyhow::Error::new(
-                UpstreamError::from_response(provider, response).await,
-            ));
+            return Err(UpstreamError::from_response(provider, response).await);
         }
         let retry_after = response
             .headers()
@@ -223,17 +220,15 @@ pub async fn send_with_retry(
     }
 }
 
-async fn into_error(provider: &str, failure: SendFailure) -> anyhow::Error {
+async fn into_error(provider: &str, failure: SendFailure) -> UpstreamError {
     match failure {
         SendFailure::Fatal(e) => e,
-        SendFailure::Upstream(response) => {
-            anyhow::Error::new(UpstreamError::from_response(provider, response).await)
-        },
+        SendFailure::Upstream(response) => UpstreamError::from_response(provider, response).await,
     }
 }
 
 enum SendFailure {
-    Fatal(anyhow::Error),
+    Fatal(UpstreamError),
     Upstream(reqwest::Response),
 }
 
@@ -242,10 +237,10 @@ async fn send_once(
     req: reqwest::RequestBuilder,
 ) -> std::result::Result<reqwest::Response, SendFailure> {
     let response = req.send().await.map_err(|e| {
-        SendFailure::Fatal(anyhow::Error::new(UpstreamError::Transport {
+        SendFailure::Fatal(UpstreamError::Transport {
             provider: provider.to_owned(),
             source: e,
-        }))
+        })
     })?;
     let status = response.status().as_u16();
     if response.status().is_success() {
@@ -254,7 +249,7 @@ async fn send_once(
     if is_retryable(status) {
         return Err(SendFailure::Upstream(response));
     }
-    Err(SendFailure::Fatal(anyhow::Error::new(
+    Err(SendFailure::Fatal(
         UpstreamError::from_response(provider, response).await,
-    )))
+    ))
 }

@@ -14,6 +14,7 @@ use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::gateway::service::{DispatchInputs, GatewayService};
 
 use super::RequestContext;
+pub use super::error::RejectionError;
 use super::extract::PreparedRequest;
 
 pub mod errors;
@@ -24,13 +25,6 @@ pub use self::errors::{
     build_error_response, build_policy_denial, classify_dispatch_error, error_type_for,
     map_dispatch_error, policy_denial_message,
 };
-
-#[derive(Debug)]
-pub struct RejectionError {
-    pub status: StatusCode,
-    pub message: String,
-    pub persist: bool,
-}
 
 pub(super) async fn dispatch_to_provider(
     rc: &RequestContext<'_>,
@@ -75,11 +69,10 @@ pub(super) async fn dispatch_to_provider(
         access_log: rc.access_log.clone(),
     };
 
-    let gateway_config = rc.services.gateway_config().ok_or_else(|| RejectionError {
-        status: StatusCode::NOT_FOUND,
-        message: "Gateway not enabled".to_owned(),
-        persist: true,
-    })?;
+    let gateway_config = rc
+        .services
+        .gateway_config()
+        .ok_or_else(|| RejectionError::client(StatusCode::NOT_FOUND, "Gateway not enabled"))?;
 
     match Box::pin(GatewayService::dispatch(
         gateway_config,

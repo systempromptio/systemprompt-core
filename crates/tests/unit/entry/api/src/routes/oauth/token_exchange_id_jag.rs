@@ -8,6 +8,7 @@
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
+use systemprompt_api::routes::oauth::endpoints::token::TokenError;
 use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::id_jag_subject::validate_id_jag_subject;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ClientId;
@@ -57,7 +58,7 @@ fn claims(config: &Config, jti: &str, scope: &str) -> serde_json::Value {
     })
 }
 
-async fn validate(token: &str, pool: &DbPool, config: &Config) -> anyhow::Result<Vec<String>> {
+async fn validate(token: &str, pool: &DbPool, config: &Config) -> Result<Vec<String>, TokenError> {
     let repo = OAuthRepository::new(pool);
     validate_id_jag_subject(token, &ClientId::new(CLIENT), &repo, config)
         .await

@@ -9,9 +9,11 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
 use systemprompt_events::EventRouter;
-use systemprompt_identifiers::ContextId;
 use systemprompt_models::{ContextEvent, RequestContext};
 use systemprompt_runtime::AppContext;
+
+use crate::error::ApiHttpError;
+use crate::routes::agent::parse_context_id;
 
 
 pub async fn forward_event(
@@ -19,35 +21,15 @@ pub async fn forward_event(
     State(app_context): State<AppContext>,
     Path(context_id): Path<String>,
     Json(event): Json<ContextEvent>,
-) -> Response {
+) -> Result<Response, ApiHttpError> {
     let user_id = request_context.user_id();
-    let context_id_typed = match ContextId::try_new(&context_id) {
-        Ok(id) => id,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": format!("invalid context id: {e}")})),
-            )
-                .into_response();
-        },
-    };
+    let context_id_typed = parse_context_id(&context_id)?;
 
-    let context_repo = &app_context.a2a_repositories().contexts;
-    if let Err(e) = context_repo
+    app_context
+        .a2a_repositories()
+        .contexts
         .validate_context_ownership(&context_id_typed, user_id)
-        .await
-    {
-        tracing::error!(error = %e, "Context ownership validation failed");
-
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({
-                "error": "Context ownership validation failed",
-                "message": format!("User does not own context: {e}")
-            })),
-        )
-            .into_response();
-    }
+        .await?;
 
     let (protocol, broadcast_count) = match event {
         ContextEvent::AgUi(e) => {
@@ -76,7 +58,7 @@ pub async fn forward_event(
         },
     };
 
-    (
+    Ok((
         StatusCode::OK,
         Json(json!({
             "success": true,
@@ -85,5 +67,5 @@ pub async fn forward_event(
             "context_id": context_id
         })),
     )
-        .into_response()
+        .into_response())
 }

@@ -18,9 +18,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::FromRequestParts;
+use axum::response::{IntoResponse, Response};
+use http::header;
 use http::request::Parts;
-use http::{StatusCode, header};
 use systemprompt_models::Config;
+use systemprompt_models::api::ApiError;
+use systemprompt_models::errors::ConfigError;
 
 #[derive(Debug, Clone)]
 pub struct RequestBaseUrl {
@@ -108,8 +111,26 @@ fn build_from_host(raw_host: &str, configured: &url::Url) -> Result<RequestBaseU
     })
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum RequestBaseUrlError {
+    #[error("configuration unavailable")]
+    Config(#[from] ConfigError),
+    #[error("api_external_url {url:?} is not a valid URL")]
+    InvalidExternalUrl {
+        url: String,
+        #[source]
+        source: url::ParseError,
+    },
+}
+
+impl IntoResponse for RequestBaseUrlError {
+    fn into_response(self) -> Response {
+        ApiError::internal("Request base URL unavailable", self).into_response()
+    }
+}
+
 impl<S: Send + Sync> FromRequestParts<S> for RequestBaseUrl {
-    type Rejection = (StatusCode, String);
+    type Rejection = RequestBaseUrlError;
 
     #[expect(
         clippy::unused_async_trait_impl,
@@ -117,23 +138,12 @@ impl<S: Send + Sync> FromRequestParts<S> for RequestBaseUrl {
                   extractor resolves the base URL synchronously"
     )]
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let cfg = Config::get().map_err(|e| {
-            tracing::error!(error = %e, "Failed to load config for RequestBaseUrl");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Configuration unavailable".to_owned(),
-            )
-        })?;
-        let configured = url::Url::parse(&cfg.api_external_url).map_err(|e| {
-            tracing::error!(
-                error = %e,
-                api_external_url = %cfg.api_external_url,
-                "api_external_url is not a valid URL — bootstrap validation should have caught this"
-            );
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Configuration invalid".to_owned(),
-            )
+        let cfg = Config::get()?;
+        let configured = url::Url::parse(&cfg.api_external_url).map_err(|source| {
+            RequestBaseUrlError::InvalidExternalUrl {
+                url: cfg.api_external_url.clone(),
+                source,
+            }
         })?;
 
         let raw_host = parts

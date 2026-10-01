@@ -91,5 +91,8 @@ pub fn resolve_audience(
 
     JwtAudience::from_str(value)
         .map(|aud| vec![aud])
-        .map_err(|e| ClientCredentialsError::InvalidAudience(format!("'{value}': {e}")))
+        .map_err(|source| ClientCredentialsError::UnknownAudience {
+            audience: value.to_owned(),
+            source,
+        })
 }

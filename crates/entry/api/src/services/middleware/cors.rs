@@ -10,8 +10,12 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 #[derive(Debug, Error)]
 pub enum CorsError {
-    #[error("Invalid origin '{origin}' in cors_allowed_origins: {reason}")]
-    InvalidOrigin { origin: String, reason: String },
+    #[error("Invalid origin '{origin}' in cors_allowed_origins")]
+    InvalidOrigin {
+        origin: String,
+        #[source]
+        source: http::header::InvalidHeaderValue,
+    },
     #[error("cors_allowed_origins must contain at least one valid origin")]
     EmptyOrigins,
 }
@@ -30,9 +34,9 @@ impl CorsMiddleware {
             let header_value =
                 trimmed
                     .parse::<http::HeaderValue>()
-                    .map_err(|e| CorsError::InvalidOrigin {
+                    .map_err(|source| CorsError::InvalidOrigin {
                         origin: origin.clone(),
-                        reason: e.to_string(),
+                        source,
                     })?;
             origins.push(header_value);
         }

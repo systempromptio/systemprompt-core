@@ -6,7 +6,6 @@
 
 use std::str::FromStr;
 
-use anyhow::{Result, anyhow};
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{Permission, parse_permissions};
@@ -15,7 +14,7 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::id_jag::resolve_bound_resource;
 use systemprompt_oauth::services::{LinkedSubject, link_enterprise_principal};
 
-use super::super::super::TokenError;
+use super::super::super::{TokenError, TokenResult};
 use super::super::RequestOrigin;
 use super::claims::intersect_scopes;
 use super::subject::SubjectIdentity;
@@ -23,7 +22,7 @@ use super::subject::SubjectIdentity;
 pub fn validate_resource<'a>(
     resource: Option<&'a str>,
     global: &Config,
-) -> Result<Option<&'a str>> {
+) -> TokenResult<Option<&'a str>> {
     match resource {
         Some(value)
             if !global
@@ -31,9 +30,9 @@ pub fn validate_resource<'a>(
                 .iter()
                 .any(|allowed| allowed == value) =>
         {
-            Err(anyhow!(TokenError::InvalidTarget {
+            Err(TokenError::InvalidTarget {
                 message: format!("'{value}' not in allowed_resource_audiences"),
-            }))
+            })
         },
         other => Ok(other),
     }
@@ -43,13 +42,9 @@ pub(super) fn resolve_resource(
     subject: &SubjectIdentity,
     requested: Option<&str>,
     global: &Config,
-) -> Result<Option<String>> {
-    let effective =
-        resolve_bound_resource(subject.bound_resource.as_deref(), requested).map_err(|e| {
-            anyhow!(TokenError::InvalidTarget {
-                message: e.to_string(),
-            })
-        })?;
+) -> TokenResult<Option<String>> {
+    let effective = resolve_bound_resource(subject.bound_resource.as_deref(), requested)
+        .map_err(TokenError::BoundResource)?;
     Ok(validate_resource(effective, global)?.map(ToOwned::to_owned))
 }
 
@@ -59,7 +54,7 @@ pub(super) async fn resolve_delegate(
     client_id: &ClientId,
     subject: &SubjectIdentity,
     requested_scope: Option<&str>,
-) -> Result<(LinkedSubject, Vec<Permission>)> {
+) -> TokenResult<(LinkedSubject, Vec<Permission>)> {
     let grant = load_delegation_grant(repo, state, client_id).await?;
     let delegate = match subject.principal.as_ref() {
         Some(principal) => link_enterprise_principal(state, principal).await?,
@@ -72,7 +67,9 @@ pub(super) async fn resolve_delegate(
     };
 
     let requested_perms = match requested_scope {
-        Some(s) => parse_permissions(s)?,
+        Some(s) => parse_permissions(s).map_err(|_unknown| TokenError::InvalidScope {
+            message: "scope contains an unknown permission".to_owned(),
+        })?,
         None => subject.scope.clone(),
     };
     let final_perms = intersect_scopes(
@@ -97,19 +94,19 @@ async fn load_delegation_grant(
     repo: &OAuthRepository,
     state: &OAuthState,
     client_id: &ClientId,
-) -> Result<DelegationGrant> {
+) -> TokenResult<DelegationGrant> {
     let client = repo
         .find_client_by_id(client_id)
         .await?
-        .ok_or_else(|| anyhow!(TokenError::InvalidClient))?;
+        .ok_or(TokenError::InvalidClient)?;
     let owner = state
         .user_provider()
         .find_by_id(&client.owner_user_id)
         .await
-        .map_err(|e| anyhow!("Failed to load client owner: {e}"))?
-        .ok_or_else(|| anyhow!("Client owner not found"))?;
+        .map_err(|e| TokenError::server("Failed to load client owner", e))?
+        .ok_or(TokenError::InvalidClient)?;
     if !owner.is_active {
-        return Err(anyhow!("Client owner is not active"));
+        return Err(TokenError::InvalidClient);
     }
     let owner_perms = owner
         .roles
@@ -136,7 +133,7 @@ pub(super) async fn ensure_session(
     origin: RequestOrigin<'_>,
     user_id: &UserId,
     global: &Config,
-) -> Result<SessionId> {
+) -> TokenResult<SessionId> {
     use systemprompt_identifiers::SessionSource;
     use systemprompt_traits::{CreateSessionInput, ExtractSignals};
 
@@ -162,6 +159,6 @@ pub(super) async fn ensure_session(
             expires_at,
         })
         .await
-        .map_err(|e| anyhow!("Failed to create session: {e}"))?;
+        .map_err(|e| TokenError::server("Failed to create session", e))?;
     Ok(session_id)
 }

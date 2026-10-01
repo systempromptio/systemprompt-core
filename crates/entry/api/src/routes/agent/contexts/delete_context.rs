@@ -48,11 +48,6 @@ pub async fn delete_context(
 
             StatusCode::NO_CONTENT.into_response()
         },
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to delete context");
-            api_error_response(ApiError::not_found(format!(
-                "Failed to delete context: {e}"
-            )))
-        },
+        Err(e) => api_error_response(ApiError::from(e)),
     }
 }

@@ -22,7 +22,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::Config;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -30,7 +29,7 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt_with_act};
 
-use super::super::TokenResponse;
+use super::super::{TokenError, TokenResponse, TokenResult};
 use super::RequestOrigin;
 
 pub mod claims;
@@ -73,7 +72,7 @@ pub async fn handle_token_exchange(
     request: TokenExchangeRequest<'_>,
     origin: RequestOrigin<'_>,
     state: &OAuthState,
-) -> Result<TokenResponse> {
+) -> TokenResult<TokenResponse> {
     let global = Config::get()?;
 
     if request.requested_token_type == Some(ID_JAG_TOKEN_TYPE) {
@@ -96,7 +95,7 @@ pub async fn handle_token_exchange(
     let act = build_act_chain(client_id, issuer, subject.prior_act);
 
     let delegate_uuid = uuid::Uuid::parse_str(delegate.user_id.as_str())
-        .map_err(|e| anyhow!("Delegated user has a non-uuid id ({e})"))?;
+        .map_err(|e| TokenError::server("Delegated user has a non-uuid id", e))?;
     let delegated_user = AuthenticatedUser::new(
         delegate_uuid,
         delegate.name,
@@ -125,7 +124,8 @@ pub async fn handle_token_exchange(
         &session_id,
         &signing,
         act,
-    )?;
+    )
+    .map_err(|e| TokenError::server("Access token signing failed", e))?;
 
     let scope_string = final_perms
         .iter()

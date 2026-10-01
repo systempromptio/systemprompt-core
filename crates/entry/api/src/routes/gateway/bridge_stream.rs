@@ -13,13 +13,14 @@
 
 use std::sync::Arc;
 
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use systemprompt_events::AGUI_BROADCASTER;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId};
 use systemprompt_models::RequestContext;
 
-use super::messages::extract_credential;
+use super::bridge_error::authenticate_bridge;
+use crate::error::ApiHttpError;
 use crate::routes::stream::create_sse_stream;
 use crate::services::middleware::JwtContextExtractor;
 
@@ -27,20 +28,9 @@ pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
     headers: HeaderMap,
 ) -> axum::response::Response {
-    let Some(credential) = extract_credential(&headers) else {
-        return (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential",
-        )
-            .into_response();
-    };
-
-    let (_claims, user) = match jwt_extractor
-        .decode_for_gateway(&JwtToken::new(credential))
-        .await
-    {
+    let (_claims, user) = match authenticate_bridge(&jwt_extractor, &headers).await {
         Ok(pair) => pair,
-        Err(e) => return (StatusCode::UNAUTHORIZED, e.to_string()).into_response(),
+        Err(e) => return ApiHttpError::from(e).into_response(),
     };
 
     let request_context = RequestContext::new(

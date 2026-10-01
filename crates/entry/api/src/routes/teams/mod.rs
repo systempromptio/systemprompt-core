@@ -143,7 +143,7 @@ fn spawn_reply(state: TeamsState, inbound: MessagingInbound, reply: TeamsReply) 
             Ok(DispatchOutcome::Replied(reply)) => non_empty(reply),
             Ok(DispatchOutcome::Denied(reason)) => format!("⛔ {reason}"),
             Err(err) => {
-                tracing::error!(error = %err, "teams dispatch failed");
+                tracing::error!(error = ?err, "teams dispatch failed");
                 err.user_message()
             },
         };

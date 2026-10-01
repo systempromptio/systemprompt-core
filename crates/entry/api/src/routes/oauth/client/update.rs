@@ -35,8 +35,7 @@ pub async fn update_client(
             request.redirect_uris.as_deref(),
             request.scopes.as_deref(),
         )
-        .await
-        .map_err(|e| OAuthHttpError::invalid_request(format!("Failed to update client: {e}")))?;
+        .await?;
 
     tracing::info!(
         client_id = %client_id,

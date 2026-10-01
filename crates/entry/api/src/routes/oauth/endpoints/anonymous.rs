@@ -18,7 +18,7 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::cimd::ClientValidator;
 use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use systemprompt_traits::{ExtractSignals, SessionAnalytics};
 
 #[derive(Debug, Serialize)]
@@ -77,7 +77,7 @@ async fn issue_anonymous_session(
             session_source,
         })
         .await
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to create session: {e}")))?;
+        .map_err(|e| internal::server_error("Failed to create anonymous session", e))?;
 
     let jwt_token = session_info.jwt_token;
     let body = AnonymousTokenResponse {
@@ -111,14 +111,11 @@ pub async fn generate_anonymous_token(
 ) -> Result<Response, OAuthHttpError> {
     let client_id = req.client_id.clone();
 
-    let validator = ClientValidator::new(state.oauth_repository().clone()).map_err(|e| {
-        OAuthHttpError::server_error(format!("Failed to create client validator: {e}"))
-    })?;
+    let validator = ClientValidator::new(state.oauth_repository().clone())?;
 
     let validation = validator
         .validate_client(&client_id, req.redirect_uri.as_deref())
-        .await
-        .map_err(|e| OAuthHttpError::invalid_client(format!("Client validation failed: {e}")))?;
+        .await?;
     let client_type = validation.client_type();
 
     let session_service = build_session_service(&state);

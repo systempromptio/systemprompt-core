@@ -17,6 +17,7 @@ use systemprompt_models::Config;
 use systemprompt_models::auth::parse_permissions;
 
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::middleware::client_addr::ClientIp;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
@@ -35,33 +36,19 @@ pub async fn handle_callback(
     OAuthRepo(repo): OAuthRepo,
     ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
-) -> impl IntoResponse {
-    let config = match Config::get() {
-        Ok(c) => c,
-        Err(e) => {
-            tracing::error!(error = %e, "OAuth callback could not load config");
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load config").into_response();
-        },
-    };
+) -> Result<Response, OAuthHttpError> {
+    let config = Config::get()?;
 
     let server_base_url = &config.api_external_url;
     let redirect_uri = format!("{server_base_url}/api/v1/core/oauth/callback");
 
-    let browser_client = match find_browser_client(&repo, &redirect_uri).await {
-        Ok(client) => client,
-        Err(e) => {
-            tracing::error!(error = %e, "OAuth callback could not resolve the browser client");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to find OAuth client",
-            )
-                .into_response();
-        },
-    };
+    let browser_client = find_browser_client(&repo, &redirect_uri)
+        .await
+        .map_err(|e| internal::server_error("Failed to find OAuth client", e))?;
 
     let code = AuthorizationCode::new(&params.code);
     let client_id = ClientId::new(&browser_client.client_id);
-    let token_response = match exchange_code_for_token(
+    let token_response = exchange_code_for_token(
         &repo,
         CodeExchangeParams {
             caller_ip,
@@ -73,47 +60,36 @@ pub async fn handle_callback(
         &state,
     )
     .await
-    {
-        Ok(response) => response,
-        Err(e) => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                format!("Failed to exchange code for token: {e}"),
-            )
-                .into_response();
-        },
-    };
+    .map_err(|e| {
+        internal::rejected(
+            OAuthHttpError::invalid_grant("Failed to exchange code for token")
+                .with_status(StatusCode::UNAUTHORIZED),
+            e,
+        )
+    })?;
 
-    let redirect_destination =
-        match resolve_redirect_destination(&repo, params.state.as_deref()).await {
-            Ok(destination) => destination,
-            Err(response) => return response,
-        };
+    let redirect_destination = resolve_redirect_destination(&repo, params.state.as_deref()).await?;
 
-    session_cookie_redirect(&token_response.access_token, &redirect_destination)
+    Ok(session_cookie_redirect(
+        &token_response.access_token,
+        &redirect_destination,
+    ))
 }
 
 async fn resolve_redirect_destination(
     repo: &OAuthRepository,
     state_token: Option<&str>,
-) -> Result<String, Response> {
+) -> Result<String, OAuthHttpError> {
     let Some(state_token) = state_token.filter(|s| !s.is_empty()) else {
-        return Err((StatusCode::BAD_REQUEST, "Missing state parameter").into_response());
+        return Err(OAuthHttpError::invalid_request("Missing state parameter"));
     };
     match repo.consume_state_binding(state_token).await {
         Ok(Some(binding)) => Ok(binding.return_to),
         Ok(None) => {
             tracing::warn!("state binding missing, expired, or already consumed");
-            Err((StatusCode::BAD_REQUEST, "Invalid state parameter").into_response())
+            Err(OAuthHttpError::invalid_request("Invalid state parameter"))
         },
-        Err(e) => {
-            tracing::error!(error = %e, "state binding lookup failed");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to validate state",
-            )
-                .into_response())
-        },
+        Err(e) => Err(internal::server_error("Failed to validate state", e)),
     }
 }
 

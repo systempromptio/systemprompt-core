@@ -156,16 +156,10 @@ impl ProxyEngine {
             .await;
         }
 
-        match ResponseHandler::build_response(response) {
-            Ok(resp) => Ok(resp),
-            Err(e) => {
-                tracing::error!(service = %service_name, error = %e, "Failed to build response");
-                Err(ProxyError::InvalidResponse {
-                    service: service_name.to_owned(),
-                    reason: format!("Failed to build response: {e}"),
-                })
-            },
-        }
+        ResponseHandler::build_response(response).map_err(|source| ProxyError::InvalidResponse {
+            service: service_name.to_owned(),
+            source,
+        })
     }
 
     async fn build_forward_context(
@@ -181,10 +175,10 @@ impl ProxyEngine {
         })?;
 
         if service.module_name == "agent" {
-            let agent_name = AgentName::try_new(service_name.to_owned()).map_err(|e| {
+            let agent_name = AgentName::try_new(service_name.to_owned()).map_err(|source| {
                 ProxyError::InvalidServiceName {
                     service: service_name.to_owned(),
-                    reason: e.to_string(),
+                    source,
                 }
             })?;
             req_context = req_context.with_agent_name(agent_name);
@@ -216,8 +210,7 @@ impl ProxyEngine {
             .await
             .map_err(|e| ProxyError::BodyExtractionFailed { source: e })?;
 
-        let reqwest_method = RequestBuilder::parse_method(&method_str)
-            .map_err(|reason| ProxyError::InvalidMethod { reason })?;
+        let reqwest_method = RequestBuilder::parse_method(&method_str)?;
 
         let client = self.client_pool.get_default_client();
 

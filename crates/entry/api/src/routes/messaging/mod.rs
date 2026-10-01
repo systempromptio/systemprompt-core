@@ -23,11 +23,14 @@ pub mod identity;
 use std::sync::LazyLock;
 
 use serde_json::json;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_oauth::OauthError;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
 use systemprompt_traits::SenderIdentity;
+use systemprompt_users::UserError;
 
+use crate::services::proxy::ProxyError;
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
 use identity::resolve_or_link_user;
 
@@ -78,14 +81,28 @@ pub enum DispatchOutcome {
 /// messages are deliberately descriptive for operator debugging.
 #[derive(Debug, thiserror::Error)]
 pub enum MessagingError {
-    #[error("identity resolution failed: {0}")]
-    Identity(String),
-    #[error("token minting failed: {0}")]
-    Token(String),
-    #[error("agent dispatch failed: {0}")]
-    Dispatch(String),
-    #[error("malformed agent response: {0}")]
-    Response(String),
+    #[error("identity resolution failed")]
+    Identity(#[source] UserError),
+    #[error("user id {user_id} is not a uuid")]
+    InvalidUserId {
+        user_id: UserId,
+        #[source]
+        source: uuid::Error,
+    },
+    #[error("token minting failed")]
+    Token(#[source] OauthError),
+    #[error("could not encode the agent request")]
+    Encode(#[source] serde_json::Error),
+    #[error("could not build the agent request")]
+    Request(#[source] axum::http::Error),
+    #[error("agent dispatch failed")]
+    Dispatch(#[source] ProxyError),
+    #[error("agent returned JSON-RPC error {code}: {message}")]
+    AgentRejected { code: i32, message: String },
+    #[error("agent response body could not be read")]
+    ResponseBody(#[source] axum::Error),
+    #[error("malformed agent response")]
+    Response(#[source] serde_json::Error),
 }
 
 impl MessagingError {

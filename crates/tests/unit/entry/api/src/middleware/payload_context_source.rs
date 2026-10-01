@@ -76,10 +76,7 @@ fn a_body_that_is_not_json_is_reported_as_an_invalid_payload() {
     match error {
         ContextExtractionError::InvalidHeaderValue { header, reason } => {
             assert_eq!(header, "payload");
-            assert!(
-                reason.starts_with("Invalid JSON:"),
-                "the parse failure must be preserved; got {reason}"
-            );
+            assert_eq!(reason, "body is not valid JSON");
         },
         other => panic!("expected InvalidHeaderValue, got {other:?}"),
     }

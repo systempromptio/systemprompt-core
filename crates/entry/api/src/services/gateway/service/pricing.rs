@@ -20,7 +20,7 @@ pub(super) fn dispatch_pricing(
         Some(config),
         registry,
     )
-    .map_err(|error| DispatchError::PreAudit(error.into()))
+    .map_err(DispatchError::pre_audit)
 }
 
 // Why: the shared resolver walks the gateway routes first, and the route

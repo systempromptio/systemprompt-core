@@ -17,7 +17,7 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 };
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{
-    OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError,
+    OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, UpstreamError,
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
@@ -31,7 +31,7 @@ use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 async fn send_via<A: OutboundAdapter>(
     adapter: &A,
     ctx: OutboundCtx<'_>,
-) -> anyhow::Result<OutboundOutcome> {
+) -> Result<OutboundOutcome, OutboundError> {
     let body = adapter.build_body(&ctx)?;
     adapter.send(ctx, &body).await
 }
@@ -307,9 +307,7 @@ async fn upstream_error_body_and_retry_after_are_preserved() {
         panic!("529 must surface as an error");
     };
 
-    let upstream = err
-        .downcast_ref::<UpstreamError>()
-        .expect("carried as UpstreamError");
+    let upstream = err.upstream().expect("carried as UpstreamError");
     let UpstreamError::Status {
         status,
         body,

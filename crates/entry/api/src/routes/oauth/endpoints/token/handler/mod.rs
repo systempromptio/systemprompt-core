@@ -1,6 +1,5 @@
 //! `/oauth/token` endpoint: dispatches by `grant_type` to the per-grant
-//! handlers in `grants` and normalizes token-exchange errors back into the
-//! endpoint's `TokenError` wire type.
+//! handlers in `grants`, each of which fails with the typed `TokenError`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -112,44 +111,4 @@ fn apply_basic_client_auth(headers: &HeaderMap, request: &mut TokenRequest) -> T
     request.client_id = Some(client_id.into_owned());
     request.client_secret = Some(client_secret.into_owned());
     Ok(())
-}
-
-pub fn map_exchange_error(err: &anyhow::Error) -> TokenError {
-    if let Some(token_err) = err.downcast_ref::<TokenError>() {
-        return clone_token_error(token_err);
-    }
-    TokenError::ServerError {
-        message: err.to_string(),
-    }
-}
-
-fn clone_token_error(err: &TokenError) -> TokenError {
-    match err {
-        TokenError::InvalidRequest { field, message } => TokenError::InvalidRequest {
-            field: field.clone(),
-            message: message.clone(),
-        },
-        TokenError::UnsupportedGrantType { grant_type } => TokenError::UnsupportedGrantType {
-            grant_type: grant_type.clone(),
-        },
-        TokenError::InvalidClient => TokenError::InvalidClient,
-        TokenError::InvalidGrant { reason } => TokenError::InvalidGrant {
-            reason: reason.clone(),
-        },
-        TokenError::InvalidRefreshToken { reason } => TokenError::InvalidRefreshToken {
-            reason: reason.clone(),
-        },
-        TokenError::InvalidCredentials => TokenError::InvalidCredentials,
-        TokenError::InvalidClientSecret => TokenError::InvalidClientSecret,
-        TokenError::ExpiredCode => TokenError::ExpiredCode,
-        TokenError::ServerError { message } => TokenError::ServerError {
-            message: message.clone(),
-        },
-        TokenError::InvalidTarget { message } => TokenError::InvalidTarget {
-            message: message.clone(),
-        },
-        TokenError::InvalidScope { message } => TokenError::InvalidScope {
-            message: message.clone(),
-        },
-    }
 }

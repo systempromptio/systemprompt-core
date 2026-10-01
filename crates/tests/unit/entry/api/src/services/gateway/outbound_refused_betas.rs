@@ -17,7 +17,7 @@ use systemprompt_api::services::gateway::protocol::outbound::anthropic::rejected
 };
 use systemprompt_api::services::gateway::protocol::outbound::retry::{RetryPolicy, with_policy};
 use systemprompt_api::services::gateway::protocol::outbound::{
-    OutboundAdapter, OutboundCtx, OutboundOutcome,
+    OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome,
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
@@ -105,7 +105,7 @@ impl Respond for RefusesBeta {
     }
 }
 
-async fn send(endpoint: &str, provider: &str) -> anyhow::Result<OutboundOutcome> {
+async fn send(endpoint: &str, provider: &str) -> Result<OutboundOutcome, OutboundError> {
     let route = route(provider);
     let req = request();
     let forward = vec![("anthropic-beta".to_owned(), format!("{REFUSED},{KEPT}"))];

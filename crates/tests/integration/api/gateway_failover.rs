@@ -34,7 +34,7 @@ fn assert_recorded_status(error: DispatchError, status: u16) {
     };
     assert!(
         matches!(
-            error.downcast_ref::<UpstreamError>(),
+            error.upstream(),
             Some(UpstreamError::Status { status: actual, .. }) if *actual == status
         ),
         "expected recorded upstream status {status}, got {error:#}"

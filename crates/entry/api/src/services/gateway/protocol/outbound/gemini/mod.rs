@@ -10,31 +10,37 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::gemini;
 
 use super::super::canonical_response::CanonicalResponse;
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
+use super::{OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, PreparedBody};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GeminiOutbound;
 
 #[async_trait]
 impl OutboundAdapter for GeminiOutbound {
-    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody> {
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody, OutboundError> {
         Ok(PreparedBody {
             bytes: bytes::Bytes::from(
                 serde_json::to_vec(&gemini::build_request_body(ctx.request, ctx.model_limits))
-                    .map_err(|e| anyhow!("render request body: {e}"))?,
+                    .map_err(|source| OutboundError::RenderBody {
+                        wire: "gemini",
+                        source,
+                    })?,
             ),
             raw_lane: false,
         })
     }
 
-    async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
+    async fn send(
+        &self,
+        ctx: OutboundCtx<'_>,
+        body: &PreparedBody,
+    ) -> Result<OutboundOutcome, OutboundError> {
         let url = ctx
             .upstream
             .url(WireProtocol::Gemini, ctx.upstream_model, ctx.request.stream);
@@ -57,9 +63,15 @@ impl OutboundAdapter for GeminiOutbound {
         let bytes = upstream_response
             .bytes()
             .await
-            .map_err(|e| anyhow!("Failed to read Gemini response: {e}"))?;
-        let value: Value = serde_json::from_slice(&bytes)
-            .map_err(|e| anyhow!("Gemini response not valid JSON: {e}"))?;
+            .map_err(|source| OutboundError::ReadBody {
+                wire: "gemini",
+                source,
+            })?;
+        let value: Value =
+            serde_json::from_slice(&bytes).map_err(|source| OutboundError::DecodeBody {
+                wire: "gemini",
+                source,
+            })?;
         if let Some(defect) = gemini::buffered_defect(&value) {
             return Err(super::reject_defective_body(
                 ctx.route.provider.as_str(),

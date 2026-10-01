@@ -20,7 +20,6 @@
 
 pub mod google;
 
-use anyhow::anyhow;
 use systemprompt_ai::{UpstreamCall, UpstreamTarget, UpstreamTargetError};
 use systemprompt_models::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialError, CredentialScope, fill_endpoint};
@@ -41,5 +40,5 @@ pub(super) async fn resolve(provider: &ProviderEntry) -> Result<UpstreamCall, Di
 }
 
 fn pre_audit(error: UpstreamTargetError) -> DispatchError {
-    DispatchError::PreAudit(anyhow!(error))
+    DispatchError::pre_audit(error)
 }

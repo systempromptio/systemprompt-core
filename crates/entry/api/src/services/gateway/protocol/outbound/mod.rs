@@ -21,7 +21,6 @@ pub mod retry;
 
 use std::sync::Arc;
 
-use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 use systemprompt_ai::UpstreamCall;
@@ -33,9 +32,9 @@ use thiserror::Error;
 use super::canonical::CanonicalRequest;
 use super::canonical_response::{CanonicalEvent, CanonicalResponse};
 
-/// Upstream provider failure, carried inside the `anyhow::Error` an adapter
-/// returns so the route layer can recover the real HTTP status by downcast
-/// instead of flattening every failure to 502.
+/// Upstream provider failure: the real HTTP status a provider answered, or the
+/// transport failure that kept it from answering, so the route layer can relay
+/// the status instead of flattening every failure to 502.
 #[derive(Debug, Error)]
 pub enum UpstreamError {
     #[error("{provider} returned {status}: {message}")]
@@ -53,6 +52,42 @@ pub enum UpstreamError {
         #[source]
         source: reqwest::Error,
     },
+}
+
+/// Why an outbound adapter could not produce an [`OutboundOutcome`]: the
+/// provider's own answer, or a body the gateway could not render or read.
+#[derive(Debug, Error)]
+pub enum OutboundError {
+    #[error(transparent)]
+    Upstream(#[from] UpstreamError),
+    #[error("render {wire} request body")]
+    RenderBody {
+        wire: &'static str,
+        #[source]
+        source: serde_json::Error,
+    },
+    #[error("read {wire} response body")]
+    ReadBody {
+        wire: &'static str,
+        #[source]
+        source: reqwest::Error,
+    },
+    #[error("{wire} response body is not valid JSON")]
+    DecodeBody {
+        wire: &'static str,
+        #[source]
+        source: serde_json::Error,
+    },
+}
+
+impl OutboundError {
+    #[must_use]
+    pub const fn upstream(&self) -> Option<&UpstreamError> {
+        match self {
+            Self::Upstream(upstream) => Some(upstream),
+            Self::RenderBody { .. } | Self::ReadBody { .. } | Self::DecodeBody { .. } => None,
+        }
+    }
 }
 
 impl UpstreamError {
@@ -90,7 +125,7 @@ pub(in crate::services::gateway) fn http_client() -> &'static reqwest::Client {
 pub(in crate::services::gateway) async fn send_checked(
     provider: &str,
     req: reqwest::RequestBuilder,
-) -> Result<reqwest::Response> {
+) -> Result<reqwest::Response, UpstreamError> {
     let policy = retry::current_policy();
     let (response, _retries) = retry::send_with_retry(provider, req, &policy).await?;
     Ok(response)
@@ -129,7 +164,7 @@ pub enum OutboundOutcome {
     },
     RawStreaming {
         content_type: Option<String>,
-        stream: BoxStream<'static, Result<bytes::Bytes, String>>,
+        stream: BoxStream<'static, Result<bytes::Bytes, WireStreamError>>,
     },
 }
 
@@ -147,9 +182,13 @@ pub struct PreparedBody {
 /// `#[async_trait]` keeps the trait object-safe.
 #[async_trait]
 pub trait OutboundAdapter: Send + Sync {
-    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody>;
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody, OutboundError>;
 
-    async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome>;
+    async fn send(
+        &self,
+        ctx: OutboundCtx<'_>,
+        body: &PreparedBody,
+    ) -> Result<OutboundOutcome, OutboundError>;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -167,7 +206,7 @@ pub(in crate::services::gateway) fn reject_defective_body(
     wire: &str,
     defect: &systemprompt_models::wire::defect::BodyDefect,
     body: &bytes::Bytes,
-) -> anyhow::Error {
+) -> OutboundError {
     let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();
     tracing::warn!(
         provider = %provider,
@@ -176,7 +215,7 @@ pub(in crate::services::gateway) fn reject_defective_body(
         body = %excerpt,
         "upstream returned a success status with a body carrying no turn"
     );
-    anyhow::Error::new(UpstreamError::Status {
+    OutboundError::Upstream(UpstreamError::Status {
         provider: provider.to_owned(),
         status: DEFECTIVE_BODY_STATUS,
         message: format!("{defect}: {excerpt}"),
@@ -191,7 +230,7 @@ pub(in crate::services::gateway) fn reject_unparsable_body(
     wire: &str,
     error: &systemprompt_models::wire::error::WireParseError,
     body: &bytes::Bytes,
-) -> anyhow::Error {
+) -> OutboundError {
     let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();
     tracing::error!(
         provider = %provider,
@@ -200,7 +239,7 @@ pub(in crate::services::gateway) fn reject_unparsable_body(
         body = %excerpt,
         "upstream returned a success status with a body that does not parse"
     );
-    anyhow::Error::new(UpstreamError::Status {
+    OutboundError::Upstream(UpstreamError::Status {
         provider: provider.to_owned(),
         status: DEFECTIVE_BODY_STATUS,
         message: format!("{error}: {excerpt}"),

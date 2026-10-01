@@ -25,8 +25,8 @@ use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
 use tracing::instrument;
 
-use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct RevokeRequest {
@@ -67,7 +67,10 @@ pub async fn handle_revoke(
     Form(request): Form<RevokeRequest>,
 ) -> Result<Response, OAuthHttpError> {
     let audit_user = get_audit_user(Some(&req_ctx.auth.actor.user_id)).map_err(|e| {
-        OAuthHttpError::invalid_request(format!("Authenticated user required: {e}"))
+        internal::rejected(
+            OAuthHttpError::invalid_request("Authenticated user required"),
+            e,
+        )
     })?;
 
     let client_id = match &request.client_id {

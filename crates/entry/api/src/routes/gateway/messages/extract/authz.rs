@@ -17,6 +17,7 @@ use systemprompt_security::authz::{
 };
 
 use super::super::auth::AuthedPrincipal;
+use super::super::error::RejectionError;
 
 /// The inputs to a pre-dispatch gateway authorization decision.
 ///
@@ -76,7 +77,7 @@ pub async fn enforce_authz_pre_dispatch(
     model: &str,
     context_id: &ContextId,
     hook: &SharedAuthzHook,
-) -> Result<(), (StatusCode, String)> {
+) -> Result<(), RejectionError> {
     let route_id = if route.id.as_str().trim().is_empty() {
         systemprompt_models::services::synthesize_route_id(
             &route.model_pattern,
@@ -100,7 +101,7 @@ pub async fn enforce_authz_pre_dispatch(
     });
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
-        AuthzDecision::Deny { reason, policy } => Err((
+        AuthzDecision::Deny { reason, policy } => Err(RejectionError::client(
             StatusCode::FORBIDDEN,
             format!("authz denied [{policy}]: {reason}"),
         )),

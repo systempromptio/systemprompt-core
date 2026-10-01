@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
 use serde::Deserialize;
-use systemprompt_identifiers::{ContextId, TaskId, UserId};
+use systemprompt_identifiers::{TaskId, UserId};
 
 use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_models::RequestContext;
@@ -29,8 +29,7 @@ pub async fn list_tasks_by_context(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(context_id = %context_id, "Listing tasks");
 
-    let context_id_typed = ContextId::try_new(&context_id)
-        .map_err(|e| ApiHttpError::bad_request(format!("invalid context id: {e}")))?;
+    let context_id_typed = super::parse_context_id(&context_id)?;
 
     let context_repo = app_context.a2a_repositories().contexts.clone();
     context_repo

@@ -25,19 +25,20 @@ use axum::extract::{Path, Query};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::JwtToken;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::services::BridgeReleasesSpec;
 
+mod error;
 mod feed;
 mod github;
 
+pub use self::error::ReleaseError;
 pub use self::feed::{ReleaseFeed, ResolvedAsset, ResolvedRelease};
 pub use self::github::parse_sha256sums;
 
 use self::github::github;
 
-use super::messages::extract_credential;
+use super::bridge_error::authenticate_bridge;
 use crate::services::middleware::JwtContextExtractor;
 
 pub const CACHE_TTL: Duration = Duration::from_secs(300);
@@ -65,45 +66,11 @@ pub async fn latest(
     feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Query(query): Query<LatestQuery>,
-) -> Result<Json<ReleaseManifest>, (StatusCode, String)> {
-    authenticate(&jwt_extractor, &headers).await?;
+) -> Result<Json<ReleaseManifest>, ReleaseError> {
+    authenticate_bridge(&jwt_extractor, &headers).await?;
     let spec = releases_spec()?;
-    let resolved = feed
-        .resolve(&spec, &query.platform)
-        .await
-        .map_err(|err| logged_failure("latest", &query.platform, err))?;
+    let resolved = feed.resolve(&spec, &query.platform).await?;
     Ok(Json(resolved.manifest))
-}
-
-// Why: every bridge in the fleet reads this feed on a timer, so a resolution
-// that keeps failing is a fleet-wide update outage, not a warning — production
-// answered 577 consecutive 502s over eleven days while the only record was an
-// access-log row carrying the status and not the reason. A 5xx is logged at
-// error so `infra logs view --level error` shows the cause; a 4xx stays a
-// warning because it is a configuration answer, not an outage.
-fn logged_failure(
-    endpoint: &'static str,
-    platform: &str,
-    (status, detail): (StatusCode, String),
-) -> (StatusCode, String) {
-    if status.is_server_error() {
-        tracing::error!(
-            endpoint,
-            platform,
-            status = status.as_u16(),
-            detail = %detail,
-            "bridge release feed unavailable; every client update check is failing"
-        );
-    } else {
-        tracing::warn!(
-            endpoint,
-            platform,
-            status = status.as_u16(),
-            detail = %detail,
-            "bridge release feed request failed"
-        );
-    }
-    (status, detail)
 }
 
 pub async fn download(
@@ -111,13 +78,10 @@ pub async fn download(
     feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Path(platform): Path<String>,
-) -> Result<Response, (StatusCode, String)> {
-    authenticate(&jwt_extractor, &headers).await?;
+) -> Result<Response, ReleaseError> {
+    authenticate_bridge(&jwt_extractor, &headers).await?;
     let spec = releases_spec()?;
-    let asset = feed
-        .resolve_asset(&spec, &platform)
-        .await
-        .map_err(|err| logged_failure("download", &platform, err))?;
+    let asset = feed.resolve_asset(&spec, &platform).await?;
 
     // Why: GitHub's asset API returns JSON metadata unless Accept is
     // application/octet-stream.
@@ -125,13 +89,16 @@ pub async fn download(
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("asset fetch failed: {e}")))?;
+        .map_err(|source| ReleaseError::Request {
+            stage: "asset fetch",
+            source,
+        })?;
 
     if !upstream.status().is_success() {
-        return Err((
-            StatusCode::BAD_GATEWAY,
-            format!("asset fetch returned {}", upstream.status()),
-        ));
+        return Err(ReleaseError::UpstreamStatus {
+            stage: "asset fetch",
+            status: upstream.status(),
+        });
     }
 
     let body = Body::from_stream(upstream.bytes_stream());
@@ -149,37 +116,10 @@ pub async fn download(
         .into_response())
 }
 
-async fn authenticate(
-    jwt_extractor: &Arc<JwtContextExtractor>,
-    headers: &HeaderMap,
-) -> Result<(), (StatusCode, String)> {
-    let credential = extract_credential(headers).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
-        )
-    })?;
-    jwt_extractor
-        .decode_for_gateway(&JwtToken::new(credential))
-        .await
-        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-    Ok(())
-}
-
-fn releases_spec() -> Result<BridgeReleasesSpec, (StatusCode, String)> {
-    let services = ServicesBootstrap::get().map_err(|e| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("Services config not ready: {e}"),
-        )
-    })?;
+fn releases_spec() -> Result<BridgeReleasesSpec, ReleaseError> {
+    let services = ServicesBootstrap::get().map_err(ReleaseError::ServicesNotReady)?;
     services
         .gateway_config()
         .and_then(|g| g.bridge_releases.clone())
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                "bridge releases are not configured on this gateway".to_owned(),
-            )
-        })
+        .ok_or(ReleaseError::NotConfigured)
 }

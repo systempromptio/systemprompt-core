@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_traits::SessionProvider;
+use systemprompt_traits::{AnalyticsProviderError, SessionProvider};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SessionAttestationError {
@@ -20,8 +20,8 @@ pub enum SessionAttestationError {
     Missing,
     #[error("Session user mismatch")]
     UserMismatch,
-    #[error("Failed to check session: {0}")]
-    Lookup(String),
+    #[error("Failed to check session")]
+    Lookup(#[source] AnalyticsProviderError),
 }
 
 pub async fn attest_session(
@@ -33,7 +33,7 @@ pub async fn attest_session(
     let session = session_provider
         .find_active_session_by_id(session_id)
         .await
-        .map_err(|e| SessionAttestationError::Lookup(e.to_string()))?;
+        .map_err(SessionAttestationError::Lookup)?;
 
     let Some(session) = session else {
         tracing::info!(

@@ -16,13 +16,15 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use axum::body::Body;
-use axum::http::StatusCode;
 use axum::response::Response;
 use bytes::Bytes;
 use futures_util::{Stream, TryStreamExt};
 use serde_json::Value;
 
-use super::super::backend::{ResponseHandler, SSE_KEEPALIVE_INTERVAL, SseKeepaliveStream};
+use super::super::backend::{
+    ResponseHandler, SSE_KEEPALIVE_INTERVAL, SseKeepaliveStream, upstream_status,
+};
+use super::super::errors::ResponseBuildError;
 use super::McpAudit;
 use super::jsonrpc::{
     ToolCallOutcome, extract_sse_data, frame_matches, parse_response_frame, replace_sse_data,
@@ -32,9 +34,8 @@ use super::jsonrpc::{
 pub async fn record(
     response: reqwest::Response,
     audit: McpAudit,
-) -> Result<Response<Body>, String> {
-    let status = StatusCode::from_u16(response.status().as_u16())
-        .map_err(|e| format!("Invalid status code: {e}"))?;
+) -> Result<Response<Body>, ResponseBuildError> {
+    let status = upstream_status(&response)?;
     let headers = response.headers().clone();
     let is_sse = ResponseHandler::is_event_stream(&headers);
 
@@ -53,7 +54,7 @@ pub async fn record(
         let body = Body::from_stream(SseKeepaliveStream::new(tapped, SSE_KEEPALIVE_INTERVAL));
         ResponseHandler::assemble(status, &headers, true, body)
     } else {
-        let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+        let bytes = response.bytes().await.map_err(ResponseBuildError::Body)?;
         let (outcome, body) = match std::str::from_utf8(&bytes) {
             Ok(text) => {
                 let outcome = parse_response_frame(text, audit.request_id());

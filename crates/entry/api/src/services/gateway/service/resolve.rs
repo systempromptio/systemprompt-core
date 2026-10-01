@@ -10,7 +10,6 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use systemprompt_ai::{RouteSelectorEngine, UpstreamCall};
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::{GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry};
@@ -18,7 +17,7 @@ use systemprompt_models::services::{GatewayConfig, GatewayRoute, ProviderEntry, 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
 use super::super::registry::GatewayUpstreamRegistry;
-use super::{DispatchError, PolicyDenied};
+use super::{DispatchError, GatewayError, PolicyDenied};
 
 pub(super) struct ResolvedUpstream<'a> {
     pub(super) route: Cow<'a, GatewayRoute>,
@@ -40,20 +39,16 @@ pub(super) async fn resolve_upstream<'a>(
             model = %request.model,
             "Gateway denied: model not exposed by gateway policy or registry"
         );
-        return Err(DispatchError::PreAudit(
-            PolicyDenied(format!(
-                "model '{}' is not permitted by gateway policy",
-                request.model
-            ))
-            .into(),
-        ));
+        return Err(DispatchError::pre_audit(PolicyDenied(format!(
+            "model '{}' is not permitted by gateway policy",
+            request.model
+        ))));
     }
 
     let matched = config.resolve_route(registry, request).ok_or_else(|| {
-        DispatchError::PreAudit(anyhow!(
-            "No gateway route matches model '{}'",
-            request.model
-        ))
+        DispatchError::pre_audit(GatewayError::NoRoute {
+            model: request.model.to_string(),
+        })
     })?;
 
     let declarative = matched.when.as_ref().and_then(|w| {
@@ -118,11 +113,10 @@ async fn bind_route<'a>(
     route_match_descriptor: Option<String>,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
     let provider = route.resolve(registry).ok_or_else(|| {
-        DispatchError::PreAudit(anyhow!(
-            "Gateway route '{}' provider '{}' is not declared in services providers",
-            route.id.as_str(),
-            route.provider.as_str()
-        ))
+        DispatchError::pre_audit(GatewayError::UndeclaredProvider {
+            route: route.id.as_str().to_owned(),
+            provider: route.provider.as_str().to_owned(),
+        })
     })?;
 
     enforce_route_requirements(&route, provider, requested_model, ai_request_id)?;
@@ -132,10 +126,9 @@ async fn bind_route<'a>(
     let adapter = GatewayUpstreamRegistry::global()
         .get(provider.wire.as_tag())
         .ok_or_else(|| {
-            DispatchError::PreAudit(anyhow!(
-                "Gateway has no outbound adapter for wire protocol '{}'",
-                provider.wire.as_tag()
-            ))
+            DispatchError::pre_audit(GatewayError::NoAdapter {
+                wire: provider.wire.as_tag().to_owned(),
+            })
         })?;
 
     Ok(ResolvedUpstream {
@@ -188,14 +181,11 @@ pub fn enforce_route_requirements(
         requirements = %unmet.join(","),
         "Gateway denied: route governance requirements unmet by resolved provider/model"
     );
-    Err(DispatchError::PreAudit(
-        PolicyDenied(format!(
-            "route '{}' requires [{}] which provider '{}' does not satisfy for model '{}'",
-            route.id.as_str(),
-            unmet.join(","),
-            route.provider.as_str(),
-            upstream
-        ))
-        .into(),
-    ))
+    Err(DispatchError::pre_audit(PolicyDenied(format!(
+        "route '{}' requires [{}] which provider '{}' does not satisfy for model '{}'",
+        route.id.as_str(),
+        unmet.join(","),
+        route.provider.as_str(),
+        upstream
+    ))))
 }

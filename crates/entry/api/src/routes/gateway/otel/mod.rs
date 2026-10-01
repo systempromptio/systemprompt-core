@@ -33,8 +33,10 @@ use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 
+use super::bridge_error::BridgeError;
 use super::messages::auth::authenticate;
 use super::messages::extract::headers::{extract_credential, require_session_id};
+use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 use ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
@@ -46,11 +48,7 @@ pub async fn handle(
     request: Request<Body>,
 ) -> Response<Body> {
     let Some(credential) = extract_credential(request.headers()) else {
-        return (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential",
-        )
-            .into_response();
+        return ApiHttpError::from(BridgeError::MissingCredential).into_response();
     };
     let session_id = match require_session_id(request.headers()) {
         Ok(session_id) => session_id,

@@ -10,6 +10,8 @@
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
+
+use super::RouteMountError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::WebAuthnService;
@@ -48,13 +50,6 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
             tracing::warn!(error = %e, "WebAuthn is not configured; passkey routes will refuse");
             Ok(state)
         },
-    }
-}
-
-fn router_init_failed(extension: &str, error: &dyn std::fmt::Display) -> LoaderError {
-    LoaderError::InitializationFailed {
-        extension: extension.to_owned(),
-        message: error.to_string(),
     }
 }
 
@@ -156,7 +151,7 @@ pub(super) fn mount_agent(
 pub(super) fn mount_messaging(
     mut router: Router,
     mount: &MountCtx<'_>,
-) -> Result<Router, LoaderError> {
+) -> Result<Router, RouteMountError> {
     let (ctx, limits) = (mount.ctx, mount.limits);
     let rate_config = &ctx.config().rate_limits;
 
@@ -170,7 +165,7 @@ pub(super) fn mount_messaging(
     router = router.nest(
         ApiPaths::TEAMS_BASE,
         crate::routes::teams::teams_router(ctx)
-            .map_err(|e| router_init_failed("teams", &e))?
+            .map_err(|source| RouteMountError::initialization("teams", source))?
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
     );
 
@@ -218,7 +213,7 @@ pub(super) fn mount_mcp_and_stream(
 pub(super) fn mount_content_and_misc(
     mut router: Router,
     mount: &MountCtx<'_>,
-) -> Result<Router, LoaderError> {
+) -> Result<Router, RouteMountError> {
     let (ctx, limits, public_middleware, user_middleware) = (
         mount.ctx,
         mount.limits,

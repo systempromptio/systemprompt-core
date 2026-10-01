@@ -31,13 +31,13 @@ use systemprompt_identifiers::UserId;
 use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::services_root::ServicesRootBootstrap;
-use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap};
+use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesSourceBootstrap};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::services::bundle::ServicesBundleState;
-use systemprompt_runtime::AppContext;
 use systemprompt_runtime::managed::inventory::publish_latest;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
+use systemprompt_runtime::{AppContext, RuntimeError};
 
 use super::{
     RefreshLock, ServicesRefreshResponse, composed_hash_of, provenance_view, source_views,
@@ -87,6 +87,24 @@ impl ServicesRefresh {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+enum RefreshError {
+    #[error("recomposed services config is invalid")]
+    RecomposedConfig(#[source] ConfigLoadError),
+    #[error("services reconcile failed")]
+    Reconcile(#[source] RuntimeError),
+}
+
+impl From<RefreshError> for ApiHttpError {
+    fn from(err: RefreshError) -> Self {
+        let context = match &err {
+            RefreshError::RecomposedConfig(_) => "Recomposed services config is invalid",
+            RefreshError::Reconcile(_) => "Services reconcile failed",
+        };
+        ApiError::internal(context, err).into()
+    }
+}
+
 fn busy() -> ApiHttpError {
     ApiError::conflict("a services refresh is already running").into()
 }
@@ -114,10 +132,8 @@ async fn run_refresh(
     actor: &UserId,
     restart: bool,
 ) -> Result<ServicesRefreshResponse, ApiHttpError> {
-    let profile =
-        ProfileBootstrap::get().map_err(|e| ApiHttpError::internal("Profile not ready", &e))?;
-    let secrets =
-        SecretsBootstrap::get().map_err(|e| ApiHttpError::internal("Secrets not ready", &e))?;
+    let profile = ProfileBootstrap::get()?;
+    let secrets = SecretsBootstrap::get()?;
 
     // Why: the boot-time root is a static; after an in-place import the cache
     // state names the composition actually being served, so "changed" is
@@ -151,10 +167,10 @@ async fn run_refresh(
         // tree; the recomposed tree is the one whose config is projected.
         let services =
             ConfigLoader::reload_from_path(&resolved.path.join("config").join("config.yaml"))
-                .map_err(|e| ApiHttpError::internal("Recomposed services config is invalid", &e))?;
+                .map_err(RefreshError::RecomposedConfig)?;
         let outcome = reconcile_fetched_services(profile, &resolved, &services, ctx.db_pool())
             .await
-            .map_err(|e| ApiHttpError::internal("Services reconcile failed", &e))?;
+            .map_err(RefreshError::Reconcile)?;
         reconciled = outcome == ReconcileOutcome::Projected;
 
         let system_admin = ctx.system_admin().id().clone();

@@ -82,7 +82,7 @@ pub fn tap(
 }
 
 pub fn tap_raw(
-    upstream: BoxStream<'static, Result<Bytes, String>>,
+    upstream: BoxStream<'static, Result<Bytes, WireStreamError>>,
     inbound: Arc<dyn InboundAdapter>,
     audit: Arc<GatewayAudit>,
     finalize_ctx: TapFinalizeCtx,
@@ -99,7 +99,7 @@ pub fn tap_raw(
 }
 
 struct RawTappedStream {
-    inner: BoxStream<'static, Result<Bytes, String>>,
+    inner: BoxStream<'static, Result<Bytes, WireStreamError>>,
     state: Arc<Mutex<TapState>>,
     decoder: SseDecoder,
     inbound: Arc<dyn InboundAdapter>,
@@ -144,7 +144,7 @@ impl Stream for RawTappedStream {
             },
             Poll::Ready(Some(Err(e))) => {
                 if let Ok(mut s) = self.state.lock() {
-                    s.error = Some(e.clone());
+                    s.error = Some(e.to_string());
                 }
                 Poll::Ready(Some(Err(std::io::Error::new(
                     std::io::ErrorKind::BrokenPipe,

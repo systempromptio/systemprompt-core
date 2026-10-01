@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::repository::OAuthRepository;
 
-use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct ConsentQuery {
@@ -76,7 +76,7 @@ async fn get_consent_info(
     };
 
     OAuthRepository::validate_scopes_for_client(&client.scopes, &requested_scopes)
-        .map_err(|e| OAuthHttpError::invalid_scope(e.to_string()))?;
+        .map_err(|e| internal::classify_validation(e, OAuthHttpError::invalid_scope))?;
 
     Ok(ConsentResponse {
         client_name: client.client_name,

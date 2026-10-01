@@ -17,17 +17,21 @@ use std::net::IpAddr;
 use systemprompt_client::GuardedClientConfig;
 use systemprompt_models::net::{is_blocked_ip, validate_outbound_url_with_trust};
 
-use super::ImageFetchPolicy;
+use super::{ImageFetchFault, ImageFetchPolicy};
 
 pub(super) fn is_trusted(host: &str, trusted_hosts: &[String]) -> bool {
     trusted_hosts.iter().any(|h| h.eq_ignore_ascii_case(host))
 }
 
-pub(super) fn checked_url(raw: &str, trusted_hosts: &[String]) -> Result<url::Url, String> {
-    let parsed = validate_outbound_url_with_trust(raw, trusted_hosts).map_err(|e| e.to_string())?;
+pub(super) fn checked_url(
+    raw: &str,
+    trusted_hosts: &[String],
+) -> Result<url::Url, ImageFetchFault> {
+    let parsed =
+        validate_outbound_url_with_trust(raw, trusted_hosts).map_err(ImageFetchFault::Url)?;
     let host = parsed
         .host_str()
-        .ok_or_else(|| "missing host".to_owned())?
+        .ok_or(ImageFetchFault::MissingHost)?
         .to_ascii_lowercase();
     if is_trusted(&host, trusted_hosts) {
         return Ok(parsed);
@@ -36,24 +40,26 @@ pub(super) fn checked_url(raw: &str, trusted_hosts: &[String]) -> Result<url::Ur
         Some(url::Host::Ipv4(ip)) => reject_blocked(&host, IpAddr::V4(ip))?,
         Some(url::Host::Ipv6(ip)) => reject_blocked(&host, IpAddr::V6(ip))?,
         Some(url::Host::Domain(_)) => {},
-        None => return Err("missing host".to_owned()),
+        None => return Err(ImageFetchFault::MissingHost),
     }
     Ok(parsed)
 }
 
-pub(super) fn client(policy: &ImageFetchPolicy) -> Result<reqwest::Client, String> {
+pub(super) fn client(policy: &ImageFetchPolicy) -> Result<reqwest::Client, ImageFetchFault> {
     let config = GuardedClientConfig::default()
         .with_trusted_hosts(policy.trusted_hosts.clone())
         .with_max_redirects(usize::from(policy.max_redirects))
         .with_timeout(policy.timeout)
         .deny_loopback();
-    systemprompt_client::guarded_client(&config)
-        .map_err(|e| format!("cannot build guarded image client: {e}"))
+    systemprompt_client::guarded_client(&config).map_err(ImageFetchFault::Client)
 }
 
-fn reject_blocked(host: &str, addr: IpAddr) -> Result<(), String> {
+fn reject_blocked(host: &str, addr: IpAddr) -> Result<(), ImageFetchFault> {
     if is_blocked_ip(addr) {
-        return Err(format!("{host} resolves to blocked address {addr}"));
+        return Err(ImageFetchFault::BlockedAddress {
+            host: host.to_owned(),
+            addr,
+        });
     }
     Ok(())
 }

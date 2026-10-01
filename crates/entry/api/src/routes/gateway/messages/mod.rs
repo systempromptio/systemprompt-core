@@ -11,6 +11,7 @@
 
 pub mod auth;
 pub mod dispatch;
+pub mod error;
 pub mod extract;
 pub mod rejection;
 
@@ -35,8 +36,6 @@ use crate::services::middleware::JwtContextExtractor;
 use dispatch::{RejectionError, build_error_response, dispatch_to_provider, error_type_for};
 use extract::{RejectionPartial, extract_request_context};
 use rejection::persist_rejection;
-
-const GATEWAY_SERVER_ERROR_MESSAGE: &str = "The gateway could not complete the request";
 
 pub(super) struct RequestContext<'a> {
     pub jwt_extractor: &'a JwtContextExtractor,
@@ -68,28 +67,23 @@ pub async fn handle(
     };
     let mut response = match inner.run(request).await {
         Ok(resp) => resp,
-        Err(RejectionError {
-            status,
-            message,
-            persist,
-        }) => {
+        Err(rejection) => {
+            let status = rejection.status;
             tracing::warn!(
                 status = %status,
-                message = %message,
+                message = %rejection.message,
+                cause = ?rejection.cause,
                 ai_request_id = %ai_request_id,
                 wire = inbound.wire_name(),
                 client_kind = partial.origin.client.as_str(),
                 client_attestation = partial.origin.attestation.as_str(),
                 "Gateway request rejected",
             );
-            if persist {
-                persist_rejection(&repos, &ai_request_id, &partial, status, &message).await;
+            if rejection.persist {
+                persist_rejection(&repos, &ai_request_id, &partial, status, &rejection.message)
+                    .await;
             }
-            let public_message = if status.is_server_error() {
-                GATEWAY_SERVER_ERROR_MESSAGE
-            } else {
-                message.as_str()
-            };
+            let public_message = rejection.public_message();
             let body = inbound.render_error(status, public_message);
             Response::builder()
                 .status(status)
@@ -130,10 +124,9 @@ struct HandleInner<'a> {
 
 impl HandleInner<'_> {
     async fn run(self, request: Request<Body>) -> Result<Response<Body>, RejectionError> {
-        let services = ServicesBootstrap::get().map_err(|e| RejectionError {
-            status: StatusCode::SERVICE_UNAVAILABLE,
-            message: format!("Services config not ready: {e}"),
-            persist: true,
+        let services = ServicesBootstrap::get().map_err(|e| {
+            RejectionError::server(StatusCode::SERVICE_UNAVAILABLE, "services config not ready")
+                .with_cause(e)
         })?;
         let access_log = request.extensions().get::<GatewayAccessLog>().cloned();
         let request_ctx = RequestContext {
@@ -144,13 +137,8 @@ impl HandleInner<'_> {
             ai_request_id: self.ai_request_id,
             access_log,
         };
-        let prepared = extract_request_context(&request_ctx, &self.inbound, request, self.partial)
-            .await
-            .map_err(|(status, message)| RejectionError {
-                status,
-                message,
-                persist: true,
-            })?;
+        let prepared =
+            extract_request_context(&request_ctx, &self.inbound, request, self.partial).await?;
         dispatch_to_provider(&request_ctx, self.inbound, prepared).await
     }
 }

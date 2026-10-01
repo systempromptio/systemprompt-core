@@ -8,7 +8,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
 use axum::http::header::LINK;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
@@ -17,34 +16,23 @@ use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::{MarkdownFrontmatter, MarkdownResponse};
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::RepositoryError;
 
+use crate::error::ApiHttpError;
 use crate::services::middleware::{AcceptedFormat, AcceptedMediaType};
 
 pub async fn list_content_by_source_handler(
     State(ctx): State<AppContext>,
     Path(source_id): Path<String>,
-) -> impl IntoResponse {
+) -> Result<Json<Vec<Content>>, ApiHttpError> {
     let content_service = &ctx.content_repositories().content;
 
     let source_id = SourceId::new(source_id);
-    match content_service
+    let content = content_service
         .list_by_source(&source_id, &LocaleCode::english())
         .await
-    {
-        Ok(content) => Json(content).into_response(),
-        Err(e) => {
-            tracing::error!(
-                error = %e,
-                source_id = %source_id,
-                "list_content_by_source: list_by_source failed"
-            );
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Content lookup failed"})),
-            )
-                .into_response()
-        },
-    }
+        .map_err(RepositoryError::from)?;
+    Ok(Json(content))
 }
 
 pub async fn get_content_handler(
@@ -52,96 +40,61 @@ pub async fn get_content_handler(
     Extension(_req_ctx): Extension<RequestContext>,
     accepted_format: Option<Extension<AcceptedFormat>>,
     Path((source_id, slug)): Path<(String, String)>,
-) -> Response {
+) -> Result<Response, ApiHttpError> {
     let content_service = &ctx.content_repositories().content;
 
     let source_id_typed = SourceId::new(source_id.clone());
-    match content_service
+    let content = content_service
         .get_by_source_and_slug(&source_id_typed, &slug, &LocaleCode::english())
         .await
-    {
-        Ok(Some(content)) => {
-            let wants_markdown =
-                accepted_format.is_some_and(|f| f.0.media_type() == AcceptedMediaType::Markdown);
+        .map_err(RepositoryError::from)?
+        .ok_or_else(content_not_found)?;
 
-            if wants_markdown {
-                content_to_markdown_response(&content).into_response()
-            } else {
-                let config = ctx.config();
-                if config.content_negotiation.enabled {
-                    let suffix = config
-                        .content_negotiation
-                        .markdown_suffix
-                        .trim_start_matches('.');
-                    let link_value = format!(
-                        "</api/v1/content/{}/{}/{}>; rel=\"alternate\"; type=\"text/markdown\"",
-                        source_id, slug, suffix
-                    );
-                    let mut response = Json(&content).into_response();
-                    if let Ok(header_value) = link_value.parse() {
-                        response.headers_mut().insert(LINK, header_value);
-                    }
-                    response
-                } else {
-                    Json(content).into_response()
-                }
-            }
-        },
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "Content not found"})),
-        )
-            .into_response(),
-        Err(e) => {
-            tracing::error!(
-                error = %e,
-                source_id = %source_id,
-                slug = %slug,
-                "get_content: get_by_source_and_slug failed"
-            );
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Content lookup failed"})),
-            )
-                .into_response()
-        },
+    let wants_markdown =
+        accepted_format.is_some_and(|f| f.0.media_type() == AcceptedMediaType::Markdown);
+    if wants_markdown {
+        return Ok(content_to_markdown_response(&content).into_response());
     }
+
+    let config = ctx.config();
+    if !config.content_negotiation.enabled {
+        return Ok(Json(content).into_response());
+    }
+    let suffix = config
+        .content_negotiation
+        .markdown_suffix
+        .trim_start_matches('.');
+    let link_value = format!(
+        "</api/v1/content/{}/{}/{}>; rel=\"alternate\"; type=\"text/markdown\"",
+        source_id, slug, suffix
+    );
+    let mut response = Json(&content).into_response();
+    if let Ok(header_value) = link_value.parse() {
+        response.headers_mut().insert(LINK, header_value);
+    }
+    Ok(response)
 }
 
 pub async fn get_content_markdown_handler(
     State(ctx): State<AppContext>,
     Extension(_req_ctx): Extension<RequestContext>,
     Path((source_id, slug)): Path<(String, String)>,
-) -> impl IntoResponse {
+) -> Result<Response, ApiHttpError> {
     let content_service = &ctx.content_repositories().content;
 
     let slug = slug.trim_end_matches(".md");
     let source_id = SourceId::new(source_id);
 
-    match content_service
+    let content = content_service
         .get_by_source_and_slug(&source_id, slug, &LocaleCode::english())
         .await
-    {
-        Ok(Some(content)) => content_to_markdown_response(&content).into_response(),
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "Content not found"})),
-        )
-            .into_response(),
-        Err(e) => {
-            tracing::error!(
-                error = %e,
-                source_id = %source_id,
-                slug = %slug,
-                "get_content_markdown: get_by_source_and_slug failed"
-            );
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Content lookup failed"})),
-            )
-                .into_response()
-        },
-    }
+        .map_err(RepositoryError::from)?
+        .ok_or_else(content_not_found)?;
+    Ok(content_to_markdown_response(&content).into_response())
+}
+
+fn content_not_found() -> ApiHttpError {
+    ApiHttpError::not_found("Content not found")
 }
 
 fn content_to_markdown_response(content: &Content) -> MarkdownResponse {

@@ -19,9 +19,9 @@ impl HeaderSource {
             .ok_or_else(|| ContextExtractionError::MissingHeader(name.to_owned()))?
             .to_str()
             .map(str::to_owned)
-            .map_err(|e| ContextExtractionError::InvalidHeaderValue {
+            .map_err(|_| ContextExtractionError::InvalidHeaderValue {
                 header: name.to_owned(),
-                reason: e.to_string(),
+                reason: "header value is not visible ASCII".to_owned(),
             })
     }
 

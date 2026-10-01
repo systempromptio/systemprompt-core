@@ -24,14 +24,14 @@ use super::canonical_response::{CanonicalEvent, CanonicalResponse};
 #[derive(Debug, thiserror::Error)]
 pub enum InboundParseError {
     #[error("invalid request body: {0}")]
-    InvalidJson(String),
+    InvalidJson(#[source] serde_json::Error),
     #[error("missing required field: {0}")]
     MissingField(&'static str),
     #[error("unsupported value for {field}: {detail}")]
     Unsupported { field: &'static str, detail: String },
 }
 
-pub(crate) fn error_type_for_status(status: StatusCode) -> &'static str {
+pub fn error_type_for_status(status: StatusCode) -> &'static str {
     match status {
         StatusCode::UNAUTHORIZED => "authentication_error",
         StatusCode::FORBIDDEN => "permission_error",

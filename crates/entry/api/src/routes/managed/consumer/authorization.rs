@@ -69,8 +69,8 @@ pub(super) async fn resource(
         crate::routes::gateway::bridge_resolved::Freshness::Memo,
     )
     .await
-    .map_err(|(status, detail)| {
-        tracing::warn!(%status, detail, "consumer: candidate assembly failed");
+    .map_err(|error| {
+        tracing::warn!(%error, "consumer: candidate assembly failed");
         ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
     })?;
     let (entries, _) = candidate.into_manifest_parts();

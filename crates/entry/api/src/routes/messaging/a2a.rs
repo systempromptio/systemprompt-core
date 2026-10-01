@@ -42,8 +42,12 @@ pub fn permissions_for(roles: &[String]) -> Vec<Permission> {
 }
 
 pub(super) fn authenticated_user(user: &User) -> Result<AuthenticatedUser, MessagingError> {
-    let id = uuid::Uuid::parse_str(user.id.as_str())
-        .map_err(|e| MessagingError::Token(format!("user id is not a uuid: {e}")))?;
+    let id = uuid::Uuid::parse_str(user.id.as_str()).map_err(|source| {
+        MessagingError::InvalidUserId {
+            user_id: user.id.clone(),
+            source,
+        }
+    })?;
     Ok(AuthenticatedUser {
         id,
         username: user.name.clone(),
@@ -77,7 +81,7 @@ pub(super) fn mint_a2a_token(
         session_id,
         &signing,
     )
-    .map_err(|e| MessagingError::Token(e.to_string()))
+    .map_err(MessagingError::Token)
 }
 
 pub(super) fn build_a2a_request(
@@ -111,11 +115,10 @@ pub(super) fn build_a2a_request(
     let rpc = A2aJsonRpcRequest {
         jsonrpc: "2.0".to_owned(),
         method: methods::SEND_MESSAGE.to_owned(),
-        params: serde_json::to_value(&params)
-            .map_err(|e| MessagingError::Dispatch(e.to_string()))?,
+        params: serde_json::to_value(&params).map_err(MessagingError::Encode)?,
         id: RequestId::String(uuid::Uuid::new_v4().to_string()),
     };
-    let body = serde_json::to_vec(&rpc).map_err(|e| MessagingError::Dispatch(e.to_string()))?;
+    let body = serde_json::to_vec(&rpc).map_err(MessagingError::Encode)?;
 
     let mut request = Request::builder()
         .method("POST")
@@ -123,7 +126,7 @@ pub(super) fn build_a2a_request(
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(body))
-        .map_err(|e| MessagingError::Dispatch(e.to_string()))?;
+        .map_err(MessagingError::Request)?;
 
     let req_context = RequestContext::new(
         session_id.clone(),
@@ -151,19 +154,19 @@ pub(super) async fn run_agent(
     let response = ProxyEngine::new(identities)
         .proxy_request(target, request, ctx.clone())
         .await
-        .map_err(|e| MessagingError::Dispatch(e.to_string()))?;
+        .map_err(MessagingError::Dispatch)?;
 
     let bytes = to_bytes(response.into_body(), MAX_A2A_RESPONSE_BYTES)
         .await
-        .map_err(|e| MessagingError::Response(e.to_string()))?;
+        .map_err(MessagingError::ResponseBody)?;
     let parsed: JsonRpcResponse<Task> =
-        serde_json::from_slice(&bytes).map_err(|e| MessagingError::Response(e.to_string()))?;
+        serde_json::from_slice(&bytes).map_err(MessagingError::Response)?;
 
     if let Some(err) = parsed.error {
-        return Err(MessagingError::Dispatch(format!(
-            "agent returned error {}: {}",
-            err.code, err.message
-        )));
+        return Err(MessagingError::AgentRejected {
+            code: err.code,
+            message: err.message,
+        });
     }
     Ok(reply_text(parsed.result.as_ref()))
 }

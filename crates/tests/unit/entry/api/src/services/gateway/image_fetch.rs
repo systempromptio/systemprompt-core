@@ -113,9 +113,9 @@ async fn a_hung_host_times_out_rather_than_hanging_the_request() {
         .await
         .expect_err("a hung host must not be waited on");
 
-    assert!(failure.message.contains("exceeded"), "{failure:?}");
+    assert!(failure.to_string().contains("exceeded"), "{failure:?}");
     assert!(
-        !failure.caller_fault,
+        !failure.caller_fault(),
         "a slow host is not the caller's fault"
     );
 }
@@ -137,8 +137,11 @@ async fn an_oversize_body_is_rejected() {
         .await
         .expect_err("oversize image must be refused");
 
-    assert!(failure.message.contains("larger than 512"), "{failure:?}");
-    assert!(failure.caller_fault);
+    assert!(
+        failure.to_string().contains("larger than 512"),
+        "{failure:?}"
+    );
+    assert!(failure.caller_fault());
 }
 
 #[tokio::test]
@@ -157,8 +160,8 @@ async fn a_non_image_content_type_is_rejected() {
     .await
     .expect_err("a .png url serving html must be refused");
 
-    assert!(failure.message.contains("text/html"), "{failure:?}");
-    assert!(failure.caller_fault);
+    assert!(failure.to_string().contains("text/html"), "{failure:?}");
+    assert!(failure.caller_fault());
 }
 
 #[tokio::test]
@@ -173,7 +176,7 @@ async fn loopback_is_refused_when_it_is_not_an_operator_trusted_host() {
         .await
         .expect_err("a caller must not be able to make the server fetch itself");
 
-    assert!(failure.caller_fault, "{failure:?}");
+    assert!(failure.caller_fault(), "{failure:?}");
 }
 
 #[tokio::test]
@@ -195,9 +198,15 @@ async fn a_redirect_to_cloud_metadata_is_refused() {
     .await
     .expect_err("a redirect into the link-local range must be refused");
 
-    assert!(failure.message.contains("redirect rejected"), "{failure:?}");
-    assert!(failure.message.contains("169.254.169.254"), "{failure:?}");
-    assert!(failure.caller_fault);
+    assert!(
+        failure.to_string().contains("redirect rejected"),
+        "{failure:?}"
+    );
+    assert!(
+        failure.to_string().contains("169.254.169.254"),
+        "{failure:?}"
+    );
+    assert!(failure.caller_fault());
 }
 
 #[tokio::test]
@@ -206,7 +215,7 @@ async fn a_private_range_host_is_refused_without_any_request_being_made() {
         .await
         .expect_err("private ranges are not fetchable");
 
-    assert!(failure.caller_fault, "{failure:?}");
+    assert!(failure.caller_fault(), "{failure:?}");
 }
 
 #[tokio::test]
@@ -255,8 +264,11 @@ async fn item_02_a_link_local_literal_is_refused_before_any_request() {
     .await
     .expect_err("the metadata address is never fetchable");
 
-    assert!(failure.caller_fault, "{failure:?}");
-    assert!(failure.message.contains("169.254.169.254"), "{failure:?}");
+    assert!(failure.caller_fault(), "{failure:?}");
+    assert!(
+        failure.to_string().contains("169.254.169.254"),
+        "{failure:?}"
+    );
 }
 
 #[tokio::test]
@@ -270,10 +282,10 @@ async fn item_02_the_plain_http_metadata_hostname_is_refused_at_parse_time() {
     .await
     .expect_err("plain http to a public name is refused");
 
-    assert!(failure.caller_fault, "{failure:?}");
+    assert!(failure.caller_fault(), "{failure:?}");
     assert!(
         failure
-            .message
+            .to_string()
             .contains("http url only permitted for loopback hosts"),
         "{failure:?}"
     );
@@ -292,8 +304,11 @@ async fn item_02_a_public_redirector_into_link_local_never_reaches_the_target() 
     .await
     .expect_err("the hop into link-local is refused");
 
-    assert!(failure.caller_fault, "{failure:?}");
-    assert!(failure.message.contains("redirect rejected"), "{failure:?}");
+    assert!(failure.caller_fault(), "{failure:?}");
+    assert!(
+        failure.to_string().contains("redirect rejected"),
+        "{failure:?}"
+    );
     assert!(
         target
             .received_requests()
@@ -320,10 +335,10 @@ async fn item_02_a_redirect_to_a_hostname_resolving_to_loopback_is_refused_at_co
     .await
     .expect_err("a name resolving to loopback is refused");
 
-    assert!(failure.caller_fault, "{failure:?}");
+    assert!(failure.caller_fault(), "{failure:?}");
     assert!(
         failure
-            .message
+            .to_string()
             .contains("localhost resolves to blocked address"),
         "{failure:?}"
     );

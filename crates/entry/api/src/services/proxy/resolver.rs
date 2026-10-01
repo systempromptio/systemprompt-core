@@ -52,7 +52,11 @@ impl ServiceResolver {
             if service.status == "crashed" {
                 tracing::info!(service = %service_name, "Service crashed, attempting restart");
 
-                if Self::attempt_restart(service_name, ctx).await.is_ok() {
+                let restart = Self::attempt_restart(service_name, ctx).await;
+                if let Err(error) = &restart {
+                    tracing::error!(service = %service_name, error = ?error, "Failed to restart service");
+                }
+                if restart.is_ok() {
                     let restarted = service_repo
                         .find_service_by_name(service_name)
                         .await
@@ -129,24 +133,18 @@ impl ServiceResolver {
             Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),
         )
-        .map_err(|e| ProxyError::ServiceNotRunning {
+        .map_err(|source| ProxyError::RestartFailed {
             service: service_name.to_owned(),
-            status: format!("Failed to create orchestrator: {e}"),
+            source,
         })?;
 
-        match orchestrator
+        orchestrator
             .start_services(Some(service_name.to_owned()))
             .await
-        {
-            Ok(()) => {},
-            Err(e) => {
-                tracing::error!(service = %service_name, error = %e, "Failed to restart service");
-                return Err(ProxyError::ServiceNotRunning {
-                    service: service_name.to_owned(),
-                    status: format!("Restart failed: {e}"),
-                });
-            },
-        }
+            .map_err(|source| ProxyError::RestartFailed {
+                service: service_name.to_owned(),
+                source,
+            })?;
 
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         Ok(())

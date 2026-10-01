@@ -15,6 +15,7 @@ use futures_util::StreamExt;
 use futures_util::stream::BoxStream;
 // JSON: protocol boundary — the shapes inspected here are the Anthropic wire's.
 use serde_json::Value;
+use systemprompt_models::wire::error::WireStreamError;
 
 const TOOL_USE: &str = "tool_use";
 
@@ -135,9 +136,9 @@ fn frame_json(frame: &[u8]) -> Option<Value> {
 // Why: Anthropic announces tool-use blocks before the terminal message_delta.
 pub(in crate::services::gateway) fn correct_stream<S>(
     stream: S,
-) -> BoxStream<'static, Result<Bytes, String>>
+) -> BoxStream<'static, Result<Bytes, WireStreamError>>
 where
-    S: futures_util::Stream<Item = Result<Bytes, String>> + Send + 'static,
+    S: futures_util::Stream<Item = Result<Bytes, WireStreamError>> + Send + 'static,
 {
     use futures_util::stream;
     stream

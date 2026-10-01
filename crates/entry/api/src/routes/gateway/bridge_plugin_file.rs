@@ -13,26 +13,24 @@ use std::sync::Arc;
 
 use axum::body::Body;
 use axum::extract::Path as AxumPath;
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::http::{HeaderMap, header};
 use axum::response::Response;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::JwtToken;
 use systemprompt_models::bridge::ids::PluginId;
 use systemprompt_runtime::AppContext;
 
-use super::messages::extract_credential;
+use super::bridge_error::{BridgeError, authenticate_bridge};
 use super::{bridge_data, bridge_resolved};
+use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
-
-type HttpError = (StatusCode, String);
 
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     headers: HeaderMap,
     AxumPath((plugin_id, relative_path)): AxumPath<(String, String)>,
-) -> Result<Response, HttpError> {
-    let user = authenticate(&jwt_extractor, &headers).await?;
+) -> Result<Response, ApiHttpError> {
+    let (_claims, user) = authenticate_bridge(&jwt_extractor, &headers).await?;
 
     if !relative_path_is_safe(&relative_path) {
         tracing::warn!(
@@ -40,16 +38,18 @@ pub async fn handle(
             path = %relative_path,
             "bridge: rejected non-canonical plugin file path"
         );
-        return Err((StatusCode::BAD_REQUEST, "Invalid path".to_owned()));
+        return Err(BridgeError::InvalidPath.into());
     }
 
     let id = PluginId::try_new(&plugin_id).map_err(|e| {
         tracing::debug!(error = %e, plugin_id = %plugin_id, "bridge: malformed plugin id");
-        (StatusCode::NOT_FOUND, "Plugin not found".to_owned())
+        BridgeError::PluginNotFound
     })?;
 
-    let services = bridge_data::load_services_config().map_err(|e| internal("services", &e))?;
-    let profile = ProfileBootstrap::get().map_err(|e| internal("profile", &e))?;
+    let services = bridge_data::load_services_config()
+        .map_err(|e| BridgeError::internal("plugin bundle: services config load failed", e))?;
+    let profile = ProfileBootstrap::get()
+        .map_err(|e| BridgeError::internal("plugin bundle: profile not ready", e))?;
     let resolved = bridge_resolved::resolve_for_user(
         &ctx,
         &services,
@@ -58,7 +58,7 @@ pub async fn handle(
         bridge_resolved::Freshness::Memo,
     )
     .await
-    .map_err(|e| internal("resolve", &e))?;
+    .map_err(|e| BridgeError::internal("plugin bundle: catalogue resolution failed", e))?;
 
     if !resolved.candidate.plugins.iter().any(|p| p.id == id) {
         tracing::warn!(
@@ -66,16 +66,16 @@ pub async fn handle(
             user_id = %user.id,
             "bridge: refused a plugin bundle the caller was not granted"
         );
-        return Err((StatusCode::NOT_FOUND, "Plugin not found".to_owned()));
+        return Err(BridgeError::PluginNotFound.into());
     }
 
     let bundle = resolved
         .bundles
         .get(&id)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Plugin not found".to_owned()))?;
+        .ok_or(BridgeError::PluginNotFound)?;
     let file = bundle
         .get(relative_path.as_str())
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "File not found".to_owned()))?;
+        .ok_or(BridgeError::FileNotFound)?;
 
     let mut response = Response::new(Body::from(file.bytes.clone()));
     response.headers_mut().insert(
@@ -83,31 +83,6 @@ pub async fn handle(
         header::HeaderValue::from_static(content_type(&relative_path)),
     );
     Ok(response)
-}
-
-fn internal(stage: &'static str, e: &dyn std::fmt::Display) -> HttpError {
-    tracing::error!(error = %e, stage, "bridge: plugin bundle assembly failed");
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "Plugin bundle unavailable".to_owned(),
-    )
-}
-
-async fn authenticate(
-    jwt_extractor: &JwtContextExtractor,
-    headers: &HeaderMap,
-) -> Result<systemprompt_traits::AuthUser, HttpError> {
-    let credential = extract_credential(headers).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
-        )
-    })?;
-    jwt_extractor
-        .decode_for_gateway(&JwtToken::new(credential))
-        .await
-        .map(|(_, user)| user)
-        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))
 }
 
 pub fn relative_path_is_safe(relative: &str) -> bool {

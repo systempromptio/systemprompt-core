@@ -26,6 +26,7 @@ use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, TenantId, TraceId, UserId,
 };
+use systemprompt_models::api::ErrorCode;
 use systemprompt_models::services::ApiSurface;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use tower::ServiceExt;
@@ -116,16 +117,16 @@ fn surfaces_from_header_parses_known_tags() {
 #[test]
 fn surfaces_from_header_rejects_unknown_tag() {
     let h = header_map(&[(INFERENCE_PROTOCOL, "quantum")]);
-    let (status, msg) = surfaces_from_header(&h).expect_err("unknown must fail");
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(msg.contains("unknown"), "{msg}");
+    let err = surfaces_from_header(&h).expect_err("unknown must fail");
+    assert_eq!(err.code, ErrorCode::BadRequest);
+    assert!(err.message.contains("unknown"), "{}", err.message);
 }
 
 #[test]
 fn surfaces_from_header_rejects_backend_surface() {
     let h = header_map(&[(INFERENCE_PROTOCOL, "backend")]);
-    let (status, _msg) = surfaces_from_header(&h).expect_err("backend is not a client surface");
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let err = surfaces_from_header(&h).expect_err("backend is not a client surface");
+    assert_eq!(err.code, ErrorCode::BadRequest);
 }
 
 #[test]

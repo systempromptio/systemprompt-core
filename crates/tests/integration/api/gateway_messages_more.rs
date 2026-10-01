@@ -8,6 +8,7 @@
 //! router because the fixture profile leaves the gateway unmounted.
 
 use std::sync::Arc;
+use systemprompt_api::routes::gateway::messages::error::RejectionError;
 
 use anyhow::Result;
 use axum::body::Body;
@@ -137,7 +138,11 @@ fn require_session_id_trims_surrounding_whitespace() {
 
 #[test]
 fn require_session_id_missing_header_is_bad_request() {
-    let (status, msg) = require_session_id(&HeaderMap::new()).expect_err("missing must fail");
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = require_session_id(&HeaderMap::new()).expect_err("missing must fail");
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(msg.contains("missing"), "{msg}");
 }
@@ -145,7 +150,11 @@ fn require_session_id_missing_header_is_bad_request() {
 #[test]
 fn require_session_id_empty_header_is_bad_request() {
     let h = header_map(&[(SESSION_ID, "   ")]);
-    let (status, msg) = require_session_id(&h).expect_err("empty must fail");
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = require_session_id(&h).expect_err("empty must fail");
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(msg.contains("empty"), "{msg}");
 }
@@ -205,7 +214,7 @@ async fn read_gateway_body_rejects_unparseable_json() -> Result<()> {
         .body(Body::from("not json at all"))
         .expect("request");
     let mut partial = test_partial();
-    let (status, _msg) = read_gateway_body(&inbound, request, &mut partial)
+    let RejectionError { status, .. } = read_gateway_body(&inbound, request, &mut partial)
         .await
         .expect_err("garbage must fail");
     assert_eq!(status, StatusCode::BAD_REQUEST);
@@ -252,7 +261,11 @@ fn derive_conversation_derives_from_messages_when_header_absent() {
 fn derive_conversation_without_messages_is_bad_request() {
     let request = canonical(vec![]);
     let mut partial = test_partial();
-    let (status, msg) = derive_conversation(
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &request,
@@ -311,7 +324,11 @@ async fn enforce_authz_denies_under_deny_all_hook() {
     let hook: SharedAuthzHook = Arc::new(DenyAllHook::null());
     let route = gateway_route();
     let principal = api_key_principal("authz-deny-user");
-    let (status, msg) = enforce_authz_pre_dispatch(
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = enforce_authz_pre_dispatch(
         &principal,
         &route,
         "claude-test",
@@ -386,7 +403,11 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
 
     let extractor = jwt_extractor(&ctx)?;
     let forged = SessionId::new("not-a-real-session");
-    let (status, msg) = authenticate(&issued.secret, &forged, &extractor, &ctx)
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = authenticate(&issued.secret, &forged, &extractor, &ctx)
         .await
         .expect_err("a session the server never issued must not authenticate");
     assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -398,7 +419,7 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
 async fn authenticate_rejects_unknown_api_key() -> Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let extractor = jwt_extractor(&ctx)?;
-    let (status, _msg) = authenticate(
+    let RejectionError { status, .. } = authenticate(
         "sp-live-deadbeefdeadbeef",
         &SessionId::generate(),
         &extractor,

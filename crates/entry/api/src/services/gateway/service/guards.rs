@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::services::QuotaFaultMode;
@@ -13,7 +12,7 @@ use super::super::protocol::canonical::CanonicalRequest;
 use super::super::{GatewayAudit, GatewayRepositories, quota};
 use super::resolve::ResolvedUpstream;
 use super::stages::record_quota_warning;
-use super::{DispatchError, GuardForbidden, GuardUnavailable, QuotaExceeded};
+use super::{DispatchError, GatewayError, GuardForbidden, GuardUnavailable, QuotaExceeded};
 
 pub(super) async fn enforce_quota(
     db: &DbPool,
@@ -31,7 +30,7 @@ pub(super) async fn enforce_quota(
         fault_mode,
     )
     .await
-    .map_err(DispatchError::Recorded)?;
+    .map_err(|e| DispatchError::Recorded(GatewayError::internal("quota precheck failed", e)))?;
     let Some(decision) = reservation else {
         return Ok(());
     };
@@ -48,20 +47,19 @@ pub(super) async fn enforce_quota(
         );
         record_quota_warning(db, ctx, &decision.message)
             .await
-            .map_err(DispatchError::Recorded)?;
+            .map_err(|e| {
+                DispatchError::Recorded(GatewayError::internal("quota warning record failed", e))
+            })?;
         return Ok(());
     }
     let msg = decision.message;
     if let Err(e) = audit.fail(&msg).await {
         tracing::warn!(error = %e, "quota audit fail failed");
     }
-    Err(DispatchError::Recorded(
-        QuotaExceeded {
-            message: msg,
-            retry_after_seconds: decision.window_seconds,
-        }
-        .into(),
-    ))
+    Err(DispatchError::recorded(QuotaExceeded {
+        message: msg,
+        retry_after_seconds: decision.window_seconds,
+    }))
 }
 
 pub(super) async fn enforce_request_guards(
@@ -102,7 +100,7 @@ pub(super) async fn enforce_request_guards(
     if let Err(e) = audit.fail(&deny.message).await {
         tracing::warn!(error = %e, "request-guard audit fail failed");
     }
-    let inner: anyhow::Error = match deny.kind {
+    let inner: GatewayError = match deny.kind {
         systemprompt_extension::GatewayDenyKind::Unavailable => GuardUnavailable {
             message: deny.message,
             retry_after_seconds: deny.retry_after_seconds,

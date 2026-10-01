@@ -635,9 +635,10 @@ async fn enforcing_secret_scan_denies_before_upstream_and_persists_the_decision(
     let DispatchError::Recorded(inner) = error else {
         panic!("governance denial must already be audited");
     };
-    let repair = inner
-        .downcast_ref::<systemprompt_api::services::gateway::service::PromptRepairRequired>()
-        .expect("secret denial must request prompt repair");
+    let systemprompt_api::services::gateway::service::GatewayError::PromptRepair(repair) = &inner
+    else {
+        panic!("secret denial must request prompt repair, got {inner:?}");
+    };
     assert_eq!(repair.locations, ["forwarded.$.messages[0].content"]);
 
     let row: (String, String, String, Option<String>, serde_json::Value) = sqlx::query_as(
@@ -756,9 +757,10 @@ async fn unexposed_model_is_policy_denied() -> anyhow::Result<()> {
         .expect_err("unexposed model must be denied");
     match err {
         DispatchError::PreAudit(inner) => assert!(
-            inner
-                .downcast_ref::<systemprompt_api::services::gateway::service::PolicyDenied>()
-                .is_some(),
+            matches!(
+                inner,
+                systemprompt_api::services::gateway::service::GatewayError::PolicyDenied(_)
+            ),
             "expected PolicyDenied, got {inner}"
         ),
         other => panic!("expected PreAudit(PolicyDenied), got {other:?}"),
@@ -847,8 +849,7 @@ async fn upstream_4xx_is_recorded_upstream_error() -> anyhow::Result<()> {
         .expect_err("upstream 400 must surface as a dispatch error");
     match err {
         DispatchError::Recorded(inner) => {
-            let upstream_err = inner
-                .downcast_ref::<systemprompt_api::services::gateway::protocol::outbound::UpstreamError>();
+            let upstream_err = inner.upstream();
             assert!(
                 upstream_err.is_some(),
                 "expected UpstreamError, got {inner}"
@@ -1113,9 +1114,11 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
 
     match err {
         DispatchError::Recorded(inner) => {
-            let blocked = inner
-                .downcast_ref::<systemprompt_api::services::gateway::service::SafetyBlocked>()
-                .expect("SafetyBlocked error");
+            let systemprompt_api::services::gateway::service::GatewayError::Safety(blocked) =
+                &inner
+            else {
+                panic!("expected SafetyBlocked, got {inner:?}");
+            };
             assert_eq!(blocked.category, "jailbreak");
         },
         other => panic!("expected Recorded(SafetyBlocked), got {other:?}"),
@@ -1360,9 +1363,10 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         let DispatchError::Recorded(error) = result.unwrap_err() else {
             panic!("quota denial must already be audited");
         };
-        let quota = error
-            .downcast_ref::<systemprompt_api::services::gateway::service::QuotaExceeded>()
-            .unwrap();
+        let systemprompt_api::services::gateway::service::GatewayError::Quota(quota) = &error
+        else {
+            panic!("expected QuotaExceeded, got {error:?}");
+        };
         assert_eq!(quota.retry_after_seconds, 60);
         assert!(quota.message.contains("used 2/1"), "{}", quota.message);
     }
@@ -1811,9 +1815,9 @@ async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_d
         .await
         .expect_err("a registry-exposed model still requires a matching gateway route");
     match error {
-        DispatchError::PreAudit(inner) => assert_eq!(
-            inner.to_string(),
-            format!("No gateway route matches model '{MODEL}'")
+        DispatchError::PreAudit(inner) => assert!(
+            matches!(&inner, systemprompt_api::services::gateway::service::GatewayError::NoRoute { model } if model == MODEL),
+            "expected NoRoute, got {inner:?}"
         ),
         other => panic!("expected pre-audit route failure, got {other:?}"),
     }

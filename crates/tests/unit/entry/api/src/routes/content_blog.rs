@@ -59,7 +59,8 @@ async fn fetching_one_document_reports_a_repository_failure_as_a_server_error() 
         None,
         Path(("blog".to_owned(), "anything".to_owned())),
     )
-    .await;
+    .await
+    .into_response();
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
@@ -92,7 +93,8 @@ async fn a_slug_that_does_not_exist_is_a_not_found_rather_than_an_empty_document
         None,
         Path(("blog".to_owned(), slug.clone())),
     )
-    .await;
+    .await
+    .into_response();
     assert_eq!(json.status(), StatusCode::NOT_FOUND);
 
     let markdown = get_content_markdown_handler(

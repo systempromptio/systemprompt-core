@@ -30,7 +30,7 @@ pub(super) fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &Slac
             Ok(DispatchOutcome::Replied(reply)) => (non_empty(reply), false),
             Ok(DispatchOutcome::Denied(reason)) => (format!("⛔ {reason}"), true),
             Err(err) => {
-                tracing::error!(error = %err, "slack dispatch failed");
+                tracing::error!(error = ?err, "slack dispatch failed");
                 (err.user_message(), true)
             },
         };

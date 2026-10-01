@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 
+use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::client::external_auth::{
     accessor_url, fetch_external_bearer, outbound_headers, static_outbound_headers,
 };
@@ -92,7 +93,10 @@ async fn fetch_bearer_maps_not_found_to_unconnected_account() {
     )
     .await
     .expect_err("404 surfaces");
-    assert!(err.to_string().contains("no token banked"));
+    assert!(
+        matches!(err, McpDomainError::ExternalAccountNotConnected { ref server } if server == "srv"),
+        "got {err:?}"
+    );
 }
 
 #[tokio::test]

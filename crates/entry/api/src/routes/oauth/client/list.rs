@@ -10,8 +10,8 @@ use serde::Deserialize;
 use tracing::instrument;
 use validator::Validate;
 
-use super::super::OAuthHttpError;
 use super::super::extractors::OAuthRepo;
+use super::super::{OAuthHttpError, internal};
 use systemprompt_models::api::PaginationParams;
 use systemprompt_models::{PaginationInfo, RequestContext};
 
@@ -43,9 +43,12 @@ pub async fn list_clients(
     OAuthRepo(repository): OAuthRepo,
     Query(query): Query<ListClientsQuery>,
 ) -> Result<Response, OAuthHttpError> {
-    query
-        .validate()
-        .map_err(|e| OAuthHttpError::invalid_request(format!("Invalid query parameters: {e}")))?;
+    query.validate().map_err(|e| {
+        internal::rejected(
+            OAuthHttpError::invalid_request("Invalid query parameters"),
+            e,
+        )
+    })?;
 
     let page = query.pagination.page;
     let per_page = query.pagination.per_page;

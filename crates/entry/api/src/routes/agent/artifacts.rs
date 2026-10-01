@@ -13,12 +13,14 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
 
-use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
+use systemprompt_identifiers::{ArtifactId, TaskId, UserId};
+use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
 use systemprompt_mcp::services::ui_renderer::registry::{
     create_default_registry, resolve_artifact_type,
 };
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;
@@ -35,8 +37,7 @@ pub async fn list_artifacts_by_context(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(context_id = %context_id, "Listing artifacts by context");
 
-    let context_id_typed = ContextId::try_new(&context_id)
-        .map_err(|e| ApiHttpError::bad_request(format!("invalid context id: {e}")))?;
+    let context_id_typed = super::parse_context_id(&context_id)?;
 
     let context_repo = app_context.a2a_repositories().contexts.clone();
     context_repo
@@ -159,7 +160,7 @@ pub async fn get_artifact_ui(
 
     let ui_resource: systemprompt_mcp::services::ui_renderer::UiResource = registry
         .render(&artifact)
-        .map_err(|e| ApiHttpError::internal("Failed to render artifact UI", &e))?;
+        .map_err(ArtifactUiError::Render)?;
 
     tracing::debug!(artifact_id = %artifact_id, "Artifact UI rendered successfully");
 
@@ -172,5 +173,23 @@ pub async fn get_artifact_ui(
         )
         .header(header::X_FRAME_OPTIONS, "SAMEORIGIN")
         .body(axum::body::Body::from(ui_resource.html))
-        .map_err(|e| ApiHttpError::internal("Failed to build response", &e))
+        .map_err(|e| ArtifactUiError::Response(e).into())
+}
+
+#[derive(Debug, thiserror::Error)]
+enum ArtifactUiError {
+    #[error("failed to render artifact UI")]
+    Render(#[source] McpDomainError),
+    #[error("failed to build artifact UI response")]
+    Response(#[source] axum::http::Error),
+}
+
+impl From<ArtifactUiError> for ApiHttpError {
+    fn from(err: ArtifactUiError) -> Self {
+        let context = match &err {
+            ArtifactUiError::Render(_) => "Failed to render artifact UI",
+            ArtifactUiError::Response(_) => "Failed to build response",
+        };
+        ApiError::internal(context, err).into()
+    }
 }

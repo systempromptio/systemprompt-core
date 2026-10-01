@@ -24,6 +24,7 @@ use systemprompt_traits::InjectContextHeaders;
 use tokio::time::{Instant, Sleep};
 
 pub(super) use super::errors::ProxyError;
+use super::errors::ResponseBuildError;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct HeaderInjector;
@@ -79,9 +80,11 @@ impl RequestBuilder {
             .map(|bytes| bytes.to_vec())
     }
 
-    pub(super) fn parse_method(method_str: &str) -> Result<Method, String> {
-        Method::from_str(method_str)
-            .map_err(|e| format!("Invalid HTTP method '{}': {}", method_str, e))
+    pub(super) fn parse_method(method_str: &str) -> Result<Method, ProxyError> {
+        Method::from_str(method_str).map_err(|source| ProxyError::InvalidMethod {
+            method: method_str.to_owned(),
+            source,
+        })
     }
 
     pub(super) fn build_request(
@@ -179,14 +182,21 @@ where
     }
 }
 
+pub(super) fn upstream_status(
+    response: &reqwest::Response,
+) -> Result<StatusCode, ResponseBuildError> {
+    let status = response.status().as_u16();
+    StatusCode::from_u16(status).map_err(|source| ResponseBuildError::Status { status, source })
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(super) struct ResponseHandler;
 
 impl ResponseHandler {
-    pub(super) fn build_response(response: reqwest::Response) -> Result<Response<Body>, String> {
-        let status_code = response.status().as_u16();
-        let axum_status = StatusCode::from_u16(status_code)
-            .map_err(|e| format!("Invalid status code {}: {}", status_code, e))?;
+    pub(super) fn build_response(
+        response: reqwest::Response,
+    ) -> Result<Response<Body>, ResponseBuildError> {
+        let axum_status = upstream_status(&response)?;
 
         let response_headers = response.headers().clone();
         let is_sse = Self::is_event_stream(&response_headers);
@@ -213,7 +223,7 @@ impl ResponseHandler {
         response_headers: &HeaderMap,
         is_sse: bool,
         body: Body,
-    ) -> Result<Response<Body>, String> {
+    ) -> Result<Response<Body>, ResponseBuildError> {
         let mut axum_response = Response::builder().status(axum_status);
 
         for (key, value) in response_headers {
@@ -237,7 +247,7 @@ impl ResponseHandler {
 
         axum_response
             .body(body)
-            .map_err(|e| format!("Failed to build response body: {}", e))
+            .map_err(ResponseBuildError::Assemble)
     }
 
     // Why: the audit tap rewrites a buffered JSON body (execution stamp) and

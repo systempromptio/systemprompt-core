@@ -56,12 +56,14 @@ fn test_token_error_expired_code_display() {
 
 #[test]
 fn test_token_error_server_error_display() {
-    let error = TokenError::ServerError {
-        message: "database unavailable".to_string(),
-    };
+    let error = TokenError::server(
+        "Token generation failed",
+        std::io::Error::other("database unavailable"),
+    );
 
     let display = format!("{error}");
-    assert!(display.contains("database unavailable"));
+    assert!(display.contains("Token generation failed"));
+    assert!(std::error::Error::source(&error).is_some());
 }
 
 async fn body_to_json(resp: axum::response::Response) -> serde_json::Value {
@@ -137,14 +139,16 @@ async fn token_error_expired_code_maps_to_invalid_grant() {
 
 #[tokio::test]
 async fn token_error_server_error_maps_to_server_error_with_500() {
-    let resp = OAuthHttpError::from(TokenError::ServerError {
-        message: "timeout".to_string(),
-    })
+    let resp = OAuthHttpError::from(TokenError::server(
+        "Token generation failed",
+        std::io::Error::other("timeout"),
+    ))
     .into_response();
     assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
     let json = body_to_json(resp).await;
     assert_eq!(json["error"], "server_error");
-    assert_ne!(json["error_description"], "timeout");
+    let description = json["error_description"].as_str().unwrap_or_default();
+    assert!(!description.contains("timeout"), "{description}");
 }
 
 #[tokio::test]
