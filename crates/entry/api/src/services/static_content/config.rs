@@ -5,11 +5,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use systemprompt_identifiers::SourceId;
 use systemprompt_models::ContentConfigRaw;
 
 #[derive(Debug, Clone)]
 pub struct StaticContentMatcher {
-    patterns: Vec<(String, String)>,
+    patterns: Vec<(String, SourceId)>,
 }
 
 impl StaticContentMatcher {
@@ -25,7 +26,7 @@ impl StaticContentMatcher {
                 source
                     .sitemap
                     .filter(|s| s.enabled)
-                    .map(|sitemap| (sitemap.url_pattern, source_id))
+                    .map(|sitemap| (sitemap.url_pattern, SourceId::new(source_id)))
             })
             .collect();
 
@@ -38,7 +39,7 @@ impl StaticContentMatcher {
         }
     }
 
-    pub fn matches(&self, path: &str) -> Option<(String, String)> {
+    pub fn matches(&self, path: &str) -> Option<(String, SourceId)> {
         self.patterns.iter().find_map(|(pattern, source_id)| {
             extract_slug(path, pattern).map(|slug| (slug, source_id.clone()))
         })

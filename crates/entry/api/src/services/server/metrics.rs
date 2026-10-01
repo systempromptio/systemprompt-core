@@ -14,6 +14,7 @@ use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
 };
+use systemprompt_identifiers::InstanceId;
 
 const METRICS_CONTENT_TYPE: &str = "text/plain; version=0.0.4; charset=utf-8";
 
@@ -27,7 +28,7 @@ const SSE_CONNECTIONS: &str = "sse_active_connections";
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
 static RECORDER_INIT: Mutex<()> = Mutex::new(());
 
-pub fn install_recorder(instance_id: &str) -> anyhow::Result<PrometheusHandle> {
+pub fn install_recorder(instance_id: &InstanceId) -> anyhow::Result<PrometheusHandle> {
     if let Some(handle) = RECORDER.get() {
         return Ok(handle.clone());
     }
@@ -38,7 +39,7 @@ pub fn install_recorder(instance_id: &str) -> anyhow::Result<PrometheusHandle> {
         return Ok(handle.clone());
     }
     let handle = PrometheusBuilder::new()
-        .add_global_label("instance", instance_id)
+        .add_global_label("instance", instance_id.as_str())
         .install_recorder()
         .map_err(|e| anyhow::anyhow!("failed to install Prometheus recorder: {e}"))?;
     Ok(RECORDER.get_or_init(|| handle).clone())

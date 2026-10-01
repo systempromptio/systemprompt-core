@@ -9,9 +9,10 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
-use systemprompt_models::Config;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::mcp::McpExtensionId;
 use systemprompt_models::oauth::ProtectedResourceMetadata;
+use systemprompt_models::{ApiError, Config};
 use systemprompt_oauth::services::validation::id_jag::{ID_JAG_GRANT_PROFILE, ID_JAG_TOKEN_TYPE};
 use systemprompt_oauth::{GrantType, PkceMethod, ResponseType, TokenAuthMethod};
 use systemprompt_traits::McpRegistryProvider;
@@ -42,22 +43,23 @@ struct McpAuthorizationServerMetadata {
 
 pub(super) async fn handle_mcp_protected_resource(
     State(state): State<McpState>,
-    Path(service_name): Path<String>,
+    Path(raw_server): Path<String>,
 ) -> Result<Response, ApiHttpError> {
+    let server = McpServerId::try_new(raw_server).map_err(ApiError::from)?;
     let base_url = Config::get()?.api_external_url.clone();
 
-    let scopes = get_mcp_server_scopes(state.ctx.mcp_registry(), &service_name)
+    let scopes = get_mcp_server_scopes(state.ctx.mcp_registry(), &server)
         .await
         .unwrap_or_else(|| vec!["user".to_owned()]);
 
     let mcp_extensions_supported =
-        if mcp_server_requires_ema(state.ctx.mcp_registry(), &service_name).await {
+        if mcp_server_requires_ema(state.ctx.mcp_registry(), &server).await {
             vec![McpExtensionId::EnterpriseManagedAuth]
         } else {
             Vec::new()
         };
 
-    let resource_url = format!("{}/api/v1/mcp/{}/mcp", base_url, service_name);
+    let resource_url = format!("{}/api/v1/mcp/{}/mcp", base_url, server);
 
     let metadata = ProtectedResourceMetadata {
         resource: resource_url,
@@ -71,9 +73,7 @@ pub(super) async fn handle_mcp_protected_resource(
     Ok((StatusCode::OK, Json(metadata)).into_response())
 }
 
-pub(super) async fn handle_mcp_authorization_server(
-    Path(_service_name): Path<String>,
-) -> Result<Response, ApiHttpError> {
+pub(super) async fn handle_mcp_authorization_server() -> Result<Response, ApiHttpError> {
     let config = Config::get()?;
     let (base_url, allow_dcr) = (
         config.api_external_url.clone(),
@@ -116,8 +116,8 @@ pub(super) async fn handle_mcp_authorization_server(
     Ok((StatusCode::OK, Json(metadata)).into_response())
 }
 
-async fn mcp_server_requires_ema(registry: &dyn McpRegistryProvider, service_name: &str) -> bool {
-    match registry.get_server(service_name).await {
+async fn mcp_server_requires_ema(registry: &dyn McpRegistryProvider, server: &McpServerId) -> bool {
+    match registry.get_server(server.as_str()).await {
         Ok(info) => info.oauth.required && info.oauth.ema,
         Err(_) => false,
     }

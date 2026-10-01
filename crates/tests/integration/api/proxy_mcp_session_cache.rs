@@ -5,7 +5,7 @@
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::engine::external::{map_resolve_error, outbound_headers};
-use systemprompt_identifiers::{JwtToken, SessionId};
+use systemprompt_identifiers::{JwtToken, ServiceName, SessionId};
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
@@ -252,12 +252,15 @@ fn outbound_headers_provider_credential_wins() {
 
 #[test]
 fn resolve_error_mapping_covers_auth_and_availability() {
-    let auth =
-        map_resolve_error("ext", McpDomainError::AuthRequired("login".to_owned())).to_string();
+    let auth = map_resolve_error(
+        &ServiceName::new("ext"),
+        McpDomainError::AuthRequired("login".to_owned()),
+    )
+    .to_string();
     assert!(auth.contains("Authentication required"), "{auth}");
 
     let unavailable = map_resolve_error(
-        "ext",
+        &ServiceName::new("ext"),
         McpDomainError::ExternalAuthUnavailable {
             server: "ext".to_owned(),
             message: "vault down".to_owned(),
@@ -267,7 +270,7 @@ fn resolve_error_mapping_covers_auth_and_availability() {
     assert!(unavailable.contains("vault down"), "{unavailable}");
 
     let other = map_resolve_error(
-        "ext",
+        &ServiceName::new("ext"),
         McpDomainError::transport("token accessor", std::io::Error::other("boom")),
     );
     assert!(

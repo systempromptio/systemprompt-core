@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{ServiceName, SessionId, UserId};
 use systemprompt_mcp::repository::{ExternalSessionBinding, McpProxyIdentityRepository};
 use systemprompt_models::RequestContext;
 
@@ -16,7 +16,7 @@ use super::super::backend::ProxyError;
 
 pub(super) struct SessionGuard<'a> {
     repository: &'a McpProxyIdentityRepository,
-    server: &'a str,
+    server: &'a ServiceName,
     user_id: &'a UserId,
     credential_hash: [u8; 32],
 }
@@ -24,7 +24,7 @@ pub(super) struct SessionGuard<'a> {
 impl<'a> SessionGuard<'a> {
     pub(super) fn new(
         repository: &'a McpProxyIdentityRepository,
-        server: &'a str,
+        server: &'a ServiceName,
         context: &'a RequestContext,
         headers: &HashMap<HeaderName, HeaderValue>,
     ) -> Self {
@@ -45,9 +45,9 @@ impl<'a> SessionGuard<'a> {
         }
     }
 
-    const fn binding<'b>(&'b self, session_id: &'b SessionId) -> ExternalSessionBinding<'b> {
+    fn binding<'b>(&'b self, session_id: &'b SessionId) -> ExternalSessionBinding<'b> {
         ExternalSessionBinding {
-            server: self.server,
+            server: self.server.as_str(),
             session_id,
             user_id: self.user_id,
             credential_hash: &self.credential_hash,
@@ -55,9 +55,9 @@ impl<'a> SessionGuard<'a> {
     }
 
     fn failed(&self, error: &systemprompt_mcp::McpDomainError) -> ProxyError {
-        tracing::warn!(%error, server = self.server, "External MCP session persistence failed");
+        tracing::warn!(%error, server = %self.server, "External MCP session persistence failed");
         ProxyError::Forbidden {
-            service: self.server.to_owned(),
+            service: self.server.to_string(),
         }
     }
 
@@ -74,9 +74,9 @@ impl<'a> SessionGuard<'a> {
     pub(super) async fn remember(&self, headers: &HeaderMap) -> Result<(), ProxyError> {
         if let Some(session) = headers.get("mcp-session-id") {
             let session = session.to_str().map_err(|error| {
-                tracing::warn!(%error, server = self.server, "Invalid external MCP session header");
+                tracing::warn!(%error, server = %self.server, "Invalid external MCP session header");
                 ProxyError::Forbidden {
-                    service: self.server.to_owned(),
+                    service: self.server.to_string(),
                 }
             })?;
             let remembered = self
@@ -86,7 +86,7 @@ impl<'a> SessionGuard<'a> {
                 .map_err(|error| self.failed(&error))?;
             if !remembered {
                 return Err(ProxyError::Forbidden {
-                    service: self.server.to_owned(),
+                    service: self.server.to_string(),
                 });
             }
         }

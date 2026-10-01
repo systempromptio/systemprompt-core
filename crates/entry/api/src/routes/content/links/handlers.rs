@@ -14,7 +14,7 @@ use axum::{Extension, Json};
 use std::sync::Arc;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_content::{LinkAnalyticsService, LinkGenerationService};
-use systemprompt_identifiers::{CampaignId, ContentId, LinkId, SessionId};
+use systemprompt_identifiers::{CampaignId, LinkId};
 use systemprompt_models::{ApiError, Config, RequestContext};
 use systemprompt_runtime::AppContext;
 use tracing::error;
@@ -42,7 +42,7 @@ pub async fn redirect_handler(
 
     let track_params = systemprompt_content::TrackClickParams::new(
         link.id.clone(),
-        SessionId::new(req_ctx.request.session_id.as_str()),
+        req_ctx.request.session_id.clone(),
     )
     .with_user_id(Some(req_ctx.auth.actor.user_id.clone()))
     .with_context_id(Some(req_ctx.execution.context_id.clone()))
@@ -92,16 +92,13 @@ pub async fn generate_link_handler(
 
     let link_gen_service = LinkGenerationService::new(ctx.content_repositories().link.clone());
 
-    let campaign_id = payload.campaign_id.map(CampaignId::new);
-    let source_content_id = payload.source_content_id.map(ContentId::new);
-
     match link_gen_service
         .generate_link(systemprompt_content::GenerateLinkParams {
             target_url: payload.target_url.clone(),
             link_type,
-            campaign_id,
+            campaign_id: payload.campaign_id,
             campaign_name: payload.campaign_name,
-            source_content_id,
+            source_content_id: payload.source_content_id,
             source_page: payload.source_page,
             utm_params,
             link_text: payload.link_text,
@@ -141,7 +138,10 @@ pub async fn get_link_performance_handler(
         repositories.link_analytics.clone(),
     );
 
-    let link_id = LinkId::new(link_id);
+    let link_id = match LinkId::try_new(link_id) {
+        Ok(id) => id,
+        Err(e) => return ApiError::from(e).into_response(),
+    };
     match analytics_service.get_link_performance(&link_id).await {
         Ok(Some(performance)) => Json(performance).into_response(),
         Ok(None) => ApiError::not_found("Link not found").into_response(),
@@ -160,7 +160,10 @@ pub async fn get_campaign_performance_handler(
         repositories.link_analytics.clone(),
     );
 
-    let campaign_id = CampaignId::new(campaign_id);
+    let campaign_id = match CampaignId::try_new(campaign_id) {
+        Ok(id) => id,
+        Err(e) => return ApiError::from(e).into_response(),
+    };
     match analytics_service
         .get_campaign_performance(&campaign_id)
         .await
@@ -203,13 +206,11 @@ pub async fn list_links_handler(
     );
 
     if let Some(campaign_id) = query.campaign_id {
-        let campaign_id = CampaignId::new(campaign_id);
         match analytics_service.get_links_by_campaign(&campaign_id).await {
             Ok(links) => Json(links).into_response(),
             Err(e) => ApiHttpError::from(e).into_response(),
         }
     } else if let Some(source_content_id) = query.source_content_id {
-        let source_content_id = ContentId::new(source_content_id);
         match analytics_service
             .get_links_by_source_content(&source_content_id)
             .await
@@ -235,7 +236,10 @@ pub async fn get_link_clicks_handler(
         repositories.link_analytics.clone(),
     );
 
-    let link_id = LinkId::new(link_id);
+    let link_id = match LinkId::try_new(link_id) {
+        Ok(id) => id,
+        Err(e) => return ApiError::from(e).into_response(),
+    };
     match analytics_service
         .get_link_clicks(&link_id, query.limit, query.offset)
         .await

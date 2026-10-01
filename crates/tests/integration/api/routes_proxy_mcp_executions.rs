@@ -144,3 +144,13 @@ async fn unparseable_output_is_omitted() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn a_blank_execution_id_is_a_400_invalid_identifier() -> anyhow::Result<()> {
+    let (_pool, ctx) = setup_ctx().await?;
+    let (status, body) = get_as(&ctx, "%20", caller(OWNER, UserType::User)).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(json["error_key"], "invalid_identifier", "{json}");
+    Ok(())
+}

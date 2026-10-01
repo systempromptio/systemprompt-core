@@ -15,6 +15,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
+use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_mcp::services::client::McpClient;
 use systemprompt_mcp::{IntentClaimService, McpDomainError, McpServerConfig};
 use systemprompt_models::RequestContext;
@@ -37,7 +38,7 @@ const MCP_PASSTHROUGH_HEADERS: [&str; 4] = [
 // the proxy future `!Send` and the router refuse it.
 async fn authorised_context(
     ctx: &AppContext,
-    service_name: &str,
+    service_name: &ServiceName,
     headers: &HeaderMap,
     req_ctx: Option<RequestContext>,
 ) -> Result<RequestContext, ProxyError> {
@@ -58,7 +59,7 @@ async fn authorised_context(
 impl ProxyEngine {
     pub(super) async fn proxy_external_mcp(
         &self,
-        service_name: &str,
+        service_name: &ServiceName,
         request: Request<Body>,
         ctx: AppContext,
         server_config: McpServerConfig,
@@ -113,7 +114,7 @@ impl ProxyEngine {
             .send()
             .await
             .map_err(|source| ProxyError::ConnectionFailed {
-                service: service_name.to_owned(),
+                service: service_name.to_string(),
                 url: target.url.clone(),
                 source,
             })?;
@@ -126,7 +127,7 @@ impl ProxyEngine {
             sessions.remember(response.headers()).await?;
         }
         let to_invalid = |source| ProxyError::InvalidResponse {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
             source,
         };
         match audit {
@@ -156,7 +157,7 @@ fn build_audit(
     intent_claims: Option<&IntentClaimService>,
     ingest: Option<&std::sync::Arc<systemprompt_mcp::ArtifactIngest>>,
     req_ctx: &RequestContext,
-    service_name: &str,
+    service_name: &ServiceName,
     body: &[u8],
 ) -> Option<McpAudit> {
     let invocation = parse_tool_call(body)?;
@@ -168,25 +169,25 @@ fn build_audit(
         intent_claims.clone(),
         ingest.map(std::sync::Arc::clone),
         req_ctx.clone(),
-        service_name.to_owned(),
+        McpServerId::new(service_name.as_str()),
         invocation,
     ))
 }
 
-pub fn map_resolve_error(service_name: &str, error: McpDomainError) -> ProxyError {
+pub fn map_resolve_error(service_name: &ServiceName, error: McpDomainError) -> ProxyError {
     match error {
         McpDomainError::AuthRequired(_) => ProxyError::AuthenticationRequired {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
         },
         McpDomainError::ExternalAccountNotConnected { .. } => ProxyError::ProviderNotConnected {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
         },
         McpDomainError::ExternalAuthUnavailable { message, .. } => ProxyError::ServiceNotRunning {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
             status: message,
         },
         other => ProxyError::ExternalResolveFailed {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
             source: other,
         },
     }

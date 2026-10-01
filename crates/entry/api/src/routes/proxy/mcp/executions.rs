@@ -11,7 +11,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
 use std::sync::Arc;
-use systemprompt_identifiers::McpExecutionId;
+use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 use systemprompt_mcp::models::ToolExecution;
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::auth::UserType;
@@ -22,8 +22,8 @@ use systemprompt_runtime::AppContext;
 #[derive(Debug, Serialize)]
 pub struct ToolExecutionResponse {
     pub id: McpExecutionId,
-    pub tool_name: String,
-    pub server_name: String,
+    pub tool_name: McpToolName,
+    pub server_name: McpServerId,
     pub server_endpoint: String,
     // JSON: MCP `tools/call` arguments — schema-less per tool.
     pub input: serde_json::Value,
@@ -59,10 +59,13 @@ fn not_found() -> Response {
 
 async fn handle_get_execution(
     Extension(req_ctx): Extension<RequestContext>,
-    Path(execution_id): Path<String>,
+    Path(raw_execution_id): Path<String>,
     State(state): State<ExecutionsState>,
 ) -> Response {
-    let execution_id = McpExecutionId::new(&execution_id);
+    let execution_id = match McpExecutionId::try_new(raw_execution_id) {
+        Ok(id) => id,
+        Err(error) => return ApiError::from(error).into_response(),
+    };
     let execution = match state.repo.find_by_id(&execution_id).await {
         Ok(Some(execution)) if caller_may_read(&req_ctx, &execution) => execution,
         Ok(_) => return not_found(),
@@ -96,9 +99,9 @@ async fn handle_get_execution(
 
     Json(ToolExecutionResponse {
         id: execution.mcp_execution_id,
-        tool_name: String::from(execution.tool_name),
+        tool_name: execution.tool_name,
         server_endpoint: ApiPaths::mcp_server_endpoint(execution.server_name.as_str()),
-        server_name: String::from(execution.server_name),
+        server_name: execution.server_name,
         input,
         output,
         status: execution.status,

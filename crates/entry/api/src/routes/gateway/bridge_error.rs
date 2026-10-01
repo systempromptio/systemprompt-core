@@ -9,10 +9,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use axum::extract::rejection::JsonRejection;
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{JwtToken, ManagedResourceId, UserId};
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::OauthError;
 use systemprompt_traits::{AuthUser, BoxedSource};
@@ -31,12 +33,12 @@ pub enum BridgeError {
     CredentialRejected(#[source] ContextExtractionError),
     #[error("heartbeat session_id must match the authenticated session")]
     SessionMismatch,
-    #[error("unknown host: {0}")]
-    UnknownHost(String),
+    #[error("invalid request body: {0}")]
+    InvalidBody(#[source] JsonRejection),
     #[error("unknown API surface: {0}")]
     UnknownSurface(String),
     #[error("host '{0}' is disabled on this installation")]
-    HostDisabled(String),
+    HostDisabled(HostKind),
     #[error("Gateway not enabled")]
     GatewayDisabled,
     #[error("User not found: {0}")]
@@ -104,8 +106,8 @@ impl From<BridgeError> for ApiHttpError {
             BridgeError::SessionMismatch => {
                 ApiError::unauthorized(message).with_error_key("session_mismatch")
             },
-            BridgeError::UnknownHost(_) => {
-                ApiError::bad_request(message).with_error_key("unknown_host")
+            BridgeError::InvalidBody(_) => {
+                ApiError::bad_request(message).with_error_key("invalid_body")
             },
             BridgeError::UnknownSurface(_) => {
                 ApiError::bad_request(message).with_error_key("unknown_api_surface")

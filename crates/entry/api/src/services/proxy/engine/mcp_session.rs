@@ -12,7 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
-use systemprompt_identifiers::{McpServerId, SessionId};
+use systemprompt_identifiers::{McpServerId, ServiceName, SessionId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -34,7 +34,7 @@ pub async fn enrich_with_cached_identity(
     identities: &McpProxyIdentityRepository,
     request_headers: &HeaderMap,
     req_context: RequestContext,
-    service_name: &str,
+    service_name: &ServiceName,
 ) -> RequestContext {
     let Some(session_id) = session_id_header(request_headers) else {
         return req_context;
@@ -89,7 +89,7 @@ pub struct McpResponseCtx<'a> {
     pub request_headers: &'a HeaderMap,
     pub req_context: &'a RequestContext,
     pub authenticated_user: Option<&'a AuthenticatedUser>,
-    pub service_name: &'a str,
+    pub service_name: &'a ServiceName,
     pub method_str: &'a str,
 }
 
@@ -156,7 +156,7 @@ async fn evict_on_error_response(
     identities: &McpProxyIdentityRepository,
     response: &reqwest::Response,
     request_headers: &HeaderMap,
-    service_name: &str,
+    service_name: &ServiceName,
     method_str: &str,
 ) {
     let resp_status = response.status();
@@ -192,7 +192,7 @@ async fn cache_identity_from_response(
     response: &reqwest::Response,
     req_context: &RequestContext,
     authenticated_user: Option<&AuthenticatedUser>,
-    service_name: &str,
+    service_name: &ServiceName,
 ) {
     let Some(session_id) = session_id_header(response.headers()) else {
         return;
@@ -219,7 +219,7 @@ async fn cache_identity_from_response(
                 "Stored session identity for MCP session"
             );
             if let Err(e) = identities
-                .attribute_session(&session_id, &McpServerId::new(service_name), &row.user_id)
+                .attribute_session(&session_id, &McpServerId::new(service_name.as_str()), &row.user_id)
                 .await
             {
                 tracing::warn!(

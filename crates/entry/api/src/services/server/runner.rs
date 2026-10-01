@@ -155,7 +155,7 @@ async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<tokio::task::
     let Some(port) = ctx.config().metrics_port else {
         return Ok(None);
     };
-    let handle = super::metrics::install_recorder(ctx.config().instance_id.as_str())?;
+    let handle = super::metrics::install_recorder(&ctx.config().instance_id)?;
     let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);
     Ok(Some(
         super::metrics::serve_metrics_listener(addr, handle).await?,

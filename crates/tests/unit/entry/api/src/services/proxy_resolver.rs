@@ -9,6 +9,7 @@
 use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
 };
@@ -55,7 +56,7 @@ async fn an_unreachable_database_is_reported_as_a_database_error_not_a_missing_s
     let pool = closed_db_pool().await;
     let ctx = test_app_context(&pool, &boot.database_url);
 
-    let error = ServiceResolver::resolve("anything", &ctx)
+    let error = ServiceResolver::resolve(&ServiceName::new("anything"), &ctx)
         .await
         .map(|_| ())
         .expect_err("a closed pool cannot resolve a service");
@@ -72,7 +73,7 @@ async fn a_service_no_row_names_is_reported_as_not_found() {
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
 
-    let error = ServiceResolver::resolve(&unique_name("absent"), &ctx)
+    let error = ServiceResolver::resolve(&ServiceName::new(unique_name("absent")), &ctx)
         .await
         .map(|_| ())
         .expect_err("an unregistered service cannot resolve");
@@ -91,7 +92,7 @@ async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
     let name = unique_name("stopped");
     seed_service(&pool, &name, "stopped").await;
 
-    let error = ServiceResolver::resolve(&name, &ctx)
+    let error = ServiceResolver::resolve(&ServiceName::new(&name), &ctx)
         .await
         .map(|_| ())
         .expect_err("a stopped service cannot be proxied to");
@@ -127,7 +128,7 @@ async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retri
 
     let outcome = tokio::time::timeout(
         std::time::Duration::from_secs(20),
-        ServiceResolver::resolve(&name, &ctx),
+        ServiceResolver::resolve(&ServiceName::new(&name), &ctx),
     )
     .await
     .expect("resolve must terminate; retrying a restart that starts nothing never converges");
@@ -174,7 +175,7 @@ async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
 
     let resolved = tokio::time::timeout(
         std::time::Duration::from_secs(20),
-        ServiceResolver::resolve(&name, &ctx),
+        ServiceResolver::resolve(&ServiceName::new(&name), &ctx),
     )
     .await
     .expect("resolve must terminate")
@@ -214,7 +215,7 @@ async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error()
 
     let outcome = tokio::time::timeout(
         std::time::Duration::from_secs(20),
-        ServiceResolver::resolve(&name, &ctx),
+        ServiceResolver::resolve(&ServiceName::new(&name), &ctx),
     )
     .await
     .expect("resolve must terminate");

@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_config::SecretsBootstrapError;
+use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::errors::ConfigError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
 use systemprompt_traits::auth::AuthProviderError;
@@ -14,6 +15,12 @@ use super::OAuthHttpError;
 impl From<ConfigError> for OAuthHttpError {
     fn from(err: ConfigError) -> Self {
         Self::server_error("Configuration unavailable").with_source(err)
+    }
+}
+
+impl From<IdValidationError> for OAuthHttpError {
+    fn from(err: IdValidationError) -> Self {
+        Self::invalid_request(err.to_string()).with_source(err)
     }
 }
 

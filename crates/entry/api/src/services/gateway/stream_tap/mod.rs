@@ -136,7 +136,7 @@ impl Stream for RawTappedStream {
                     return Poll::Ready(None);
                 };
                 let aborted = abort::is_abort(&summary);
-                finalize(Arc::clone(&self.audit), summary, ctx, "eof");
+                finalize(&self.audit, summary, ctx, ClientConnection::Connected);
                 if !aborted {
                     return Poll::Ready(None);
                 }
@@ -170,7 +170,7 @@ impl Drop for RawTappedStream {
         let Some((summary, ctx)) = self.take_summary() else {
             return;
         };
-        finalize(Arc::clone(&self.audit), summary, ctx, "drop");
+        finalize(&self.audit, summary, ctx, ClientConnection::Disconnected);
     }
 }
 
@@ -265,7 +265,7 @@ impl TappedStream {
         let tail = (!aborted)
             .then(|| abort::tail_frames(&self.inbound, &summary.response, self.stream_usage))
             .flatten();
-        finalize(Arc::clone(&self.audit), summary, ctx, "eof");
+        finalize(&self.audit, summary, ctx, ClientConnection::Connected);
         if !aborted {
             return Poll::Ready(tail.map(Ok));
         }
@@ -278,6 +278,6 @@ impl Drop for TappedStream {
         let Some((summary, ctx)) = self.take_summary() else {
             return;
         };
-        finalize(Arc::clone(&self.audit), summary, ctx, "drop");
+        finalize(&self.audit, summary, ctx, ClientConnection::Disconnected);
     }
 }

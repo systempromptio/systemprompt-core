@@ -5,7 +5,7 @@
 
 use serde_json::json;
 use systemprompt_agent::models::a2a::TaskState;
-use systemprompt_identifiers::{MessageId, TaskId, UserId};
+use systemprompt_identifiers::{MessageId, TaskId};
 use systemprompt_models::ExecutionStep;
 use systemprompt_runtime::AppContext;
 
@@ -154,10 +154,9 @@ async fn load_context_updated(
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let context_repo = &repos.contexts;
-    let context_id = request.context_id.clone();
-    let user_id = UserId::new(request.user_id.clone());
-
-    let context = context_repo.get_context(&context_id, &user_id).await?;
+    let context = context_repo
+        .get_context(&request.context_id, &request.user_id)
+        .await?;
 
     Ok(AgUiWebhookData {
         event_name: "context_updated".to_owned(),

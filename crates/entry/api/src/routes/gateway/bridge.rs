@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use axum::Json;
+use axum::extract::rejection::JsonRejection;
 use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use systemprompt_config::ProfileBootstrap;
@@ -30,30 +31,28 @@ use systemprompt_models::bridge::host::HostKind;
 
 pub fn instance_enabled_hosts(
     services: &systemprompt_models::services::ServicesConfig,
-) -> Vec<String> {
+) -> Vec<HostKind> {
     HostKind::ALL
-        .iter()
-        .map(|host| host.as_str())
+        .into_iter()
         .filter(|host| {
             services
                 .external_agents
                 .iter()
-                .find(|(id, _)| id.as_str().replace('_', "-") == **host)
+                .find(|(id, _)| id.as_str().replace('_', "-") == host.as_str())
                 .is_none_or(|(_, agent)| agent.enabled)
         })
-        .map(str::to_owned)
         .collect()
 }
 
 #[derive(Debug, Deserialize)]
 pub struct EnabledHostsRequest {
-    pub host_id: String,
+    pub host_id: HostKind,
     pub enabled: bool,
 }
 
 #[derive(Debug, Serialize)]
 pub struct SetHostPrefResponse {
-    pub host_id: String,
+    pub host_id: HostKind,
     pub enabled: bool,
 }
 
@@ -61,13 +60,10 @@ pub async fn set_enabled_host(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: systemprompt_runtime::AppContext,
     headers: HeaderMap,
-    Json(body): Json<EnabledHostsRequest>,
+    body: Result<Json<EnabledHostsRequest>, JsonRejection>,
 ) -> Result<Json<SetHostPrefResponse>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-
-    let Ok(host) = body.host_id.parse::<HostKind>() else {
-        return Err(BridgeError::UnknownHost(body.host_id).into());
-    };
+    let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
     if body.enabled {
         let services = bridge_data::load_services_config()
@@ -77,7 +73,7 @@ pub async fn set_enabled_host(
         }
     }
 
-    bridge_data::upsert_host_pref(&ctx, &claims.user_id, host, body.enabled)
+    bridge_data::upsert_host_pref(&ctx, &claims.user_id, body.host_id, body.enabled)
         .await
         .map_err(BridgeError::from)?;
 
@@ -89,14 +85,14 @@ pub async fn set_enabled_host(
 
 #[derive(Debug, Deserialize)]
 pub struct HostModelFilterRequest {
-    pub host_id: String,
+    pub host_id: HostKind,
     #[serde(default)]
     pub model_protocols: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct HostModelFilterResponse {
-    pub host_id: String,
+    pub host_id: HostKind,
     pub model_protocols: Option<Vec<String>>,
 }
 
@@ -104,13 +100,10 @@ pub async fn set_host_model_filter(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: systemprompt_runtime::AppContext,
     headers: HeaderMap,
-    Json(body): Json<HostModelFilterRequest>,
+    body: Result<Json<HostModelFilterRequest>, JsonRejection>,
 ) -> Result<Json<HostModelFilterResponse>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-
-    let Ok(host) = body.host_id.parse::<HostKind>() else {
-        return Err(BridgeError::UnknownHost(body.host_id).into());
-    };
+    let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
     let normalized = body
         .model_protocols
@@ -126,9 +119,14 @@ pub async fn set_host_model_filter(
         })
         .transpose()?;
 
-    bridge_data::set_host_model_protocols(&ctx, &claims.user_id, host, normalized.as_deref())
-        .await
-        .map_err(BridgeError::from)?;
+    bridge_data::set_host_model_protocols(
+        &ctx,
+        &claims.user_id,
+        body.host_id,
+        normalized.as_deref(),
+    )
+    .await
+    .map_err(BridgeError::from)?;
 
     Ok(Json(HostModelFilterResponse {
         host_id: body.host_id,

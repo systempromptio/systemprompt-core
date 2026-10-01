@@ -9,7 +9,6 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
 use systemprompt_events::EventRouter;
-use systemprompt_identifiers::UserId;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
@@ -28,7 +27,7 @@ pub async fn broadcast_a2a_event(
     Json(request): Json<A2ABroadcastRequest>,
 ) -> Result<Response, ApiHttpError> {
     let authenticated_user_id = &req_ctx.auth.actor.user_id;
-    let request_user_id = UserId::new(&request.user_id);
+    let request_user_id = request.user_id;
     let event_type = request.event.event_type();
 
     tracing::debug!(event_type = ?event_type, user_id = %request_user_id, auth_user_id = %authenticated_user_id, "Received event");
@@ -43,7 +42,7 @@ pub async fn broadcast_a2a_event(
         .into_local_logged();
     let count = a2a_count + context_count;
 
-    tracing::debug!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");
+    tracing::debug!(event_type = ?event_type, count = %count, user_id = %request_user_id, "Event broadcasted to connections");
 
     Ok((
         StatusCode::OK,
@@ -61,7 +60,7 @@ pub async fn broadcast_agui_event(
     Json(request): Json<AgUiBroadcastRequest>,
 ) -> Result<Response, ApiHttpError> {
     let authenticated_user_id = &req_ctx.auth.actor.user_id;
-    let request_user_id = UserId::new(&request.user_id);
+    let request_user_id = request.user_id;
     let event_type = request.event.event_type();
 
     tracing::debug!(event_type = ?event_type, user_id = %request_user_id, auth_user_id = %authenticated_user_id, "Received event");
@@ -76,7 +75,7 @@ pub async fn broadcast_agui_event(
         .into_local_logged();
     let count = agui_count + context_count;
 
-    tracing::debug!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");
+    tracing::debug!(event_type = ?event_type, count = %count, user_id = %request_user_id, "Event broadcasted to connections");
 
     Ok((
         StatusCode::OK,

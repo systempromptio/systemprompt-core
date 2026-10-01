@@ -20,7 +20,7 @@ pub async fn update_client(
     Path(client_id): Path<String>,
     Json(request): Json<UpdateOAuthClientRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    let client_id = systemprompt_identifiers::ClientId::new(&client_id);
+    let client_id = systemprompt_identifiers::ClientId::try_new(client_id)?;
     let prev_client = repository
         .find_client_by_id(&client_id)
         .await?

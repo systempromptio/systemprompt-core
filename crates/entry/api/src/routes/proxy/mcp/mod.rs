@@ -14,6 +14,7 @@ use crate::services::proxy::ProxyEngine;
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::routing::{any, get};
+use systemprompt_identifiers::McpServerId;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::McpRegistryProvider;
 
@@ -24,9 +25,9 @@ pub struct McpState {
 
 pub(in crate::routes) async fn get_mcp_server_scopes(
     registry: &dyn McpRegistryProvider,
-    service_name: &str,
+    server: &McpServerId,
 ) -> Option<Vec<String>> {
-    match registry.get_server(service_name).await {
+    match registry.get_server(server.as_str()).await {
         Ok(server_info) if server_info.oauth.required => {
             let scopes: Vec<String> = server_info
                 .oauth
@@ -54,8 +55,8 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
     if parts.len() < 6 || parts[1] != "api" || parts[3] != "mcp" || parts[5] != "mcp" {
         return None;
     }
-    let server_name = parts[4];
-    get_mcp_server_scopes(registry, server_name).await
+    let server = McpServerId::try_new(parts[4]).ok()?;
+    get_mcp_server_scopes(registry, &server).await
 }
 
 pub fn router(ctx: &AppContext) -> Router {

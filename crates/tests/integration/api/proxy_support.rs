@@ -3,7 +3,7 @@
 
 use axum::http::HeaderMap;
 use systemprompt_api::services::proxy::engine::mcp_session::{self, McpResponseCtx};
-use systemprompt_identifiers::{JwtToken, SessionId, UserId};
+use systemprompt_identifiers::{JwtToken, ServiceName, SessionId, UserId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, UserType};
@@ -54,8 +54,13 @@ pub async fn enrich_with_cached_identity(
     req_context: RequestContext,
     service_name: &str,
 ) -> RequestContext {
-    mcp_session::enrich_with_cached_identity(&cache.0, request_headers, req_context, service_name)
-        .await
+    mcp_session::enrich_with_cached_identity(
+        &cache.0,
+        request_headers,
+        req_context,
+        &ServiceName::new(service_name),
+    )
+    .await
 }
 
 #[derive(Debug)]
@@ -70,13 +75,14 @@ pub struct ResponseArgs<'a> {
 }
 
 pub async fn handle_mcp_response(args: ResponseArgs<'_>) {
+    let service_name = ServiceName::new(args.service_name);
     mcp_session::handle_mcp_response(McpResponseCtx {
         identities: &args.cache.0,
         response: args.response,
         request_headers: args.request_headers,
         req_context: args.req_context,
         authenticated_user: args.authenticated_user,
-        service_name: args.service_name,
+        service_name: &service_name,
         method_str: args.method_str,
     })
     .await;

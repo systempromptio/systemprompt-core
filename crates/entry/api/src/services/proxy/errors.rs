@@ -80,6 +80,9 @@ pub enum ProxyError {
         source: IdValidationError,
     },
 
+    #[error(transparent)]
+    InvalidIdentifier(#[from] IdValidationError),
+
     #[error("Service registry lookup failed for '{service}'")]
     RegistryLookupFailed {
         service: String,
@@ -143,7 +146,8 @@ impl ProxyError {
             | Self::RegistryLookupFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BodyExtractionFailed { .. }
             | Self::InvalidMethod { .. }
-            | Self::InvalidServiceName { .. } => StatusCode::BAD_REQUEST,
+            | Self::InvalidServiceName { .. }
+            | Self::InvalidIdentifier(_) => StatusCode::BAD_REQUEST,
             Self::AuthenticationRequired { .. } | Self::MissingContext { .. } => {
                 StatusCode::UNAUTHORIZED
             },
@@ -170,6 +174,7 @@ impl ProxyError {
             Self::Forbidden { .. } => "forbidden",
             Self::MissingContext { .. } => "missing_context",
             Self::InvalidServiceName { .. } => "invalid_service_name",
+            Self::InvalidIdentifier(_) => "invalid_identifier",
             Self::RegistryUnavailable { .. } => "registry_unavailable",
             Self::RegistryLookupFailed { .. } => "registry_lookup_failed",
             Self::ProviderNotConnected { .. } => "provider_not_connected",

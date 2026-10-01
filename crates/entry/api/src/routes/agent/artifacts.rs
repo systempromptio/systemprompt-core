@@ -13,7 +13,7 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
 
-use systemprompt_identifiers::{ArtifactId, TaskId, UserId};
+use systemprompt_identifiers::{ArtifactId, TaskId};
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
 use systemprompt_mcp::services::ui_renderer::registry::{
@@ -64,7 +64,7 @@ pub async fn list_artifacts_by_task(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(task_id = %task_id, "Listing artifacts by task");
 
-    let task_id_typed = TaskId::new(&task_id);
+    let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
 
     let task_repo = app_context.a2a_repositories().tasks.clone();
     task_repo
@@ -91,7 +91,7 @@ pub async fn get_artifact(
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
 
-    let artifact_id_typed = ArtifactId::new(&artifact_id);
+    let artifact_id_typed = ArtifactId::try_new(&artifact_id).map_err(ApiError::from)?;
     artifact_repo
         .validate_artifact_ownership(&artifact_id_typed, req_ctx.user_id())
         .await?;
@@ -110,15 +110,15 @@ pub async fn list_artifacts_by_user(
     State(app_context): State<AppContext>,
     Query(params): Query<ArtifactQueryParams>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let user_id = req_ctx.auth.actor.user_id.as_str();
+    let user_id = req_ctx.user_id();
 
     tracing::debug!(user_id = %user_id, "Listing artifacts by user");
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
 
-    let user_id_typed = UserId::new(user_id);
+    let limit = params.limit.map(|l| i32::try_from(l).unwrap_or(i32::MAX));
     let artifacts = artifact_repo
-        .get_artifacts_by_user_id(&user_id_typed, params.limit.map(|l| l as i32))
+        .get_artifacts_by_user_id(user_id, limit)
         .await?;
 
     tracing::debug!(
@@ -137,7 +137,7 @@ pub async fn get_artifact_ui(
     tracing::debug!(artifact_id = %artifact_id, "Rendering artifact as MCP App UI");
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
-    let artifact_id_typed = ArtifactId::new(&artifact_id);
+    let artifact_id_typed = ArtifactId::try_new(&artifact_id).map_err(ApiError::from)?;
 
     artifact_repo
         .validate_artifact_ownership(&artifact_id_typed, req_ctx.user_id())

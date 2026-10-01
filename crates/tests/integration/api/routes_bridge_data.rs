@@ -7,6 +7,7 @@ use systemprompt_api::routes::gateway::bridge_data::{
     load_enabled_hosts, load_revocations, load_services_config, load_user, upsert_host_pref,
 };
 use systemprompt_identifiers::UserId;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 use super::common::setup_ctx;
@@ -52,11 +53,11 @@ async fn upsert_host_pref_round_trip() -> anyhow::Result<()> {
         .bind(format!("{}@test.invalid", user.as_str()))
         .execute(exec_pool.as_ref())
         .await?;
-    upsert_host_pref(&ctx, &user, "claude-code", true).await?;
+    upsert_host_pref(&ctx, &user, HostKind::ClaudeCode, true).await?;
     let hosts = load_enabled_hosts(&ctx, &user).await?;
     assert!(hosts.iter().any(|h| h == "claude-code"), "got {hosts:?}");
     // Toggle off.
-    upsert_host_pref(&ctx, &user, "claude-code", false).await?;
+    upsert_host_pref(&ctx, &user, HostKind::ClaudeCode, false).await?;
     let hosts2 = load_enabled_hosts(&ctx, &user).await?;
     assert!(!hosts2.iter().any(|h| h == "claude-code"));
     Ok(())

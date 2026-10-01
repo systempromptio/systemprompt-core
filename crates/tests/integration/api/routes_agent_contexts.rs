@@ -185,10 +185,11 @@ async fn context_event_rejects_malformed_path_before_routing_valid_event() -> an
     let body = to_bytes(response.into_body(), 64 * 1024).await?;
     let json: serde_json::Value = serde_json::from_slice(&body)?;
     assert_eq!(json["code"], "bad_request", "{json}");
+    assert_eq!(json["error_key"], "invalid_identifier", "{json}");
     assert!(
         json["message"]
             .as_str()
-            .is_some_and(|message| message.contains("invalid context id")),
+            .is_some_and(|message| message.contains("ContextId")),
         "{json}"
     );
     Ok(())

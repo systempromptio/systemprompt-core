@@ -16,6 +16,7 @@ use std::str::FromStr;
 use crate::services::proxy::backend::ProxyError;
 use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_database::ServiceConfig;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::modules::ApiPaths;
@@ -28,7 +29,7 @@ use super::challenge::{AuthValidator, ChallengeRequest, challenge_or_error};
 
 #[derive(Debug)]
 pub struct OAuthRequirement {
-    pub module: String,
+    pub module: ServiceModule,
     pub required: bool,
     pub scopes: Vec<String>,
     pub audience: String,
@@ -40,7 +41,7 @@ pub struct AccessValidator;
 impl AccessValidator {
     pub(crate) async fn validate(
         headers: &HeaderMap,
-        service_name: &str,
+        service_name: &ServiceName,
         service: &ServiceConfig,
         ctx: &AppContext,
         req_context: Option<&RequestContext>,
@@ -51,7 +52,7 @@ impl AccessValidator {
 
     pub fn validate_with_requirement(
         headers: &HeaderMap,
-        service_name: &str,
+        service_name: &ServiceName,
         requirement: &OAuthRequirement,
         ctx: &AppContext,
         req_context: Option<&RequestContext>,
@@ -59,7 +60,7 @@ impl AccessValidator {
         if !requirement.required {
             return Ok(None);
         }
-        let resource_path = resource_path_for(&requirement.module, service_name);
+        let resource_path = resource_path_for(requirement.module, service_name);
         let has_authorization = headers.get(AUTHORIZATION).is_some();
         let challenge = |status_code: StatusCode| {
             challenge_or_error(&ChallengeRequest {
@@ -75,12 +76,9 @@ impl AccessValidator {
             match AuthValidator::validate_service_access(headers, service_name, req_context) {
                 Ok(user) => user,
                 Err(status_code) => {
-                    if let Some(outcome) = mcp_session_fallback(
-                        &requirement.module,
-                        service_name,
-                        headers,
-                        status_code,
-                    ) {
+                    if let Some(outcome) =
+                        mcp_session_fallback(requirement.module, service_name, headers, status_code)
+                    {
                         return outcome;
                     }
                     return Err(challenge(status_code));
@@ -98,7 +96,7 @@ impl AccessValidator {
 
 async fn lookup_oauth_requirement(
     service: &ServiceConfig,
-    service_name: &str,
+    service_name: &ServiceName,
     ctx: &AppContext,
 ) -> Result<OAuthRequirement, ProxyError> {
     match service.module_name {
@@ -106,11 +104,11 @@ async fn lookup_oauth_requirement(
             let registry = AgentRegistryProviderService::new()
                 .map_err(|error| registry_lookup_error(service_name, error))?;
             let info = registry
-                .get_agent(service_name)
+                .get_agent(service_name.as_str())
                 .await
                 .map_err(|error| registry_lookup_error(service_name, error))?;
             Ok(OAuthRequirement {
-                module: ServiceModule::Agent.as_str().to_owned(),
+                module: ServiceModule::Agent,
                 required: info.oauth.required,
                 scopes: info.oauth.scopes,
                 audience: info.oauth.audience,
@@ -122,33 +120,33 @@ async fn lookup_oauth_requirement(
 
 pub(crate) async fn mcp_oauth_requirement(
     ctx: &AppContext,
-    service_name: &str,
+    service_name: &ServiceName,
 ) -> Result<OAuthRequirement, ProxyError> {
     let registry = ctx.mcp_registry();
     registry
         .validate()
         .map_err(|source| ProxyError::RegistryUnavailable {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
             source,
         })?;
-    let info = McpRegistryProvider::get_server(registry, service_name)
+    let info = McpRegistryProvider::get_server(registry, service_name.as_str())
         .await
         .map_err(|error| registry_lookup_error(service_name, error))?;
     Ok(OAuthRequirement {
-        module: "mcp".to_owned(),
+        module: ServiceModule::Mcp,
         required: info.oauth.required,
         scopes: info.oauth.scopes,
         audience: info.oauth.audience,
     })
 }
 
-fn registry_lookup_error(service_name: &str, error: RegistryError) -> ProxyError {
+fn registry_lookup_error(service_name: &ServiceName, error: RegistryError) -> ProxyError {
     match error {
         RegistryError::NotFound(_) => ProxyError::ServiceNotFound {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
         },
         source => ProxyError::RegistryLookupFailed {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
             source,
         },
     }
@@ -156,7 +154,7 @@ fn registry_lookup_error(service_name: &str, error: RegistryError) -> ProxyError
 
 fn enforce_required_audience(
     headers: &HeaderMap,
-    service_name: &str,
+    service_name: &ServiceName,
     audience: &str,
 ) -> Result<(), StatusCode> {
     if audience.is_empty() {
@@ -174,23 +172,22 @@ fn enforce_required_audience(
         })
 }
 
-fn resource_path_for(module_name: &str, service_name: &str) -> String {
-    match module_name {
-        "mcp" => ApiPaths::mcp_server_endpoint(service_name),
-        "agent" => {
-            ApiPaths::agent_endpoint(&systemprompt_identifiers::AgentName::new(service_name))
-        },
-        _ => String::new(),
+fn resource_path_for(module: ServiceModule, service_name: &ServiceName) -> String {
+    match module {
+        ServiceModule::Mcp => ApiPaths::mcp_server_endpoint(service_name.as_str()),
+        ServiceModule::Agent => ApiPaths::agent_endpoint(
+            &systemprompt_identifiers::AgentName::new(service_name.as_str()),
+        ),
     }
 }
 
 fn mcp_session_fallback(
-    module_name: &str,
-    service_name: &str,
+    module: ServiceModule,
+    service_name: &ServiceName,
     headers: &HeaderMap,
     status_code: StatusCode,
 ) -> Option<Result<Option<AuthenticatedUser>, ProxyError>> {
-    if module_name != "mcp" || status_code != StatusCode::UNAUTHORIZED {
+    if module != ServiceModule::Mcp || status_code != StatusCode::UNAUTHORIZED {
         return None;
     }
     let has_session = headers
@@ -221,7 +218,7 @@ fn mcp_session_fallback(
 }
 
 fn ensure_required_scopes(
-    service_name: &str,
+    service_name: &ServiceName,
     required_scopes: &[String],
     user: &AuthenticatedUser,
 ) -> Result<(), ProxyError> {

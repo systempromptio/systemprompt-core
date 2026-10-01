@@ -28,12 +28,6 @@ use axum::Router;
 use axum::routing::{MethodRouter, get, post};
 use systemprompt_runtime::AppContext;
 
-const INVALID_CONTEXT_IDS: &[&str] = &["undefined", "null", "", "__CONTEXT_LOADING__"];
-
-pub fn is_valid_context_id(context: &str) -> bool {
-    !INVALID_CONTEXT_IDS.contains(&context)
-}
-
 pub fn router() -> Router<AppContext> {
     let context_root_methods: MethodRouter<AppContext> = get(list_contexts).post(create_context);
 

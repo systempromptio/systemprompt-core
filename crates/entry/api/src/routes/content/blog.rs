@@ -14,7 +14,7 @@ use axum::{Extension, Json};
 use systemprompt_content::Content;
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::{MarkdownFrontmatter, MarkdownResponse};
+use systemprompt_models::api::{ApiError, MarkdownFrontmatter, MarkdownResponse};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::RepositoryError;
 
@@ -25,9 +25,9 @@ pub async fn list_content_by_source_handler(
     State(ctx): State<AppContext>,
     Path(source_id): Path<String>,
 ) -> Result<Json<Vec<Content>>, ApiHttpError> {
+    let source_id = SourceId::try_new(source_id).map_err(ApiError::from)?;
     let content_service = &ctx.content_repositories().content;
 
-    let source_id = SourceId::new(source_id);
     let content = content_service
         .list_by_source(&source_id, &LocaleCode::english())
         .await
@@ -41,11 +41,11 @@ pub async fn get_content_handler(
     accepted_format: Option<Extension<AcceptedFormat>>,
     Path((source_id, slug)): Path<(String, String)>,
 ) -> Result<Response, ApiHttpError> {
+    let source_id = SourceId::try_new(source_id).map_err(ApiError::from)?;
     let content_service = &ctx.content_repositories().content;
 
-    let source_id_typed = SourceId::new(source_id.clone());
     let content = content_service
-        .get_by_source_and_slug(&source_id_typed, &slug, &LocaleCode::english())
+        .get_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
         .await
         .map_err(RepositoryError::from)?
         .ok_or_else(content_not_found)?;
@@ -80,10 +80,10 @@ pub async fn get_content_markdown_handler(
     Extension(_req_ctx): Extension<RequestContext>,
     Path((source_id, slug)): Path<(String, String)>,
 ) -> Result<Response, ApiHttpError> {
+    let source_id = SourceId::try_new(source_id).map_err(ApiError::from)?;
     let content_service = &ctx.content_repositories().content;
 
     let slug = slug.trim_end_matches(".md");
-    let source_id = SourceId::new(source_id);
 
     let content = content_service
         .get_by_source_and_slug(&source_id, slug, &LocaleCode::english())

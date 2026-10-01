@@ -10,7 +10,7 @@ use std::net::IpAddr;
 
 use anyhow::Result;
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
+use systemprompt_identifiers::{ClientId, JwtToken, SessionId, SessionSource, UserId};
 use systemprompt_oauth::{CreateAnonymousSessionInput, SessionCreationService, validate_jwt_token};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::TokenExtractor;
@@ -22,7 +22,7 @@ pub struct SessionInfo {
     pub session_id: SessionId,
     pub user_id: UserId,
     pub is_new: bool,
-    pub jwt_token: Option<String>,
+    pub jwt_token: Option<JwtToken>,
 }
 
 pub async fn ensure_session(
@@ -36,12 +36,13 @@ pub async fn ensure_session(
     if let Ok(token) = TokenExtractor::browser_only().extract(headers)
         && let Ok(claims) = validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
         && let Some(session_id) = claims.session_id
+        && let Ok(user_id) = UserId::try_new(claims.sub)
     {
         return Ok(SessionInfo {
             session_id: SessionId::new(session_id),
-            user_id: UserId::new(claims.sub),
+            user_id,
             is_new: false,
-            jwt_token: Some(token),
+            jwt_token: Some(JwtToken::new(token)),
         });
     }
 
@@ -66,6 +67,6 @@ pub async fn ensure_session(
         session_id: session_info.session_id,
         user_id: session_info.user_id,
         is_new: session_info.is_new,
-        jwt_token: Some(session_info.jwt_token.as_str().to_owned()),
+        jwt_token: Some(session_info.jwt_token),
     })
 }

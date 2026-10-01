@@ -7,6 +7,7 @@
 
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_marketplace::MarketplaceCandidate;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_runtime::AppContext;
 
@@ -54,7 +55,7 @@ pub(super) struct PerUserContext {
 pub(super) async fn load_per_user_context(
     ctx: &AppContext,
     user_id: &UserId,
-    instance_hosts: Vec<String>,
+    instance_hosts: Vec<HostKind>,
 ) -> Result<PerUserContext, BridgeError> {
     let user = match bridge_data::load_user(ctx, user_id).await {
         Ok(u) => u,
@@ -69,10 +70,10 @@ pub(super) async fn load_per_user_context(
         .map_err(|e| BridgeError::internal("manifest: revocations unavailable", e))?;
 
     let enabled_hosts = match bridge_data::load_enabled_hosts(ctx, user_id).await {
-        Ok(rows) if rows.is_empty() => instance_hosts,
         Ok(rows) => instance_hosts
             .into_iter()
-            .filter(|h| rows.iter().any(|r| r.as_str() == h))
+            .filter(|host| rows.is_empty() || rows.iter().any(|row| row == host.as_str()))
+            .map(|host| host.as_str().to_owned())
             .collect(),
         Err(e) => {
             return Err(BridgeError::internal(

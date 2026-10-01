@@ -5,15 +5,15 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::LinkId;
+use systemprompt_identifiers::{CampaignId, ContentId, LinkId};
 
 #[derive(Debug, Deserialize)]
 pub struct GenerateLinkRequest {
     pub target_url: String,
     pub link_type: String,
-    pub campaign_id: Option<String>,
+    pub campaign_id: Option<CampaignId>,
     pub campaign_name: Option<String>,
-    pub source_content_id: Option<String>,
+    pub source_content_id: Option<ContentId>,
     pub source_page: Option<String>,
     pub utm_source: Option<String>,
     pub utm_medium: Option<String>,
@@ -35,8 +35,8 @@ pub struct GenerateLinkResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct ListLinksQuery {
-    pub campaign_id: Option<String>,
-    pub source_content_id: Option<String>,
+    pub campaign_id: Option<CampaignId>,
+    pub source_content_id: Option<ContentId>,
 }
 
 #[derive(Debug, Deserialize, Copy, Clone)]

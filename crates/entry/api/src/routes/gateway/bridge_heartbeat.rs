@@ -55,7 +55,7 @@ pub async fn handle(
     // Why: client attestation joins ai_requests.session_id to the bridge
     // session it was reported under; a heartbeat that names another session
     // would let one bridge vouch for traffic it never carried.
-    if claims.session_id.as_str() != payload.session_id.as_str() {
+    if claims.session_id != payload.session_id {
         tracing::warn!(
             claimed_session = %claims.session_id,
             reported_session = %payload.session_id,

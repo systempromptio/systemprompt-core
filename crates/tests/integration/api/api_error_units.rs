@@ -599,3 +599,13 @@ fn a_missing_request_context_is_a_401_not_a_500() {
     };
     assert_eq!(err.to_status_code(), StatusCode::UNAUTHORIZED);
 }
+
+#[test]
+fn a_blank_proxy_service_name_is_a_400_invalid_identifier() {
+    let source = systemprompt_identifiers::ServiceName::try_new("  ")
+        .expect_err("a blank service name is not an identifier");
+    let err = ProxyError::from(source);
+    assert_eq!(err.to_status_code(), StatusCode::BAD_REQUEST);
+    assert_eq!(err.error_key(), "invalid_identifier");
+    assert_eq!(err.into_response().status(), StatusCode::BAD_REQUEST);
+}

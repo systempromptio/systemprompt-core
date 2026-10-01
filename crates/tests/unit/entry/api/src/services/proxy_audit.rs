@@ -2,6 +2,7 @@ use serde_json::json;
 use systemprompt_api::services::proxy::audit::jsonrpc::{
     extract_sse_data, parse_response_frame, parse_tool_call,
 };
+use systemprompt_identifiers::McpExecutionId;
 
 #[test]
 fn parse_tool_call_extracts_name_and_arguments() {
@@ -96,7 +97,7 @@ fn parse_response_frame_keeps_the_whole_result_for_ingest() {
 fn stamp_execution_adds_the_server_key_under_the_systemprompt_meta() {
     use systemprompt_api::services::proxy::audit::jsonrpc::stamp_execution;
     let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[]}}"#;
-    let stamped = stamp_execution(data, "exec-1").expect("stamped");
+    let stamped = stamp_execution(data, &McpExecutionId::new("exec-1")).expect("stamped");
     let frame: serde_json::Value = serde_json::from_str(&stamped).unwrap();
     assert_eq!(
         frame["result"]["_meta"]["io.systemprompt/execution"]["mcp_execution_id"],
@@ -108,7 +109,7 @@ fn stamp_execution_adds_the_server_key_under_the_systemprompt_meta() {
 fn stamp_execution_never_overwrites_an_in_process_key() {
     use systemprompt_api::services::proxy::audit::jsonrpc::stamp_execution;
     let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[],"_meta":{"io.systemprompt/execution":{"mcp_execution_id":"orig"}}}}"#;
-    let stamped = stamp_execution(data, "exec-1").expect("stamped");
+    let stamped = stamp_execution(data, &McpExecutionId::new("exec-1")).expect("stamped");
     let frame: serde_json::Value = serde_json::from_str(&stamped).unwrap();
     assert_eq!(
         frame["result"]["_meta"]["io.systemprompt/execution"]["mcp_execution_id"],
@@ -120,7 +121,7 @@ fn stamp_execution_never_overwrites_an_in_process_key() {
 fn stamp_execution_leaves_error_frames_alone() {
     use systemprompt_api::services::proxy::audit::jsonrpc::stamp_execution;
     let data = r#"{"jsonrpc":"2.0","id":7,"error":{"code":-1,"message":"no"}}"#;
-    assert!(stamp_execution(data, "exec-1").is_none());
+    assert!(stamp_execution(data, &McpExecutionId::new("exec-1")).is_none());
 }
 
 #[test]

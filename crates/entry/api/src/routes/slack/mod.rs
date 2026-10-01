@@ -39,7 +39,7 @@ use systemprompt_security::authz::EntityRef;
 use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
 use systemprompt_traits::SenderIdentity;
 
-use crate::routes::messaging::{MessagingInbound, ReplyTarget};
+use crate::routes::messaging::{MessagingConversation, MessagingInbound, ReplyTarget};
 
 use reply::spawn_reply;
 use verify::{resolve_app, verify_any_app, verify_app};
@@ -82,18 +82,20 @@ async fn handle_events(State(ctx): State<AppContext>, headers: HeaderMap, body: 
             let Some(agent) = app.agent_for(channel.as_str()).cloned() else {
                 return StatusCode::OK.into_response();
             };
+            let reply = ReplyTarget::Channel {
+                id: channel.as_str().to_owned(),
+            };
             let inbound = MessagingInbound {
-                platform: "slack",
                 issuer: ISSUER.to_owned(),
-                org_id: team_id.as_str().to_owned(),
-                channel_id: channel.as_str().to_owned(),
-                external_user_id: user.as_str().to_owned(),
+                conversation: MessagingConversation::Slack {
+                    workspace_id: team_id.clone(),
+                    channel_id: Some(channel),
+                    user_id: user,
+                },
                 text: event.text.unwrap_or_default(),
                 agent_name: agent,
                 entity: EntityRef::SlackWorkspace(team_id),
-                reply: ReplyTarget::Channel {
-                    id: channel.as_str().to_owned(),
-                },
+                reply,
                 sender: SenderIdentity::Unlinked,
             };
             spawn_reply(ctx, inbound, &app);
@@ -121,21 +123,23 @@ async fn handle_commands(
     let Some(agent) = app.agent_for(&normalized.routing_key).cloned() else {
         return StatusCode::OK.into_response();
     };
+    let reply = normalized.response_url.map_or_else(
+        || ReplyTarget::Channel {
+            id: normalized.channel_id.as_str().to_owned(),
+        },
+        |url| ReplyTarget::Url { url },
+    );
     let inbound = MessagingInbound {
-        platform: "slack",
         issuer: ISSUER.to_owned(),
-        org_id: normalized.workspace_id.as_str().to_owned(),
-        channel_id: normalized.channel_id.as_str().to_owned(),
-        external_user_id: normalized.slack_user_id.as_str().to_owned(),
+        conversation: MessagingConversation::Slack {
+            workspace_id: normalized.workspace_id.clone(),
+            channel_id: Some(normalized.channel_id),
+            user_id: normalized.slack_user_id,
+        },
         text: normalized.text,
         agent_name: agent,
         entity: EntityRef::SlackWorkspace(normalized.workspace_id),
-        reply: normalized.response_url.map_or_else(
-            || ReplyTarget::Channel {
-                id: normalized.channel_id.as_str().to_owned(),
-            },
-            |url| ReplyTarget::Url { url },
-        ),
+        reply,
         sender: SenderIdentity::Unlinked,
     };
     spawn_reply(ctx, inbound, &app);
@@ -163,14 +167,13 @@ async fn handle_interactivity(
     }
     let channel_id = payload
         .channel
+        .clone()
+        .map(|c| c.id)
+        .filter(|id| !id.as_str().is_empty());
+    let routing_key = channel_id
         .as_ref()
-        .map_or_else(String::new, |c| c.id.as_str().to_owned());
-    let routing_key = if channel_id.is_empty() {
-        payload.team.id.as_str().to_owned()
-    } else {
-        channel_id.clone()
-    };
-    let Some(agent) = app.agent_for(&routing_key).cloned() else {
+        .map_or_else(|| payload.team.id.as_str(), |id| id.as_str());
+    let Some(agent) = app.agent_for(routing_key).cloned() else {
         return StatusCode::OK.into_response();
     };
     let text = payload
@@ -180,16 +183,19 @@ async fn handle_interactivity(
         .unwrap_or_default();
     let reply = payload.response_url.clone().map_or_else(
         || ReplyTarget::Channel {
-            id: channel_id.clone(),
+            id: channel_id
+                .as_ref()
+                .map_or_else(String::new, |id| id.as_str().to_owned()),
         },
         |url| ReplyTarget::Url { url },
     );
     let inbound = MessagingInbound {
-        platform: "slack",
         issuer: ISSUER.to_owned(),
-        org_id: payload.team.id.as_str().to_owned(),
-        channel_id,
-        external_user_id: payload.user.id.as_str().to_owned(),
+        conversation: MessagingConversation::Slack {
+            workspace_id: payload.team.id.clone(),
+            channel_id,
+            user_id: payload.user.id,
+        },
         text,
         agent_name: agent,
         entity: EntityRef::SlackWorkspace(payload.team.id),

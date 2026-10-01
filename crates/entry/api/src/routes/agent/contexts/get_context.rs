@@ -9,7 +9,6 @@ use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::AppContext;
 
 use super::super::responses::{api_error_response, single_response};
-use super::is_valid_context_id;
 use systemprompt_models::{ApiError, ApiErrorExt};
 
 pub async fn get_context(
@@ -17,25 +16,12 @@ pub async fn get_context(
     State(ctx): State<AppContext>,
     Path(context_id_str): Path<String>,
 ) -> Response {
-    if !is_valid_context_id(&context_id_str) {
-        return api_error_response(
-            ApiError::bad_request(
-                "Invalid context ID. Please select or create a valid conversation.",
-            )
-            .with_request_context(&req_ctx),
-        );
-    }
-
+    let context_id = match ContextId::try_new(context_id_str) {
+        Ok(id) => id,
+        Err(e) => return api_error_response(ApiError::from(e).with_request_context(&req_ctx)),
+    };
     let context_repo = &ctx.a2a_repositories().contexts;
     let user_id = &req_ctx.auth.actor.user_id;
-    let Ok(context_id) = ContextId::try_new(&context_id_str) else {
-        return api_error_response(
-            ApiError::bad_request(
-                "Invalid context ID. Please select or create a valid conversation.",
-            )
-            .with_request_context(&req_ctx),
-        );
-    };
 
     match context_repo.get_context(&context_id, user_id).await {
         Ok(context) => {

@@ -79,6 +79,15 @@ pub enum ClientConnection {
     Disconnected,
 }
 
+impl ClientConnection {
+    pub const fn origin(self) -> &'static str {
+        match self {
+            Self::Connected => "eof",
+            Self::Disconnected => "drop",
+        }
+    }
+}
+
 pub const fn classify(
     error: Option<&str>,
     saw_stop: bool,
@@ -101,11 +110,13 @@ pub const fn classify(
 }
 
 pub(super) fn finalize(
-    audit: Arc<GatewayAudit>,
+    audit: &Arc<GatewayAudit>,
     summary: Summary,
     ctx: TapFinalizeCtx,
-    origin: &'static str,
+    connection: ClientConnection,
 ) {
+    let origin = connection.origin();
+    let audit = Arc::clone(audit);
     audit.mark_upstream_end();
     let background = audit.background().clone();
     background.spawn(async move {
@@ -122,11 +133,7 @@ pub(super) fn finalize(
             summary.saw_stop,
             has_content,
             has_usage,
-            if origin == "drop" {
-                ClientConnection::Disconnected
-            } else {
-                ClientConnection::Connected
-            },
+            connection,
         ) {
             FinalizeDecision::Fail(cause) => {
                 let msg = summary.error.as_deref().unwrap_or_else(|| cause.reason());

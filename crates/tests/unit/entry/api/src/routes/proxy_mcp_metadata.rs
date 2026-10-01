@@ -6,14 +6,14 @@
 
 use serde_json::Value;
 use systemprompt_api::routes::proxy::mcp::ToolExecutionResponse;
-use systemprompt_identifiers::McpExecutionId;
+use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 
 #[test]
 fn tool_execution_response_serializes_with_output() {
     let resp = ToolExecutionResponse {
         id: McpExecutionId::generate(),
-        tool_name: "search".to_owned(),
-        server_name: "sharepoint".to_owned(),
+        tool_name: McpToolName::new("search"),
+        server_name: McpServerId::new("sharepoint"),
         server_endpoint: "http://localhost:9000/mcp".to_owned(),
         input: serde_json::json!({"q": "rust"}),
         output: Some(serde_json::json!({"hits": 3})),
@@ -33,8 +33,8 @@ fn tool_execution_response_serializes_with_output() {
 fn tool_execution_response_omits_null_output() {
     let resp = ToolExecutionResponse {
         id: McpExecutionId::generate(),
-        tool_name: "noop".to_owned(),
-        server_name: "srv".to_owned(),
+        tool_name: McpToolName::new("noop"),
+        server_name: McpServerId::new("srv"),
         server_endpoint: "http://localhost:1/mcp".to_owned(),
         input: serde_json::json!({}),
         output: None,

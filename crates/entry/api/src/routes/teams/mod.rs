@@ -39,7 +39,7 @@ use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
 
 use crate::routes::messaging::{
-    DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging,
+    DispatchOutcome, MessagingConversation, MessagingInbound, ReplyTarget, dispatch_messaging,
 };
 
 const ISSUER: &str = "https://api.botframework.com";
@@ -105,11 +105,12 @@ async fn handle_messages(
     };
 
     let inbound = MessagingInbound {
-        platform: "teams",
         issuer: ISSUER.to_owned(),
-        org_id: normalized.tenant_id.as_str().to_owned(),
-        channel_id: normalized.conversation_id.as_str().to_owned(),
-        external_user_id: normalized.teams_user_id.as_str().to_owned(),
+        conversation: MessagingConversation::Teams {
+            tenant_id: normalized.tenant_id.clone(),
+            conversation_id: normalized.conversation_id.clone(),
+            user_id: normalized.teams_user_id,
+        },
         text: normalized.text,
         agent_name: agent,
         entity: EntityRef::TeamsTenant(normalized.tenant_id),

@@ -20,6 +20,7 @@ use axum::response::Response;
 use bytes::Bytes;
 use futures_util::{Stream, TryStreamExt};
 use serde_json::Value;
+use systemprompt_identifiers::McpExecutionId;
 
 use super::super::backend::{
     ResponseHandler, SSE_KEEPALIVE_INTERVAL, SseKeepaliveStream, upstream_status,
@@ -40,10 +41,8 @@ pub async fn record(
     let is_sse = ResponseHandler::is_event_stream(&headers);
 
     if is_sse {
-        let accumulator = SseAccumulator::new(
-            audit.request_id().clone(),
-            audit.mcp_execution_id().to_string(),
-        );
+        let accumulator =
+            SseAccumulator::new(audit.request_id().clone(), audit.mcp_execution_id().clone());
         let stream = response.bytes_stream().map_err(io::Error::other);
         let tapped = McpAuditTapStream {
             inner: stream,
@@ -59,7 +58,7 @@ pub async fn record(
             Ok(text) => {
                 let outcome = parse_response_frame(text, audit.request_id());
                 let body = if outcome.is_some() {
-                    stamp_execution(text, audit.mcp_execution_id().as_str())
+                    stamp_execution(text, audit.mcp_execution_id())
                         .map_or_else(|| Body::from(bytes.clone()), Body::from)
                 } else {
                     Body::from(bytes.clone())
@@ -82,12 +81,12 @@ struct SseAccumulator {
     buf: Vec<u8>,
     // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
     request_id: Value,
-    mcp_execution_id: String,
+    mcp_execution_id: McpExecutionId,
     outcome: Option<ToolCallOutcome>,
 }
 
 impl SseAccumulator {
-    const fn new(request_id: Value, mcp_execution_id: String) -> Self {
+    const fn new(request_id: Value, mcp_execution_id: McpExecutionId) -> Self {
         Self {
             buf: Vec::new(),
             request_id,

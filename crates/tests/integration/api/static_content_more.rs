@@ -16,6 +16,7 @@ use systemprompt_api::services::static_content::serve_homepage;
 use systemprompt_api::services::static_content::session::ensure_session;
 use systemprompt_api::services::static_content::static_files::{StaticContentState, compute_etag};
 use systemprompt_files::FilesConfig;
+use systemprompt_identifiers::JwtToken;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
 use systemprompt_models::profile::PathsConfig;
@@ -137,7 +138,11 @@ async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_se
         .fetch_one(raw.as_ref())
         .await?;
 
-    let token = first.jwt_token.as_deref().expect("anonymous session token");
+    let token = first
+        .jwt_token
+        .as_ref()
+        .map(JwtToken::as_str)
+        .expect("anonymous session token");
     let mut headers = HeaderMap::new();
     headers.insert(
         header::COOKIE,
@@ -150,7 +155,7 @@ async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_se
     assert_eq!(reused.session_id, first.session_id);
     assert_eq!(reused.user_id, first.user_id);
     assert!(!reused.is_new);
-    assert_eq!(reused.jwt_token.as_deref(), Some(token));
+    assert_eq!(reused.jwt_token.as_ref().map(JwtToken::as_str), Some(token));
     let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE user_id = $1")
         .bind(first.user_id.as_str())
         .fetch_one(raw.as_ref())
