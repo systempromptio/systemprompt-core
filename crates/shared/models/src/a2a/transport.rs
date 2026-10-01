@@ -16,8 +16,6 @@ pub enum ProtocolBinding {
     HttpJson,
 }
 
-pub type TransportProtocol = ProtocolBinding;
-
 impl From<ProtocolBinding> for String {
     fn from(transport: ProtocolBinding) -> Self {
         match transport {

@@ -1,16 +1,13 @@
 //! Unit tests for tool-call models and the tool-result formatter.
 //!
-//! Covers [`ToolCall`]/[`ToolExecution`] serde and `from_json_row` parsing
-//! (including the missing/out-of-range error paths), plus the AI/synthesis/
-//! display/fallback formatting helpers on [`ToolResultFormatter`].
+//! Covers [`ToolCall`] serde, plus the AI/synthesis/display/fallback
+//! formatting helpers on [`ToolResultFormatter`].
 
 use rmcp::model::{CallToolResult, ContentBlock};
-use serde_json::{Value as JsonValue, json};
-use std::collections::HashMap;
+use serde_json::json;
 use systemprompt_identifiers::AiToolCallId;
 use systemprompt_models::ai::tool_result_formatter::ToolResultFormatter;
-use systemprompt_models::ai::tools::{ToolCall, ToolExecution};
-use systemprompt_models::errors::RowParseError;
+use systemprompt_models::ai::tools::ToolCall;
 
 fn sample_call(name: &str) -> ToolCall {
     ToolCall {
@@ -40,91 +37,6 @@ fn tool_call_serde_roundtrip() {
     let back: ToolCall = serde_json::from_value(v).unwrap();
     assert_eq!(back.name, "search");
     assert_eq!(back.ai_tool_call_id, AiToolCallId::new("call-1"));
-}
-
-// ---------- ToolExecution::from_json_row ----------
-
-fn full_row() -> HashMap<String, JsonValue> {
-    let mut row = HashMap::new();
-    row.insert("id".to_owned(), json!("exec-1"));
-    row.insert("request_id".to_owned(), json!("req-1"));
-    row.insert("sequence".to_owned(), json!(3));
-    row.insert("tool_name".to_owned(), json!("search"));
-    row.insert("service_id".to_owned(), json!("svc-1"));
-    row.insert("input".to_owned(), json!("{\"a\":1}"));
-    row.insert("output".to_owned(), json!("{\"b\":2}"));
-    row.insert("status".to_owned(), json!("completed"));
-    row.insert("execution_time_ms".to_owned(), json!(42));
-    row.insert("error_message".to_owned(), json!("none"));
-    row.insert("created_at".to_owned(), json!("2026-06-22T10:00:00Z"));
-    row
-}
-
-#[test]
-fn from_json_row_parses_all_fields() {
-    let exec = ToolExecution::from_json_row(&full_row()).unwrap();
-    assert_eq!(exec.id.as_str(), "exec-1");
-    assert_eq!(exec.request_id.as_str(), "req-1");
-    assert_eq!(exec.sequence, 3);
-    assert_eq!(exec.tool_name, "search");
-    assert_eq!(exec.service_id.as_str(), "svc-1");
-    assert_eq!(exec.input, json!({"a": 1}));
-    assert_eq!(exec.output, Some(json!({"b": 2})));
-    assert_eq!(exec.status, "completed");
-    assert_eq!(exec.execution_time_ms, Some(42));
-    assert_eq!(exec.error_message.as_deref(), Some("none"));
-}
-
-#[test]
-fn from_json_row_missing_id() {
-    let mut row = full_row();
-    row.remove("id");
-    let err = ToolExecution::from_json_row(&row).unwrap_err();
-    assert!(matches!(err, RowParseError::Missing("id")));
-}
-
-#[test]
-fn from_json_row_missing_status() {
-    let mut row = full_row();
-    row.remove("status");
-    let err = ToolExecution::from_json_row(&row).unwrap_err();
-    assert!(matches!(err, RowParseError::Missing("status")));
-}
-
-#[test]
-fn from_json_row_missing_created_at() {
-    let mut row = full_row();
-    row.remove("created_at");
-    let err = ToolExecution::from_json_row(&row).unwrap_err();
-    assert!(matches!(err, RowParseError::Missing("created_at")));
-}
-
-#[test]
-fn from_json_row_sequence_out_of_range() {
-    let mut row = full_row();
-    row.insert("sequence".to_owned(), json!(i64::from(i32::MAX) + 1));
-    let err = ToolExecution::from_json_row(&row).unwrap_err();
-    assert!(matches!(err, RowParseError::OutOfRange("sequence")));
-}
-
-#[test]
-fn from_json_row_invalid_json_input_falls_back_to_null() {
-    let mut row = full_row();
-    row.insert("input".to_owned(), json!("not valid json {"));
-    row.remove("output");
-    let exec = ToolExecution::from_json_row(&row).unwrap();
-    assert_eq!(exec.input, JsonValue::Null);
-    assert_eq!(exec.output, None);
-}
-
-#[test]
-fn from_json_row_optional_fields_absent() {
-    let mut row = full_row();
-    row.remove("execution_time_ms");
-    row.remove("error_message");
-    let exec = ToolExecution::from_json_row(&row).unwrap();
-    assert_eq!(exec.execution_time_ms, None);
-    assert_eq!(exec.error_message, None);
 }
 
 // ---------- ToolResultFormatter ----------

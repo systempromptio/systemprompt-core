@@ -1,11 +1,9 @@
 //! Unit tests for small model edges: protocol bindings, security schemes,
-//! path errors, service-error HTTP mapping, cloud claims, and process
-//! filtering.
+//! path errors, service-error HTTP mapping, and cloud claims.
 
 use std::str::FromStr;
 use systemprompt_models::a2a::{ApiKeyLocation, ProtocolBinding, SecurityScheme};
 use systemprompt_models::auth::CloudAuthClaims;
-use systemprompt_models::repository::process_utils::filter_running_services;
 use systemprompt_models::{ApiError, PathNotConfiguredError, ServiceError};
 
 #[test]
@@ -111,29 +109,4 @@ fn cloud_claims_expiry_is_relative_to_now() {
         email: None,
     };
     assert!(stale.is_expired());
-}
-
-#[test]
-fn filter_running_services_drops_dead_and_untracked_pids() {
-    let services = vec![
-        ("a", Some(10)),
-        ("b", None),
-        ("c", Some(-5)),
-        ("d", Some(20)),
-    ];
-
-    let running = filter_running_services(services, |s| s.1, |pid| pid == 20);
-
-    assert_eq!(running.len(), 1);
-    assert_eq!(running[0].0, "d");
-}
-
-#[test]
-fn admin_log_level_display_is_uppercase() {
-    use systemprompt_models::admin::LogLevel;
-
-    assert_eq!(LogLevel::Trace.to_string(), "TRACE");
-    assert_eq!(LogLevel::Error.to_string(), "ERROR");
-    assert_eq!(serde_json::to_value(LogLevel::Warn).unwrap(), "warn");
-    assert_eq!(LogLevel::default(), LogLevel::Info);
 }

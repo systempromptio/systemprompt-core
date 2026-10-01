@@ -228,9 +228,6 @@ mod users_summary;
 mod oauth_models;
 
 #[cfg(test)]
-mod repository_tests;
-
-#[cfg(test)]
 mod modules_tests;
 
 #[cfg(test)]
@@ -314,9 +311,6 @@ mod events_system;
 
 #[cfg(test)]
 mod models_misc_edges;
-
-#[cfg(test)]
-mod profile_from_env;
 
 #[cfg(test)]
 mod ai_request_response;

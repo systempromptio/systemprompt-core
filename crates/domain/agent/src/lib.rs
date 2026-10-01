@@ -40,8 +40,8 @@ pub use state::AgentState;
 pub use models::a2a::{
     A2aJsonRpcRequest, A2aRequestParams, A2aResponse, AgentCapabilities, AgentCard, AgentInterface,
     AgentProvider, AgentSkill, Artifact, DataPart, Message, MessageSendParams, Part,
-    SecurityScheme, Task, TaskIdParams, TaskQueryParams, TaskState, TaskStatus, TextPart,
-    TransportProtocol,
+    ProtocolBinding, SecurityScheme, Task, TaskIdParams, TaskQueryParams, TaskState, TaskStatus,
+    TextPart,
 };
 
 pub use error::{

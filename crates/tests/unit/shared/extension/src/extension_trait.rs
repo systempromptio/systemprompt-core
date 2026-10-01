@@ -219,12 +219,6 @@ fn extension_default_component_renderers_is_empty() {
 }
 
 #[test]
-fn extension_default_has_component_renderers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_component_renderers());
-}
-
-#[test]
 fn extension_default_template_data_extenders_is_empty() {
     let ext = MinimalExt;
     assert!(ext.template_data_extenders().is_empty());
@@ -234,12 +228,6 @@ fn extension_default_template_data_extenders_is_empty() {
 fn extension_default_page_data_providers_is_empty() {
     let ext = MinimalExt;
     assert!(ext.page_data_providers().is_empty());
-}
-
-#[test]
-fn extension_default_has_page_data_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_page_data_providers());
 }
 
 #[test]
@@ -267,21 +255,9 @@ fn extension_default_rss_feed_providers_is_empty() {
 }
 
 #[test]
-fn extension_default_has_rss_feed_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_rss_feed_providers());
-}
-
-#[test]
 fn extension_default_sitemap_providers_is_empty() {
     let ext = MinimalExt;
     assert!(ext.sitemap_providers().is_empty());
-}
-
-#[test]
-fn extension_default_has_sitemap_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_sitemap_providers());
 }
 
 #[test]
@@ -291,39 +267,9 @@ fn extension_default_router_config_is_none() {
 }
 
 #[test]
-fn extension_default_has_template_data_extenders_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_template_data_extenders());
-}
-
-#[test]
-fn extension_default_has_page_prerenderers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_page_prerenderers());
-}
-
-#[test]
-fn extension_default_has_frontmatter_processors_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_frontmatter_processors());
-}
-
-#[test]
-fn extension_default_has_content_data_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_content_data_providers());
-}
-
-#[test]
 fn extension_default_site_auth_is_none() {
     let ext = MinimalExt;
     assert!(ext.site_auth().is_none());
-}
-
-#[test]
-fn extension_default_has_site_auth_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_site_auth());
 }
 
 #[test]

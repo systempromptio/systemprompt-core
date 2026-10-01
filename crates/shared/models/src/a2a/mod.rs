@@ -29,4 +29,4 @@ pub use message::{DataPart, FileContent, FilePart, Message, MessageRole, Part, T
 pub use security::{ApiKeyLocation, OAuth2Flow, OAuth2Flows, SecurityScheme};
 pub use task::{Task, TaskState, TaskStatus};
 pub use task_metadata::{TaskMetadata, TaskType, agent_names};
-pub use transport::{ProtocolBinding, TransportProtocol};
+pub use transport::ProtocolBinding;

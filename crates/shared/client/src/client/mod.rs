@@ -2,10 +2,9 @@
 //!
 //! [`SystempromptClient`] wraps a `reqwest::Client` with the API's base URL and
 //! an optional bearer [`JwtToken`], exposing typed calls for agents, contexts,
-//! tasks, artifacts, A2A message sends, and the admin read endpoints. A2A and
-//! artifact payloads cross the wire as raw JSON so this crate stays free of the
-//! agent-domain dependency; callers deserialize into the matching
-//! `systemprompt_models` types.
+//! tasks, artifacts, and A2A message sends. A2A and artifact payloads cross the
+//! wire as raw JSON so this crate stays free of the agent-domain dependency;
+//! callers deserialize into the matching `systemprompt_models` types.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +17,6 @@ use reqwest::Client;
 use std::time::Duration;
 use systemprompt_identifiers::{AgentName, ContextId, JwtToken, TaskId};
 use systemprompt_models::a2a::{Artifact, Message, Task, methods};
-use systemprompt_models::admin::{AnalyticsData, LogEntry, UserInfo};
 use systemprompt_models::net::{
     HTTP_AUTH_VERIFY_TIMEOUT, HTTP_DEFAULT_TIMEOUT, HTTP_HEALTH_CHECK_TIMEOUT,
 };
@@ -246,21 +244,6 @@ impl SystempromptClient {
             || format!("{}{}", self.base_url, path),
             |l| format!("{}{}?limit={}", self.base_url, path, l),
         )
-    }
-
-    pub async fn list_logs(&self, limit: Option<u32>) -> ClientResult<Vec<LogEntry>> {
-        let url = self.limited_url(ApiPaths::ADMIN_LOGS, limit);
-        http::get(&self.client, &url, self.token.as_ref()).await
-    }
-
-    pub async fn list_users(&self, limit: Option<u32>) -> ClientResult<Vec<UserInfo>> {
-        let url = self.limited_url(ApiPaths::ADMIN_USERS, limit);
-        http::get(&self.client, &url, self.token.as_ref()).await
-    }
-
-    pub async fn get_analytics(&self) -> ClientResult<AnalyticsData> {
-        let url = format!("{}{}", self.base_url, ApiPaths::ADMIN_ANALYTICS);
-        http::get(&self.client, &url, self.token.as_ref()).await
     }
 
     pub async fn list_all_artifacts(&self, limit: Option<u32>) -> ClientResult<Vec<Artifact>> {

@@ -16,7 +16,7 @@ use systemprompt_models::{AgentConfig, ServicesConfig};
 use crate::error::{AgentError, AgentResult};
 
 use crate::models::a2a::{
-    AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentProvider, TransportProtocol,
+    AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentProvider, ProtocolBinding,
 };
 use security::{oauth_to_security_config, override_oauth_urls};
 use skills::load_skill_from_disk;
@@ -123,9 +123,9 @@ impl AgentRegistry {
         let all_skills = load_agent_skills(&agent)?;
 
         let protocol_binding = match agent.card.preferred_transport.as_str() {
-            "GRPC" => TransportProtocol::Grpc,
-            "HTTP+JSON" => TransportProtocol::HttpJson,
-            _ => TransportProtocol::JsonRpc,
+            "GRPC" => ProtocolBinding::Grpc,
+            "HTTP+JSON" => ProtocolBinding::HttpJson,
+            _ => ProtocolBinding::JsonRpc,
         };
 
         Ok(AgentCard {

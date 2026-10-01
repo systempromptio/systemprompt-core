@@ -9,8 +9,8 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::CloudApiClient;
 use super::types::{
-    ApiResponse, DeployResponse, RegistryToken, RotateCredentialsResponse, SetSecretsRequest,
-    TenantSecrets, TenantStatus,
+    CloudApiResponse, CloudTenantSecrets, CloudTenantStatusResponse, DeployResponse,
+    RegistryToken, RotateCredentialsResponse, SetSecretsRequest,
 };
 use crate::error::CloudResult;
 
@@ -20,14 +20,17 @@ struct DeployRequest {
 }
 
 impl CloudApiClient {
-    pub async fn get_tenant_status(&self, tenant_id: &TenantId) -> CloudResult<TenantStatus> {
-        let response: ApiResponse<TenantStatus> =
+    pub async fn get_tenant_status(
+        &self,
+        tenant_id: &TenantId,
+    ) -> CloudResult<CloudTenantStatusResponse> {
+        let response: CloudApiResponse<CloudTenantStatusResponse> =
             self.tenant_get(&ApiPaths::tenant_status(tenant_id)).await?;
         Ok(response.data)
     }
 
     pub async fn get_registry_token(&self, tenant_id: &TenantId) -> CloudResult<RegistryToken> {
-        let response: ApiResponse<RegistryToken> = self
+        let response: CloudApiResponse<RegistryToken> = self
             .tenant_get(&ApiPaths::tenant_registry_token(tenant_id))
             .await?;
         Ok(response.data)
@@ -37,13 +40,13 @@ impl CloudApiClient {
         let request = DeployRequest {
             image: image.to_owned(),
         };
-        let response: ApiResponse<DeployResponse> = self
+        let response: CloudApiResponse<DeployResponse> = self
             .tenant_post(&ApiPaths::tenant_deploy(tenant_id), &request)
             .await?;
         Ok(response.data)
     }
 
-    pub async fn fetch_secrets(&self, secrets_url: &str) -> CloudResult<TenantSecrets> {
+    pub async fn fetch_secrets(&self, secrets_url: &str) -> CloudResult<CloudTenantSecrets> {
         let path = secrets_url
             .strip_prefix(&self.api_url)
             .unwrap_or(secrets_url);

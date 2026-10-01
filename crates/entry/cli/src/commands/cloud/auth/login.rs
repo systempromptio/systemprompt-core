@@ -8,7 +8,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use systemprompt_cloud::{
-    CloudApiClient, CloudCredentials, CloudPath, OAuthTemplates, TenantInfo, TenantStore,
+    CloudApiClient, CloudCredentials, CloudPath, CloudTenantInfo, OAuthTemplates, TenantStore,
     UserMeResponse, get_cloud_paths, run_oauth_flow,
 };
 use systemprompt_logging::CliService;
@@ -153,7 +153,7 @@ fn print_login_result(response: &UserMeResponse) {
     print_tenants(&response.tenants);
 }
 
-fn print_tenants(tenants: &[TenantInfo]) {
+fn print_tenants(tenants: &[CloudTenantInfo]) {
     if tenants.is_empty() {
         CliService::info("No cloud tenants found.");
         CliService::info(

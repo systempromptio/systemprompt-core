@@ -47,12 +47,6 @@ pub enum ProfileError {
     #[error("Profile '{name}' validation failed:\n  - {}", errors.join("\n  - "))]
     Validation { name: String, errors: Vec<String> },
 
-    #[error("Missing required environment variable: {name}")]
-    MissingEnvVar { name: &'static str },
-
-    #[error("Invalid environment variable {name}: {message}")]
-    InvalidEnvVar { name: &'static str, message: String },
-
     #[error(
         "secrets.source '{secrets_source}' requires secrets.secrets_path to point at the secrets.json \
          location"

@@ -8,9 +8,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(super) use systemprompt_models::api::cloud::{
-    ApiError, ApiResponse, ListResponse, SetSecretsRequest,
+    CloudApiError, CloudApiResponse, CloudListResponse, SetSecretsRequest,
 };
 pub use systemprompt_models::api::cloud::{
-    DeployResponse, RegistryToken, RotateCredentialsResponse, StatusResponse, SubscriptionStatus,
-    Tenant, TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
+    CloudStatusResponse, CloudTenant, CloudTenantInfo, CloudTenantSecrets,
+    CloudTenantStatusResponse, CloudUserInfo, DeployResponse, RegistryToken,
+    RotateCredentialsResponse, SubscriptionStatus, UserMeResponse,
 };

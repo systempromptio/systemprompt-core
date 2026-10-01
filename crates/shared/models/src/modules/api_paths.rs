@@ -77,9 +77,6 @@ impl ApiPaths {
     pub const TRACK_ENGAGEMENT: &'static str = "/track/engagement";
 
     pub const ADMIN_BASE: &'static str = "/api/v1/admin";
-    pub const ADMIN_LOGS: &'static str = "/api/v1/admin/logs";
-    pub const ADMIN_USERS: &'static str = "/api/v1/admin/users";
-    pub const ADMIN_ANALYTICS: &'static str = "/api/v1/admin/analytics";
 
     pub const MARKETPLACE_BASE: &'static str = "/api/v1/marketplace";
 

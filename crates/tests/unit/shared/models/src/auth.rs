@@ -1,9 +1,8 @@
 //! Unit tests for authentication models
 //!
 //! Tests cover:
-//! - BaseRoles constants and factory methods
-//! - BaseRole struct
-//! - Role permissions
+//! - BaseRoles constants
+//! - ActClaim delegation chains
 
 use systemprompt_models::BaseRoles;
 
@@ -20,147 +19,6 @@ fn test_base_roles_user_constant() {
 #[test]
 fn test_base_roles_admin_constant() {
     assert_eq!(BaseRoles::ADMIN, "admin");
-}
-
-#[test]
-fn test_base_roles_available_roles() {
-    let roles = BaseRoles::available_roles();
-    assert_eq!(roles.len(), 2);
-    assert!(roles.contains(&"user"));
-    assert!(roles.contains(&"admin"));
-}
-
-#[test]
-fn test_base_roles_available_roles_excludes_anonymous() {
-    let roles = BaseRoles::available_roles();
-    assert!(!roles.contains(&"anonymous"));
-}
-
-#[test]
-fn test_base_roles_anonymous() {
-    let role = BaseRoles::anonymous();
-
-    assert_eq!(role.name, "anonymous");
-    assert_eq!(role.display_name, "Anonymous");
-    assert!(role.description.contains("Unauthenticated"));
-}
-
-#[test]
-fn test_base_roles_anonymous_has_users_read_permission() {
-    let role = BaseRoles::anonymous();
-
-    assert!(role.permissions.contains("users.read"));
-}
-
-#[test]
-fn test_base_roles_admin() {
-    let role = BaseRoles::admin();
-
-    assert_eq!(role.name, "admin");
-    assert_eq!(role.display_name, "Administrator");
-    assert!(role.description.contains("administrator"));
-}
-
-#[test]
-fn test_base_roles_admin_has_empty_permissions() {
-    let role = BaseRoles::admin();
-
-    assert!(role.permissions.is_empty());
-}
-
-#[test]
-fn test_base_roles_all() {
-    let roles = BaseRoles::all();
-
-    assert_eq!(roles.len(), 2);
-
-    let names: Vec<&str> = roles.iter().map(|r| r.name).collect();
-    assert!(names.contains(&"anonymous"));
-    assert!(names.contains(&"admin"));
-}
-
-#[test]
-fn test_base_roles_is_admin_permission_wildcard() {
-    assert!(BaseRoles::is_admin_permission_wildcard());
-}
-
-#[test]
-fn test_base_role_name_field() {
-    let role = BaseRoles::anonymous();
-    assert_eq!(role.name, "anonymous");
-}
-
-#[test]
-fn test_base_role_display_name_field() {
-    let role = BaseRoles::admin();
-    assert_eq!(role.display_name, "Administrator");
-}
-
-#[test]
-fn test_base_role_description_field() {
-    let role = BaseRoles::anonymous();
-    assert_eq!(
-        role.description,
-        "Unauthenticated user with minimal permissions"
-    );
-}
-
-#[test]
-fn test_base_role_permissions_field() {
-    let role = BaseRoles::anonymous();
-    assert_eq!(role.permissions.len(), 1);
-    assert!(role.permissions.contains("users.read"));
-}
-
-
-#[test]
-fn test_anonymous_permissions_contains_users_read() {
-    let role = BaseRoles::anonymous();
-    assert!(role.permissions.contains("users.read"));
-}
-
-#[test]
-fn test_anonymous_permissions_size() {
-    let role = BaseRoles::anonymous();
-    assert_eq!(role.permissions.len(), 1);
-}
-
-#[test]
-fn test_admin_permissions_is_empty() {
-    let role = BaseRoles::admin();
-    assert!(role.permissions.is_empty());
-}
-
-#[test]
-fn test_different_roles_have_different_names() {
-    let anonymous = BaseRoles::anonymous();
-    let admin = BaseRoles::admin();
-
-    assert_ne!(anonymous.name, admin.name);
-}
-
-#[test]
-fn test_different_roles_have_different_display_names() {
-    let anonymous = BaseRoles::anonymous();
-    let admin = BaseRoles::admin();
-
-    assert_ne!(anonymous.display_name, admin.display_name);
-}
-
-#[test]
-fn test_different_roles_have_different_permissions() {
-    let anonymous = BaseRoles::anonymous();
-    let admin = BaseRoles::admin();
-
-    assert_ne!(anonymous.permissions, admin.permissions);
-}
-
-#[test]
-fn test_available_roles_is_static() {
-    let roles: &'static [&'static str] = BaseRoles::available_roles();
-    assert_eq!(roles.len(), 2);
-    assert!(roles.contains(&BaseRoles::USER));
-    assert!(roles.contains(&BaseRoles::ADMIN));
 }
 
 mod act_claim {

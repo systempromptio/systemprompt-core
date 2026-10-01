@@ -12,7 +12,7 @@ use systemprompt_identifiers::TenantId;
 use validator::Validate;
 
 use super::StoredTenant;
-use crate::api_client::TenantInfo;
+use crate::api_client::CloudTenantInfo;
 use crate::error::{CloudError, CloudResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -33,7 +33,7 @@ impl TenantStore {
     }
 
     #[must_use]
-    pub fn from_tenant_infos(infos: &[TenantInfo]) -> Self {
+    pub fn from_tenant_infos(infos: &[CloudTenantInfo]) -> Self {
         let tenants = infos.iter().map(StoredTenant::from_tenant_info).collect();
         Self::new(tenants)
     }

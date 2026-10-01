@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
 use validator::Validate;
 
-use crate::api_client::TenantInfo;
+use crate::api_client::CloudTenantInfo;
 
 pub use tenant_store::TenantStore;
 
@@ -139,7 +139,7 @@ impl StoredTenant {
     }
 
     #[must_use]
-    pub fn from_tenant_info(info: &TenantInfo) -> Self {
+    pub fn from_tenant_info(info: &CloudTenantInfo) -> Self {
         Self {
             id: TenantId::new(info.id.clone()),
             name: info.name.clone(),
@@ -190,7 +190,7 @@ impl StoredTenant {
         matches!(self.tenant_type, TenantType::Local)
     }
 
-    pub fn update_from_tenant_info(&mut self, info: &TenantInfo) {
+    pub fn update_from_tenant_info(&mut self, info: &CloudTenantInfo) {
         self.name.clone_from(&info.name);
         self.app_id.clone_from(&info.app_id);
         self.hostname.clone_from(&info.hostname);

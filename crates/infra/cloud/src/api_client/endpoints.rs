@@ -6,7 +6,7 @@
 use systemprompt_models::modules::ApiPaths;
 
 use super::CloudApiClient;
-use super::types::{ListResponse, Tenant, UserMeResponse};
+use super::types::{CloudListResponse, CloudTenant, UserMeResponse};
 use crate::error::CloudResult;
 
 impl CloudApiClient {
@@ -14,8 +14,8 @@ impl CloudApiClient {
         self.get(ApiPaths::AUTH_ME).await
     }
 
-    pub async fn list_tenants(&self) -> CloudResult<Vec<Tenant>> {
-        let response: ListResponse<Tenant> = self.get(ApiPaths::CLOUD_TENANTS).await?;
+    pub async fn list_tenants(&self) -> CloudResult<Vec<CloudTenant>> {
+        let response: CloudListResponse<CloudTenant> = self.get(ApiPaths::CLOUD_TENANTS).await?;
         Ok(response.data)
     }
 }

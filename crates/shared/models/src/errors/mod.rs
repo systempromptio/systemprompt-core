@@ -11,7 +11,6 @@
 //!
 //! - [`ParseEnumError`], [`ConfigError`] — string parsing failures.
 //! - [`ConfigValidationError`] — services / agents / plugins validation.
-//! - [`RowParseError`] — JSON-row deserialization failures.
 //! - [`MetadataError`] — MCP `_meta` payload decoding.
 //! - [`SecretsError`] — on-disk secrets document.
 //! - [`AiInferenceError`] / [`McpRegistryError`] — the typed errors of the
@@ -27,7 +26,6 @@ pub mod macros;
 mod metadata;
 mod parse;
 mod provider;
-mod row;
 mod secrets;
 mod service;
 mod validation;
@@ -35,7 +33,6 @@ mod validation;
 pub use metadata::MetadataError;
 pub use parse::{ConfigError, ParseEnumError};
 pub use provider::{AiInferenceError, AiInferenceResult, McpRegistryError, McpRegistryResult};
-pub use row::RowParseError;
 pub use secrets::SecretsError;
 pub use service::ServiceError;
 pub use validation::ConfigValidationError;

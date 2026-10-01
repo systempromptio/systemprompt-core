@@ -62,8 +62,9 @@ pub mod tenants;
 pub mod trusted_proxies;
 
 pub use api_client::{
-    CloudApiClient, DeployResponse, RegistryToken, StatusResponse, SubscriptionStatus, Tenant,
-    TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
+    CloudApiClient, CloudStatusResponse, CloudTenant, CloudTenantInfo, CloudTenantSecrets,
+    CloudTenantStatusResponse, CloudUserInfo, DeployResponse, RegistryToken, SubscriptionStatus,
+    UserMeResponse,
 };
 pub use cli_session::{
     CliSession, LOCAL_SESSION_KEY, SessionBinding, SessionIdentity, SessionKey, SessionStore,
