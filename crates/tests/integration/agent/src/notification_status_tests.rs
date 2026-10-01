@@ -42,7 +42,7 @@ async fn notification_rejects_unknown_state_string() -> Result<()> {
         .apply_notification_status(&task_id, "totally-bogus", &now)
         .await
         .expect_err("unknown notification state must be rejected");
-    assert!(matches!(err, RepositoryError::InvalidData(_)));
+    assert!(matches!(err, RepositoryError::InvalidArgument(_)));
 
     let status = fx.current_status(&task_id).await?;
     assert_eq!(status, "TASK_STATE_SUBMITTED");

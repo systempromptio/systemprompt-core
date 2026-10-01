@@ -2,90 +2,14 @@
 //!
 //! Tests cover:
 //! - Error variant creation and display messages
-//! - Error conversions from other error types
+//! - Error conversions from other error types keep the typed cause
+
+use std::error::Error as _;
 
 use systemprompt_agent::services::shared::error::AgentServiceError;
 
-#[test]
-fn test_agent_service_error_database() {
-    let error = AgentServiceError::Database("Connection refused".to_string());
-    assert!(error.to_string().contains("database operation failed"));
-    assert!(error.to_string().contains("Connection refused"));
-}
-
-#[test]
-fn test_agent_service_error_repository() {
-    let error = AgentServiceError::Repository("Entity not found".to_string());
-    assert!(error.to_string().contains("repository operation failed"));
-    assert!(error.to_string().contains("Entity not found"));
-}
-
-#[test]
-fn test_agent_service_error_network() {
-    let error = AgentServiceError::Network("https://api.example.com".to_string());
-    assert!(error.to_string().contains("network request failed"));
-    assert!(error.to_string().contains("https://api.example.com"));
-}
-
-#[test]
-fn test_agent_service_error_authentication() {
-    let error = AgentServiceError::Authentication("Invalid token".to_string());
-    assert!(error.to_string().contains("authentication failed"));
-    assert!(error.to_string().contains("Invalid token"));
-}
-
-#[test]
-fn test_agent_service_error_authorization() {
-    let error = AgentServiceError::Authorization("admin-resource".to_string());
-    assert!(error.to_string().contains("authorization failed"));
-    assert!(error.to_string().contains("admin-resource"));
-}
-
-#[test]
-fn test_agent_service_error_validation() {
-    let error = AgentServiceError::Validation("email".to_string(), "invalid format".to_string());
-    assert!(error.to_string().contains("validation failed"));
-    assert!(error.to_string().contains("email"));
-    assert!(error.to_string().contains("invalid format"));
-}
-
-#[test]
-fn test_agent_service_error_not_found() {
-    let error = AgentServiceError::NotFound("Agent agent-123".to_string());
-    assert!(error.to_string().contains("resource not found"));
-    assert!(error.to_string().contains("Agent agent-123"));
-}
-
-#[test]
-fn test_agent_service_error_service_unavailable() {
-    let error = AgentServiceError::ServiceUnavailable("Database is down".to_string());
-    assert!(error.to_string().contains("service unavailable"));
-    assert!(error.to_string().contains("Database is down"));
-}
-
-#[test]
-fn test_agent_service_error_timeout() {
-    let error = AgentServiceError::Timeout(30000);
-    assert!(error.to_string().contains("operation timed out"));
-    assert!(error.to_string().contains("30000"));
-}
-
-#[test]
-fn test_agent_service_error_configuration() {
-    let error = AgentServiceError::Configuration(
-        "ServiceConfig".to_string(),
-        "missing required field".to_string(),
-    );
-    assert!(error.to_string().contains("configuration error"));
-    assert!(error.to_string().contains("ServiceConfig"));
-    assert!(error.to_string().contains("missing required field"));
-}
-
-#[test]
-fn test_agent_service_error_conflict() {
-    let error = AgentServiceError::Conflict("Agent with same name exists".to_string());
-    assert!(error.to_string().contains("conflict"));
-    assert!(error.to_string().contains("Agent with same name exists"));
+fn parse_err() -> std::num::ParseIntError {
+    "not-a-number".parse::<u32>().unwrap_err()
 }
 
 #[test]
@@ -96,53 +20,31 @@ fn test_agent_service_error_internal() {
 }
 
 #[test]
-fn test_agent_service_error_logging() {
-    let error = AgentServiceError::Logging("Failed to write log".to_string());
-    assert!(error.to_string().contains("logging error"));
-    assert!(error.to_string().contains("Failed to write log"));
+fn test_agent_service_error_tool_execution() {
+    let error = AgentServiceError::ToolExecution("tool x timed out".to_string());
+    assert!(error.to_string().contains("Tool execution failed"));
+    assert!(error.to_string().contains("tool x timed out"));
 }
 
 #[test]
-fn test_agent_service_error_capacity() {
-    let error = AgentServiceError::Capacity("Connection pool exhausted".to_string());
-    assert!(error.to_string().contains("capacity exceeded"));
-    assert!(error.to_string().contains("Connection pool exhausted"));
-}
-
-
-#[test]
-fn test_agent_service_error_debug_timeout() {
-    let error = AgentServiceError::Timeout(5000);
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("Timeout"));
-    assert!(debug_str.contains("5000"));
+fn operation_keeps_context_and_cause() {
+    let error = AgentServiceError::operation("Failed to parse PID from lsof output", parse_err());
+    assert!(matches!(error, AgentServiceError::Operation { .. }));
+    assert!(error.to_string().contains("Failed to parse PID"));
+    assert!(error.source().is_some());
 }
 
 #[test]
-fn test_agent_service_error_match_database() {
-    let error = AgentServiceError::Database("error".to_string());
-    match error {
-        AgentServiceError::Database(msg) => assert_eq!(msg, "error"),
-        _ => panic!("Expected Database variant"),
-    }
-}
-
-#[test]
-fn test_agent_service_error_match_not_found() {
-    let error = AgentServiceError::NotFound("resource".to_string());
-    match error {
-        AgentServiceError::NotFound(resource) => assert_eq!(resource, "resource"),
-        _ => panic!("Expected NotFound variant"),
-    }
-}
-
-#[test]
-fn test_agent_service_error_match_timeout() {
-    let error = AgentServiceError::Timeout(1000);
-    match error {
-        AgentServiceError::Timeout(ms) => assert_eq!(ms, 1000),
-        _ => panic!("Expected Timeout variant"),
-    }
+fn validation_keeps_field_and_cause() {
+    let error = AgentServiceError::validation("agent_name", parse_err());
+    assert!(matches!(
+        error,
+        AgentServiceError::Validation {
+            field: "agent_name",
+            ..
+        }
+    ));
+    assert!(error.source().is_some());
 }
 
 #[test]
@@ -154,43 +56,25 @@ fn test_result_ok() {
 #[test]
 fn test_result_err() {
     let result: systemprompt_agent::services::shared::error::Result<i32> =
-        Err(AgentServiceError::NotFound("item".to_string()));
+        Err(AgentServiceError::StreamClosed);
     result.unwrap_err();
 }
 
 #[test]
-fn test_error_message_includes_context() {
-    let error = AgentServiceError::Validation(
-        "password".to_string(),
-        "must be at least 8 characters".to_string(),
-    );
-    let message = error.to_string();
-
-    assert!(message.contains("password"));
-    assert!(message.contains("must be at least 8 characters"));
-}
-
-#[test]
-fn test_error_message_timeout_includes_duration() {
-    let error = AgentServiceError::Timeout(60000);
-    let message = error.to_string();
-
-    assert!(message.contains("60000"));
-    assert!(message.contains("ms"));
-}
-
-#[test]
-fn from_io_error_maps_to_internal() {
+fn from_io_error_maps_to_io() {
     let err: AgentServiceError =
         std::io::Error::new(std::io::ErrorKind::PermissionDenied, "locked").into();
-    assert!(matches!(err, AgentServiceError::Internal(_)));
+    assert!(matches!(err, AgentServiceError::Io(_)));
     assert!(err.to_string().contains("io: locked"));
 }
 
 #[test]
-fn from_sqlx_error_maps_to_database() {
+fn from_sqlx_row_not_found_maps_to_repository_not_found() {
     let err: AgentServiceError = sqlx::Error::RowNotFound.into();
-    assert!(matches!(err, AgentServiceError::Database(_)));
+    match err {
+        AgentServiceError::Repository(inner) => assert!(inner.is_not_found()),
+        other => panic!("expected Repository, got {other:?}"),
+    }
 }
 
 #[test]
@@ -202,26 +86,29 @@ fn from_repository_errors_map_to_repository() {
 }
 
 #[test]
-fn from_agent_error_maps_to_internal() {
+fn from_agent_error_maps_to_agent() {
     let err: AgentServiceError =
         systemprompt_agent::AgentError::NotFound("ghost".to_owned()).into();
-    assert!(matches!(err, AgentServiceError::Internal(_)));
+    assert!(matches!(
+        err,
+        AgentServiceError::Agent(systemprompt_agent::AgentError::NotFound(_))
+    ));
     assert!(err.to_string().contains("ghost"));
 }
 
 #[test]
-fn from_inference_error_maps_to_internal() {
+fn from_inference_error_maps_to_ai_inference() {
     let provider_err =
         systemprompt_models::errors::AiInferenceError::InvalidRequest("bad prompt".into());
     let err: AgentServiceError = provider_err.into();
-    assert!(matches!(err, AgentServiceError::Internal(_)));
+    assert!(matches!(err, AgentServiceError::AiInference(_)));
     assert!(err.to_string().contains("bad prompt"));
 }
 
 #[test]
-fn from_mcp_registry_error_maps_to_internal() {
+fn from_mcp_registry_error_maps_to_mcp_registry() {
     let registry_err = systemprompt_models::errors::McpRegistryError::NotFound("srv".to_owned());
     let err: AgentServiceError = registry_err.into();
-    assert!(matches!(err, AgentServiceError::Internal(_)));
+    assert!(matches!(err, AgentServiceError::McpRegistry(_)));
     assert!(err.to_string().contains("srv"));
 }

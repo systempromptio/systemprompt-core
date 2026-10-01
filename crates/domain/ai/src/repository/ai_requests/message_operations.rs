@@ -3,9 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
 use crate::models::{AiRequestMessage, AiRequestToolCall};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId};
+use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
 
 use super::repository::AiRequestRepository;

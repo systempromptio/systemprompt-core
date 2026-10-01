@@ -74,7 +74,10 @@ pub enum ConfigAuthoringError {
     NoDefaultModel(String),
 
     #[error("Failed to load services config for defaults: {0}")]
-    ServicesConfig(String),
+    ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
+
+    #[error("Failed to load the provider catalogue for defaults: {0}")]
+    ProviderCatalog(#[from] systemprompt_models::services::ProviderRegistryError),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -240,8 +243,7 @@ fn build_agent_config(
 }
 
 fn default_provider() -> Result<String, ConfigAuthoringError> {
-    let services = systemprompt_loader::ConfigLoader::load()
-        .map_err(|e| ConfigAuthoringError::ServicesConfig(e.to_string()))?;
+    let services = systemprompt_loader::ConfigLoader::load()?;
     if services.ai.default_provider.is_empty() {
         return Err(ConfigAuthoringError::NoDefaultProvider);
     }
@@ -249,8 +251,7 @@ fn default_provider() -> Result<String, ConfigAuthoringError> {
 }
 
 fn default_model_for(provider: &str) -> Result<String, ConfigAuthoringError> {
-    let registry = ProviderRegistry::default_seed()
-        .map_err(|e| ConfigAuthoringError::ServicesConfig(e.to_string()))?;
+    let registry = ProviderRegistry::default_seed()?;
     registry
         .find_provider(provider)
         .and_then(|entry| entry.models.first().map(|m| m.id.as_str().to_owned()))

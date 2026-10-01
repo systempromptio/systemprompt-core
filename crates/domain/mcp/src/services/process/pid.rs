@@ -33,9 +33,10 @@ fn find_pid_by_port_lsof(port: u16) -> McpDomainResult<Option<u32>> {
         .args(["-ti", &format!(":{port}")])
         .output()
         .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "failed to run `lsof -ti :{port}` for port {port}: {e}"
-            ))
+            crate::error::McpDomainError::operation(
+                format!("failed to run `lsof -ti :{port}` for port {port}"),
+                e,
+            )
         })?;
 
     if output.stdout.is_empty() {
@@ -54,10 +55,10 @@ pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
         .args(["-ano", "-p", "TCP"])
         .output()
         .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "{}: {e}",
-                format!("failed to run `netstat -ano -p TCP` for port {port}")
-            ))
+            crate::error::McpDomainError::operation(
+                format!("failed to run `netstat -ano -p TCP` for port {port}"),
+                e,
+            )
         })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -83,9 +84,10 @@ pub fn find_pids_by_name(process_name: &str) -> McpDomainResult<Vec<u32>> {
         .args(["-f", process_name])
         .output()
         .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "failed to run `pgrep -f {process_name}`: {e}"
-            ))
+            crate::error::McpDomainError::operation(
+                format!("failed to run `pgrep -f {process_name}`"),
+                e,
+            )
         })?;
 
     if output.stdout.is_empty() {
@@ -106,10 +108,10 @@ pub fn find_pids_by_name(process_name: &str) -> McpDomainResult<Vec<u32>> {
         .args(["/FO", "CSV", "/NH"])
         .output()
         .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "{}: {e}",
-                format!("failed to run `tasklist` searching for {process_name}")
-            ))
+            crate::error::McpDomainError::operation(
+                format!("failed to run `tasklist` searching for {process_name}"),
+                e,
+            )
         })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -149,9 +151,10 @@ fn get_port_by_pid_lsof(pid: u32) -> McpDomainResult<Option<u16>> {
         .args(["-p", &pid.to_string(), "-P", "-n"])
         .output()
         .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "failed to run `lsof -p {pid} -P -n` for pid {pid}: {e}"
-            ))
+            crate::error::McpDomainError::operation(
+                format!("failed to run `lsof -p {pid} -P -n` for pid {pid}"),
+                e,
+            )
         })?;
 
     if !output.status.success() {
@@ -177,10 +180,10 @@ pub fn get_port_by_pid(pid: u32) -> McpDomainResult<Option<u16>> {
         .args(["-ano", "-p", "TCP"])
         .output()
         .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "{}: {e}",
-                format!("failed to run `netstat -ano -p TCP` for pid {pid}")
-            ))
+            crate::error::McpDomainError::operation(
+                format!("failed to run `netstat -ano -p TCP` for pid {pid}"),
+                e,
+            )
         })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);

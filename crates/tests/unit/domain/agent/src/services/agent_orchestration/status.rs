@@ -201,11 +201,13 @@ fn test_orchestration_error_process_spawn_failed() {
 }
 
 #[test]
-fn test_orchestration_error_database() {
-    let error = OrchestrationError::Database("Connection lost".to_string());
+fn test_orchestration_error_repository_keeps_classification() {
+    let error: OrchestrationError = sqlx::Error::RowNotFound.into();
 
-    assert!(error.to_string().contains("Database error"));
-    assert!(error.to_string().contains("Connection lost"));
+    match error {
+        OrchestrationError::Repository(inner) => assert!(inner.is_not_found()),
+        other => panic!("expected Repository, got {other:?}"),
+    }
 }
 
 #[test]

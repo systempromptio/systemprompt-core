@@ -67,6 +67,8 @@ pub fn request_context_from_parts(
         return Ok(request_context.clone());
     }
 
-    SysRequestContext::from_headers(&parts.headers)
-        .map_err(|e| McpError::invalid_request(e.to_string(), None))
+    SysRequestContext::from_headers(&parts.headers).map_err(|error| {
+        tracing::warn!(%error, "Rejected MCP request with invalid request-context headers");
+        McpError::invalid_request("Invalid request context headers", None)
+    })
 }

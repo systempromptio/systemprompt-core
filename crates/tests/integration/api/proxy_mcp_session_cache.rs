@@ -262,6 +262,10 @@ fn resolve_error_mapping_covers_auth_and_availability() {
     .to_string();
     assert!(unavailable.contains("vault down"), "{unavailable}");
 
-    let other = map_resolve_error("ext", McpDomainError::Transport("boom".to_owned())).to_string();
+    let other = map_resolve_error(
+        "ext",
+        McpDomainError::transport("token accessor", std::io::Error::other("boom")),
+    )
+    .to_string();
     assert!(other.contains("Invalid response"), "{other}");
 }

@@ -17,8 +17,8 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_traits::StartupEventSender;
 
 use crate::repository::agent_service::AgentServiceRepository;
+use crate::services::agent_orchestration::OrchestrationResult;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
-use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
 #[derive(Debug)]
 pub struct AgentLifecycle {
@@ -30,9 +30,8 @@ impl AgentLifecycle {
     pub fn new(
         agent_service_repo: AgentServiceRepository,
         app_paths: Arc<AppPaths>,
-    ) -> crate::error::AgentResult<Self> {
-        let db_service = AgentDatabaseService::new(agent_service_repo)
-            .map_err(|e| crate::error::AgentError::Internal(e.to_string()))?;
+    ) -> OrchestrationResult<Self> {
+        let db_service = AgentDatabaseService::new(agent_service_repo)?;
 
         Ok(Self {
             db_service,
@@ -47,8 +46,7 @@ pub async fn start_agent(
     agent_name: &str,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)
-        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
     lifecycle.start_agent(agent_name, events).await
 }
 
@@ -58,8 +56,7 @@ pub async fn enable_agent(
     agent_name: &str,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)
-        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
     lifecycle.enable_agent(agent_name, events).await
 }
 
@@ -68,8 +65,7 @@ pub async fn disable_agent(
     app_paths: Arc<AppPaths>,
     agent_name: &str,
 ) -> OrchestrationResult<()> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)
-        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
     lifecycle.disable_agent(agent_name).await
 }
 
@@ -79,7 +75,6 @@ pub async fn restart_agent(
     agent_name: &str,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)
-        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
     lifecycle.restart_agent(agent_name, events).await
 }

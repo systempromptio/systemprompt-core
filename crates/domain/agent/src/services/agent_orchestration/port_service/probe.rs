@@ -20,9 +20,10 @@ pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
         .arg(format!(":{port}"))
         .output()
         .map_err(|e| {
-            AgentServiceError::Internal(format!(
-                "failed to run `lsof -ti :{port}` for port {port}: {e}"
-            ))
+            AgentServiceError::operation(
+                format!("failed to run `lsof -ti :{port}` for port {port}"),
+                e,
+            )
         })?;
 
     if !output.status.success() {
@@ -36,9 +37,9 @@ pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
         return Ok(None);
     }
 
-    let pid = pid_str.parse::<u32>().map_err(|e| {
-        AgentServiceError::Internal(format!("Failed to parse PID from lsof output: {e}"))
-    })?;
+    let pid = pid_str
+        .parse::<u32>()
+        .map_err(|e| AgentServiceError::operation("Failed to parse PID from lsof output", e))?;
 
     Ok(Some(pid))
 }
@@ -49,10 +50,10 @@ pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
         .args(["-ano", "-p", "TCP"])
         .output()
         .map_err(|e| {
-            AgentServiceError::Internal(format!(
-                "{}: {e}",
-                format!("failed to run `netstat -ano -p TCP` for port {port}")
-            ))
+            AgentServiceError::operation(
+                format!("failed to run `netstat -ano -p TCP` for port {port}"),
+                e,
+            )
         })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -81,9 +82,7 @@ pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
         .arg("pid,comm,args")
         .output()
         .map_err(|e| {
-            AgentServiceError::Internal(format!(
-                "failed to run `ps -p {pid} -o pid,comm,args`: {e}"
-            ))
+            AgentServiceError::operation(format!("failed to run `ps -p {pid} -o pid,comm,args`"), e)
         })?;
 
     if !output.status.success() {
@@ -121,10 +120,7 @@ pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
         .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
         .output()
         .map_err(|e| {
-            AgentServiceError::Internal(format!(
-                "{}: {e}",
-                format!("failed to run `tasklist /FI PID eq {pid}`")
-            ))
+            AgentServiceError::operation(format!("failed to run `tasklist /FI PID eq {pid}`"), e)
         })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -144,7 +140,7 @@ pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
     Ok(Some(ProcessInfo { pid, command }))
 }
 
-pub fn is_agent_process(pid: u32) -> std::result::Result<bool, String> {
+pub fn is_agent_process(pid: u32) -> Result<bool> {
     match get_process_info(pid) {
         Ok(Some(info)) => {
             let is_agent = info.command.contains("systemprompt")
@@ -152,7 +148,12 @@ pub fn is_agent_process(pid: u32) -> std::result::Result<bool, String> {
                     || info.command.contains("agent-worker"));
             Ok(is_agent)
         },
-        Ok(None) => Err(format!("No process info found for PID {}", pid)),
-        Err(e) => Err(format!("Failed to get process info for PID {}: {}", pid, e)),
+        Ok(None) => Err(AgentServiceError::Internal(format!(
+            "No process info found for PID {pid}"
+        ))),
+        Err(e) => Err(AgentServiceError::operation(
+            format!("Failed to get process info for PID {pid}"),
+            e,
+        )),
     }
 }

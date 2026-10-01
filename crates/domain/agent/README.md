@@ -166,10 +166,7 @@ pub use models::a2a::{
     TaskStatus, TextPart,
 };
 
-pub use error::{
-    AgentError, AgentResult, ArtifactError, ContextError,
-    ProtocolError, RowParseError, TaskError,
-};
+pub use error::{AgentError, AgentResult, ArtifactError};
 
 pub use services::{
     AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator,

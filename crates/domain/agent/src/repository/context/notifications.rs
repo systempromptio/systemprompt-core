@@ -43,8 +43,7 @@ impl ContextNotificationRepository {
             notification_data,
         )
         .fetch_one(self.write_pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
         Ok(row.id)
     }
 
@@ -54,8 +53,7 @@ impl ContextNotificationRepository {
             notification_id,
         )
         .execute(self.write_pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
         Ok(())
     }
 }

@@ -41,10 +41,7 @@ impl ExecutionStepRepository {
             step_id_str
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!("Failed to get execution step: {step_id}: {e}"))
-        })?;
+        .await?;
         row.map(|r| {
             parse_step(ParseStepParams {
                 step_id: r.step_id,
@@ -71,12 +68,7 @@ impl ExecutionStepRepository {
             task_id.as_str()
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!(
-                "Failed to list execution steps for task: {task_id}: {e}"
-            ))
-        })?;
+        .await?;
         rows.into_iter()
             .map(|r| {
                 parse_step(ParseStepParams {

@@ -54,9 +54,7 @@ impl AgentOrchestrator {
         let agent_repo = agent_state.repositories().agent_services.clone();
 
         let db_service = AgentDatabaseService::new(agent_repo.clone())?;
-        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths).map_err(|e| {
-            crate::services::agent_orchestration::OrchestrationError::Generic(e.to_string())
-        })?;
+        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths)?;
         let reconciler = AgentReconciler::new(agent_repo.clone())?;
         let monitor = AgentMonitor::new(agent_repo)?;
 

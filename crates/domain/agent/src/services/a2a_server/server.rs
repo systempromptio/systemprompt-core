@@ -35,9 +35,10 @@ fn cors_layer(origins: &[String]) -> Result<CorsLayer, crate::error::AgentError>
             continue;
         }
         let value = trimmed.parse::<HeaderValue>().map_err(|e| {
-            crate::error::AgentError::Config(format!(
-                "invalid cors_allowed_origins entry {origin:?}: {e}"
-            ))
+            crate::error::AgentError::invalid_config(
+                format!("invalid cors_allowed_origins entry {origin:?}"),
+                e,
+            )
         })?;
         allowed.push(value);
     }
@@ -96,12 +97,8 @@ impl Server {
         use crate::services::registry::AgentRegistry;
 
         let mut config = if let Some(name) = agent_name {
-            let registry = AgentRegistry::new()
-                .map_err(|e| crate::error::AgentError::Server(e.to_string()))?;
-            registry
-                .get_agent(&name)
-                .await
-                .map_err(|e| crate::error::AgentError::Server(e.to_string()))?
+            let registry = AgentRegistry::new()?;
+            registry.get_agent(&name).await?
         } else {
             return Err(crate::error::AgentError::Validation(
                 "Agent name is required".to_owned(),
@@ -183,8 +180,7 @@ impl Server {
 
         axum::serve(listener, app)
             .with_graceful_shutdown(shutdown)
-            .await
-            .map_err(|e| crate::error::AgentError::Server(e.to_string()))?;
+            .await?;
 
         self.active_tasks.tracker().close();
         self.active_tasks.tracker().wait().await;

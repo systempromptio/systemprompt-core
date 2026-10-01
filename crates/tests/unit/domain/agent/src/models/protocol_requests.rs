@@ -149,13 +149,15 @@ fn a2a_parse_error_unsupported_method_display() {
 
 #[test]
 fn a2a_parse_error_invalid_params_display() {
+    let source = serde_json::from_value::<TaskQueryParams>(json!({})).expect_err("id is required");
     let err = A2aParseError::InvalidParams {
         method: "tasks/get".to_string(),
-        error: "missing field `id`".to_string(),
+        source: std::sync::Arc::new(source),
     };
     assert!(err.to_string().contains("Invalid parameters"));
     assert!(err.to_string().contains("tasks/get"));
     assert!(err.to_string().contains("missing field"));
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 

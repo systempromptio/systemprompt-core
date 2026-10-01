@@ -78,6 +78,7 @@ impl ValidationReport {
 }
 
 use crate::services::shared::AgentServiceError;
+use systemprompt_traits::{BoxedSource, RepositoryError};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -91,11 +92,15 @@ pub enum OrchestrationError {
     #[error("Process spawn failed: {0}")]
     ProcessSpawnFailed(String),
 
-    #[error("Database error: {0}")]
-    DatabaseError(#[from] sqlx::Error),
+    #[error("Process spawn failed: {context}: {source}")]
+    Spawn {
+        context: String,
+        #[source]
+        source: BoxedSource,
+    },
 
-    #[error("Database error: {0}")]
-    Database(String),
+    #[error("repository: {0}")]
+    Repository(#[from] RepositoryError),
 
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
@@ -103,14 +108,32 @@ pub enum OrchestrationError {
     #[error("Health check timeout for agent {0}")]
     HealthCheckTimeout(String),
 
-    #[error("Generic error: {0}")]
-    Generic(String),
+    #[error("Failed to load agent registry: {0}")]
+    Registry(#[source] crate::error::AgentError),
 
     #[error("agent: {0}")]
     Agent(#[from] crate::error::AgentError),
 
     #[error("Service error: {0}")]
     AgentService(#[from] AgentServiceError),
+}
+
+impl OrchestrationError {
+    pub fn spawn<E>(context: impl Into<String>, source: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::Spawn {
+            context: context.into(),
+            source: Box::new(source),
+        }
+    }
+}
+
+impl From<sqlx::Error> for OrchestrationError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::Repository(err.into())
+    }
 }
 
 pub type OrchestrationResult<T> = Result<T, OrchestrationError>;

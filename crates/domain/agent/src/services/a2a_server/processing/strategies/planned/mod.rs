@@ -83,7 +83,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                 if let Err(fail_err) = tracking.fail(&planning_tracked, e.to_string()).await {
                     tracing::warn!(error = %fail_err, "Failed to record planning failure");
                 }
-                return Err(AgentServiceError::Internal(format!("{e}")));
+                return Err(AgentServiceError::AiInference(e));
             },
         };
 

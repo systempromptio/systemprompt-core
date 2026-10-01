@@ -16,14 +16,10 @@ use crate::error::McpDomainResult;
 pub fn validate_registry(config: &RegistryConfig) -> McpDomainResult<()> {
     tracing::info!("Validating registry configuration");
 
-    validate_port_conflicts(config)
-        .map_err(|e| crate::error::McpDomainError::RegistryValidation(e.to_string()))?;
-    validate_server_configs(config)
-        .map_err(|e| crate::error::McpDomainError::RegistryValidation(e.to_string()))?;
-    validate_oauth_configs(config)
-        .map_err(|e| crate::error::McpDomainError::RegistryValidation(e.to_string()))?;
-    validate_server_types(config)
-        .map_err(|e| crate::error::McpDomainError::RegistryValidation(e.to_string()))?;
+    validate_port_conflicts(config)?;
+    validate_server_configs(config)?;
+    validate_oauth_configs(config)?;
+    validate_server_types(config)?;
 
     tracing::info!("Registry validation passed");
     Ok(())
@@ -49,7 +45,7 @@ fn validate_port_conflicts(config: &RegistryConfig) -> McpDomainResult<()> {
         return Ok(());
     }
 
-    Err(crate::error::McpDomainError::Internal(format!(
+    Err(crate::error::McpDomainError::RegistryValidation(format!(
         "Port conflicts detected: {}",
         conflicts.join(", ")
     )))
@@ -68,7 +64,7 @@ fn validate_server_configs(config: &RegistryConfig) -> McpDomainResult<()> {
         return Ok(());
     }
 
-    Err(crate::error::McpDomainError::Internal(format!(
+    Err(crate::error::McpDomainError::RegistryValidation(format!(
         "Invalid server configurations:\n{}",
         invalid_servers.join("\n")
     )))
@@ -129,7 +125,7 @@ fn validate_oauth_configs(config: &RegistryConfig) -> McpDomainResult<()> {
         return Ok(());
     }
 
-    Err(crate::error::McpDomainError::Internal(format!(
+    Err(crate::error::McpDomainError::RegistryValidation(format!(
         "OAuth configuration issues:\n{}",
         oauth_issues.join("\n")
     )))
@@ -147,7 +143,7 @@ fn validate_server_types(config: &RegistryConfig) -> McpDomainResult<()> {
         return Ok(());
     }
 
-    Err(crate::error::McpDomainError::Internal(format!(
+    Err(crate::error::McpDomainError::RegistryValidation(format!(
         "Server type validation issues:\n{}",
         issues.join("\n")
     )))

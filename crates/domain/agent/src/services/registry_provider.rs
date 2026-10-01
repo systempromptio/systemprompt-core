@@ -95,9 +95,9 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
 fn registry_error(error: AgentError) -> RegistryError {
     match error {
         AgentError::NotFound(name) => RegistryError::NotFound(name),
-        AgentError::Config(_) | AgentError::ServicesConfig(_) => {
-            RegistryError::Configuration(error.into())
-        },
+        AgentError::Config(_)
+        | AgentError::InvalidConfig { .. }
+        | AgentError::ServicesConfig(_) => RegistryError::Configuration(error.into()),
         other => RegistryError::Unavailable(other.into()),
     }
 }

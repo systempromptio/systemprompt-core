@@ -5,8 +5,7 @@
 //! - Test: `crates/tests/unit/domain/agent/src/error.rs`
 //!
 //! Tests cover:
-//! - Error types (TaskError, ContextError, ArtifactError, ProtocolError,
-//!   AgentError)
+//! - Error types (ArtifactError, AgentError, AgentServiceError)
 //! - Models (skill, context, runtime, a2a protocol, web models)
 //! - Services (shared utilities, agent orchestration)
 

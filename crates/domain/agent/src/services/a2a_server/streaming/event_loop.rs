@@ -215,7 +215,17 @@ async fn finish_completed(ctx: &EventLoopCtx<'_>, full_text: String, artifacts: 
         processor: ctx.processor,
     };
     if let Err(failure) = handle_complete(complete_params).await {
-        tracing::error!(task_id = %ctx.task_id, error = %failure.message, "Failed to complete task");
+        match failure.source.as_deref() {
+            Some(cause) => tracing::error!(
+                task_id = %ctx.task_id,
+                error = %failure.message,
+                cause = %cause,
+                "Failed to complete task"
+            ),
+            None => {
+                tracing::error!(task_id = %ctx.task_id, error = %failure.message, "Failed to complete task");
+            },
+        }
         record_failure(ctx.task_repo, ctx.task_id, &failure.message).await;
         finish_failed(ctx, failure.message, failure.code).await;
     }

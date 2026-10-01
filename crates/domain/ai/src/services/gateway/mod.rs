@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod config;
+mod error;
 mod ingestion;
 mod loader;
 pub mod overrides;
@@ -19,6 +20,7 @@ pub mod safety;
 mod spec;
 
 pub use config::{GatewayPolicyConfig, GatewayPolicyEntry};
+pub use error::GatewayPolicyError;
 pub use ingestion::{GatewayPolicyIngestionService, IngestOptions, IngestReport};
 pub use loader::{GATEWAY_POLICIES_FILE, load_from_yaml};
 pub use overrides::{

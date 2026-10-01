@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{McpDomainError, McpDomainResult};
+use crate::error::{McpDomainError, McpDomainResult, ServiceStartFailure};
 use crate::services::spawn_target::SpawnTarget;
 use systemprompt_traits::StartupEventSender;
 
@@ -75,7 +75,7 @@ impl McpOrchestrator {
                 },
                 Err(e) => {
                     let error_msg = e.to_string();
-                    failed.push((server.name.clone(), error_msg.clone()));
+                    failed.push(ServiceStartFailure::new(server.name.clone(), e));
                     self.event_bus()
                         .publish(McpEvent::ServiceFailed {
                             service_name: server.name,
@@ -87,15 +87,7 @@ impl McpOrchestrator {
         }
 
         if !failed.is_empty() {
-            return Err(McpDomainError::Internal(format!(
-                "Failed to start {} services: {}",
-                failed.len(),
-                failed
-                    .iter()
-                    .map(|(n, e)| format!("{n} ({e})"))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )));
+            return Err(McpDomainError::ServicesFailedToStart(failed));
         }
 
         Ok(())

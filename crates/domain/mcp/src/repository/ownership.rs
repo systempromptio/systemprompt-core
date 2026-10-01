@@ -37,11 +37,7 @@ impl OwnerReassignment for McpOwnerReassignment {
         from: &UserId,
         to: &UserId,
     ) -> Result<ReassignedRows, RepositoryError> {
-        let mut tx = self
-            .write_pool
-            .begin()
-            .await
-            .map_err(RepositoryError::database)?;
+        let mut tx = self.write_pool.begin().await?;
 
         let executions = sqlx::query!(
             "UPDATE mcp_tool_executions SET user_id = $2 WHERE user_id = $1",
@@ -49,8 +45,7 @@ impl OwnerReassignment for McpOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let artifacts = sqlx::query!(
@@ -59,8 +54,7 @@ impl OwnerReassignment for McpOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let sessions = sqlx::query!(
@@ -69,8 +63,7 @@ impl OwnerReassignment for McpOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let proxy_identities = sqlx::query!(
@@ -78,8 +71,7 @@ impl OwnerReassignment for McpOwnerReassignment {
             from.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let external_sessions = sqlx::query!(
@@ -87,11 +79,10 @@ impl OwnerReassignment for McpOwnerReassignment {
             from.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
-        tx.commit().await.map_err(RepositoryError::database)?;
+        tx.commit().await?;
 
         Ok(ReassignedRows {
             tables: vec![

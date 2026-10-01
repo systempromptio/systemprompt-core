@@ -22,9 +22,9 @@ pub async fn update_task_state(
     state: TaskState,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let mut tx = pool.begin().await.map_err(RepositoryError::database)?;
+    let mut tx = pool.begin().await?;
     transition_in_tx(&mut tx, task_id, state, timestamp).await?;
-    tx.commit().await.map_err(RepositoryError::database)?;
+    tx.commit().await?;
     Ok(())
 }
 
@@ -68,13 +68,13 @@ async fn lock_task_state(
         task_id_str
     )
     .fetch_optional(&mut **tx)
-    .await
-    .map_err(RepositoryError::database)?
+    .await?
     .ok_or_else(|| RepositoryError::NotFound(format!("task {task_id_str}")))?;
 
-    let current_state: TaskState = current.status.parse().map_err(|e: String| {
-        RepositoryError::InvalidData(format!("unrecognised stored task state: {e}"))
-    })?;
+    let current_state: TaskState = current
+        .status
+        .parse()
+        .map_err(|e: String| RepositoryError::decode("stored task state", e))?;
 
     Ok((current_state, current.version))
 }
@@ -139,7 +139,7 @@ async fn execute_state_update(
         .await
     };
 
-    Ok(result.map_err(RepositoryError::database)?.rows_affected())
+    Ok(result?.rows_affected())
 }
 
 pub async fn apply_notification_status(
@@ -148,8 +148,8 @@ pub async fn apply_notification_status(
     state: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let parsed: TaskState = state.parse().map_err(|e: String| {
-        RepositoryError::InvalidData(format!("invalid notification task state {state:?}: {e}"))
+    let parsed: TaskState = state.parse().map_err(|_unknown: String| {
+        RepositoryError::invalid_argument(format!("invalid notification task state {state:?}"))
     })?;
     update_task_state(pool, task_id, parsed, timestamp).await
 }
@@ -162,12 +162,12 @@ pub async fn update_task_failed_with_error(
 ) -> Result<(), RepositoryError> {
     let task_id_str = task_id.as_str();
 
-    let mut tx = pool.begin().await.map_err(RepositoryError::database)?;
+    let mut tx = pool.begin().await?;
 
     let (current_state, expected_version) = lock_task_state(&mut tx, task_id_str).await?;
 
     if current_state == TaskState::Failed {
-        tx.commit().await.map_err(RepositoryError::database)?;
+        tx.commit().await?;
         return Ok(());
     }
 
@@ -194,8 +194,7 @@ pub async fn update_task_failed_with_error(
         expected_version
     )
     .execute(&mut *tx)
-    .await
-    .map_err(RepositoryError::database)?
+    .await?
     .rows_affected();
 
     if rows_affected == 0 {
@@ -204,6 +203,6 @@ pub async fn update_task_failed_with_error(
         )));
     }
 
-    tx.commit().await.map_err(RepositoryError::database)?;
+    tx.commit().await?;
     Ok(())
 }

@@ -1,8 +1,8 @@
 // Tests for the streaming lifecycle helpers: emit_run_started (task moves to
 // Working, a status SSE frame is emitted, A2A + RUN_STARTED webhooks fire) and
-// handle_stream_creation_error (task marked failed with the error message and
-// a RUN_ERROR webhook). Webhook traffic is captured by the recording
-// broadcaster injected through `WebhookContext`.
+// handle_stream_creation_error (task marked failed with a fixed message and a
+// RUN_ERROR webhook that carries no internal cause). Webhook traffic is
+// captured by the recording broadcaster injected through `WebhookContext`.
 
 
 use axum::response::sse::Event;
@@ -155,8 +155,12 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
     assert!(
         all_agui
             .iter()
-            .any(|e| e.contains("STREAM_CREATION_ERROR") && e.contains("upstream refused")),
+            .any(|e| e.contains("STREAM_CREATION_ERROR") && e.contains("Failed to process message")),
         "{agui:?}"
+    );
+    assert!(
+        all_agui.iter().all(|e| !e.contains("upstream refused")),
+        "the internal cause must not reach the client: {agui:?}"
     );
 
     r.tasks.delete_task(&task_id).await.ok();

@@ -72,9 +72,10 @@ impl ArtifactPublishingService {
                 .execution_exists(&exec_id)
                 .await
                 .map_err(|e| {
-                    AgentServiceError::Internal(format!(
-                        "Failed to check mcp_execution_id {exec_id}: {e}"
-                    ))
+                    AgentServiceError::operation(
+                        format!("Failed to check mcp_execution_id {exec_id}"),
+                        e,
+                    )
                 })?;
             if !exists {
                 tracing::warn!(
@@ -134,7 +135,7 @@ impl ArtifactPublishingService {
         self.artifact_repo
             .create_artifact(task_id, context_id, &validated_artifact)
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist artifact: {e}")))?;
+            .map_err(|e| AgentServiceError::operation("Failed to persist artifact", e))?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,
@@ -164,7 +165,7 @@ impl ArtifactPublishingService {
         self.artifact_repo
             .create_artifact(params.task_id, params.context_id, &validated_artifact)
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist artifact: {e}")))?;
+            .map_err(|e| AgentServiceError::operation("Failed to persist artifact", e))?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,

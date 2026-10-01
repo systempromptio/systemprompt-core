@@ -75,7 +75,7 @@ impl UpstreamTarget {
 
     pub fn from_secrets(entry: &ProviderEntry) -> Result<Self, UpstreamTargetError> {
         let secrets = systemprompt_config::SecretsBootstrap::get()
-            .map_err(|e| UpstreamTargetError::SecretsUnavailable(e.to_string()))?;
+            .map_err(|e| UpstreamTargetError::SecretsUnavailable(Box::new(e)))?;
         let secret_name = entry.api_key_secret.as_str();
         let secret =
             secrets

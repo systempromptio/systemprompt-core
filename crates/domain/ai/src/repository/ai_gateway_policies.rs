@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
 use serde_json::Value;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiGatewayPolicyId;
+use systemprompt_traits::RepositoryError;
 
 #[must_use]
 #[derive(Debug, Clone)]

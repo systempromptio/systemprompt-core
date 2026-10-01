@@ -174,8 +174,7 @@ impl TaskRepository {
             user_id.as_str()
         )
         .fetch_optional(self.pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         match result {
             Some(_) => Ok(()),

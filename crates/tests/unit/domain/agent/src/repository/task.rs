@@ -289,7 +289,7 @@ async fn apply_notification_status_parses_state() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::InvalidData(_)
+        systemprompt_traits::RepositoryError::InvalidArgument(_)
     ));
 
     r.tasks.delete_task(&task_id).await.ok();

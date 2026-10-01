@@ -14,8 +14,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::error::GatewayPolicyError;
 use super::spec::GatewayPolicySpec;
-use crate::error::RepositoryError;
 
 const fn default_enabled() -> bool {
     true
@@ -41,17 +41,17 @@ pub struct GatewayPolicyEntry {
 }
 
 impl GatewayPolicyConfig {
-    pub fn validate(&self) -> Result<(), RepositoryError> {
+    pub fn validate(&self) -> Result<(), GatewayPolicyError> {
         let mut seen = std::collections::HashSet::with_capacity(self.policies.len());
         for (idx, policy) in self.policies.iter().enumerate() {
             if policy.name.trim().is_empty() {
-                return Err(RepositoryError::InvalidData {
+                return Err(GatewayPolicyError::Invalid {
                     field: format!("policies[{idx}].name"),
                     reason: "policy name must not be empty".to_owned(),
                 });
             }
             if !seen.insert(policy.name.as_str()) {
-                return Err(RepositoryError::InvalidData {
+                return Err(GatewayPolicyError::Invalid {
                     field: format!("policies[{idx}].name"),
                     reason: format!("duplicate policy name '{}'", policy.name),
                 });
@@ -60,7 +60,7 @@ impl GatewayPolicyConfig {
             if safety.scanners.iter().any(|s| s == "heuristic")
                 && crate::services::gateway::safety::effective_phrases(&safety.heuristic).is_empty()
             {
-                return Err(RepositoryError::InvalidData {
+                return Err(GatewayPolicyError::Invalid {
                     field: format!("policies[{idx}].spec.safety.heuristic"),
                     reason: "heuristic scanner is enabled but its effective phrase list is \
                              empty — set phrases/extra_phrases or remove the scanner"

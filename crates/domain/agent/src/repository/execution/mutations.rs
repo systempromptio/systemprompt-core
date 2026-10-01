@@ -19,9 +19,7 @@ impl ExecutionStepRepository {
         let status_str = step.status.to_string();
         let step_type_str = step.content.step_type().to_string();
         let title = step.content.title();
-        let content_json = serde_json::to_value(&step.content).map_err(|e| {
-            RepositoryError::Internal(format!("Failed to serialize step content: {e}"))
-        })?;
+        let content_json = serde_json::to_value(&step.content)?;
         sqlx::query!(
             r#"INSERT INTO task_execution_steps (
                 step_id, task_id, step_type, title, status, content, started_at, completed_at, duration_ms, error_message
@@ -38,8 +36,7 @@ impl ExecutionStepRepository {
             step.error_message
         )
         .execute(&*self.write_pool)
-        .await
-        .map_err(|e| RepositoryError::Internal(format!("Failed to create execution step: {e}")))?;
+        .await?;
         Ok(())
     }
 
@@ -70,12 +67,7 @@ impl ExecutionStepRepository {
                 result
             )
             .execute(&*self.write_pool)
-            .await
-            .map_err(|e| {
-                RepositoryError::Internal(format!(
-                    "Failed to complete execution step: {step_id}: {e}"
-                ))
-            })?;
+            .await?;
         } else {
             sqlx::query!(
                 r#"UPDATE task_execution_steps SET
@@ -89,12 +81,7 @@ impl ExecutionStepRepository {
                 duration_ms
             )
             .execute(&*self.write_pool)
-            .await
-            .map_err(|e| {
-                RepositoryError::Internal(format!(
-                    "Failed to complete execution step: {step_id}: {e}"
-                ))
-            })?;
+            .await?;
         }
 
         Ok(())
@@ -125,10 +112,7 @@ impl ExecutionStepRepository {
             error_message
         )
         .execute(&*self.write_pool)
-        .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!("Failed to fail execution step: {step_id}: {e}"))
-        })?;
+        .await?;
 
         Ok(())
     }
@@ -156,12 +140,7 @@ impl ExecutionStepRepository {
             error_message
         )
         .execute(&*self.write_pool)
-        .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!(
-                "Failed to fail in-progress steps for task: {task_id}: {e}"
-            ))
-        })?;
+        .await?;
 
         Ok(result.rows_affected())
     }
@@ -179,9 +158,7 @@ impl ExecutionStepRepository {
         let status_str = StepStatus::Completed.to_string();
 
         let content = StepContent::planning(reasoning, planned_tools);
-        let content_json = serde_json::to_value(&content).map_err(|e| {
-            RepositoryError::Internal(format!("Failed to serialize planning content: {e}"))
-        })?;
+        let content_json = serde_json::to_value(&content)?;
 
         let row = sqlx::query!(
             r#"UPDATE task_execution_steps SET
@@ -199,10 +176,7 @@ impl ExecutionStepRepository {
             content_json
         )
         .fetch_one(&*self.write_pool)
-        .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!("Failed to complete planning step: {step_id}: {e}"))
-        })?;
+        .await?;
 
         parse_step(ParseStepParams {
             step_id: row.step_id,

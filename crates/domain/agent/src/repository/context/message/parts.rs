@@ -34,8 +34,7 @@ pub async fn get_message_parts(
         message_id.as_str()
     )
     .fetch_all(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     parts_from_rows(&part_rows)
 }
@@ -73,8 +72,7 @@ pub(super) async fn persist_part_sqlx(
                 text_part.text
             )
             .execute(&mut **tx)
-            .await
-            .map_err(RepositoryError::database)?;
+            .await?;
         },
         Part::File(file_part) => {
             sqlx::query!(
@@ -89,8 +87,7 @@ pub(super) async fn persist_part_sqlx(
                 file_part.file.bytes.as_deref()
             )
             .execute(&mut **tx)
-            .await
-            .map_err(RepositoryError::database)?;
+            .await?;
         },
         Part::Data(data_part) => {
             let data_json =
@@ -104,8 +101,7 @@ pub(super) async fn persist_part_sqlx(
                 data_json
             )
             .execute(&mut **tx)
-            .await
-            .map_err(RepositoryError::database)?;
+            .await?;
         },
     }
 

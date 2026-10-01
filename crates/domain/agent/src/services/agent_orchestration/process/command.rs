@@ -47,11 +47,10 @@ pub fn prepare_agent_log_file(agent_name: &str, log_dir: &Path) -> Orchestration
         .append(true)
         .open(&log_file_path)
         .map_err(|e| {
-            OrchestrationError::ProcessSpawnFailed(format!(
-                "Failed to create log file {}: {}",
-                log_file_path.display(),
-                e
-            ))
+            OrchestrationError::spawn(
+                format!("Failed to create log file {}", log_file_path.display()),
+                e,
+            )
         })
 }
 

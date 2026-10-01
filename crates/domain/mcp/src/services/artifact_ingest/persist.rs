@@ -43,7 +43,7 @@ pub(super) fn create_record(new: &NewArtifact<'_>) -> McpDomainResult<CreateMcpA
         metadata.clone(),
     )
     .to_json()
-    .map_err(|e| McpDomainError::Internal(format!("artifact envelope: {e}")))?;
+    .map_err(|e| McpDomainError::operation("artifact envelope", e))?;
 
     let mut create = CreateMcpArtifact::new(
         artifact_id.clone(),

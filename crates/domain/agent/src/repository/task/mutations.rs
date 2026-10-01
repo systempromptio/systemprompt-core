@@ -75,8 +75,7 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
         agent_name
     )
     .execute(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     Ok(task.id.to_string())
 }
@@ -94,8 +93,7 @@ pub async fn track_agent_in_context(
         agent_name
     )
     .execute(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     Ok(())
 }

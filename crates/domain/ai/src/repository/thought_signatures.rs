@@ -8,12 +8,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{GatewayConversationId, UserId};
+use systemprompt_traits::RepositoryError;
 
 pub struct ThoughtSignatureWrite<'a> {
     pub user_id: &'a UserId,

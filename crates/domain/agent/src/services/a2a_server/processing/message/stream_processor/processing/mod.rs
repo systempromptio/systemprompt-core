@@ -49,7 +49,7 @@ impl StreamProcessor {
         let agent_runtime = agent_runtime.clone();
         let agent_name_string = agent_name.to_owned();
         let agent_name_typed = AgentName::try_new(agent_name)
-            .map_err(|e| AgentServiceError::Validation("agent_name".to_owned(), e.to_string()))?;
+            .map_err(|e| AgentServiceError::validation("agent_name", e))?;
         let (user_text, user_parts) = extract_message_content(a2a_message);
 
         let context_id = &a2a_message.context_id;

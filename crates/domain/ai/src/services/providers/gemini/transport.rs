@@ -23,7 +23,7 @@ pub(super) fn build_client() -> Result<Client> {
         .timeout(systemprompt_models::net::AI_PROVIDER_REQUEST_TIMEOUT)
         .connect_timeout(timeout::CONNECT_TIMEOUT)
         .build()
-        .map_err(|e| crate::error::AiError::Internal(format!("Failed to create HTTP client: {e}")))
+        .map_err(crate::error::AiError::Http)
 }
 
 // JSON: Gemini generateContent request body — upstream wire format.

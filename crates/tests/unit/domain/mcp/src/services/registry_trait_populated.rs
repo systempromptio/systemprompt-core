@@ -70,3 +70,21 @@ async fn registry_provider_reports_server_info_and_enabled_set() {
         .expect("enabled servers");
     assert!(enabled.iter().any(|s| s.name == name.as_str()));
 }
+
+#[tokio::test]
+async fn registry_provider_reports_an_unknown_server_as_not_found() {
+    let (registry, _name, _mock) = populated_registry().await;
+
+    let err = McpRegistryProvider::get_server(&registry, "rtp_no_such_server")
+        .await
+        .expect_err("an unregistered server is not resolved");
+    assert!(
+        matches!(err, systemprompt_traits::RegistryError::NotFound(_)),
+        "a missing server is NotFound, not an outage: {err:?}"
+    );
+    assert!(
+        !McpRegistryProvider::server_exists(&registry, "rtp_no_such_server")
+            .await
+            .expect("a missing server is not an error")
+    );
+}

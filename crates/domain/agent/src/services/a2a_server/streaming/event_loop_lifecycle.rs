@@ -103,19 +103,19 @@ pub async fn handle_stream_creation_error(
     _context_id: &ContextId,
     task_repo: &TaskRepository,
 ) {
-    let error_msg = format!("Failed to create stream: {error}");
+    let error_msg = "Failed to create stream";
     tracing::error!(task_id = %task_id, error = %error, "Failed to create stream");
 
     let failed_timestamp = chrono::Utc::now();
     if let Err(e) = task_repo
-        .update_task_failed_with_error(task_id, &error_msg, &failed_timestamp)
+        .update_task_failed_with_error(task_id, error_msg, &failed_timestamp)
         .await
     {
         tracing::error!(task_id = %task_id, error = %e, "Failed to update task to failed state");
     }
 
     let error_event = AgUiEventBuilder::run_error(
-        format!("Failed to process message: {error}"),
+        "Failed to process message".to_owned(),
         Some("STREAM_CREATION_ERROR".to_owned()),
     );
     if let Err(e) = webhook_context.broadcast_agui(error_event).await {

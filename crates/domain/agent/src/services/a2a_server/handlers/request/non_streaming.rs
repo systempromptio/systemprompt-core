@@ -13,6 +13,7 @@ use serde_json::json;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::methods;
+use systemprompt_traits::BoxedSource;
 
 use crate::models::a2a::jsonrpc::{JsonRpcResponse, NumberOrString};
 use crate::models::a2a::{A2aRequestParams, Task, TaskState};
@@ -32,10 +33,23 @@ pub(super) enum RequestFailure {
     TaskNotFound(TaskId),
     TaskNotCancelable(TaskId),
     Unsupported(&'static str),
-    Internal(String),
+    Internal {
+        context: &'static str,
+        source: BoxedSource,
+    },
 }
 
 impl RequestFailure {
+    fn internal<E>(context: &'static str, source: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::Internal {
+            context,
+            source: Box::new(source),
+        }
+    }
+
     pub(super) fn into_jsonrpc(self, request_id: &NumberOrString) -> JsonRpcResponse<Task> {
         match self {
             Self::InvalidParams(message) => JsonRpcErrorBuilder::invalid_params()
@@ -56,9 +70,9 @@ impl RequestFailure {
                 .with_data(json!(operation))
                 .log_warn(format!("Unsupported A2A operation: {operation}"))
                 .build_as(request_id),
-            Self::Internal(message) => JsonRpcErrorBuilder::internal_error()
-                .with_data(json!(format!("Request handling failed: {message}")))
-                .log_error(format!("A2A request handling failed: {message}"))
+            Self::Internal { context, source } => JsonRpcErrorBuilder::internal_error()
+                .with_data(json!(context))
+                .log_error(format!("A2A request handling failed: {context}: {source}"))
                 .build_as(request_id),
         }
     }
@@ -68,7 +82,12 @@ impl From<ContextValidationError> for RequestFailure {
     fn from(error: ContextValidationError) -> Self {
         match error {
             ContextValidationError::TaskNotFound(task_id) => Self::TaskNotFound(task_id),
-            ContextValidationError::TaskLookup(message) => Self::Internal(message),
+            ContextValidationError::TaskLookup(source) => {
+                Self::internal("Task lookup failed", source)
+            },
+            ContextValidationError::Context(source) if !source.is_not_found() => {
+                Self::internal("Context validation failed", source)
+            },
             other @ (ContextValidationError::Unauthenticated
             | ContextValidationError::Context(_)) => Self::InvalidParams(other.to_string()),
         }
@@ -77,7 +96,7 @@ impl From<ContextValidationError> for RequestFailure {
 
 impl From<AgentServiceError> for RequestFailure {
     fn from(error: AgentServiceError) -> Self {
-        Self::Internal(error.to_string())
+        Self::internal("Request handling failed", error)
     }
 }
 
@@ -166,7 +185,7 @@ async fn cancel_task(
         task_repo
             .update_task_state(task_id, TaskState::Canceled, &chrono::Utc::now())
             .await
-            .map_err(|e| RequestFailure::Internal(format!("Failed to cancel task: {e}")))?;
+            .map_err(|e| RequestFailure::internal("Failed to cancel task", e))?;
     }
 
     owned_task(task_repo, task_id).await
@@ -176,8 +195,6 @@ async fn owned_task(task_repo: &TaskRepository, task_id: &TaskId) -> Result<Task
     match task_repo.get_task(task_id).await {
         Ok(Some(task)) => Ok(task),
         Ok(None) => Err(RequestFailure::TaskNotFound(task_id.clone())),
-        Err(e) => Err(RequestFailure::Internal(format!(
-            "Failed to retrieve task: {e}"
-        ))),
+        Err(e) => Err(RequestFailure::internal("Failed to retrieve task", e)),
     }
 }

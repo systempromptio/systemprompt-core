@@ -14,7 +14,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent::AgentError;
-use systemprompt_ai::error::RepositoryError as AiRepositoryError;
 use systemprompt_analytics::AnalyticsError;
 use systemprompt_config::paths::PathError;
 use systemprompt_config::{ConfigError as ProfileConfigError, ProfileBootstrapError};
@@ -57,9 +56,6 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Analytics(#[from] AnalyticsError),
-
-    #[error(transparent)]
-    AiRepository(#[from] AiRepositoryError),
 
     #[error(transparent)]
     Mcp(#[from] McpDomainError),

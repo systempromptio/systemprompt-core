@@ -44,7 +44,7 @@ impl AnthropicProvider {
             anthropic::sse_to_canonical_events(response.bytes_stream()).filter_map(|event| {
                 futures::future::ready(match event {
                     Ok(event) => canonical_bridge::event_to_chunk(event).map(Ok),
-                    Err(e) => Some(Err(AiError::Internal(format!("Stream error: {e}")))),
+                    Err(e) => Some(Err(AiError::Stream(e))),
                 })
             });
 

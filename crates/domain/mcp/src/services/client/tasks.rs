@@ -45,7 +45,7 @@ where
         let polled = client
             .get_task(GetTaskParams::new(task_id.clone()))
             .await
-            .map_err(|e| McpDomainError::ToolExecutionFailed(format!("tasks/get failed: {e}")))?;
+            .map_err(|e| McpDomainError::tool_call("tasks/get failed", e))?;
 
         match polled.task.payload {
             TaskPayload::Working => {},
@@ -54,9 +54,7 @@ where
             },
             TaskPayload::Completed { result } => {
                 return serde_json::from_value(serde_json::Value::Object(result)).map_err(|e| {
-                    McpDomainError::ToolExecutionFailed(format!(
-                        "task completed with a non-CallToolResult payload: {e}"
-                    ))
+                    McpDomainError::tool_call("task completed with a non-CallToolResult payload", e)
                 });
             },
             TaskPayload::Failed { error } => {

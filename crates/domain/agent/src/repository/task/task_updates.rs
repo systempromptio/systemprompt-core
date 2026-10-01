@@ -54,11 +54,7 @@ impl TaskRepository {
             trace_id,
         } = params;
         let messages = [user_message.clone(), agent_message.clone()];
-        let mut tx = self
-            .write_pool
-            .begin()
-            .await
-            .map_err(RepositoryError::database)?;
+        let mut tx = self.write_pool.begin().await?;
 
         persist_messages_in_tx(
             &mut tx,
@@ -76,7 +72,7 @@ impl TaskRepository {
         let timestamp = task.status.timestamp.unwrap_or_else(chrono::Utc::now);
         transition_in_tx(&mut tx, &task.id, task.status.state, &timestamp).await?;
 
-        tx.commit().await.map_err(RepositoryError::database)?;
+        tx.commit().await?;
 
         self.count_messages(session_id, messages.len()).await;
 
@@ -89,13 +85,9 @@ impl TaskRepository {
         &self,
         params: PersistMessagesTxParams<'_>,
     ) -> Result<Vec<i32>, RepositoryError> {
-        let mut tx = self
-            .write_pool
-            .begin()
-            .await
-            .map_err(RepositoryError::database)?;
+        let mut tx = self.write_pool.begin().await?;
         let sequence_numbers = persist_messages_in_tx(&mut tx, &params).await?;
-        tx.commit().await.map_err(RepositoryError::database)?;
+        tx.commit().await?;
 
         self.count_messages(params.session_id, params.messages.len())
             .await;
@@ -112,11 +104,7 @@ impl TaskRepository {
 
     pub async fn delete_task(&self, task_id: &TaskId) -> Result<(), RepositoryError> {
         let task_id_str = task_id.as_str();
-        let mut tx = self
-            .write_pool
-            .begin()
-            .await
-            .map_err(RepositoryError::database)?;
+        let mut tx = self.write_pool.begin().await?;
 
         sqlx::query!(
             "DELETE FROM message_parts WHERE message_id IN (SELECT message_id FROM task_messages \
@@ -124,26 +112,22 @@ impl TaskRepository {
             task_id_str
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         sqlx::query!("DELETE FROM task_messages WHERE task_id = $1", task_id_str)
             .execute(&mut *tx)
-            .await
-            .map_err(RepositoryError::database)?;
+            .await?;
 
         sqlx::query!(
             "DELETE FROM task_execution_steps WHERE task_id = $1",
             task_id_str
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         sqlx::query!("DELETE FROM agent_tasks WHERE task_id = $1", task_id_str)
             .execute(&mut *tx)
-            .await
-            .map_err(RepositoryError::database)?;
+            .await?;
 
         tx.commit().await.map_err(RepositoryError::database)
     }
@@ -187,8 +171,7 @@ async fn update_task_metadata(
         task.id.as_str()
     )
     .execute(&mut **tx)
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     if result.rows_affected() == 0 {
         return Err(RepositoryError::NotFound(format!(

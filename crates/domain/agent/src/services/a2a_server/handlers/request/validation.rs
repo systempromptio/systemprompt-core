@@ -7,17 +7,18 @@
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use systemprompt_identifiers::{TaskId, UserId};
+use systemprompt_traits::RepositoryError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContextValidationError {
     #[error("Authentication required: the request carries no authenticated user")]
     Unauthenticated,
     #[error("Context validation failed: {0}")]
-    Context(String),
+    Context(#[source] RepositoryError),
     #[error("Task not found: {0}")]
     TaskNotFound(TaskId),
     #[error("Task lookup failed: {0}")]
-    TaskLookup(String),
+    TaskLookup(#[source] RepositoryError),
 }
 
 pub async fn validate_message_context(
@@ -32,7 +33,7 @@ pub async fn validate_message_context(
     context_repo
         .validate_context_ownership(&message.context_id, user_id)
         .await
-        .map_err(|e| ContextValidationError::Context(e.to_string()))
+        .map_err(ContextValidationError::Context)
 }
 
 // Why: a task owned by another user is reported as absent rather than
@@ -49,7 +50,7 @@ pub async fn validate_task_owner(
     let info = task_repo
         .get_task_context_info(task_id)
         .await
-        .map_err(|e| ContextValidationError::TaskLookup(e.to_string()))?
+        .map_err(ContextValidationError::TaskLookup)?
         .ok_or_else(|| ContextValidationError::TaskNotFound(task_id.clone()))?;
 
     match info.user_id {

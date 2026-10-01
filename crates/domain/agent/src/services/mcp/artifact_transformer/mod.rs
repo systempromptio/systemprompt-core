@@ -16,7 +16,7 @@ pub mod metadata_builder;
 pub mod parts_builder;
 mod type_inference;
 
-use crate::error::{ArtifactError, RowParseError};
+use crate::error::ArtifactError;
 use crate::models::a2a::Artifact;
 use rmcp::model::CallToolResult;
 use serde::Deserialize;
@@ -62,7 +62,7 @@ pub fn parse_wire_result(
         .structured_content
         .as_ref()
         .filter(|v| !v.is_null())
-        .ok_or_else(|| RowParseError::MissingField {
+        .ok_or_else(|| ArtifactError::MissingField {
             field: "structured_content".to_owned(),
         })?;
 
@@ -70,7 +70,7 @@ pub fn parse_wire_result(
         .meta
         .as_ref()
         .and_then(|m| m.0.get(EXECUTION_META_KEY))
-        .ok_or_else(|| RowParseError::MissingField {
+        .ok_or_else(|| ArtifactError::MissingField {
             field: format!("_meta[\"{EXECUTION_META_KEY}\"]"),
         })?;
 

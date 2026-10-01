@@ -11,7 +11,7 @@ use crate::services::auth::validate_jwt_token;
 pub fn validate_and_extract_claims(server_name: &str, token: &str) -> Result<JwtClaims, McpError> {
     let config = systemprompt_models::Config::get().map_err(|e| {
         tracing::error!(server = %server_name, error = %e, "Failed to get config");
-        McpError::invalid_request(format!("Failed to get config: {e}"), None)
+        McpError::internal_error("Failed to get config", None)
     })?;
     validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences).map_err(|e| {
         tracing::error!(server = %server_name, error = %e, "JWT validation failed");

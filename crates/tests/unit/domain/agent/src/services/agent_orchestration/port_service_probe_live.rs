@@ -81,7 +81,7 @@ fn a_pid_that_does_not_exist_is_reported_as_an_error_not_as_not_an_agent() {
         .expect_err("an absent process is an error, not a negative verdict");
 
     assert!(
-        err.contains("No process info found"),
+        err.to_string().contains("No process info found"),
         "the caller must be able to tell 'gone' from 'not ours': {err}"
     );
 }

@@ -52,9 +52,10 @@ pub(super) async fn resolve_external_bearer(
     // call without it would be refused (or, worse, served to an unbrokered
     // caller), so a missing secret is a configuration error here.
     let secrets = systemprompt_config::SecretsBootstrap::get().map_err(|e| {
-        McpDomainError::Configuration(format!(
-            "credential broker secret unavailable for external MCP server '{server}': {e}"
-        ))
+        McpDomainError::invalid_configuration(
+            format!("credential broker secret unavailable for external MCP server '{server}'"),
+            e,
+        )
     })?;
     let broker_secret = secrets
         .get(BROKER_SECRET_KEY)
@@ -86,10 +87,8 @@ pub async fn fetch_external_bearer(
     let client = systemprompt_client::guarded_client(
         &systemprompt_client::GuardedClientConfig::default().with_max_redirects(0),
     )
-    .map_err(|error| {
-        McpDomainError::Transport(format!(
-            "token accessor client failed for '{server}': {error}"
-        ))
+    .map_err(|e| {
+        McpDomainError::transport(format!("token accessor client failed for '{server}'"), e)
     })?;
     let response = client
         .get(accessor)
@@ -98,19 +97,18 @@ pub async fn fetch_external_bearer(
         .send()
         .await
         .map_err(|e| {
-            McpDomainError::Transport(format!("token accessor request failed for '{server}': {e}"))
+            McpDomainError::transport(format!("token accessor request failed for '{server}'"), e)
         })?;
 
     match response.status() {
         reqwest::StatusCode::OK => {
-            let body: AccessorResponse =
-                response
-                    .json()
-                    .await
-                    .map_err(|e| McpDomainError::ExternalAuthUnavailable {
-                        server: server.to_owned(),
-                        message: format!("token accessor returned an unreadable body: {e}"),
-                    })?;
+            let body: AccessorResponse = response.json().await.map_err(|error| {
+                tracing::warn!(server, %error, "token accessor returned an unreadable body");
+                McpDomainError::ExternalAuthUnavailable {
+                    server: server.to_owned(),
+                    message: "token accessor returned an unreadable body".to_owned(),
+                }
+            })?;
             if body.access_token.trim().is_empty() {
                 return Err(McpDomainError::ExternalAuthUnavailable {
                     server: server.to_owned(),
@@ -182,14 +180,16 @@ fn insert_header(
     server: &str,
 ) -> McpDomainResult<()> {
     let header_name = HeaderName::try_from(name).map_err(|e| {
-        McpDomainError::Configuration(format!(
-            "external MCP server '{server}' has an invalid header name '{name}': {e}"
-        ))
+        McpDomainError::invalid_configuration(
+            format!("external MCP server '{server}' has an invalid header name '{name}'"),
+            e,
+        )
     })?;
     let header_value = HeaderValue::try_from(value).map_err(|e| {
-        McpDomainError::Configuration(format!(
-            "external MCP server '{server}' has an invalid value for header '{name}': {e}"
-        ))
+        McpDomainError::invalid_configuration(
+            format!("external MCP server '{server}' has an invalid value for header '{name}'"),
+            e,
+        )
     })?;
     map.insert(header_name, header_value);
     Ok(())

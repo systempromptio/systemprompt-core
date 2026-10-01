@@ -71,8 +71,7 @@ impl ArtifactRepository {
             now
         )
         .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         sqlx::query!(
             "DELETE FROM artifact_parts WHERE artifact_id = $1 AND context_id = $2",
@@ -80,8 +79,7 @@ impl ArtifactRepository {
             context_id.as_str()
         )
         .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         for (idx, part) in artifact.parts.iter().enumerate() {
             persist_artifact_part(pool.as_ref(), part, &artifact.id, context_id, idx as i32)
@@ -100,8 +98,7 @@ impl ArtifactRepository {
             artifact_id_str
         )
         .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         Ok(())
     }

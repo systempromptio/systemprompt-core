@@ -11,6 +11,7 @@
 use crate::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 use crate::models::a2a::{AgentCard, Task, TaskState};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::a2a::methods;
 
@@ -94,7 +95,7 @@ impl A2aJsonRpcRequest {
     fn parse_params<T: serde::de::DeserializeOwned>(&self) -> Result<T, A2aParseError> {
         serde_json::from_value(self.params.clone()).map_err(|e| A2aParseError::InvalidParams {
             method: self.method.clone(),
-            error: e.to_string(),
+            source: Arc::new(e),
         })
     }
 }
@@ -114,13 +115,17 @@ pub struct TaskResubscriptionRequest {
     pub task_id: TaskId,
 }
 
-#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
+#[derive(Debug, thiserror::Error, Clone)]
 pub enum A2aParseError {
     #[error("Unsupported method: {method}")]
     UnsupportedMethod { method: String },
 
-    #[error("Invalid parameters for method '{method}': {error}")]
-    InvalidParams { method: String, error: String },
+    #[error("Invalid parameters for method '{method}': {source}")]
+    InvalidParams {
+        method: String,
+        #[source]
+        source: Arc<serde_json::Error>,
+    },
 }
 
 impl A2aResponse {

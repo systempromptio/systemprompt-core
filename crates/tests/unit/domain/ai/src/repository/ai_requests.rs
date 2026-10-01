@@ -135,7 +135,7 @@ async fn insert_with_id_reports_a_duplicate_id_instead_of_claiming_success() {
         .await
         .expect_err("the second insert of the same id is a conflict");
     assert!(
-        matches!(err, systemprompt_ai::error::RepositoryError::AlreadyExists(ref dup) if *dup == id),
+        matches!(err, systemprompt_traits::RepositoryError::Conflict(ref message) if message.contains(id.as_str())),
         "{err}"
     );
 }

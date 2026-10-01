@@ -44,9 +44,10 @@ pub(super) fn process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
         .args(["-p", &pid.to_string(), "-o", "pid,ppid,command"])
         .output()
         .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "failed to run `ps -p {pid} -o pid,ppid,command`: {e}"
-            ))
+            crate::error::McpDomainError::operation(
+                format!("failed to run `ps -p {pid} -o pid,ppid,command`"),
+                e,
+            )
         })?;
 
     if !output.status.success() {

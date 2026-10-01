@@ -53,16 +53,14 @@ pub async fn persist_message_sqlx(
         message.message_id.as_str()
     )
     .execute(&mut **tx)
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     sqlx::query!(
         "DELETE FROM task_messages WHERE message_id = $1",
         message.message_id.as_str()
     )
     .execute(&mut **tx)
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     let client_message_id = message
         .metadata
@@ -92,8 +90,7 @@ pub async fn persist_message_sqlx(
         reference_task_ids.as_deref()
     )
     .execute(&mut **tx)
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     for (idx, part) in message.parts.iter().enumerate() {
         persist_part_sqlx(PersistPartSqlxParams {

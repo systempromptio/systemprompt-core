@@ -5,10 +5,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
 use crate::repository::ai_request_payloads::UpsertPayloadParams;
 use sqlx::{Postgres, Transaction};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, UserId};
+use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
 
@@ -71,21 +71,20 @@ impl AiRequestRepository {
         error: &str,
     ) -> Result<(), RepositoryError> {
         if error.is_empty() || error.len() > 4096 {
-            return Err(RepositoryError::SettlementConflict {
-                request_id: request_id.clone(),
-                reason: "accounting failure must contain bounded diagnostic evidence".to_owned(),
-            });
+            return Err(RepositoryError::invalid_argument(format!(
+                "accounting failure of AI request {request_id} must contain bounded diagnostic \
+                 evidence"
+            )));
         }
         let affected = sqlx::query!(
             "UPDATE ai_requests SET status='failed', accounting_failed_at=COALESCE(accounting_failed_at,CURRENT_TIMESTAMP), accounting_error=COALESCE(accounting_error,$3), error_message=COALESCE(accounting_error,$3), updated_at=CASE WHEN accounting_failed_at IS NULL THEN CURRENT_TIMESTAMP ELSE updated_at END WHERE id=$1 AND user_id=$2 AND (accounting_error IS NULL OR accounting_error=$3)",
             request_id.as_str(), owner.as_str(), error
         ).execute(self.write_pool()).await?.rows_affected();
         if affected != 1 {
-            return Err(RepositoryError::SettlementConflict {
-                request_id: request_id.clone(),
-                reason: "accounting failure owner, request or retained diagnostic differs"
-                    .to_owned(),
-            });
+            return Err(settlement_conflict(
+                request_id,
+                "accounting failure owner, request or retained diagnostic differs",
+            ));
         }
         Ok(())
     }
@@ -104,15 +103,12 @@ impl AiRequestRepository {
         )
         .fetch_optional(&mut *tx)
         .await?
-        .ok_or_else(|| RepositoryError::SettlementConflict {
-            request_id: request_id.clone(),
-            reason: "request row does not exist".to_owned(),
-        })?;
+        .ok_or_else(|| settlement_conflict(request_id, "request row does not exist"))?;
         if stored_owner != owner.as_str() {
-            return Err(RepositoryError::SettlementConflict {
-                request_id: request_id.clone(),
-                reason: "settlement owner differs from the request owner".to_owned(),
-            });
+            return Err(settlement_conflict(
+                request_id,
+                "settlement owner differs from the request owner",
+            ));
         }
         match outcome {
             SettlementOutcome::Completed(completion) => {
@@ -175,10 +171,10 @@ async fn settle_completion(
     if let Some(previous) = previous.as_deref()
         && completion.payload.sha256 != Some(previous)
     {
-        return Err(RepositoryError::SettlementConflict {
-            request_id: request_id.clone(),
-            reason: "a different terminal response is already settled".to_owned(),
-        });
+        return Err(settlement_conflict(
+            request_id,
+            "a different terminal response is already settled",
+        ));
     }
     if previous.is_none() {
         insert_turn(tx, request_id, completion).await?;
@@ -279,8 +275,15 @@ async fn insert_turn(
 }
 
 fn tokens(value: u32) -> Result<i32, RepositoryError> {
-    i32::try_from(value).map_err(|error| RepositoryError::InvalidData {
-        field: "tokens".to_owned(),
-        reason: format!("{value} exceeds the i32 column range: {error}"),
+    i32::try_from(value).map_err(|_| {
+        RepositoryError::invalid_argument(format!(
+            "token count {value} exceeds the i32 column range"
+        ))
     })
+}
+
+fn settlement_conflict(request_id: &AiRequestId, reason: &str) -> RepositoryError {
+    RepositoryError::conflict(format!(
+        "settlement of AI request {request_id} rejected: {reason}"
+    ))
 }

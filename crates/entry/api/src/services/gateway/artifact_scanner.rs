@@ -17,6 +17,7 @@ use systemprompt_ai::Finding;
 use systemprompt_mcp::{ArtifactFinding, ArtifactScanner, PHASE_TOOL_RESULT};
 use systemprompt_models::services::QuotaFaultMode;
 use systemprompt_models::wire::inspect::ForwardedSurface;
+use systemprompt_traits::BoxedSource;
 
 use super::policy::PolicyResolver;
 use super::protocol::CanonicalUsage;
@@ -45,12 +46,11 @@ impl ArtifactScanner for GatewayArtifactScanner {
         GATEWAY_ARTIFACT_SCANNER
     }
 
-    async fn scan(&self, surfaces: &[(String, String)]) -> Result<Vec<ArtifactFinding>, String> {
-        let policy = self
-            .resolver
-            .resolve(QuotaFaultMode::Closed)
-            .await
-            .map_err(|e| e.to_string())?;
+    async fn scan(
+        &self,
+        surfaces: &[(String, String)],
+    ) -> Result<Vec<ArtifactFinding>, BoxedSource> {
+        let policy = self.resolver.resolve(QuotaFaultMode::Closed).await?;
         if policy.safety.scanners.is_empty() || surfaces.is_empty() {
             return Ok(Vec::new());
         }
@@ -74,12 +74,7 @@ impl ArtifactScanner for GatewayArtifactScanner {
         let mut findings: Vec<Finding> = Vec::new();
         for name in &policy.safety.scanners {
             match registry.create(name, &policy.safety) {
-                Some(scanner) => findings.extend(
-                    scanner
-                        .scan_response_final(&response)
-                        .await
-                        .map_err(|e| e.to_string())?,
-                ),
+                Some(scanner) => findings.extend(scanner.scan_response_final(&response).await?),
                 None => {
                     tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped for artifact");
                 },

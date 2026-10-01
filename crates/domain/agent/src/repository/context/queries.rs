@@ -11,7 +11,7 @@ use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
 fn stored_context_id(raw: String) -> Result<ContextId, RepositoryError> {
-    ContextId::try_new(raw).map_err(|e| RepositoryError::InvalidData(e.to_string()))
+    ContextId::try_new(raw).map_err(|e| RepositoryError::decode("context_id", e))
 }
 
 impl ContextRepository {
@@ -24,8 +24,7 @@ impl ContextRepository {
             context_id.as_str(),
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
         Ok(row.map(UserId::new))
     }
 
@@ -82,8 +81,7 @@ impl ContextRepository {
             user_id.as_str()
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         rows.into_iter()
             .map(|r| {
@@ -123,8 +121,7 @@ impl ContextRepository {
             user_id.as_str()
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         rows.into_iter()
             .map(|r| {
@@ -160,8 +157,7 @@ impl ContextRepository {
             session_id.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         row.map(|r| {
             Ok(UserContext {
@@ -191,8 +187,7 @@ impl ContextRepository {
             last_seen
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         if !task_ids.is_empty() {
             let task_ids_typed: Vec<TaskId> = task_ids.iter().map(TaskId::new).collect();
@@ -220,8 +215,7 @@ impl ContextRepository {
             last_seen
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         for row in context_updates {
             events.push(ContextStateEvent::ContextUpdated {

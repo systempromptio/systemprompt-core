@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_agent::{AgentError, ProtocolError};
+use systemprompt_agent::AgentError;
 use systemprompt_loader::BundleError;
 use systemprompt_marketplace::MarketplaceError;
 use systemprompt_marketplace::managed::ManagedError;
@@ -31,10 +31,8 @@ impl From<AgentError> for ApiHttpError {
     fn from(err: AgentError) -> Self {
         let api = match err {
             AgentError::NotFound(msg) => ApiError::not_found(msg),
-            AgentError::Validation(msg)
-            | AgentError::Protocol(ProtocolError::ValidationFailed(msg)) => {
-                ApiError::bad_request(msg)
-            },
+            AgentError::Validation(msg) => ApiError::bad_request(msg),
+            AgentError::Repository(inner) => ApiError::from(inner),
             other => internal_api_error("Agent operation failed", &other),
         };
         Self(api)
