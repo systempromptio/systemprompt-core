@@ -21,7 +21,6 @@ pub mod ai_safety_findings;
 pub mod ownership;
 pub mod thought_signatures;
 
-use crate::error::RepositoryError;
 use systemprompt_database::DbPool;
 
 pub use ai_gateway_policies::{AiGatewayPolicyRepository, GatewayPolicyRow};

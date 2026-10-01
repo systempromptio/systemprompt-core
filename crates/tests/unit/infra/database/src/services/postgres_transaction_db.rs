@@ -186,8 +186,6 @@ async fn the_database_handle_reports_its_pools_and_liveness() {
         !db.write_pool().is_closed(),
         "a postgres-backed handle must expose a live write pool"
     );
-    db.pool();
-    db.write_pool();
 
     db.test_connection()
         .await

@@ -100,7 +100,7 @@ async fn analytics_router_batch() -> anyhow::Result<()> {
 #[tokio::test]
 async fn proxy_mcp_unknown_execution_returns_4xx() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::proxy::mcp::executions_router(&ctx)?.layer(Extension(request_context("u")));
+    let app = routes::proxy::mcp::executions_router(&ctx).layer(Extension(request_context("u")));
     let resp = app.oneshot(empty_get("/executions/exec_missing")).await?;
     assert_eq!(resp.status(), http::StatusCode::NOT_FOUND);
     Ok(())
@@ -109,7 +109,7 @@ async fn proxy_mcp_unknown_execution_returns_4xx() -> anyhow::Result<()> {
 #[tokio::test]
 async fn proxy_mcp_protected_resource_well_known() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::proxy::mcp::router(&ctx)?.layer(Extension(request_context("u")));
+    let app = routes::proxy::mcp::router(&ctx).layer(Extension(request_context("u")));
     let resp = app
         .oneshot(empty_get(
             "/some-mcp/mcp/.well-known/oauth-protected-resource",
@@ -122,7 +122,7 @@ async fn proxy_mcp_protected_resource_well_known() -> anyhow::Result<()> {
 #[tokio::test]
 async fn proxy_mcp_authz_server_well_known() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::proxy::mcp::router(&ctx)?.layer(Extension(request_context("u")));
+    let app = routes::proxy::mcp::router(&ctx).layer(Extension(request_context("u")));
     let resp = app
         .oneshot(empty_get(
             "/some-mcp/mcp/.well-known/oauth-authorization-server",

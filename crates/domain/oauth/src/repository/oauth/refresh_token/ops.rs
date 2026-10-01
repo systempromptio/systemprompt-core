@@ -6,7 +6,7 @@
 use chrono::Utc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
 
-use super::{ConsumedRefreshToken, RefreshTokenParams};
+use super::{ConsumedRefreshToken, RefreshTokenHolder, RefreshTokenParams};
 use crate::error::{OauthError, OauthResult};
 use crate::repository::oauth::OAuthRepository;
 use crate::repository::oauth::at_rest::hash_at_rest;
@@ -139,5 +139,23 @@ impl OAuthRepository {
         .await?;
 
         Ok(result.map(ClientId::new))
+    }
+
+    pub async fn find_refresh_token_holder(
+        &self,
+        token_id: &RefreshTokenId,
+    ) -> OauthResult<Option<RefreshTokenHolder>> {
+        let token_id_hash = hash_at_rest(token_id.as_str())?;
+        let row = sqlx::query!(
+            "SELECT client_id, user_id FROM oauth_refresh_tokens WHERE token_id = $1",
+            token_id_hash
+        )
+        .fetch_optional(self.write_pool_ref())
+        .await?;
+
+        Ok(row.map(|row| RefreshTokenHolder {
+            client_id: ClientId::new(row.client_id),
+            user_id: UserId::new(row.user_id),
+        }))
     }
 }

@@ -139,7 +139,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
         .await
         .unwrap()
         .expect("failed restart retains its service record");
-    assert_eq!(row.status, "error");
+    assert_eq!(row.status.as_str(), "error");
     assert_eq!(row.port, i32::from(port));
     assert!(
         std::net::TcpStream::connect(("127.0.0.1", port)).is_ok(),

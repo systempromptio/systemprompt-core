@@ -12,7 +12,6 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::{OwnerReassignment, ReassignedRows};
 
-use crate::error::RepositoryError;
 
 #[derive(Debug, Clone)]
 pub struct AiOwnerReassignment {

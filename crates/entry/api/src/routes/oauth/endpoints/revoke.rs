@@ -122,18 +122,12 @@ async fn revoke_refresh_token(
     caller: &Caller<'_>,
 ) -> Result<bool, OAuthHttpError> {
     let token_id = RefreshTokenId::new(token);
-    let Some(issued_to) = repo.find_client_id_from_refresh_token(&token_id).await? else {
+    let Some(holder) = repo.find_refresh_token_holder(&token_id).await? else {
         return Ok(false);
     };
-    caller.check_client(Some(&issued_to))?;
+    caller.check_client(Some(&holder.client_id))?;
 
-    let owner = match repo.validate_refresh_token(&token_id, &issued_to).await {
-        Ok((owner, _)) => owner,
-        Err(e) => {
-            tracing::debug!(error = %e, "Refresh token is no longer usable; nothing to revoke");
-            return Ok(true);
-        },
-    };
+    let owner = holder.user_id;
     if !caller.owns(&owner) {
         tracing::warn!(
             caller = %caller.user_id,

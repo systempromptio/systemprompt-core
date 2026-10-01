@@ -12,7 +12,6 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::{OwnerReassignment, ReassignedRows, RepositoryError};
 
-use crate::error::Result;
 
 #[derive(Debug, Clone)]
 pub struct AnalyticsOwnerReassignment {
@@ -36,7 +35,7 @@ impl OwnerReassignment for AnalyticsOwnerReassignment {
         &self,
         from: &UserId,
         to: &UserId,
-    ) -> std::result::Result<ReassignedRows, RepositoryError> {
+    ) -> Result<ReassignedRows, RepositoryError> {
         let mut tx = self
             .write_pool
             .begin()

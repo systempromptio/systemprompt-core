@@ -207,7 +207,7 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
         .await
         .expect("read terminal agent service row")
         .expect("terminal agent service row persists");
-    assert_eq!(row.status, "error");
+    assert_eq!(row.status.as_str(), "error");
     assert_eq!(row.pid, None);
 }
 

@@ -170,7 +170,7 @@ async fn test_authorization_code_pkce_invalid_verifier() {
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
 
-    let (verifier, challenge) = pkce_pair();
+    let (_verifier, challenge) = pkce_pair();
 
     let params = AuthCodeParams::builder(
         &code,

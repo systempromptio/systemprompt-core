@@ -12,7 +12,7 @@ use super::common::{empty_get, request_context, setup_ctx};
 #[tokio::test]
 async fn agents_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = agents::router(&ctx)?;
+    let app = agents::router(&ctx);
     let resp = app.oneshot(empty_get("/does-not-exist")).await?;
     assert!(resp.status().as_u16() >= 400);
     Ok(())
@@ -21,7 +21,7 @@ async fn agents_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
 #[tokio::test]
 async fn agents_proxy_with_path_returns_error() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = agents::router(&ctx)?;
+    let app = agents::router(&ctx);
     let resp = app.oneshot(empty_get("/does-not-exist/foo/bar")).await?;
     assert!(resp.status().as_u16() >= 400);
     Ok(())
@@ -30,7 +30,7 @@ async fn agents_proxy_with_path_returns_error() -> anyhow::Result<()> {
 #[tokio::test]
 async fn mcp_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = mcp::router(&ctx)?;
+    let app = mcp::router(&ctx);
     let resp = app.oneshot(empty_get("/no-such-server/tools/list")).await?;
     assert!(resp.status().as_u16() >= 400);
     Ok(())
@@ -39,7 +39,7 @@ async fn mcp_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
 #[tokio::test]
 async fn mcp_get_execution_unknown_is_not_found() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = mcp::executions_router(&ctx)?.layer(Extension(request_context("u")));
+    let app = mcp::executions_router(&ctx).layer(Extension(request_context("u")));
     let resp = app.oneshot(empty_get("/executions/exec_unknown")).await?;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     Ok(())
@@ -48,7 +48,7 @@ async fn mcp_get_execution_unknown_is_not_found() -> anyhow::Result<()> {
 #[tokio::test]
 async fn mcp_proxy_protected_resource_runs() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = mcp::router(&ctx)?;
+    let app = mcp::router(&ctx);
     let resp = app
         .oneshot(empty_get(
             "/my-server/mcp/.well-known/oauth-protected-resource",
@@ -61,7 +61,7 @@ async fn mcp_proxy_protected_resource_runs() -> anyhow::Result<()> {
 #[tokio::test]
 async fn mcp_proxy_authorization_server_runs() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = mcp::router(&ctx)?;
+    let app = mcp::router(&ctx);
     let resp = app
         .oneshot(empty_get(
             "/my-server/mcp/.well-known/oauth-authorization-server",

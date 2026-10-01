@@ -47,7 +47,7 @@ async fn get_as(
     id: &str,
     req_ctx: RequestContext,
 ) -> anyhow::Result<(StatusCode, String)> {
-    let resp = mcp::executions_router(ctx)?
+    let resp = mcp::executions_router(ctx)
         .layer(Extension(req_ctx))
         .oneshot(empty_get(&format!("/executions/{id}")))
         .await?;

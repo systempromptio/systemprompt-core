@@ -85,3 +85,9 @@ pub struct ConsumedRefreshToken {
     pub scope: String,
     pub family_id: String,
 }
+
+#[derive(Debug, Clone)]
+pub struct RefreshTokenHolder {
+    pub client_id: ClientId,
+    pub user_id: UserId,
+}
