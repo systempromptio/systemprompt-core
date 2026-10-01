@@ -33,10 +33,12 @@ pub fn decode_seed(
         .decode(encoded.trim())
         .map_err(|e| SecretsBootstrapError::ManifestSeedInvalid(e.into()))?;
     if raw.len() != MANIFEST_SIGNING_SEED_BYTES {
-        return Err(SecretsBootstrapError::ManifestSeedInvalid(KeyMaterialError::Length {
-            expected: MANIFEST_SIGNING_SEED_BYTES,
-            actual: raw.len(),
-        }));
+        return Err(SecretsBootstrapError::ManifestSeedInvalid(
+            KeyMaterialError::Length {
+                expected: MANIFEST_SIGNING_SEED_BYTES,
+                actual: raw.len(),
+            },
+        ));
     }
     let mut out = [0u8; MANIFEST_SIGNING_SEED_BYTES];
     out.copy_from_slice(&raw);

@@ -69,7 +69,10 @@ fn repository_error_variants_map_to_http_statuses() {
         (RepositoryError::InvalidArgument("bad".into()), 400),
         (RepositoryError::InvalidData("corrupt".into()), 500),
         (RepositoryError::Internal("boom".into()), 500),
-        (RepositoryError::database(std::io::Error::other("down")), 500),
+        (
+            RepositoryError::database(std::io::Error::other("down")),
+            500,
+        ),
     ];
     for (err, status) in cases {
         let api: ApiError = err.into();

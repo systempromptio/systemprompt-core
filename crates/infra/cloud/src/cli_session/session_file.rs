@@ -18,8 +18,8 @@ impl CliSession {
 
         let content = fs::read_to_string(path)?;
 
-        let mut session: Self = serde_json::from_str(&content)
-            .map_err(|e| CloudError::CredentialsCorrupted {
+        let mut session: Self =
+            serde_json::from_str(&content).map_err(|e| CloudError::CredentialsCorrupted {
                 source: Box::new(e),
             })?;
 

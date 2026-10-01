@@ -147,11 +147,13 @@ async fn run_pass(
 
     let roles_yaml = services_root.join(ROLES_YAML_RELATIVE);
     let roles_present =
-        tokio::fs::try_exists(&roles_yaml).await.map_err(|source| AuthzError::File {
-            action: "probe",
-            path: roles_yaml.display().to_string(),
-            source,
-        })?;
+        tokio::fs::try_exists(&roles_yaml)
+            .await
+            .map_err(|source| AuthzError::File {
+                action: "probe",
+                path: roles_yaml.display().to_string(),
+                source,
+            })?;
     if pass.platform_dirs && roles_present {
         report.roles = Some(
             svc.ingest_config_from_yaml_path(&roles_yaml, options.clone(), &registered)

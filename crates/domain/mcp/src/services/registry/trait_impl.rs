@@ -103,8 +103,8 @@ impl McpRegistryProvider for RegistryService {
     }
 
     async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {
-        let servers = Self::get_enabled_servers(self)
-            .map_err(|e| RegistryError::Unavailable(e.into()))?;
+        let servers =
+            Self::get_enabled_servers(self).map_err(|e| RegistryError::Unavailable(e.into()))?;
         Ok(servers.into_iter().map(server_info).collect())
     }
 }

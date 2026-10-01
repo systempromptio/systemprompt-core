@@ -181,14 +181,15 @@ pub(super) fn check_cross_extension_alters(
     migration: &Migration,
 ) -> Result<(), LoaderError> {
     let ext_id = extension.metadata().id;
-    let altered = alter_table_targets(migration.sql).map_err(|e| LoaderError::MigrationStepFailed {
-        extension: ext_id.to_owned(),
-        context: format!(
-            "Failed to parse migration {} ({}) for cross-extension ALTER check",
-            migration.version, migration.name
-        ),
-        source: Box::new(e),
-    })?;
+    let altered =
+        alter_table_targets(migration.sql).map_err(|e| LoaderError::MigrationStepFailed {
+            extension: ext_id.to_owned(),
+            context: format!(
+                "Failed to parse migration {} ({}) for cross-extension ALTER check",
+                migration.version, migration.name
+            ),
+            source: Box::new(e),
+        })?;
 
     if altered.is_empty() {
         return Ok(());

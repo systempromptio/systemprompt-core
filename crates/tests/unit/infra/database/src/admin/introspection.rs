@@ -8,8 +8,8 @@
 use std::sync::Arc;
 
 use systemprompt_database::{Database, DatabaseAdminService, SafeIdentifier};
-use systemprompt_traits::RepositoryError;
 use systemprompt_test_fixtures::DisposableDb;
+use systemprompt_traits::RepositoryError;
 
 use crate::services::db_helper::test_pool;
 

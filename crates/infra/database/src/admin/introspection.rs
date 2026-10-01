@@ -164,9 +164,8 @@ impl DatabaseAdminService {
     pub async fn list_tables_counted(&self) -> DatabaseResult<Vec<TableInfo>> {
         let mut counted = Vec::new();
         for mut table in self.list_tables().await? {
-            let ident = SafeIdentifier::parse(&table.name).map_err(|e| {
-                RepositoryError::decode(format!("table name {}", table.name), e)
-            })?;
+            let ident = SafeIdentifier::parse(&table.name)
+                .map_err(|e| RepositoryError::decode(format!("table name {}", table.name), e))?;
             let count_query = format!("SELECT COUNT(*) as count FROM {}", ident.quoted());
             match sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(count_query))
                 .fetch_one(&*self.pool)

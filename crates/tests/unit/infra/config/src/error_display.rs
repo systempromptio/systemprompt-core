@@ -190,12 +190,11 @@ fn secrets_bootstrap_error_manifest_seed_required() {
 
 #[test]
 fn secrets_bootstrap_error_manifest_seed_invalid() {
-    let e = SecretsBootstrapError::ManifestSeedInvalid(
-        systemprompt_config::KeyMaterialError::Length {
+    let e =
+        SecretsBootstrapError::ManifestSeedInvalid(systemprompt_config::KeyMaterialError::Length {
             expected: 32,
             actual: 3,
-        },
-    );
+        });
     let msg = format!("{e}");
     assert!(msg.contains("got 3"), "got: {msg}");
 }

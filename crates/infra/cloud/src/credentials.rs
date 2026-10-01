@@ -108,8 +108,8 @@ impl CloudCredentials {
 
         let content = fs::read_to_string(path)?;
 
-        let creds: Self = serde_json::from_str(&content)
-            .map_err(|e| CloudError::CredentialsCorrupted {
+        let creds: Self =
+            serde_json::from_str(&content).map_err(|e| CloudError::CredentialsCorrupted {
                 source: Box::new(e),
             })?;
 

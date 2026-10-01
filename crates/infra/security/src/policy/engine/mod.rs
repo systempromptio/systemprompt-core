@@ -97,11 +97,12 @@ impl std::fmt::Debug for GovernanceEngine {
 impl GovernanceEngine {
     pub fn from_services_root(services_root: &Path) -> Result<Self, GovernanceEngineError> {
         let path = services_root.join("governance/config.yaml");
-        let config =
-            GovernanceConfig::load(&path).map_err(|source| GovernanceEngineError::ConfigRejected {
+        let config = GovernanceConfig::load(&path).map_err(|source| {
+            GovernanceEngineError::ConfigRejected {
                 path: path.display().to_string(),
                 source,
-            })?;
+            }
+        })?;
         Self::from_config(&config)
     }
 

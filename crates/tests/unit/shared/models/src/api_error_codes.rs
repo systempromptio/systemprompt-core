@@ -4,8 +4,14 @@ use systemprompt_models::api::errors::{ApiError, ErrorCode};
 fn constructors_carry_their_error_codes() {
     for (error, code) in [
         (ApiError::not_found("user u-1"), ErrorCode::NotFound),
-        (ApiError::bad_request("missing field"), ErrorCode::BadRequest),
-        (ApiError::unauthorized("expired token"), ErrorCode::Unauthorized),
+        (
+            ApiError::bad_request("missing field"),
+            ErrorCode::BadRequest,
+        ),
+        (
+            ApiError::unauthorized("expired token"),
+            ErrorCode::Unauthorized,
+        ),
         (ApiError::forbidden("not admin"), ErrorCode::Forbidden),
         (ApiError::conflict("user exists"), ErrorCode::ConflictError),
         (ApiError::rate_limited("login"), ErrorCode::RateLimited),
@@ -65,7 +71,10 @@ fn a_server_error_body_is_redacted_to_the_public_message() {
     assert_eq!(body["message"], "Internal server error");
     assert!(body.get("details").is_none(), "{body}");
     assert_eq!(body["error_key"], "decode_failed");
-    assert!(error.source().is_some(), "the cause stays available for logging");
+    assert!(
+        error.source().is_some(),
+        "the cause stays available for logging"
+    );
 
     let unavailable = serde_json::to_value(ApiError::service_unavailable("vault down")).unwrap();
     assert_eq!(unavailable["message"], "Service temporarily unavailable");

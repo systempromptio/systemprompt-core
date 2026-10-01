@@ -135,7 +135,10 @@ pub(super) fn handle_completed(
 }
 
 // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
-pub(super) fn handle_error(value: &Value, events: &mut Vec<Result<CanonicalEvent, WireStreamError>>) {
+pub(super) fn handle_error(
+    value: &Value,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
+) {
     let msg = value
         .get("error")
         .and_then(|e| e.get("message"))

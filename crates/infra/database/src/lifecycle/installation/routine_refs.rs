@@ -101,13 +101,12 @@ fn text(row: &crate::models::JsonRow, key: &str) -> String {
 }
 
 pub async fn check_trigger_routines(db: &dyn DatabaseProvider) -> Result<(), LoaderError> {
-    let failed = |context: String, source: RepositoryError| {
-        LoaderError::SchemaInstallationStepFailed {
+    let failed =
+        |context: String, source: RepositoryError| LoaderError::SchemaInstallationStepFailed {
             extension: "database".to_owned(),
             context,
             source: Box::new(source),
-        }
-    };
+        };
     let rows = db
         .fetch_all(&LIVE_PLPGSQL_TRIGGERS, &[])
         .await

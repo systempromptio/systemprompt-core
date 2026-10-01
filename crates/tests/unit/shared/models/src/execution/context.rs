@@ -232,7 +232,12 @@ fn request_context_validate_authenticated_fails_with_anonymous_user() {
     let ctx = test_context().with_auth_token("some-token");
     let result = ctx.validate_authenticated();
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("not authenticated"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("not authenticated")
+    );
 }
 
 #[test]

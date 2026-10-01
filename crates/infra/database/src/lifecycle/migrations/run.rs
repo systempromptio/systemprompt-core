@@ -76,7 +76,8 @@ impl MigrationService<'_> {
             let restored = suspended.restore(&mut Target::Pool(self.db)).await;
             self.clear_timeouts(ext_id).await?;
             outcome?;
-            restored.map_err(|e| failed("Failed to restore row triggers".to_owned(), Box::new(e)))?;
+            restored
+                .map_err(|e| failed("Failed to restore row triggers".to_owned(), Box::new(e)))?;
             self.db
                 .execute(&RECORD_MIGRATION_SQL, &record_params)
                 .await

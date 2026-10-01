@@ -36,8 +36,8 @@ impl SqlExecutor {
     }
 
     pub fn parse_sql_statements(sql: &str) -> DatabaseResult<Vec<String>> {
-        let statements = pg_query::split_with_parser(sql)
-            .map_err(|e| RepositoryError::SqlParse(Box::new(e)))?;
+        let statements =
+            pg_query::split_with_parser(sql).map_err(|e| RepositoryError::SqlParse(Box::new(e)))?;
         Ok(statements
             .into_iter()
             .map(str::trim)

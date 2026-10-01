@@ -38,7 +38,8 @@ impl Extension for SlackExtension {
                 source: Box::new(e),
             })?;
         for (name, app) in &apps {
-            app.validate(name).map_err(|e| ExtensionConfigError::SchemaValidation(Box::new(e)))?;
+            app.validate(name)
+                .map_err(|e| ExtensionConfigError::SchemaValidation(Box::new(e)))?;
         }
         Ok(())
     }

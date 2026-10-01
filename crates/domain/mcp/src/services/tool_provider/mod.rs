@@ -201,7 +201,9 @@ impl ToolProvider for McpToolProvider {
             "Refreshing MCP connections for agent"
         );
 
-        self.registry.validate().map_err(|e| ToolProviderError::Internal(Box::new(e)))?;
+        self.registry
+            .validate()
+            .map_err(|e| ToolProviderError::Internal(Box::new(e)))?;
 
         let api_server_url = systemprompt_models::Config::get()
             .map_err(|e| ToolProviderError::ConfigurationError {

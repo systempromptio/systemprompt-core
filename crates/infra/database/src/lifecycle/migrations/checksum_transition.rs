@@ -73,9 +73,9 @@ impl MigrationService<'_> {
             match result {
                 Ok(1) => {},
                 Ok(_) => {
-                    tx.rollback().await.map_err(|error| {
-                        step("Rollback checksum transition".to_owned(), error)
-                    })?;
+                    tx.rollback()
+                        .await
+                        .map_err(|error| step("Rollback checksum transition".to_owned(), error))?;
                     return Err(LoaderError::MigrationFailed {
                         extension: extension.to_owned(),
                         message: "Migration history changed concurrently; retry verified checksum transition".to_owned(),

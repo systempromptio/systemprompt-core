@@ -65,7 +65,11 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
     fn generate_token(&self, params: GenerateTokenParams) -> JwtResult<String> {
         let user_id = Uuid::parse_str(params.user_id.as_str()).map_err(|e| {
             JwtProviderError::Internal(
-                format!("user_id {:?} is not a valid UUID: {e}", params.user_id.as_str()).into(),
+                format!(
+                    "user_id {:?} is not a valid UUID: {e}",
+                    params.user_id.as_str()
+                )
+                .into(),
             )
         })?;
 

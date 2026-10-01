@@ -196,11 +196,13 @@ impl JobContext {
         self.parameters
             .get(key)
             .map(|value| {
-                value.parse().map_err(|e| crate::ProviderError::InvalidParameter {
-                    key: key.to_owned(),
-                    value: value.clone(),
-                    source: Box::new(e),
-                })
+                value
+                    .parse()
+                    .map_err(|e| crate::ProviderError::InvalidParameter {
+                        key: key.to_owned(),
+                        value: value.clone(),
+                        source: Box::new(e),
+                    })
             })
             .transpose()
     }

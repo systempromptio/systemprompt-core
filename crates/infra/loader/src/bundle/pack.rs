@@ -172,7 +172,8 @@ pub fn write_tarball(root: &Path, signed: &SignedBundleManifest, out: &Path) -> 
             tar.append_path_with_name(&full, &name)
                 .map_err(|e| BundleError::extract_cause(&full, e))?;
         }
-        tar.finish().map_err(|e| BundleError::extract_cause(out, e))?;
+        tar.finish()
+            .map_err(|e| BundleError::extract_cause(out, e))?;
     }
     encoder.finish()?;
     Ok(())
@@ -187,7 +188,8 @@ pub fn create_tarball_bytes(root: &Path, files: &[FileEntry]) -> BundleResult<Ve
             tar.append_path_with_name(&full, &entry.path)
                 .map_err(|e| BundleError::extract_cause(&full, e))?;
         }
-        tar.finish().map_err(|e| BundleError::extract_cause(root, e))?;
+        tar.finish()
+            .map_err(|e| BundleError::extract_cause(root, e))?;
     }
     Ok(encoder.finish()?)
 }

@@ -239,14 +239,10 @@ fn test_loader_error_variant_matching() {
                 assert!(!message.is_empty());
             },
             LoaderError::SchemaInstallationStepFailed {
-                extension,
-                context,
-                ..
+                extension, context, ..
             }
             | LoaderError::MigrationStepFailed {
-                extension,
-                context,
-                ..
+                extension, context, ..
             } => {
                 assert!(!extension.is_empty());
                 assert!(!context.is_empty());

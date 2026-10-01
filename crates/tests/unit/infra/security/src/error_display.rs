@@ -114,7 +114,10 @@ fn jwt_error_signing_display() {
 fn manifest_signing_error_seed_unavailable_display() {
     let e = ManifestSigningError::SeedUnavailable(SecretsBootstrapError::ManifestSeedRequired);
     let s = e.to_string();
-    assert!(s.contains("manifest_signing_secret_seed is required"), "got: {s}");
+    assert!(
+        s.contains("manifest_signing_secret_seed is required"),
+        "got: {s}"
+    );
 }
 
 #[test]

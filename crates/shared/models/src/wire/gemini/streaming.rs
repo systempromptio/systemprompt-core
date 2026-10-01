@@ -105,7 +105,10 @@ fn drain_tail(state: &mut StreamState) -> Vec<Result<CanonicalEvent, WireStreamE
     events
 }
 
-fn drain_buffer(state: &mut StreamState, bytes: &[u8]) -> Vec<Result<CanonicalEvent, WireStreamError>> {
+fn drain_buffer(
+    state: &mut StreamState,
+    bytes: &[u8],
+) -> Vec<Result<CanonicalEvent, WireStreamError>> {
     state.buf.extend_from_slice(bytes);
     let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
     while let Some(end) = crate::wire::sse::frame_end(&state.buf) {

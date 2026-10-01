@@ -79,20 +79,19 @@ async fn with_transaction_retry_does_not_retry_permanent_error() {
 
     let attempts = AtomicU32::new(0);
     let table_for_closure = table.clone();
-    let result: Result<(), RepositoryError> =
-        with_transaction_retry(&pool, 3, |tx| {
-            attempts.fetch_add(1, Ordering::SeqCst);
-            let table = table_for_closure.clone();
-            Box::pin(async move {
-                let stmt = format!("INSERT INTO \"{table}\" (id) VALUES (1), (1)");
-                sqlx::query(sqlx::AssertSqlSafe(stmt))
-                    .execute(&mut **tx)
-                    .await
-                    .map_err(RepositoryError::from)?;
-                Ok(())
-            })
+    let result: Result<(), RepositoryError> = with_transaction_retry(&pool, 3, |tx| {
+        attempts.fetch_add(1, Ordering::SeqCst);
+        let table = table_for_closure.clone();
+        Box::pin(async move {
+            let stmt = format!("INSERT INTO \"{table}\" (id) VALUES (1), (1)");
+            sqlx::query(sqlx::AssertSqlSafe(stmt))
+                .execute(&mut **tx)
+                .await
+                .map_err(RepositoryError::from)?;
+            Ok(())
         })
-        .await;
+    })
+    .await;
 
     assert!(result.is_err(), "unique violation is permanent");
     assert_eq!(

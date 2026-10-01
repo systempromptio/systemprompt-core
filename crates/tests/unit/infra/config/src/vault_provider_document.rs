@@ -53,10 +53,7 @@ fn a_document_missing_the_required_pepper_fails_to_become_secrets() {
 
     let err = document.into_secrets().unwrap_err();
 
-    assert!(matches!(
-        err,
-        SecretsBootstrapError::InvalidSecretsFile(_)
-    ));
+    assert!(matches!(err, SecretsBootstrapError::InvalidSecretsFile(_)));
 }
 
 #[test]

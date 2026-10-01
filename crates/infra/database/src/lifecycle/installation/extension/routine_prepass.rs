@@ -28,13 +28,12 @@ pub(super) async fn apply_routine_prepass(
             routines = p.routines.len(),
             "Pre-applying declarative routines"
         );
-        let failed = |context: String, source: RepositoryError| {
-            LoaderError::SchemaInstallationStepFailed {
+        let failed =
+            |context: String, source: RepositoryError| LoaderError::SchemaInstallationStepFailed {
                 extension: p.extension_id.clone(),
                 context: format!("routine pre-pass: {context}"),
                 source: Box::new(source),
-            }
-        };
+            };
         let mut tx = db
             .begin_transaction()
             .await

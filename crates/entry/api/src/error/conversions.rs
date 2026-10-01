@@ -1,8 +1,9 @@
 //! `From` impls mapping domain and repository errors onto [`ApiHttpError`],
 //! keeping the variant-to-HTTP-status mapping in one place so non-OAuth
 //! handlers use `?`. `RepositoryError` already classifies into [`ApiError`] in
-//! `systemprompt-models`; that impl is reused here. The umbrella domain errors are classified by variant so that, e.g., a
-//! repository failure surfaces as 500 while a missing entity surfaces as 404.
+//! `systemprompt-models`; that impl is reused here. The umbrella domain errors
+//! are classified by variant so that, e.g., a repository failure surfaces as
+//! 500 while a missing entity surfaces as 404.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

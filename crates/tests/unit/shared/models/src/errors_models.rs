@@ -103,4 +103,3 @@ fn metadata_error_variants_display() {
             .contains("JSON object")
     );
 }
-

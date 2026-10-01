@@ -137,11 +137,13 @@ impl AccessControlIngestionService {
         options: IngestOptions,
         registered: &RegisteredEntities,
     ) -> AuthzResult<IngestReport> {
-        let raw = tokio::fs::read_to_string(yaml_path).await.map_err(|source| AuthzError::File {
-            action: "read",
-            path: yaml_path.display().to_string(),
-            source,
-        })?;
+        let raw = tokio::fs::read_to_string(yaml_path)
+            .await
+            .map_err(|source| AuthzError::File {
+                action: "read",
+                path: yaml_path.display().to_string(),
+                source,
+            })?;
         let cfg: AccessControlConfig =
             serde_yaml::from_str(&raw).map_err(|source| AuthzError::ConfigParse {
                 path: yaml_path.display().to_string(),
