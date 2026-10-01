@@ -10,8 +10,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{TokenId, UserId};
 use systemprompt_oauth::error::OauthError;
 use systemprompt_oauth::repository::{
-    CreateSetupTokenParams, LinkChallengeReservation, OAuthRepository, ReserveLinkChallengeParams,
-    SetupTokenPurpose, StoreChallengeParams, WebAuthnChallengeKind,
+    CreateSetupTokenParams, LinkChallengeReservation, OAuthRepository, OauthCleanupRepository,
+    ReserveLinkChallengeParams, SetupTokenPurpose, StoreChallengeParams, WebAuthnChallengeKind,
 };
 use systemprompt_oauth::services::webauthn::hash_token;
 use systemprompt_oauth::services::{WebAuthnConfig, WebAuthnService};
@@ -239,13 +239,13 @@ async fn expired_challenge_is_not_consumable_and_is_purged_by_cleanup() {
         .expect("consume");
     assert!(consumed.is_none(), "ttl 0 must already be expired");
 
-    ctx.replica_a
-        .cleanup_expired_states()
+    let cleanup = OauthCleanupRepository::new(&ctx.pool).expect("cleanup repository");
+    cleanup
+        .delete_expired_webauthn_challenges()
         .await
         .expect("cleanup");
-    let removed = ctx
-        .repo
-        .cleanup_expired_webauthn_challenges()
+    let removed = cleanup
+        .delete_expired_webauthn_challenges()
         .await
         .expect("second cleanup");
     assert_eq!(removed, 0, "the first cleanup purged the expired row");

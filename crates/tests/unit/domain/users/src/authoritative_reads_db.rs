@@ -51,7 +51,7 @@ async fn attestation_lookup_reads_the_primary_but_listing_does_not() {
         0
     );
     assert!(
-        repo.find_recent_by_fingerprint(&nonce, 60)
+        repo.find_recent_anonymous_by_fingerprint(&nonce, 60)
             .await
             .expect("primary reuse lookup")
             .is_none()

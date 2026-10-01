@@ -1,12 +1,11 @@
-// WebAuthnRegistry process-wide singleton: second call returns the cached
-// service; also drives WebAuthnService::new + Debug via the config path.
+// WebAuthnService construction through the config path: an IP-address relying
+// party is rejected when the composition root builds the service.
 
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::WebAuthnService;
-use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
 
@@ -61,21 +60,6 @@ impl UserProvider for NoopUsers {
     async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {
         Ok(0)
     }
-}
-
-#[tokio::test]
-async fn registry_surfaces_invalid_relying_party_configuration() {
-    ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
-
-    let err = WebAuthnRegistry::get_or_create_service(repo, Arc::new(NoopUsers))
-        .await
-        .expect_err("ip-address rp_id from the fixture profile must be rejected");
-    assert!(matches!(
-        err,
-        systemprompt_oauth::error::OauthError::WebAuthnVerificationFailed(_)
-    ));
 }
 
 #[tokio::test]

@@ -8,14 +8,11 @@ use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use tracing::instrument;
 
 use crate::routes::oauth::OAuthHttpError;
-use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
 pub struct StartLinkQuery {
@@ -29,19 +26,16 @@ pub(super) struct StartLinkUserInfo {
     pub name: String,
 }
 
-#[instrument(skip(state, oauth_repo, params), fields(token_prefix = %params.token.chars().take(12).collect::<String>()))]
+#[instrument(skip(state, params), fields(token_prefix = %params.token.chars().take(12).collect::<String>()))]
 pub async fn start_link(
     Query(params): Query<StartLinkQuery>,
     State(state): State<OAuthState>,
-    OAuthRepo(oauth_repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
     if params.token.is_empty() {
         return Err(OAuthHttpError::invalid_request("Token is required"));
     }
 
-    let user_provider = Arc::clone(state.user_provider());
-    let webauthn_service =
-        WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
+    let webauthn_service = state.webauthn()?;
 
     let (challenge, challenge_id, user_info) = webauthn_service
         .start_registration_with_token(&params.token)

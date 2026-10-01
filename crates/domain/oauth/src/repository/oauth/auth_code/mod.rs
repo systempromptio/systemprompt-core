@@ -1,6 +1,7 @@
-//! Authorisation code persistence with PKCE. The `code` and the linked
-//! `refresh_token_id` are stored as HMAC-SHA-256 digests under the deployment
-//! pepper; raw values never touch the database.
+//! Authorisation code persistence with mandatory PKCE. Every code is bound to
+//! an S256 challenge and its redirect URI, and redemption always checks both.
+//! The `code` and the linked `refresh_token_id` are stored as HMAC-SHA-256
+//! digests under the deployment pepper; raw values never touch the database.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,6 +9,7 @@
 use super::OAuthRepository;
 use super::at_rest::hash_at_rest;
 use crate::error::{OauthError, OauthResult};
+use crate::models::PkceMethod;
 use chrono::Utc;
 use pkce::verify_pkce;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
@@ -33,6 +35,16 @@ impl OAuthRepository {
             },
             str::to_owned,
         );
+        if params.code_challenge.is_empty() {
+            return Err(OauthError::Validation(
+                "PKCE code_challenge is required".to_owned(),
+            ));
+        }
+        if params.code_challenge_method.parse::<PkceMethod>().is_err() {
+            return Err(OauthError::Validation(
+                "PKCE code_challenge_method must be S256".to_owned(),
+            ));
+        }
         let code = AuthorizationCode::new(crate::services::generate_secure_token("auth_code"));
 
         let mut builder = AuthCodeParams::builder(
@@ -41,13 +53,8 @@ impl OAuthRepository {
             params.user_id,
             params.redirect_uri,
             &scope,
+            params.code_challenge,
         );
-        if let (Some(challenge), Some(method)) = (
-            params.code_challenge.filter(|s| !s.is_empty()),
-            params.code_challenge_method.filter(|s| !s.is_empty()),
-        ) {
-            builder = builder.with_pkce(challenge, method);
-        }
         if let Some(resource) = params.resource {
             builder = builder.with_resource(resource);
         }
@@ -55,6 +62,12 @@ impl OAuthRepository {
         Ok(code)
     }
     pub async fn store_authorization_code(&self, params: AuthCodeParams<'_>) -> OauthResult<()> {
+        if params.code_challenge.is_empty() {
+            return Err(OauthError::Validation(
+                "PKCE code_challenge is required".to_owned(),
+            ));
+        }
+        let code_challenge_method = PkceMethod::S256.as_str();
         let expires_at = Utc::now() + chrono::Duration::seconds(600);
         let now = Utc::now();
         let code_hash = hash_at_rest(params.code.as_str())?;
@@ -73,7 +86,7 @@ impl OAuthRepository {
             params.scope,
             expires_at,
             params.code_challenge,
-            params.code_challenge_method,
+            code_challenge_method,
             params.resource,
             now
         )
@@ -102,8 +115,8 @@ impl OAuthRepository {
         &self,
         code: &AuthorizationCode,
         client_id: &ClientId,
-        redirect_uri: Option<&str>,
-        code_verifier: Option<&str>,
+        redirect_uri: &str,
+        code_verifier: &str,
     ) -> OauthResult<AuthCodeValidationResult> {
         let now = Utc::now();
         let code_hash = hash_at_rest(code.as_str())?;
@@ -142,12 +155,10 @@ impl OAuthRepository {
             ));
         }
 
-        if let Some(expected_uri) = redirect_uri
-            && row.redirect_uri != expected_uri
-        {
+        if row.redirect_uri != redirect_uri {
             tracing::warn!(
-                expected = %expected_uri,
-                actual = %row.redirect_uri,
+                expected = %row.redirect_uri,
+                actual = %redirect_uri,
                 "Redirect URI mismatch"
             );
             return Err(OauthError::Validation(
@@ -155,13 +166,17 @@ impl OAuthRepository {
             ));
         }
 
-        if let Some(ref challenge) = row.code_challenge {
-            verify_pkce(
-                challenge,
-                row.code_challenge_method.as_deref(),
-                code_verifier,
-            )?;
-        }
+        let Some(challenge) = row.code_challenge.as_deref() else {
+            tracing::warn!("Authorization code carries no PKCE challenge");
+            return Err(OauthError::Validation(
+                "Invalid authorization code".to_owned(),
+            ));
+        };
+        verify_pkce(
+            challenge,
+            row.code_challenge_method.as_deref(),
+            code_verifier,
+        )?;
 
         Ok(AuthCodeValidationResult {
             user_id: UserId::new(row.user_id),

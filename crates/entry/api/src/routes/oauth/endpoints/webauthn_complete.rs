@@ -15,7 +15,6 @@ use axum::extract::{Query, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
@@ -26,7 +25,6 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{MintAuthCodeParams, OAuthRepository};
 use systemprompt_oauth::services::is_browser_request;
 use systemprompt_oauth::services::validation::validate_redirect_uri;
-use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 
 #[derive(Debug, Deserialize)]
 pub struct WebAuthnCompleteQuery {
@@ -53,12 +51,9 @@ async fn verify_completion(
         .as_deref()
         .ok_or_else(|| OAuthHttpError::invalid_request("Missing auth_token parameter"))?;
 
-    let webauthn_service =
-        WebAuthnRegistry::get_or_create_service(repo.clone(), Arc::clone(state.user_provider()))
-            .await
-            .map_err(|e| {
-                OAuthHttpError::server_error(format!("WebAuthn service initialization failed: {e}"))
-            })?;
+    let webauthn_service = state
+        .webauthn()
+        .map_err(|e| OAuthHttpError::server_error(format!("WebAuthn service unavailable: {e}")))?;
 
     let verified_user_id = webauthn_service
         .consume_verified_authentication(auth_token)
@@ -127,8 +122,8 @@ pub async fn handle_webauthn_complete(
             user_id: &params.user_id,
             redirect_uri: &redirect_uri,
             scope: params.scope.as_deref(),
-            code_challenge: params.code_challenge.as_deref(),
-            code_challenge_method: params.code_challenge_method.as_deref(),
+            code_challenge: params.code_challenge.as_deref().unwrap_or_default(),
+            code_challenge_method: params.code_challenge_method.as_deref().unwrap_or_default(),
             resource: params.resource.as_deref(),
         })
         .await?;

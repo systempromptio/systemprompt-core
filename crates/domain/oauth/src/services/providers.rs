@@ -10,6 +10,8 @@ use systemprompt_traits::{
 };
 use uuid::Uuid;
 
+use crate::error::OauthError;
+
 use super::generation::{JwtConfig, JwtSigningParams, generate_jwt, generate_secure_token};
 use super::validation::jwt::validate_jwt_token;
 
@@ -41,13 +43,11 @@ impl JwtValidationProviderImpl {
 
 impl JwtValidationProvider for JwtValidationProviderImpl {
     fn validate_token(&self, token: &str) -> JwtResult<AgentJwtClaims> {
-        let claims = validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| {
-            if e.to_string().contains("expired") {
-                JwtProviderError::TokenExpired
-            } else {
-                JwtProviderError::InvalidToken
-            }
-        })?;
+        let claims =
+            validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| match e {
+                OauthError::Expired(_) => JwtProviderError::TokenExpired,
+                _ => JwtProviderError::InvalidToken,
+            })?;
 
         let is_admin = claims.is_admin();
         Ok(AgentJwtClaims {
@@ -79,25 +79,32 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             attributes: std::collections::BTreeMap::new(),
         };
 
-        let permissions: Vec<Permission> = params
+        let permissions = params
             .permissions
             .iter()
-            .filter_map(|p| p.parse().ok())
-            .collect();
+            .map(|p| {
+                p.parse::<Permission>()
+                    .map_err(|_e| JwtProviderError::Internal(format!("unknown permission {p:?}")))
+            })
+            .collect::<JwtResult<Vec<_>>>()?;
 
-        let audiences: Vec<JwtAudience> = params
+        let audiences = params
             .audiences
             .iter()
-            .filter_map(|a| a.parse().ok())
-            .collect();
+            .map(|a| {
+                a.parse::<JwtAudience>()
+                    .map_err(|_e| JwtProviderError::MissingAudience(a.clone()))
+            })
+            .collect::<JwtResult<Vec<_>>>()?;
+        if audiences.is_empty() {
+            return Err(JwtProviderError::MissingAudience(
+                "at least one audience is required".to_owned(),
+            ));
+        }
 
         let config = JwtConfig {
             permissions,
-            audience: if audiences.is_empty() {
-                JwtAudience::standard()
-            } else {
-                audiences
-            },
+            audience: audiences,
             expires_in: params.expires_in_hours.map_or_else(
                 || JwtConfig::default().expires_in,
                 |hours| chrono::Duration::hours(i64::from(hours)),

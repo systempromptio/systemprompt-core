@@ -14,15 +14,13 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::services::webauthn::{FinishRegistrationParams, WebAuthnRegistry};
+use systemprompt_oauth::services::webauthn::FinishRegistrationParams;
 use tracing::instrument;
 use webauthn_rs::prelude::*;
 
 use crate::routes::oauth::OAuthHttpError;
-use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
 pub struct FinishRegisterRequest {
@@ -67,10 +65,9 @@ pub(super) struct FinishRegisterResponse {
     pub auth_token: Option<String>,
 }
 
-#[instrument(skip(state, oauth_repo, request), fields(challenge_id = %request.challenge_id, username = %request.username))]
+#[instrument(skip(state, request), fields(challenge_id = %request.challenge_id, username = %request.username))]
 pub async fn finish_register(
     State(state): State<OAuthState>,
-    OAuthRepo(oauth_repo): OAuthRepo,
     Json(request): Json<FinishRegisterRequest>,
 ) -> Result<Response, OAuthHttpError> {
     super::ensure_registration_enabled()?;
@@ -78,10 +75,7 @@ pub async fn finish_register(
         .validate()
         .map_err(OAuthHttpError::invalid_request)?;
 
-    let user_provider = Arc::clone(state.user_provider());
-
-    let webauthn_service =
-        WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
+    let webauthn_service = state.webauthn()?;
 
     let mut builder = FinishRegistrationParams::builder(
         request.challenge_id.as_str(),

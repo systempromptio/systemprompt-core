@@ -79,8 +79,7 @@ impl WebAuthnService {
             .finish_passkey_authentication(auth_response, &auth_state)
         {
             Ok(auth_result) => {
-                self.complete_authentication(&auth_result, challenge_id)
-                    .await?;
+                self.record_authentication(&user_id, &auth_result).await?;
 
                 tracing::info!(
                     user_id = %user_id,
@@ -125,16 +124,5 @@ impl WebAuthnService {
         let state: PasskeyAuthentication = serde_json::from_value(consumed.state)?;
 
         Ok((state, user_id, consumed.oauth_state))
-    }
-
-    async fn complete_authentication(
-        &self,
-        auth_result: &AuthenticationResult,
-        _challenge_id: &str,
-    ) -> Result<()> {
-        let cred_id = auth_result.cred_id();
-        self.update_credential_counter(cred_id.as_ref(), auth_result.counter())
-            .await?;
-        Ok(())
     }
 }

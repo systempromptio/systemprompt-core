@@ -1,6 +1,6 @@
 //! Tests for repository type structures.
 
-use systemprompt_analytics::SessionMigrationResult;
+use systemprompt_traits::session_store::SessionMigrationResult;
 
 mod session_migration_result_tests {
     use super::*;

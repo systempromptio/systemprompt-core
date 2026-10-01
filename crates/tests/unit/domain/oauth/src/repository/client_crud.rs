@@ -336,8 +336,4 @@ async fn update_last_used_marks_timestamp() {
         .update_last_used(&client_id, ts)
         .await
         .expect("update_last_used");
-
-    // After marking used, it should no longer appear in the unused list.
-    let unused = ctx.repo.list_unused(0).await.expect("list_unused");
-    assert!(!unused.iter().any(|c| c.client_id == client_id));
 }

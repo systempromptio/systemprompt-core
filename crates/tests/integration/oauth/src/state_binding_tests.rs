@@ -3,7 +3,7 @@
 use crate::setup_test_db;
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
+use systemprompt_oauth::repository::{OAuthRepository, OauthCleanupRepository, StateBindingParams};
 use uuid::Uuid;
 
 fn unique_token() -> String {
@@ -122,8 +122,9 @@ async fn cleanup_expired_removes_only_expired() {
     .await
     .expect("store dead");
 
-    let removed = repo
-        .cleanup_expired_state_bindings()
+    let removed = OauthCleanupRepository::new(&db)
+        .expect("cleanup repo")
+        .delete_expired_state_bindings()
         .await
         .expect("cleanup ok");
     assert!(removed >= 1, "cleanup must reap at least the dead row");

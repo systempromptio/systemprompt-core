@@ -17,9 +17,7 @@ pub mod webauthn_challenge;
 pub use bridge_host_prefs::BridgeHostPrefsRepository;
 pub use bridge_session::{BridgeSessionRepository, BridgeSessionRow, UpsertBridgeSession};
 pub use cleanup::{OauthCleanupCounts, OauthCleanupRepository};
-pub use client::{
-    ClientRepository, ClientSummary, ClientUsageSummary, CreateClientParams, UpdateClientParams,
-};
+pub use client::{ClientRepository, CreateClientParams, UpdateClientParams};
 pub use exchange_code::CreateExchangeCodeParams;
 pub use oauth::{
     AuthCodeParams, AuthCodeValidationResult, JtiRevocationCache, MintAuthCodeParams,

@@ -1,6 +1,7 @@
 // End-to-end WebAuthn ceremonies driven by a softtoken authenticator:
 // registration finish (success + tampered), authentication finish (success,
-// counter persistence, replayed challenge), and setup-token link flows.
+// counter persistence and cloned-authenticator rejection, replayed
+// challenge), and setup-token link flows.
 
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -9,7 +10,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::error::OauthError;
 use systemprompt_oauth::repository::{
-    CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose, TokenValidationResult,
+    CreateSetupTokenParams, OAuthRepository, OauthCleanupRepository, SetupTokenPurpose,
+    TokenValidationResult,
 };
 use systemprompt_oauth::services::webauthn::{FinishRegistrationParams, hash_token};
 use systemprompt_oauth::services::{WebAuthnConfig, WebAuthnService};
@@ -166,8 +168,9 @@ async fn registration_then_authentication_roundtrip_succeeds() {
     let assertion = auth
         .do_authentication(origin(), rcr)
         .expect("softtoken assertion");
-    ctx.service
-        .cleanup_expired_states()
+    OauthCleanupRepository::new(&ctx.pool)
+        .expect("cleanup repository")
+        .delete_expired_webauthn_challenges()
         .await
         .expect("fresh auth state must survive cleanup");
     let (authed_user, oauth_state) = ctx
@@ -193,7 +196,7 @@ async fn registered_credential_is_persisted_and_excluded_on_reregistration() {
         .await
         .expect("list credentials");
     assert_eq!(creds.len(), 1);
-    assert_eq!(creds[0].counter, 0);
+    assert_eq!(stored_counter(&creds[0].public_key), 0);
 
     let (ccr, _challenge) = ctx
         .service
@@ -299,6 +302,82 @@ async fn finish_authentication_with_mismatched_assertion_fails_verification() {
         .finish_authentication(&challenge_b, &assertion_for_a)
         .await
         .expect_err("assertion answering challenge A must not satisfy challenge B");
+    assert!(matches!(err, OauthError::WebAuthnVerificationFailed(_)));
+}
+
+fn stored_counter(passkey_blob: &[u8]) -> u64 {
+    let passkey: serde_json::Value = serde_json::from_slice(passkey_blob).expect("passkey json");
+    passkey["cred"]["counter"].as_u64().expect("counter")
+}
+
+async fn authenticate(
+    ctx: &Ctx,
+    auth: &mut WebauthnAuthenticator<SoftToken>,
+    email: &str,
+) -> Result<(UserId, Option<String>), OauthError> {
+    let (rcr, challenge) = ctx
+        .service
+        .start_authentication(email, None)
+        .await
+        .expect("start_authentication");
+    let assertion = auth.do_authentication(origin(), rcr).expect("assertion");
+    ctx.service
+        .finish_authentication(&challenge, &assertion)
+        .await
+}
+
+#[tokio::test]
+async fn authentication_persists_the_advanced_signature_counter() {
+    let ctx = setup().await;
+    let email = unique_email("ctr");
+    let mut auth = authenticator();
+    let user_id = register_user(&ctx, &mut auth, "ctr-user", &email).await;
+
+    for expected in 1..=2u64 {
+        authenticate(&ctx, &mut auth, &email)
+            .await
+            .expect("authentication");
+        let creds = ctx
+            .repo
+            .list_webauthn_credentials(&user_id)
+            .await
+            .expect("list credentials");
+        assert_eq!(
+            stored_counter(&creds[0].public_key),
+            expected,
+            "the stored passkey must carry the counter of the last assertion"
+        );
+        assert!(creds[0].last_used_at.is_some());
+    }
+}
+
+#[tokio::test]
+async fn assertion_behind_the_stored_counter_is_rejected_as_a_clone() {
+    let ctx = setup().await;
+    let email = unique_email("clone");
+    let mut auth = authenticator();
+    let user_id = register_user(&ctx, &mut auth, "clone-user", &email).await;
+    authenticate(&ctx, &mut auth, &email)
+        .await
+        .expect("first authentication");
+
+    let creds = ctx
+        .repo
+        .list_webauthn_credentials(&user_id)
+        .await
+        .expect("list credentials");
+    let mut ahead: serde_json::Value =
+        serde_json::from_slice(&creds[0].public_key).expect("passkey json");
+    ahead["cred"]["counter"] = serde_json::json!(100);
+    let ahead = serde_json::to_vec(&ahead).expect("encode passkey");
+    ctx.repo
+        .replace_webauthn_passkey(&creds[0].credential_id, &creds[0].public_key, &ahead)
+        .await
+        .expect("advance the stored counter past the authenticator");
+
+    let err = authenticate(&ctx, &mut auth, &email)
+        .await
+        .expect_err("an assertion at or below the stored counter must be refused");
     assert!(matches!(err, OauthError::WebAuthnVerificationFailed(_)));
 }
 

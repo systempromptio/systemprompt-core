@@ -8,17 +8,17 @@ use std::sync::Arc;
 use http::HeaderMap;
 
 use systemprompt_models::ContentRouting;
-use systemprompt_traits::ExtractSignals;
+use systemprompt_traits::{DynSessionStore, ExtractSignals};
 
 use crate::GeoIpReader;
-use crate::repository::{AnalyticsRepositories, CostAnalyticsRepository, SessionRepository};
+use crate::repository::{AnalyticsRepositories, CostAnalyticsRepository};
 use crate::services::{ProfileUsageService, SessionAnalytics, SessionAnalyticsBuilder};
 
 #[derive(Clone)]
 pub struct AnalyticsService {
     geoip_reader: Option<GeoIpReader>,
     content_routing: Option<Arc<dyn ContentRouting>>,
-    session_repo: SessionRepository,
+    session_store: DynSessionStore,
     cost_repo: CostAnalyticsRepository,
 }
 
@@ -27,7 +27,7 @@ impl std::fmt::Debug for AnalyticsService {
         f.debug_struct("AnalyticsService")
             .field("geoip_reader", &self.geoip_reader.is_some())
             .field("content_routing", &self.content_routing.is_some())
-            .field("session_repo", &"SessionRepository")
+            .field("session_store", &"<session store>")
             .field("cost_repo", &"CostAnalyticsRepository")
             .finish()
     }
@@ -42,7 +42,7 @@ impl AnalyticsService {
         Self {
             geoip_reader,
             content_routing,
-            session_repo: repositories.sessions.clone(),
+            session_store: Arc::clone(&repositories.session_store),
             cost_repo: repositories.costs.clone(),
         }
     }
@@ -68,7 +68,6 @@ impl AnalyticsService {
         builder.build()
     }
 
-
     pub const fn cost_repo(&self) -> &CostAnalyticsRepository {
         &self.cost_repo
     }
@@ -78,7 +77,7 @@ impl AnalyticsService {
         ProfileUsageService::new(self.cost_repo.clone())
     }
 
-    pub const fn session_repo(&self) -> &SessionRepository {
-        &self.session_repo
+    pub const fn session_store(&self) -> &DynSessionStore {
+        &self.session_store
     }
 }

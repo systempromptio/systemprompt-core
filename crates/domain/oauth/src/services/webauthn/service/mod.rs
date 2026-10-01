@@ -76,17 +76,6 @@ impl WebAuthnService {
         })
     }
 
-    pub async fn cleanup_expired_states(&self) -> Result<()> {
-        let removed = self
-            .oauth_repo
-            .cleanup_expired_webauthn_challenges()
-            .await?;
-        if removed > 0 {
-            tracing::debug!(removed, "Expired WebAuthn challenges purged");
-        }
-        Ok(())
-    }
-
     pub async fn store_verified_authentication(
         &self,
         token: String,

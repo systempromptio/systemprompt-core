@@ -31,7 +31,7 @@ fn state(ctx: &AppContext, content_routing: Option<Arc<dyn ContentRouting>>) -> 
     let analytics = ctx.analytics_repositories();
     EngagementState {
         repo: Arc::new(analytics.engagement.clone()),
-        session_repo: Arc::new(analytics.sessions.clone()),
+        sessions: Arc::clone(&analytics.session_store),
         content_repo: Arc::new(ctx.content_repositories().content.clone()),
         content_routing,
     }

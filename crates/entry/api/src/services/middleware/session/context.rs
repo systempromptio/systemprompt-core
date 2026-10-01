@@ -167,8 +167,8 @@ impl SessionMiddleware {
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        let analytics_provider: Arc<dyn SessionProvider> =
-            self.analytics_service.session_repo().owner();
+        let session_store = Arc::clone(self.analytics_service.session_store());
+        let analytics_provider: Arc<dyn SessionProvider> = session_store;
 
         match attest_session(
             &analytics_provider,

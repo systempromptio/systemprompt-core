@@ -17,7 +17,6 @@ pub mod token {
 
 pub mod webauthn {
     pub const CHALLENGE_EXPIRY_SECONDS: u64 = 300;
-    pub const CLEANUP_INTERVAL_SECONDS: u64 = 300;
 }
 
 pub mod validation {

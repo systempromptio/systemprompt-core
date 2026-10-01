@@ -1,11 +1,12 @@
-//! `/oauth/callback` full browser-flow round trip — `handle_callback`.
+//! `/oauth/callback` browser flow — `handle_callback`.
 //!
 //! The callback resolves the server's own browser client by the configured
-//! redirect URI, redeems the returned authorization code for tokens, opens an
-//! authenticated session, and 302-redirects to the origin recovered from a
-//! consumed `state` binding. To reach that success path the test seeds a
-//! confidential client whose redirect URI matches `api_external_url`, a user,
-//! an authorization code, and a state binding. Each test process installs a
+//! redirect URI and redeems the returned authorization code. Every code is
+//! bound to a PKCE challenge whose verifier only the initiating client holds,
+//! and the callback has none to present, so redemption is refused before any
+//! session, cookie or `state` binding is touched. The test seeds a confidential
+//! client whose redirect URI matches `api_external_url`, a user, a PKCE-bound
+//! authorization code, and a state binding. Each test process installs a
 //! Config with a unique `api_external_url` host so the redirect-URI lookup can
 //! never collide with a browser client seeded by another test.
 
@@ -27,7 +28,7 @@ use systemprompt_oauth::repository::{
 };
 use systemprompt_oauth::services::hash_client_secret;
 use systemprompt_test_fixtures::{
-    TEST_CLIENT_SECRET, ensure_test_bootstrap, fixture_config, install_test_signing_key,
+    TEST_CLIENT_SECRET, ensure_test_bootstrap, fixture_config, install_test_signing_key, pkce_pair,
     test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
@@ -130,14 +131,14 @@ async fn seed_browser_flow() -> anyhow::Result<BrowserFlow> {
 
     let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
     let code = AuthorizationCode::new(format!("cbcode-{}", Uuid::new_v4().simple()));
+    let pkce = pkce_pair();
     repo.store_authorization_code(AuthCodeParams {
         code: &code,
         client_id: &client_id,
         user_id: &user,
         redirect_uri: &redirect_uri,
         scope: "user",
-        code_challenge: None,
-        code_challenge_method: None,
+        code_challenge: &pkce.challenge,
         resource: None,
     })
     .await
@@ -172,7 +173,7 @@ fn get(uri: &str) -> Request<Body> {
 }
 
 #[tokio::test]
-async fn callback_full_flow_redirects_with_cookie() -> anyhow::Result<()> {
+async fn callback_refuses_a_pkce_bound_code_without_setting_a_cookie() -> anyhow::Result<()> {
     let flow = seed_browser_flow().await?;
     let state_token = format!("state-{}", Uuid::new_v4().simple());
     seed_state_binding(&state_token, &flow.client_id).await?;
@@ -186,47 +187,14 @@ async fn callback_full_flow_redirects_with_cookie() -> anyhow::Result<()> {
         .await?;
     assert_eq!(
         resp.status(),
-        StatusCode::SEE_OTHER,
-        "callback must 302 on success, got {}",
+        StatusCode::UNAUTHORIZED,
+        "a code bound to a PKCE verifier the callback does not hold must not redeem, got {}",
         resp.status()
     );
-    assert_eq!(
-        resp.headers()
-            .get(header::LOCATION)
-            .and_then(|v| v.to_str().ok()),
-        Some("/dashboard"),
-        "must redirect to the state binding's return_to"
-    );
     assert!(
-        resp.headers().get(header::SET_COOKIE).is_some(),
-        "callback must set the access-token cookie"
+        resp.headers().get(header::SET_COOKIE).is_none(),
+        "a refused callback must not set the access-token cookie"
     );
-    Ok(())
-}
-
-#[tokio::test]
-async fn callback_missing_state_returns_400() -> anyhow::Result<()> {
-    let flow = seed_browser_flow().await?;
-    let app = callback_app().await?;
-    let resp = app
-        .oneshot(get(&format!("/callback?code={}", flow.code.as_str())))
-        .await?;
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
-    Ok(())
-}
-
-#[tokio::test]
-async fn callback_unknown_state_returns_400() -> anyhow::Result<()> {
-    let flow = seed_browser_flow().await?;
-    let app = callback_app().await?;
-    let resp = app
-        .oneshot(get(&format!(
-            "/callback?code={}&state=never-stored-{}",
-            flow.code.as_str(),
-            Uuid::new_v4().simple()
-        )))
-        .await?;
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
     Ok(())
 }
 

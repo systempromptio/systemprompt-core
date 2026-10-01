@@ -50,3 +50,12 @@ fn non_numeric_timestamp_fails() {
     let sig = sign(SECRET, "not-a-number", BODY);
     assert!(verify_slack_signature(SECRET, "not-a-number", &sig, BODY, 1_531_420_618).is_err());
 }
+
+#[test]
+fn empty_signing_secret_is_refused_even_with_a_matching_signature() {
+    let sig = sign(b"", TS, BODY);
+    assert!(
+        verify_slack_signature(b"", TS, &sig, BODY, 1_531_420_618).is_err(),
+        "an HMAC keyed with an empty secret is forgeable and must never verify"
+    );
+}

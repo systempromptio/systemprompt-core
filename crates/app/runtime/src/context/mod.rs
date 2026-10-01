@@ -201,12 +201,12 @@ impl AppContext {
 
     #[must_use]
     pub fn session_usage(&self) -> systemprompt_traits::DynSessionUsageCounters {
-        self.data.analytics_repositories.sessions.owner()
+        self.session_store()
     }
 
     #[must_use]
     pub fn session_store(&self) -> systemprompt_traits::DynSessionStore {
-        self.data.analytics_repositories.sessions.owner()
+        Arc::clone(&self.data.analytics_repositories.session_store)
     }
 
     pub fn context_materializer(&self) -> systemprompt_traits::DynContextMaterializer {

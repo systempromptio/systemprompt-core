@@ -3,7 +3,7 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
+use systemprompt_oauth::repository::{OAuthRepository, OauthCleanupRepository, StateBindingParams};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
@@ -103,7 +103,9 @@ async fn expired_binding_cannot_be_consumed() {
 
 #[tokio::test]
 async fn cleanup_expired_state_bindings_removes_past() {
-    let repo = repo().await;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let repo = OAuthRepository::new(&pool).expect("repo");
     let token = format!("state-{}", Uuid::new_v4());
     repo.store_state_binding(
         StateBindingParams::builder(&token)
@@ -112,8 +114,9 @@ async fn cleanup_expired_state_bindings_removes_past() {
     )
     .await
     .expect("store");
-    let removed = repo
-        .cleanup_expired_state_bindings()
+    let removed = OauthCleanupRepository::new(&pool)
+        .expect("cleanup repo")
+        .delete_expired_state_bindings()
         .await
         .expect("cleanup");
     assert!(removed >= 1);

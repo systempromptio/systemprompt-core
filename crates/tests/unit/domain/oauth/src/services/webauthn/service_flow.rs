@@ -219,23 +219,3 @@ async fn service_debug_redacts_runtime_state() {
         "the webauthn-rs core stays out of Debug"
     );
 }
-
-#[tokio::test]
-async fn cleanup_expired_states_is_idempotent_when_empty() {
-    let ctx = setup().await;
-    ctx.service
-        .cleanup_expired_states()
-        .await
-        .expect("cleanup with empty state");
-    // A pending registration challenge that has not expired must survive.
-    let (_, challenge_id) = ctx
-        .service
-        .start_registration(ctx.user_id.as_str(), &ctx.email, None)
-        .await
-        .expect("start_registration");
-    ctx.service
-        .cleanup_expired_states()
-        .await
-        .expect("cleanup after start");
-    assert!(!challenge_id.is_empty());
-}

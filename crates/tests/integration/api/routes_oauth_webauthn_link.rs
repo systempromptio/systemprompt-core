@@ -22,6 +22,7 @@ use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_models::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
+use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::services::webauthn::hash_token;
 use systemprompt_test_fixtures::{
     fixture_config, install_test_signing_key, seed_user_row, test_db_pool,
@@ -45,16 +46,26 @@ fn ensure_config() {
     });
 }
 
-async fn app() -> anyhow::Result<Router> {
-    ensure_config();
-    install_test_signing_key();
-    let (_pool, ctx) = setup_ctx().await?;
-    let state = OAuthState::new(
+fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthState> {
+    let webauthn = WebAuthnService::new(
+        ctx.oauth_repositories().oauth.clone(),
+        ctx.user_provider().expect("user"),
+    )
+    .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
+    Ok(OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-    );
+    )
+    .with_webauthn(Arc::new(webauthn)))
+}
+
+async fn app() -> anyhow::Result<Router> {
+    ensure_config();
+    install_test_signing_key();
+    let (_pool, ctx) = setup_ctx().await?;
+    let state = oauth_state(&ctx)?;
     Ok(public_router().with_state(state))
 }
 
@@ -209,12 +220,7 @@ async fn the_link_page_renders_the_passkey_template() {
 async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
     ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
-    let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
-        ctx.session_provider().expect("sessions"),
-        ctx.user_provider().expect("user"),
-    );
+    let state = oauth_state(&ctx)?;
 
     // `router()` is the merge of the public and authenticated halves; nothing
     // in the suite builds it, so a route lost from the merge would go unnoticed.
@@ -254,12 +260,7 @@ async fn linked_app() -> anyhow::Result<(Router, Arc<systemprompt_runtime::AppCo
     ensure_config();
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
-    let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
-        ctx.session_provider().expect("sessions"),
-        ctx.user_provider().expect("user"),
-    );
+    let state = oauth_state(&ctx)?;
     Ok((public_router().with_state(state), ctx))
 }
 

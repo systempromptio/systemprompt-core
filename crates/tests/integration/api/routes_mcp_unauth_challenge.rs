@@ -70,8 +70,8 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
             );
             let analytics_service =
                 Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
-            let session_usage: systemprompt_traits::DynSessionUsageCounters =
-                analytics_service.session_repo().owner();
+            let session_store = Arc::clone(analytics_service.session_store());
+            let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
             DataPlane {
                 database: Arc::clone(&pool),
                 analytics_service,

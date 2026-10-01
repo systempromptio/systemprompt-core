@@ -140,7 +140,7 @@ fn render_skill(bundle: &RevisionBundle, host: EvaluatorClient, key: &str) -> Re
     } else {
         let content = root.0.get("SKILL.md").ok_or(ManagedError::Integrity)?;
         let raw = std::str::from_utf8(&content.bytes).map_err(integrity)?;
-        let authored = authored_skill_frontmatter(raw).unwrap_or_default();
+        let authored = authored_skill_frontmatter(raw).map_err(integrity)?;
         (
             key.to_owned(),
             String::new(),

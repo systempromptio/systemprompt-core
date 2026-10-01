@@ -37,10 +37,9 @@ pub use models::{
 pub use repository::{
     ABUSE_THRESHOLD_FOR_BAN, AgentAnalyticsRepository, AnalyticsEventsRepository,
     CliSessionAnalyticsRepository, ContentAnalyticsRepository, ConversationAnalyticsRepository,
-    CostAnalyticsRepository, CreateSessionParams, EngagementRepository, FingerprintRepository,
-    HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM, MAX_SESSIONS_PER_FINGERPRINT, NavigationQuery,
-    OverviewAnalyticsRepository, PageQuery, RequestAnalyticsRepository, SUSTAINED_VELOCITY_MINUTES,
-    SessionBehavioralData, SessionMigrationResult, SessionRecord, SessionRepository,
+    CostAnalyticsRepository, EngagementRepository, FingerprintRepository, HIGH_REQUEST_THRESHOLD,
+    HIGH_VELOCITY_RPM, MAX_SESSIONS_PER_FINGERPRINT, NavigationQuery, OverviewAnalyticsRepository,
+    PageQuery, RequestAnalyticsRepository, SUSTAINED_VELOCITY_MINUTES, SessionSignalsRepository,
     ToolAnalyticsRepository, ToolListParams, TrafficAnalyticsRepository,
 };
 pub use services::bot_keywords::matches_bot_pattern;

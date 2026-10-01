@@ -56,7 +56,7 @@ Schema DDL lives in `schema/*.sql` (`engagement_events`, `fingerprint_reputation
 
 | Repository | Purpose |
 |------------|---------|
-| `SessionRepository` | Delegates session operations to users and behavioral event/content reads to their owners |
+| `SessionSignalsRepository` | Behavioural-detector inputs from the event store and content catalogue, fingerprint engagement counts, and session geo backfill; plain session operations go to the users-owned `SessionStore` |
 | `EngagementRepository` | Engagement event operations |
 | `FingerprintRepository` | Fingerprint reputation tracking |
 | `AnalyticsEventsRepository` | Logging-owned event ingestion |

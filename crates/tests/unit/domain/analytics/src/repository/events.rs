@@ -7,12 +7,12 @@ use systemprompt_identifiers::{ContentId, SessionId, SessionSource, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
-use systemprompt_analytics::CreateSessionParams;
+use systemprompt_traits::session_store::CreateSessionParams;
 
 async fn seed_session(pool: &DbPool, session_id: &SessionId) {
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
-        .map(|repositories| repositories.sessions)
-        .expect("session repo");
+    let store = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
+        .map(|repositories| repositories.session_store)
+        .expect("session store");
     let params = CreateSessionParams {
         session_id,
         user_id: None,
@@ -40,7 +40,7 @@ async fn seed_session(pool: &DbPool, session_id: &SessionId) {
         is_ai_crawler: false,
         expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
     };
-    repo.create_session(&params).await.expect("seed session");
+    store.insert_session(&params).await.expect("seed session");
 }
 
 async fn cleanup(pool: &DbPool, session_id: &SessionId) {

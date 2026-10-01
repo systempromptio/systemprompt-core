@@ -117,7 +117,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
         fingerprint_hash: &str,
         max_age_seconds: i64,
     ) -> AnalyticsResult<Option<SessionRecord>> {
-        Self::find_recent_by_fingerprint(self, fingerprint_hash, max_age_seconds)
+        Self::find_recent_anonymous_by_fingerprint(self, fingerprint_hash, max_age_seconds)
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
     }

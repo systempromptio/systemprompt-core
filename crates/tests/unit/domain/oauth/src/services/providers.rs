@@ -152,8 +152,8 @@ mod config_backed {
                 username: "prov-gen".to_owned(),
                 user_type: "user".to_owned(),
                 session_id: SessionId::generate(),
-                permissions: vec!["user".to_owned(), "not-a-permission".to_owned()],
-                audiences: vec!["api".to_owned(), "not-an-audience".to_owned()],
+                permissions: vec!["user".to_owned()],
+                audiences: vec!["api".to_owned()],
                 expires_in_hours: Some(2),
             })
             .expect("generate");
@@ -165,26 +165,57 @@ mod config_backed {
         assert!(claims.audiences.iter().any(|a| a == "api"));
     }
 
+    fn token_params(permissions: &[&str], audiences: &[&str]) -> GenerateTokenParams {
+        GenerateTokenParams {
+            user_id: UserId::new(Uuid::new_v4().to_string()),
+            username: "prov-fail-closed".to_owned(),
+            user_type: "user".to_owned(),
+            session_id: SessionId::generate(),
+            permissions: permissions.iter().map(|p| (*p).to_owned()).collect(),
+            audiences: audiences.iter().map(|a| (*a).to_owned()).collect(),
+            expires_in_hours: None,
+        }
+    }
+
     #[test]
-    fn generate_token_defaults_audiences_when_empty() {
+    fn generate_token_refuses_an_empty_audience_list() {
         ensure_test_bootstrap();
         systemprompt_test_fixtures::install_test_signing_key();
         let provider = JwtValidationProviderImpl::from_config().expect("from_config");
 
-        let token = provider
-            .generate_token(GenerateTokenParams {
-                user_id: UserId::new(Uuid::new_v4().to_string()),
-                username: "prov-default-aud".to_owned(),
-                user_type: "user".to_owned(),
-                session_id: SessionId::generate(),
-                permissions: vec!["user".to_owned()],
-                audiences: vec![],
-                expires_in_hours: None,
-            })
-            .expect("generate");
+        let err = provider
+            .generate_token(token_params(&["user"], &[]))
+            .expect_err("no audience must not widen to every audience");
+        assert!(matches!(
+            err,
+            systemprompt_traits::JwtProviderError::MissingAudience(_)
+        ));
+    }
 
-        let claims = provider.validate_token(&token).expect("validate");
-        assert!(claims.audiences.iter().any(|a| a == "api"));
+    #[test]
+    fn generate_token_refuses_an_unparseable_audience() {
+        ensure_test_bootstrap();
+        systemprompt_test_fixtures::install_test_signing_key();
+        let provider = JwtValidationProviderImpl::from_config().expect("from_config");
+
+        let err = provider
+            .generate_token(token_params(&["user"], &["api", "not-an-audience"]))
+            .expect_err("a typo in an audience must fail, not be dropped");
+        assert!(matches!(
+            err,
+            systemprompt_traits::JwtProviderError::MissingAudience(_)
+        ));
+    }
+
+    #[test]
+    fn generate_token_refuses_an_unparseable_permission() {
+        ensure_test_bootstrap();
+        systemprompt_test_fixtures::install_test_signing_key();
+        let provider = JwtValidationProviderImpl::from_config().expect("from_config");
+
+        provider
+            .generate_token(token_params(&["user", "not-a-permission"], &["api"]))
+            .expect_err("an unknown permission must fail, not be dropped");
     }
 
     #[test]

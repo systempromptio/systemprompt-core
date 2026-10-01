@@ -6,9 +6,9 @@
 
 mod at_rest;
 mod auth_code;
-mod cleanup;
 mod id_jag_replay;
 mod jti_revocation;
+mod last_used;
 mod refresh_token;
 mod scopes;
 mod state_binding;
@@ -141,14 +141,6 @@ impl OAuthRepository {
             .await
     }
 
-    pub async fn find_client_by_redirect_uri(
-        &self,
-        redirect_uri: &str,
-    ) -> OauthResult<Option<OAuthClient>> {
-        let client_repo = &self.client_repo;
-        client_repo.find_by_redirect_uri(redirect_uri).await
-    }
-
     pub async fn find_client_by_redirect_uri_with_scope(
         &self,
         redirect_uri: &str,
@@ -218,25 +210,6 @@ impl OAuthRepository {
         self.client_repo
             .update_secret(client_id, client_secret_hash)
             .await
-    }
-
-    pub async fn update_client_full(&self, client: &OAuthClient) -> OauthResult<OAuthClient> {
-        let client_repo = &self.client_repo;
-        let params = UpdateClientParams {
-            client_id: client.client_id.clone(),
-            client_name: client.client_name.clone(),
-            redirect_uris: client.redirect_uris.clone(),
-            grant_types: Some(client.grant_types.clone()),
-            response_types: Some(client.response_types.clone()),
-            scopes: client.scopes.clone(),
-            token_endpoint_auth_method: Some(client.token_endpoint_auth_method.clone()),
-            client_uri: client.client_uri.clone(),
-            logo_uri: client.logo_uri.clone(),
-            contacts: client.contacts.clone(),
-        };
-        let updated = client_repo.update(params).await?;
-
-        updated.ok_or_else(|| OauthError::Validation("Client not found".to_owned()))
     }
 
     pub async fn delete_client(&self, client_id: &ClientId) -> OauthResult<bool> {

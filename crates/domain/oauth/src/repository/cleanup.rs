@@ -1,6 +1,6 @@
 //! Expiry sweeps over the OAuth-owned tables: refresh tokens, authorization
-//! codes, state bindings, JTI revocations, ID-JAG replay markers and bridge
-//! exchange codes.
+//! codes, state bindings, JTI revocations, ID-JAG replay markers, bridge
+//! exchange codes and `WebAuthn` ceremony challenges.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,6 +26,7 @@ pub struct OauthCleanupCounts {
     pub jti_revocations: u64,
     pub id_jag_replays: u64,
     pub bridge_exchange_codes: u64,
+    pub webauthn_challenges: u64,
 }
 
 impl OauthCleanupCounts {
@@ -37,6 +38,7 @@ impl OauthCleanupCounts {
             + self.jti_revocations
             + self.id_jag_replays
             + self.bridge_exchange_codes
+            + self.webauthn_challenges
     }
 }
 
@@ -55,6 +57,7 @@ impl OauthCleanupRepository {
             jti_revocations: self.delete_expired_jti_revocations().await?,
             id_jag_replays: self.delete_expired_id_jag_replays().await?,
             bridge_exchange_codes: self.delete_spent_bridge_exchange_codes().await?,
+            webauthn_challenges: self.delete_expired_webauthn_challenges().await?,
         })
     }
 
@@ -101,6 +104,14 @@ impl OauthCleanupRepository {
         )
         .execute(&*self.write_pool)
         .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn delete_expired_webauthn_challenges(&self) -> OauthResult<u64> {
+        let result =
+            sqlx::query!("DELETE FROM webauthn_challenges WHERE expires_at <= CURRENT_TIMESTAMP")
+                .execute(&*self.write_pool)
+                .await?;
         Ok(result.rows_affected())
     }
 }

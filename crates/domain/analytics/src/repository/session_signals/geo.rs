@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::SessionRepository;
+use super::SessionSignalsRepository;
 use crate::{AnalyticsError, GeoIpReader, Result};
 use systemprompt_identifiers::SessionId;
 
-impl SessionRepository {
-    pub(super) async fn backfill_geo(
+impl SessionSignalsRepository {
+    pub async fn backfill_session_geo(
         &self,
         reader: Option<&GeoIpReader>,
         batch_size: i64,

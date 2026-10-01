@@ -1,4 +1,4 @@
-//! Tests for WebAuthn service data types: LinkUserInfo, WebAuthnRegistry
+//! Tests for WebAuthn service data types: LinkUserInfo
 
 use systemprompt_oauth::services::webauthn::service::LinkUserInfo;
 

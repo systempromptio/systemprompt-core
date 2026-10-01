@@ -6,12 +6,13 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_analytics::{
-    AnalyticsEventType, AnalyticsEventsRepository, CreateAnalyticsEventInput, CreateSessionParams,
-    LinkClickEventData, NavigationQuery, PageQuery, TrafficAnalyticsRepository,
+    AnalyticsEventType, AnalyticsEventsRepository, CreateAnalyticsEventInput, LinkClickEventData,
+    NavigationQuery, PageQuery, TrafficAnalyticsRepository,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+use systemprompt_traits::session_store::CreateSessionParams;
 use uuid::Uuid;
 
 struct SeededSession<'a> {
@@ -32,9 +33,9 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
     )
     .await
     .expect("retained traffic user");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
-        .map(|repositories| repositories.sessions)
-        .expect("session repo");
+    let store = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
+        .map(|repositories| repositories.session_store)
+        .expect("session store");
     let params = CreateSessionParams {
         session_id: &sid,
         user_id: None,
@@ -62,7 +63,7 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
         is_ai_crawler: false,
         expires_at: Utc::now() + Duration::hours(1),
     };
-    repo.create_session(&params).await.expect("seed session");
+    store.insert_session(&params).await.expect("seed session");
 
     let p = pool.write_pool_arc().expect("write pool");
     sqlx::query(

@@ -76,7 +76,7 @@ impl OAuthClient {
             client_uri: row.client_uri,
             logo_uri: row.logo_uri,
             contacts: relations.contacts,
-            is_active: row.is_active.unwrap_or(true),
+            is_active: row.is_active.unwrap_or(false),
             created_at: row.created_at.unwrap_or_else(Utc::now),
             updated_at: row.updated_at.unwrap_or_else(Utc::now),
             owner_user_id: row.owner_user_id,
