@@ -79,10 +79,8 @@ fn generated_managed_toml_includes_organization_tenant_header() {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn install_merges_into_codex_system_config() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
         let host = find_host_by_id("codex-cli").expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
@@ -107,10 +105,8 @@ fn install_merges_into_codex_system_config() {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn install_preserves_existing_unrelated_keys_in_target() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
         let target = if cfg!(target_os = "windows") {
             home.join("managed_config.toml")
@@ -151,10 +147,8 @@ fn install_preserves_existing_unrelated_keys_in_target() {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn install_overwrites_stale_systemprompt_provider_entry() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
         let target = if cfg!(target_os = "windows") {
             home.join("managed_config.toml")
@@ -236,10 +230,8 @@ fn base64_decode(input: &str) -> Vec<u8> {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn install_round_trips_future_profile_value_types_while_preserving_operator_config() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
         let target = if cfg!(target_os = "windows") {
             home.join("managed_config.toml")

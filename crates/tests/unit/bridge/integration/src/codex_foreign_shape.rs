@@ -2,6 +2,8 @@
 //! the install is refused with the key named and the file is left as found,
 //! never rewritten around the conflict.
 
+#![cfg(not(target_os = "macos"))]
+
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -39,9 +41,6 @@ fn inputs() -> ProfileGenInputs {
 
 #[test]
 fn a_scalar_where_the_bridge_owns_a_table_refuses_the_install_and_keeps_the_file() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
         let target = if cfg!(target_os = "windows") {
             home.join("managed_config.toml")

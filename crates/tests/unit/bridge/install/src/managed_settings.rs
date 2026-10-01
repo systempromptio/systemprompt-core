@@ -93,6 +93,8 @@ fn a_blank_file_is_recognised_as_blank_and_a_document_is_not() {
 fn an_unreadable_file_names_its_path_in_the_error() {
     use std::os::unix::fs::PermissionsExt;
 
+    // skip-ok: root reads a mode-0o000 file, so there is no permission error to
+    // observe
     if nix_is_root() {
         return;
     }

@@ -28,21 +28,27 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn bridge_bin() -> Option<PathBuf> {
-    if let Ok(explicit) = std::env::var("SP_BRIDGE_BIN") {
-        let p = PathBuf::from(explicit);
-        return p.is_file().then_some(p);
+    let candidate = match std::env::var_os("SP_BRIDGE_BIN") {
+        Some(explicit) => PathBuf::from(explicit),
+        None => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(5)
+            .expect("the test crate sits five levels below the repository root")
+            .join("bin")
+            .join("bridge")
+            .join("target")
+            .join("debug")
+            .join("systemprompt-bridge"),
+    };
+    if candidate.is_file() {
+        return Some(candidate);
     }
-    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(5)?
-        .to_path_buf();
-    let fallback = repo_root
-        .join("bin")
-        .join("bridge")
-        .join("target")
-        .join("debug")
-        .join("systemprompt-bridge");
-    fallback.is_file().then_some(fallback)
+    assert!(
+        std::env::var_os("CI").is_none(),
+        "bridge binary {} unavailable under CI; scripts/test-shard.sh must prebuild it",
+        candidate.display()
+    );
+    None
 }
 
 struct Sandbox {
@@ -175,8 +181,7 @@ macro_rules! require_bin {
         match $out {
             Some(o) => o,
             None => {
-                eprintln!("bridge binary not available; skipping");
-                return;
+                return; // skip-ok: no bridge binary built locally; bridge_bin panics under CI
             },
         }
     };
@@ -242,12 +247,9 @@ fn run_with_pat_emits_jwt_envelope() {
     let _ = &server;
 
     let sb = sandbox(Some(&uri));
-    let bin = match bridge_bin() {
-        Some(b) => b,
-        None => {
-            eprintln!("bridge binary not available; skipping");
-            return;
-        },
+    // skip-ok: no bridge binary built locally; bridge_bin panics under CI
+    let Some(bin) = bridge_bin() else {
+        return;
     };
     let mut cmd = Command::new(bin);
     cmd.arg("run");
@@ -317,12 +319,9 @@ fn credential_helper_get_emits_json_error_without_creds() {
 
 #[test]
 fn proxy_headless_starts_and_stops_on_sigint() {
-    let bin = match bridge_bin() {
-        Some(b) => b,
-        None => {
-            eprintln!("bridge binary not available; skipping");
-            return;
-        },
+    // skip-ok: no bridge binary built locally; bridge_bin panics under CI
+    let Some(bin) = bridge_bin() else {
+        return;
     };
     let sb = sandbox(None);
     let mut cmd = Command::new(bin);
