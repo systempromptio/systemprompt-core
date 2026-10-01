@@ -111,9 +111,7 @@ pub async fn precheck_and_reserve(
     if windows.is_empty() {
         return Ok(None);
     }
-    let pool = db
-        .pool_arc()
-        .map_err(|e| anyhow::anyhow!("quota pool init: {e}"))?;
+    let pool = db.pool();
 
     let now = Utc::now();
     for window in windows {
@@ -173,15 +171,7 @@ pub async fn post_update_tokens(
     if params.windows.is_empty() {
         return AccountingOutcome::Counted;
     }
-    let pool = match db.pool_arc() {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::warn!(error = %e, "quota pool init failed in post_update");
-            return AccountingOutcome::Faulted {
-                message: format!("quota accounting pool init failed: {e}"),
-            };
-        },
-    };
+    let pool = db.pool();
     let now = Utc::now();
     let mut fault: Option<String> = None;
     for window in params.windows {

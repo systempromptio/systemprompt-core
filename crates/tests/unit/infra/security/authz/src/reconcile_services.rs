@@ -14,7 +14,7 @@ fn unique_id(prefix: &str) -> String {
 }
 
 async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("DELETE FROM access_control_rules WHERE entity_type = $1 AND entity_id = $2")
         .bind(entity_type)
         .bind(entity_id)

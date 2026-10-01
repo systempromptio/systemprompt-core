@@ -12,7 +12,7 @@ use systemprompt_test_fixtures::{closed_db_pool, test_db_pool, unique_user_id};
 
 async fn fixture_pool() -> sqlx::PgPool {
     let db: DbPool = test_db_pool().await;
-    let arc = db.pool_arc().expect("events database fixture pool");
+    let arc = db.pool();
     let pool = (*arc).clone();
     sqlx::query("SELECT 1 FROM event_outbox LIMIT 0")
         .execute(&pool)
@@ -62,10 +62,7 @@ async fn install_relay_second_call_is_ignored_and_routing_persists_one_row() {
 #[tokio::test]
 async fn outbox_insert_failure_does_not_block_local_delivery() {
     let db = closed_db_pool().await;
-    let closed = (*db
-        .pool_arc()
-        .expect("closed fixture pool must expose a pg pool"))
-    .clone();
+    let closed = (*db.pool()).clone();
     EventRouter::install_relay(closed, systemprompt_identifiers::InstanceId::new("origin"));
 
     let user = unique_user_id("relay-insert-fail");

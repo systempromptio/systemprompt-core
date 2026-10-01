@@ -36,11 +36,11 @@ fn context_for_instance(pool: &DbPool, url: &str, instance_id: &str) -> Arc<AppC
 }
 
 async fn seed_row(pool: &DbPool, job_name: &str) -> SchedulerRepository {
-    let repo = SchedulerRepository::new(pool).expect("repo");
+    let repo = SchedulerRepository::new(pool);
     repo.upsert_job(job_name, "", true)
         .await
         .expect("seed scheduled_jobs row");
-    let pg = pool.write_pool_arc().expect("write pool");
+    let pg = pool.write_pool();
     sqlx::query!(
         "UPDATE scheduled_jobs SET last_run = NULL, last_instance_id = NULL, last_error = NULL \
          WHERE job_name = $1",
@@ -67,8 +67,7 @@ async fn dispatch(
         bootstrap_jobs: vec![job_name.to_owned()],
         distributed_lock,
     };
-    let svc =
-        SchedulerService::new(config, Arc::clone(pool), app_ctx).expect("SchedulerService::new");
+    let svc = SchedulerService::new(config, Arc::clone(pool), app_ctx);
     svc.run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch must not abort");
@@ -149,7 +148,7 @@ async fn config_scope_node_overrides_a_cluster_default_job_under_a_peer_lock() {
     let _guard = SERIALIZE.lock().await;
     seed_row(&pool, STAMP_FAIL_JOB).await;
 
-    let pg = pool.write_pool_arc().expect("write pool");
+    let pg = pool.write_pool();
     let mut peer = pg.acquire().await.expect("peer connection");
     let key: i64 = sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, STAMP_FAIL_JOB)
         .fetch_one(peer.as_mut())

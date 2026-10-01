@@ -29,7 +29,7 @@ fn parse(args: &[&str]) -> DbCommands {
 async fn dirty_status_helper() {
     let database = DisposableDb::with_schema("cli_migration_dirty_status").await;
     let pool = database.test_pool().await;
-    let raw = pool.pool_arc().expect("raw pool");
+    let raw = pool.pool();
     let collision = sqlx::query(
         "UPDATE extension_migrations SET name = 'reused_slot_fixture' \
          WHERE extension_id = 'logging' AND version = 3",
@@ -82,7 +82,7 @@ async fn dirty_status_helper() {
 
     drop(context);
     drop(raw);
-    pool.write_pool_arc().unwrap().close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

@@ -31,10 +31,10 @@ pub struct LoggingRepository {
 }
 
 impl LoggingRepository {
-    pub fn new(db: &DbPool) -> Result<Self, LoggingError> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn log(&self, entry: LogEntry) -> Result<(), LoggingError> {

@@ -9,7 +9,7 @@ use crate::common::Fixture;
 async fn create_and_get_execution_step() -> Result<()> {
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Submitted).await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
+    let repo = ExecutionStepRepository::new(&fx.db);
 
     let step = ExecutionStep::understanding(task_id.clone());
     let sid = step.step_id.clone();
@@ -26,7 +26,7 @@ async fn create_and_get_execution_step() -> Result<()> {
 #[tokio::test]
 async fn get_unknown_step_returns_none() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
+    let repo = ExecutionStepRepository::new(&fx.db);
     use systemprompt_models::StepId;
     let sid = StepId::new();
     let result = repo.get(&sid).await?;
@@ -39,7 +39,7 @@ async fn get_unknown_step_returns_none() -> Result<()> {
 async fn list_by_task_returns_steps_in_started_order() -> Result<()> {
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Submitted).await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
+    let repo = ExecutionStepRepository::new(&fx.db);
 
     let s1 = ExecutionStep::understanding(task_id.clone());
     repo.create(&s1).await?;
@@ -62,7 +62,7 @@ async fn list_by_task_returns_steps_in_started_order() -> Result<()> {
 #[tokio::test]
 async fn list_by_task_empty_for_unknown() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
+    let repo = ExecutionStepRepository::new(&fx.db);
     use systemprompt_identifiers::TaskId;
     let tid = TaskId::new("__no_task_steps_qq");
     let list = repo.list_by_task(&tid).await?;
@@ -75,7 +75,7 @@ async fn list_by_task_empty_for_unknown() -> Result<()> {
 async fn complete_step_transitions_to_completed() -> Result<()> {
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Submitted).await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
+    let repo = ExecutionStepRepository::new(&fx.db);
 
     // Tool execution = in-progress until completed
     let step = ExecutionStep::tool_execution(task_id.clone(), "noop", serde_json::json!({}));
@@ -99,7 +99,7 @@ async fn complete_step_transitions_to_completed() -> Result<()> {
 async fn complete_step_without_result_does_not_change_content() -> Result<()> {
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Submitted).await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
+    let repo = ExecutionStepRepository::new(&fx.db);
 
     let step = ExecutionStep::tool_execution(task_id.clone(), "tool1", serde_json::json!({"a": 1}));
     let sid = step.step_id.clone();
@@ -117,7 +117,7 @@ async fn complete_step_without_result_does_not_change_content() -> Result<()> {
 async fn fail_step_transitions_to_failed() -> Result<()> {
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Submitted).await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
+    let repo = ExecutionStepRepository::new(&fx.db);
 
     let step = ExecutionStep::tool_execution(task_id.clone(), "bad", serde_json::json!({}));
     let sid = step.step_id.clone();
@@ -137,7 +137,7 @@ async fn fail_step_transitions_to_failed() -> Result<()> {
 async fn fail_in_progress_steps_for_task_marks_outstanding_steps() -> Result<()> {
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Submitted).await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
+    let repo = ExecutionStepRepository::new(&fx.db);
 
     let s_inprog = ExecutionStep::tool_execution(task_id.clone(), "t", serde_json::json!({}));
     let s_inprog_id = s_inprog.step_id.clone();
@@ -172,7 +172,7 @@ async fn fail_in_progress_steps_for_task_marks_outstanding_steps() -> Result<()>
 async fn complete_planning_step_records_reasoning_and_tools() -> Result<()> {
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Submitted).await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
+    let repo = ExecutionStepRepository::new(&fx.db);
 
     let planning = ExecutionStep::planning(task_id.clone(), None, None);
     let sid = planning.step_id.clone();

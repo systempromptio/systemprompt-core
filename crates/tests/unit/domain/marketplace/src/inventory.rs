@@ -26,7 +26,7 @@ impl Fixture {
             .await
             .expect("owner");
         Self {
-            repository: ManagedRepository::new(&db).expect("managed repository"),
+            repository: ManagedRepository::new(&db),
             owner,
             root: tempfile::tempdir().expect("services root"),
         }

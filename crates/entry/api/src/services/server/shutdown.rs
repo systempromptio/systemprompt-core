@@ -132,6 +132,10 @@ pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
     }
 
     terminate_children(ctx).await;
+
+    if let Err(e) = systemprompt_logging::shutdown_database_logging().await {
+        tracing::warn!(error = %e, "Database log writer failed to flush on shutdown");
+    }
 }
 
 pub async fn terminate_children(ctx: &AppContext) {

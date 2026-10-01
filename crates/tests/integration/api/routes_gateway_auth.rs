@@ -162,6 +162,7 @@ async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     ));
     let err = auth::provision_oauth_client(extractor, (*ctx).clone(), no_auth_request())
         .await
@@ -177,6 +178,7 @@ fn jwt_extractor(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     )))
 }
 
@@ -189,7 +191,7 @@ async fn seed_exchange_code(
     systemprompt_test_fixtures::seed_user_row(pool, &user, &format!("ex-{uniq}@example.invalid"))
         .await?;
     let code = format!("code-{uniq}");
-    let repo = systemprompt_oauth::OAuthRepository::new(ctx.db_pool())?;
+    let repo = systemprompt_oauth::OAuthRepository::new(ctx.db_pool());
     repo.create_bridge_exchange_code(systemprompt_oauth::repository::CreateExchangeCodeParams {
         code_hash: &systemprompt_oauth::services::hash_exchange_code(&code),
         user_id: &user,

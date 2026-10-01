@@ -43,7 +43,7 @@ async fn create_user(ctx: &Ctx, prefix: &str) -> systemprompt_users::User {
 }
 
 async fn backdate_created_at(ctx: &Ctx, id: &UserId, days: i64) {
-    let pg = ctx.pool.pool_arc().expect("pg pool");
+    let pg = ctx.pool.pool();
     sqlx::query(
         "UPDATE users SET created_at = NOW() - make_interval(days => $1::int) WHERE id = $2",
     )
@@ -147,7 +147,7 @@ async fn find_with_sessions_and_activity_count_open_sessions() {
     assert_eq!(activity.task_count, 0);
     assert_eq!(activity.message_count, 0);
 
-    let sessions = SessionRepository::new(&pool).expect("session repository");
+    let sessions = SessionRepository::new(&pool);
     sessions.increment_task_count(&s1).await.expect("task s1");
     sessions.increment_task_count(&s2).await.expect("task s2");
     sessions
@@ -380,7 +380,7 @@ async fn merge_users_transfers_sessions_and_removes_source() {
 async fn merge_users_appends_a_governance_record_instead_of_rewriting_history() {
     let ctx = setup().await;
     let pool = ctx.pool.clone();
-    let pg = pool.write_pool_arc().expect("write pool");
+    let pg = pool.write_pool();
     let source = create_user(&ctx, "merge-audit-src").await;
     let target = create_user(&ctx, "merge-audit-dst").await;
     let decision_id = Uuid::new_v4().to_string();
@@ -587,9 +587,7 @@ async fn concurrent_create_if_absent_on_one_identity_elects_a_single_winner() {
             let pool = ctx.pool.clone();
             let (name, email) = (name.clone(), email.clone());
             tokio::spawn(async move {
-                let service = UserService::new(Arc::new(
-                    UserRepository::new(&pool).expect("user repository"),
-                ));
+                let service = UserService::new(Arc::new(UserRepository::new(&pool)));
                 service.create_if_absent(&name, &email, None, None).await
             })
         })

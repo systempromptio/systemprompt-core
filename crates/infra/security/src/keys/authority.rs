@@ -5,7 +5,10 @@
 //! filesystem is read-only and the PEM is injected as an env secret), falling
 //! back to the file at `signing_key_path` (the local-dev path). [`init`] is
 //! called at bootstrap so a missing key fails startup rather than the first
-//! request; the lazy first-use fallback uses the same resolution.
+//! request; the lazy first-use fallback uses the same resolution. [`install`]
+//! is the single write path: it installs the first key and refuses any other,
+//! so a key placed in the cell before bootstrap fails [`init`] instead of
+//! silently replacing the configured one.
 //! Token-minting paths use [`encoding_key`] / [`active_kid`] to produce RS256
 //! JWTs whose `kid` matches the JWKS this deployment publishes at
 //! `/.well-known/jwks.json`. Token-verifying paths use [`decoding_key_for_kid`]
@@ -45,6 +48,9 @@ pub enum TokenAuthorityError {
 
     #[error("RSA DER encoding failed: {0}")]
     Pkcs1Encode(#[source] rsa::pkcs1::Error),
+
+    #[error("signing key {requested} conflicts with the installed key {installed}")]
+    ConflictingKey { installed: String, requested: String },
 }
 
 pub type TokenAuthorityResult<T> = Result<T, TokenAuthorityError>;
@@ -62,12 +68,26 @@ pub(crate) struct Authority {
 static CELL: OnceLock<Authority> = OnceLock::new();
 
 pub fn init() -> TokenAuthorityResult<()> {
-    if CELL.get().is_some() {
-        return Ok(());
-    }
-    let authority = load_from_secret_or_file()?;
-    CELL.get_or_init(|| authority);
+    install_authority(load_from_secret_or_file()?)?;
     Ok(())
+}
+
+pub fn install(signing_key: RsaSigningKey) -> TokenAuthorityResult<()> {
+    install_authority(build(signing_key)?)?;
+    Ok(())
+}
+
+fn install_authority(authority: Authority) -> TokenAuthorityResult<&'static Authority> {
+    let requested = authority.signing_key.kid().to_owned();
+    let installed = CELL.get_or_init(|| authority);
+    if installed.signing_key.kid() == requested {
+        Ok(installed)
+    } else {
+        Err(TokenAuthorityError::ConflictingKey {
+            installed: installed.signing_key.kid().to_owned(),
+            requested,
+        })
+    }
 }
 
 fn load_from_secret_or_file() -> TokenAuthorityResult<Authority> {
@@ -116,8 +136,7 @@ fn authority() -> TokenAuthorityResult<&'static Authority> {
     if let Some(a) = CELL.get() {
         return Ok(a);
     }
-    let a = load_from_secret_or_file()?;
-    Ok(CELL.get_or_init(|| a))
+    install_authority(load_from_secret_or_file()?)
 }
 
 pub fn signing_key() -> TokenAuthorityResult<&'static RsaSigningKey> {
@@ -143,14 +162,4 @@ pub fn decoding_key_for_kid(kid: &str) -> TokenAuthorityResult<Option<&'static D
 
 pub fn decoding_key() -> TokenAuthorityResult<&'static DecodingKey> {
     Ok(&authority()?.decoding_key)
-}
-
-#[doc(hidden)]
-pub fn install_for_test(key: RsaSigningKey) {
-    if CELL.get().is_some() {
-        return;
-    }
-    if let Ok(a) = build(key) {
-        CELL.get_or_init(|| a);
-    }
 }

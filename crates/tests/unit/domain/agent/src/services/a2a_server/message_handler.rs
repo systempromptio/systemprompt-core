@@ -157,7 +157,7 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
         .expect("initial task must have been persisted before the failure");
     assert_eq!(stored.status.state, TaskState::Working);
     assert!(stored.history.as_ref().is_none_or(Vec::is_empty));
-    let database = pool.pool_arc().expect("pool");
+    let database = pool.pool();
     let persisted = sqlx::query_as::<_, (String, Option<String>)>(
         "SELECT status, error_message FROM agent_tasks WHERE task_id = $1",
     )
@@ -270,7 +270,7 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
     let (user, session) = seed_user_and_session(&pool).await;
     let (context_id, _) = seed_context_and_task(&repositories, &user, &session).await;
     let task_id = TaskId::generate();
-    let raw = pool.write_pool_arc().expect("agent write pool");
+    let raw = pool.write_pool();
 
     sqlx::query(
         "CREATE FUNCTION reject_completed_agent_message() RETURNS trigger LANGUAGE plpgsql AS $$ \
@@ -346,7 +346,7 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
     drop(processor);
     drop(repositories);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
@@ -363,7 +363,7 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
     let (user, session) = seed_user_and_session(&pool).await;
     let (context_id, _) = seed_context_and_task(&repositories, &user, &session).await;
     let task_id = TaskId::generate();
-    let raw = pool.write_pool_arc().expect("agent write pool");
+    let raw = pool.write_pool();
 
     sqlx::query(
         "CREATE FUNCTION reject_working_transition() RETURNS trigger LANGUAGE plpgsql AS $$ \
@@ -430,7 +430,7 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
     drop(processor);
     drop(repositories);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
@@ -446,7 +446,7 @@ async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
     let (user, session) = seed_user_and_session(&pool).await;
     let (context_id, _) = seed_context_and_task(&repositories, &user, &session).await;
     let task_id = TaskId::generate();
-    let raw = pool.write_pool_arc().expect("agent write pool");
+    let raw = pool.write_pool();
 
     sqlx::query("ALTER TABLE user_contexts RENAME TO unavailable_user_contexts")
         .execute(raw.as_ref())
@@ -495,7 +495,7 @@ async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
     drop(processor);
     drop(repositories);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

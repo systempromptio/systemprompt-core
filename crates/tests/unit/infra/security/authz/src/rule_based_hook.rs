@@ -33,9 +33,7 @@ fn fixture() -> AuthzRequest {
 #[tokio::test]
 async fn rule_based_hook_denies_when_the_pool_is_unavailable() {
     let db = closed_db_pool().await;
-    let pool = db
-        .write_pool_arc()
-        .expect("closed pool still exposes a write handle");
+    let pool = db.write_pool();
     let hook = RuleBasedHook::new(pool, Arc::new(NullAuditSink), ChainSources::default());
 
     let decision = hook.evaluate(fixture()).await;

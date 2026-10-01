@@ -53,7 +53,7 @@ struct Seed {
 impl Seed {
     async fn new() -> Self {
         let pool = test_db_pool().await;
-        let raw = pool.pool_arc().unwrap().as_ref().clone();
+        let raw = pool.pool().as_ref().clone();
 
         let tag = uuid::Uuid::new_v4().simple().to_string();
         let user_id = format!("seed_user_{tag}");

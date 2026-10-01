@@ -8,7 +8,7 @@ use super::bootstrapped_pool;
 
 async fn test_repo() -> AiGatewayPolicyRepository {
     let pool = bootstrapped_pool().await;
-    AiGatewayPolicyRepository::new(&pool).expect("repo")
+    AiGatewayPolicyRepository::new(&pool)
 }
 
 fn unique_name() -> String {

@@ -36,7 +36,7 @@ pub(super) async fn execute_with_pool(
         return Err(anyhow!("Search query cannot be empty"));
     }
 
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     let found_files = service.search_by_path(&args.query, args.limit).await?;
 

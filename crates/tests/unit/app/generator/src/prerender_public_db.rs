@@ -200,7 +200,7 @@ async fn prerender_excludes_non_public_rows() {
     let boot = ensure_test_bootstrap();
     let db = test_db_pool().await;
 
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
     clean_source(&repo, &source_id).await;
 
@@ -265,7 +265,7 @@ async fn prerender_removes_now_private_slug() {
     let boot = ensure_test_bootstrap();
     let db = test_db_pool().await;
 
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
     clean_source(&repo, &source_id).await;
 
@@ -321,12 +321,11 @@ async fn prerender_removes_now_private_slug() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
 }
 
 fn content_analytics(
     pool: &systemprompt_database::DbPool,
 ) -> systemprompt_analytics::ContentAnalyticsRepository {
     systemprompt_analytics::ContentAnalyticsRepository::new(pool)
-        .expect("content analytics repository")
 }

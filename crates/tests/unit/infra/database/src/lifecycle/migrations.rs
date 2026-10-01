@@ -748,7 +748,7 @@ mod checksum_drift_db {
 
     async fn test_provider() -> PostgresProvider {
         let db = test_pool().await;
-        let pg = db.write_pool_arc().expect("write pool");
+        let pg = db.write_pool();
         PostgresProvider::from_pool(pg)
     }
 

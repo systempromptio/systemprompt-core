@@ -11,7 +11,6 @@ use super::{
     ArtifactFindingRepository, ArtifactPayloadRepository, McpArtifactRepository,
     ToolUsageRepository,
 };
-use crate::error::McpDomainResult;
 
 #[derive(Debug)]
 pub struct ArtifactIngestRepositories {
@@ -22,12 +21,12 @@ pub struct ArtifactIngestRepositories {
 }
 
 impl ArtifactIngestRepositories {
-    pub fn new(db: &DbPool) -> McpDomainResult<Self> {
-        Ok(Self {
-            artifacts: Arc::new(McpArtifactRepository::new(db)?),
-            payloads: Arc::new(ArtifactPayloadRepository::new(db)?),
-            findings: Arc::new(ArtifactFindingRepository::new(db)?),
-            executions: Arc::new(ToolUsageRepository::new(db)?),
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            artifacts: Arc::new(McpArtifactRepository::new(db)),
+            payloads: Arc::new(ArtifactPayloadRepository::new(db)),
+            findings: Arc::new(ArtifactFindingRepository::new(db)),
+            executions: Arc::new(ToolUsageRepository::new(db)),
+        }
     }
 }

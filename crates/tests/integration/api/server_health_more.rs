@@ -45,7 +45,7 @@ async fn seed_mcp_service(
     let repo = ServiceRepository::new(
         ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
     repo.create_service(CreateServiceInput {
         name,
         module_name: "mcp",
@@ -69,7 +69,7 @@ async fn seed_agent_service(
     let repo = ServiceRepository::new(
         ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
     repo.create_service(CreateServiceInput {
         name,
         module_name: "agent",
@@ -149,7 +149,7 @@ async fn cleanup_removes_stale_mcp_rows() -> anyhow::Result<()> {
     let repo = ServiceRepository::new(
         ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
     assert!(
         repo.find_service_by_name(&name).await?.is_none(),
         "stale row is gone"
@@ -170,7 +170,7 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     let repo = ServiceRepository::new(
         ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
     let recycled_row = repo
         .find_service_by_name(&recycled)
         .await?
@@ -246,7 +246,7 @@ async fn cleanup_sweeps_stale_agent_row_and_keeps_non_stale_mcp() -> anyhow::Res
     let repo = ServiceRepository::new(
         ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
     assert!(
         repo.find_service_by_name(&stale_agent).await?.is_none(),
         "stale agent row is gone"

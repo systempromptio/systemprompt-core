@@ -64,7 +64,7 @@ settings:
         &format!("{}@proxy.invalid", user_id.as_str()),
     )
     .await?;
-    McpProxyIdentityRepository::new(&pool)?
+    McpProxyIdentityRepository::new(&pool)
         .upsert(
             &session_id,
             &ProxyIdentityRow {

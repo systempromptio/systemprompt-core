@@ -32,11 +32,9 @@ pub struct MessageRepository {
 }
 
 impl MessageRepository {
-    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
-        let pool = db.pool_arc().map_err(|e| {
-            RepositoryError::InvalidData(format!("PostgreSQL pool not available: {e}"))
-        })?;
-        Ok(Self { pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        Self { pool }
     }
 
     pub async fn get_messages_by_task(

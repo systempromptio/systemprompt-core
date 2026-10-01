@@ -25,12 +25,12 @@ fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::Gat
 
 fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynContextMaterializer {
     std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-        systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+        systemprompt_agent::repository::ContextRepository::new(db),
     ))
 }
 
 fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
-    GatewayRepositories::new(db, gateway_journal(), materializer(db)).expect("gateway repositories")
+    GatewayRepositories::new(db, gateway_journal(), materializer(db))
 }
 
 #[tokio::test]
@@ -104,7 +104,7 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
         "every task must return either Ok or Err — none may panic or hang"
     );
 
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM ai_requests WHERE id = $1")
         .bind(ai_request_id.as_str())
         .fetch_one(pool.as_ref())
@@ -167,7 +167,7 @@ async fn gateway_audit_open_persists_derived_context_id() {
         .await
         .expect("open");
 
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let (stored_context, stored_gateway): (Option<String>, Option<String>) =
         sqlx::query_as("SELECT context_id, gateway_conversation_id FROM ai_requests WHERE id = $1")
             .bind(ai_request_id.as_str())

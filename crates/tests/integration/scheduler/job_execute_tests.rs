@@ -174,7 +174,7 @@ mod cleanup_empty_contexts_enforce_gate {
         .expect("seed user");
 
         let context_id = format!("{tag}-{}", uuid::Uuid::new_v4());
-        let raw = pool.pool_arc().expect("raw pool");
+        let raw = pool.pool();
         sqlx::query(
             "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
              updated_at) VALUES ($1, $2, NULL, 'enforce gate fixture', 'conversation', NOW() - \
@@ -195,7 +195,7 @@ mod cleanup_empty_contexts_enforce_gate {
 
     impl Fixture {
         async fn context_exists(&self) -> bool {
-            let raw = self.pool.pool_arc().expect("raw pool");
+            let raw = self.pool.pool();
             sqlx::query_scalar::<_, bool>(
                 "SELECT EXISTS(SELECT 1 FROM user_contexts WHERE context_id = $1)",
             )
@@ -206,7 +206,7 @@ mod cleanup_empty_contexts_enforce_gate {
         }
 
         async fn cleanup(&self) {
-            let raw = self.pool.pool_arc().expect("raw pool");
+            let raw = self.pool.pool();
             for stmt in [
                 "DELETE FROM user_contexts WHERE user_id = $1",
                 "DELETE FROM users WHERE id = $1",

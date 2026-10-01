@@ -132,7 +132,7 @@ async fn drive_site_auth(uri: &str) -> StatusCode {
         .route("/{*rest}", get(|| async { "ok" }))
         .route("/login", get(|| async { "login" }))
         .layer(middleware::from_fn(move |req, next| async move {
-            site_auth_gate(req, next, config).await
+            site_auth_gate(req, next, config, "https://issuer.test").await
         }));
     let resp = app
         .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
@@ -181,7 +181,7 @@ fn req_from(uri: &str, ip: Option<&str>) -> Request<Body> {
 #[tokio::test]
 async fn a_request_with_no_resolvable_address_is_denied() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let repo = Arc::new(BannedIpRepository::new(&pool)?);
+    let repo = Arc::new(BannedIpRepository::new(&pool));
 
     let resp = ban_app(&repo)
         .oneshot(req_from("/x", None))
@@ -203,8 +203,8 @@ async fn a_request_with_no_resolvable_address_is_denied() -> Result<()> {
 #[tokio::test]
 async fn an_unreachable_ban_list_denies_rather_than_admits() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let repo = Arc::new(BannedIpRepository::new(&pool)?);
-    pool.pool_arc()?.close().await;
+    let repo = Arc::new(BannedIpRepository::new(&pool));
+    pool.pool().close().await;
 
     let resp = ban_app(&repo)
         .oneshot(req_from("/x", Some("9.9.9.9")))
@@ -226,8 +226,8 @@ async fn an_unreachable_ban_list_denies_rather_than_admits() -> Result<()> {
 #[tokio::test]
 async fn probes_stay_available_when_the_ban_list_is_unreachable() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let repo = Arc::new(BannedIpRepository::new(&pool)?);
-    pool.pool_arc()?.close().await;
+    let repo = Arc::new(BannedIpRepository::new(&pool));
+    pool.pool().close().await;
 
     for path in ["/health", ApiPaths::LIVEZ, ApiPaths::READYZ] {
         let resp = ban_app(&repo)
@@ -246,8 +246,8 @@ async fn probes_stay_available_when_the_ban_list_is_unreachable() -> Result<()> 
 #[tokio::test]
 async fn static_content_stays_served_when_the_ban_list_is_unreachable() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let repo = Arc::new(BannedIpRepository::new(&pool)?);
-    pool.pool_arc()?.close().await;
+    let repo = Arc::new(BannedIpRepository::new(&pool));
+    pool.pool().close().await;
 
     let app = ban_app(&repo).merge(Router::new().route("/page", get(|| async { "ok" })));
 
@@ -278,7 +278,7 @@ async fn static_content_stays_served_when_the_ban_list_is_unreachable() -> Resul
 #[tokio::test]
 async fn ip_ban_middleware_blocks_seeded_ip() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let repo = Arc::new(BannedIpRepository::new(&pool)?);
+    let repo = Arc::new(BannedIpRepository::new(&pool));
     let ip = format!("198.51.100.{}", (Uuid::new_v4().as_u128() % 250) + 1);
     repo.ban_ip(BanIpParams {
         ip_address: &ip,
@@ -320,7 +320,7 @@ async fn ip_ban_middleware_blocks_seeded_ip() -> Result<()> {
 async fn jti_revocation_checker_fails_closed_on_revoked() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let checker = JtiRevocationChecker::from_repository(
-        systemprompt_oauth::repository::OAuthRepository::new(&pool)?,
+        systemprompt_oauth::repository::OAuthRepository::new(&pool),
     );
 
     assert!(

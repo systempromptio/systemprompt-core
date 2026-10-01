@@ -102,7 +102,7 @@ async fn gateway_rebinds_one_governed_request_to_its_fallback_after_primary_500(
         1,
         "the fallback receives the re-bound request once"
     );
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let served: Option<String> =
         sqlx::query_scalar("SELECT served_provider FROM ai_requests WHERE id = $1")
             .bind(request_id.as_str())
@@ -262,7 +262,7 @@ async fn gateway_records_the_fallback_when_both_upstreams_fail() -> anyhow::Resu
             .len(),
         1
     );
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let served: Option<String> =
         sqlx::query_scalar("SELECT served_provider FROM ai_requests WHERE id = $1")
             .bind(request_id.as_str())
@@ -308,7 +308,7 @@ async fn gateway_without_a_fallback_records_primary_failure_once() -> anyhow::Re
         "the primary uses its configured bounded retry budget"
     );
 
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let row: (String, Option<String>) =
         sqlx::query_as("SELECT status, error_message FROM ai_requests WHERE id = $1")
             .bind(request_id.as_str())
@@ -356,7 +356,7 @@ async fn gateway_without_a_fallback_returns_and_attributes_primary_success() -> 
         1
     );
 
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let identity: (String, Option<String>) =
         sqlx::query_as("SELECT provider, served_provider FROM ai_requests WHERE id = $1")
             .bind(request_id.as_str())
@@ -442,7 +442,7 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
             .len(),
         6
     );
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let served: Option<String> =
         sqlx::query_scalar("SELECT served_provider FROM ai_requests WHERE id=$1")
             .bind(request_id.as_str())
@@ -543,7 +543,7 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
         failing_before,
         "an open fallback circuit is not contacted after a healthy primary response"
     );
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let served: Option<String> =
         sqlx::query_scalar("SELECT served_provider FROM ai_requests WHERE id=$1")
             .bind(request_id.as_str())

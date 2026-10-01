@@ -52,7 +52,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         &services_config.ai.mcp.resilience,
     ));
     let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
-        systemprompt_users::SessionRepository::new(&db_pool)?,
+        systemprompt_users::SessionRepository::new(&db_pool),
     ));
     let ai_service = Arc::new(
         AiService::new(

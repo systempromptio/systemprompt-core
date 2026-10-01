@@ -15,7 +15,7 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 async fn seed_content(pool: &DbPool, source: &SourceId) -> ContentId {
-    let repo = ContentRepository::new(pool).expect("repo");
+    let repo = ContentRepository::new(pool);
     let params = CreateContentParams::new(
         format!("link-src-{}", Uuid::new_v4()),
         "Link Source".to_owned(),
@@ -27,7 +27,7 @@ async fn seed_content(pool: &DbPool, source: &SourceId) -> ContentId {
 }
 
 async fn cleanup(pool: &DbPool, source: &SourceId) {
-    let repo = ContentRepository::new(pool).expect("repo");
+    let repo = ContentRepository::new(pool);
     repo.delete_by_source(source).await.expect("cleanup");
 }
 
@@ -35,7 +35,7 @@ async fn cleanup(pool: &DbPool, source: &SourceId) {
 async fn generate_external_link_persists_and_resolves_external() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
+    let svc = LinkGenerationService::new(LinkRepository::new(&pool));
 
     let link = svc
         .generate_link(GenerateLinkParams {
@@ -76,7 +76,7 @@ async fn generate_external_link_persists_and_resolves_external() {
 async fn generate_link_with_utm_serializes_params_and_internal_destination() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
+    let svc = LinkGenerationService::new(LinkRepository::new(&pool));
 
     let utm = UtmParams {
         source: Some("newsletter".to_owned()),
@@ -120,7 +120,7 @@ async fn generate_social_media_link_sets_social_utm() {
     let pool = test_db_pool().await;
     let source = SourceId::new(format!("gen-social-{}", Uuid::new_v4()));
     let content_id = seed_content(&pool, &source).await;
-    let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
+    let svc = LinkGenerationService::new(LinkRepository::new(&pool));
 
     let link = svc
         .generate_social_media_link(
@@ -149,7 +149,7 @@ async fn generate_internal_content_link_is_idempotent_on_source_and_target() {
     let pool = test_db_pool().await;
     let source = SourceId::new(format!("gen-internal-{}", Uuid::new_v4()));
     let content_id = seed_content(&pool, &source).await;
-    let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
+    let svc = LinkGenerationService::new(LinkRepository::new(&pool));
 
     let source_page = format!("/blog/{}", Uuid::new_v4());
     let target = "https://systemprompt.io/docs";
@@ -190,7 +190,7 @@ async fn generate_internal_content_link_is_idempotent_on_source_and_target() {
 async fn generate_external_cta_link_marks_cta_position() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
+    let svc = LinkGenerationService::new(LinkRepository::new(&pool));
 
     let link = svc
         .generate_external_cta_link(
@@ -217,7 +217,7 @@ async fn generate_external_content_link_is_a_redirect_share() {
     let pool = test_db_pool().await;
     let source = SourceId::new(format!("gen-extcontent-{}", Uuid::new_v4()));
     let content_id = seed_content(&pool, &source).await;
-    let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
+    let svc = LinkGenerationService::new(LinkRepository::new(&pool));
 
     let source_page = format!("/p/{}", Uuid::new_v4());
     let link = svc
@@ -250,7 +250,7 @@ async fn generate_external_content_link_is_a_redirect_share() {
 async fn get_link_by_short_code_missing_is_none() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let svc = LinkGenerationService::new(LinkRepository::new(&pool).expect("link repo"));
+    let svc = LinkGenerationService::new(LinkRepository::new(&pool));
 
     let result = svc
         .get_link_by_short_code(&format!("missing{}", Uuid::new_v4().simple()))

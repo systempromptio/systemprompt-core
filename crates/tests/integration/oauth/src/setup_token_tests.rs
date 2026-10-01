@@ -15,7 +15,7 @@ fn unique_hash() -> String {
 async fn setup_token_full_lifecycle() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
 
     let hash = unique_hash();
     let _id = repo
@@ -53,7 +53,7 @@ async fn setup_token_full_lifecycle() {
 #[tokio::test]
 async fn validate_unknown_token_returns_not_found() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
 
     match repo
         .validate_setup_token("nonexistent-hash")
@@ -69,7 +69,7 @@ async fn validate_unknown_token_returns_not_found() {
 async fn validate_expired_token_returns_expired() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
 
     let hash = unique_hash();
     repo.store_setup_token(CreateSetupTokenParams {
@@ -91,7 +91,7 @@ async fn validate_expired_token_returns_expired() {
 async fn revoke_user_setup_tokens_marks_unused_tokens_used() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
 
     for _ in 0..3 {
         repo.store_setup_token(CreateSetupTokenParams {
@@ -120,7 +120,7 @@ async fn revoke_user_setup_tokens_marks_unused_tokens_used() {
 async fn cleanup_expired_setup_tokens_removes_seeded_expired_token() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
 
     let hash = unique_hash();
     repo.store_setup_token(CreateSetupTokenParams {

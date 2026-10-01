@@ -41,7 +41,7 @@ fn ctx(pool: &DbPool, json: bool) -> CommandContext {
 #[tokio::test]
 async fn toggling_an_unregistered_job_is_refused_before_any_write() {
     let pool = test_db_pool().await;
-    let repo = JobRepository::new(&pool).unwrap();
+    let repo = JobRepository::new(&pool);
     let before = repo.find_job("no_such_job_at_all").await.unwrap();
     assert!(before.is_none(), "the fixture job must not already exist");
 

@@ -16,8 +16,7 @@ async fn get_services_by_type_surfaces_seeded_service() {
     let repo = ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repo");
+    );
     let name = format!("gsbt_mcp_{}", uuid::Uuid::new_v4().simple());
     repo.create_service(CreateServiceInput {
         name: &name,
@@ -33,8 +32,7 @@ async fn get_services_by_type_surfaces_seeded_service() {
         systemprompt_database::ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
     );
     let services = svc.get_services_by_type("mcp").await.expect("query");
     assert!(
@@ -56,8 +54,7 @@ async fn get_running_services_with_pid_returns_only_running() {
         systemprompt_database::ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
     );
     let services = svc.get_running_services_with_pid().await.expect("query");
     assert!(
@@ -73,8 +70,7 @@ async fn cleanup_stale_entries_runs() {
         systemprompt_database::ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
     );
     let cleaned = svc.cleanup_stale_entries().await.expect("cleanup");
     let _ = cleaned;
@@ -87,8 +83,7 @@ async fn mark_service_stopped_for_unknown_succeeds() {
         systemprompt_database::ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
     );
     let result = svc
         .mark_service_stopped("nonexistent-service-name-zzz")

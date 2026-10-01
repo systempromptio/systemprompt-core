@@ -47,7 +47,7 @@ fn unique(prefix: &str) -> (String, String) {
 #[tokio::test]
 async fn update_applies_every_field() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (name, email) = unique("upd");
     let user = service
         .create(&name, &email, Some("Old Full"), Some("Old Disp"))
@@ -91,7 +91,7 @@ async fn update_applies_every_field() {
 #[tokio::test]
 async fn update_without_fields_errors() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (name, email) = unique("updn");
     let user = service.create(&name, &email, None, None).await.unwrap();
 
@@ -118,7 +118,7 @@ async fn update_missing_user_errors() {
 #[tokio::test]
 async fn merge_transfers_and_deletes_source() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (sn, se) = unique("mrgs");
     let (tn, te) = unique("mrgt");
     let source = service.create(&sn, &se, None, None).await.unwrap();
@@ -161,7 +161,7 @@ async fn merge_requires_confirmation() {
 #[tokio::test]
 async fn merge_same_user_errors() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("mrgsame");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
@@ -187,7 +187,7 @@ async fn merge_same_user_errors() {
 #[tokio::test]
 async fn merge_missing_users_errors() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("mrgok");
     let target = service.create(&n, &e, None, None).await.unwrap();
 

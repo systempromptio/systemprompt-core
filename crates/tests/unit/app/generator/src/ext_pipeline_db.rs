@@ -129,7 +129,7 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
     let db = test_db_pool().await;
 
     let source_id = SourceId::new("extpipesrc");
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let _ = repo.delete_by_source(&source_id).await;
     for locale in ["en", "fr"] {
         repo.create(
@@ -240,7 +240,7 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
     let db = test_db_pool().await;
 
     let source_id = SourceId::new("extpipeempty");
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let _ = repo.delete_by_source(&source_id).await;
 
     install_config(boot, "extpipeempty");
@@ -265,7 +265,7 @@ async fn generate_sitemap_chunks_into_index_when_over_url_limit() {
     let boot = ensure_test_bootstrap();
     let db = test_db_pool().await;
 
-    let pool = db.pool_arc().expect("pg pool");
+    let pool = db.pool();
     sqlx::query("DELETE FROM markdown_content WHERE source_id = 'extpipebulk'")
         .execute(pool.as_ref())
         .await
@@ -358,12 +358,11 @@ async fn validate_build_skips_unparseable_sitemap_urls() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
 }
 
 fn content_analytics(
     pool: &systemprompt_database::DbPool,
 ) -> systemprompt_analytics::ContentAnalyticsRepository {
     systemprompt_analytics::ContentAnalyticsRepository::new(pool)
-        .expect("content analytics repository")
 }

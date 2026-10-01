@@ -40,14 +40,14 @@ impl SessionRepository {
         owner: systemprompt_traits::DynSessionStore,
         events: systemprompt_traits::DynAnalyticsEventStore,
         content: systemprompt_traits::DynContentCatalogStats,
-    ) -> Result<Self> {
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self {
+    ) -> Self {
+        let write_pool = db.write_pool();
+        Self {
             write_pool,
             owner,
             events,
             content,
-        })
+        }
     }
 
     pub async fn find_by_id(&self, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {

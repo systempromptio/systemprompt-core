@@ -44,14 +44,15 @@ fn mint_active_kid(claims: &JwtClaims) -> String {
 #[test]
 fn session_context_accepts_first_party_audience() {
     let token = mint_active_kid(&make_claims("test", JwtAudience::standard()));
-    let claims = decode_rs256_claims(&token, &ValidationPolicy::session_context()).expect("decode");
+    let claims =
+        decode_rs256_claims(&token, &ValidationPolicy::session_context("test")).expect("decode");
     assert_eq!(claims.sub, "u1");
 }
 
 #[test]
 fn session_context_rejects_hook_only_audience() {
     let token = mint_active_kid(&make_claims("test", vec![JwtAudience::Hook]));
-    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context()).unwrap_err();
+    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context("test")).unwrap_err();
     assert!(
         matches!(err, AuthError::InvalidToken(_)),
         "expected InvalidToken for hook-only aud, got {err:?}"
@@ -64,7 +65,7 @@ fn session_context_rejects_custom_resource_audience() {
         "test",
         vec![JwtAudience::Resource("https://example.com/api".to_owned())],
     ));
-    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context()).unwrap_err();
+    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context("test")).unwrap_err();
     assert!(
         matches!(err, AuthError::InvalidToken(_)),
         "expected InvalidToken for resource-only aud, got {err:?}"
@@ -77,7 +78,7 @@ fn session_context_accepts_mixed_bridge_and_mcp_audience() {
         "test",
         vec![JwtAudience::Bridge, JwtAudience::Mcp],
     ));
-    decode_rs256_claims(&token, &ValidationPolicy::session_context())
+    decode_rs256_claims(&token, &ValidationPolicy::session_context("test"))
         .expect("bridge+mcp token intersects the first-party set");
 }
 
@@ -145,7 +146,7 @@ fn decode_rejects_non_rs256_token() {
     header.kid = Some("kid1".to_owned());
     let token = encode(&header, &claims, &EncodingKey::from_secret(secret)).unwrap();
 
-    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context()).unwrap_err();
+    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context("test")).unwrap_err();
     assert!(
         matches!(err, AuthError::UnsupportedAlgorithm { .. }),
         "expected UnsupportedAlgorithm, got {err:?}"
@@ -161,7 +162,7 @@ fn decode_rejects_missing_kid() {
     let key = authority::encoding_key().expect("encoding key");
     let token = encode(&header, &claims, key).unwrap();
 
-    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context()).unwrap_err();
+    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context("test")).unwrap_err();
     assert!(
         matches!(err, AuthError::MissingKid),
         "expected MissingKid, got {err:?}"
@@ -177,7 +178,7 @@ fn decode_rejects_unknown_kid() {
     let key = authority::encoding_key().expect("encoding key");
     let token = encode(&header, &claims, key).unwrap();
 
-    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context()).unwrap_err();
+    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context("test")).unwrap_err();
     assert!(
         matches!(err, AuthError::UnknownKid(_)),
         "expected UnknownKid, got {err:?}"
@@ -187,4 +188,14 @@ fn decode_rejects_unknown_kid() {
 #[test]
 fn leeway_constant_is_thirty_seconds() {
     assert_eq!(JWT_LEEWAY_SECONDS, 30);
+}
+
+#[test]
+fn session_context_rejects_a_foreign_issuer() {
+    let token = mint_active_kid(&make_claims("other.issuer", JwtAudience::standard()));
+    let err = decode_rs256_claims(&token, &ValidationPolicy::session_context("test")).unwrap_err();
+    assert!(
+        matches!(err, AuthError::InvalidToken(_)),
+        "the session policy pins the issuer, got {err:?}"
+    );
 }

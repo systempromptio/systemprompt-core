@@ -16,7 +16,7 @@ use systemprompt_traits::{
 
 async fn provider_on_a_dead_pool() -> ContextProviderService {
     let pool = closed_db_pool().await;
-    ContextProviderService::new(ContextRepository::new(&pool).expect("context repo"))
+    ContextProviderService::new(ContextRepository::new(&pool))
 }
 
 fn assert_database(outcome: &Result<(), ContextProviderError>, verb: &str) {

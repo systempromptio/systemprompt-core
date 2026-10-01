@@ -31,17 +31,15 @@ pub struct TaskConstructor {
 }
 
 impl TaskConstructor {
-    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        let artifact_repo = ArtifactRepository::new(db)?;
-        let execution_step_repo = ExecutionStepRepository::new(db)?;
-        Ok(Self {
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let artifact_repo = ArtifactRepository::new(db);
+        let execution_step_repo = ExecutionStepRepository::new(db);
+        Self {
             pool,
             artifact_repo,
             execution_step_repo,
-        })
+        }
     }
 
     pub(crate) const fn pool(&self) -> &Arc<PgPool> {

@@ -61,44 +61,32 @@ async fn plane_debug_impls_flag_optional_members() {
                         systemprompt_test_fixtures::ToolExecutionLedger::Exists,
                     ),
                 },
-            )
-            .expect("a2a repositories"),
+            ),
         ),
         content_repositories: Arc::new(
-            systemprompt_content::repository::ContentRepositories::new(&pool)
-                .expect("content repositories"),
+            systemprompt_content::repository::ContentRepositories::new(&pool),
         ),
         oauth_repositories: Arc::new(
-            systemprompt_oauth::repository::OAuthRepositories::new(&pool)
-                .expect("oauth repositories"),
+            systemprompt_oauth::repository::OAuthRepositories::new(&pool),
         ),
-        user_repository: Arc::new(
-            systemprompt_users::UserRepository::new(&pool).expect("user repository"),
-        ),
+        user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
         service_repository: Arc::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         ),
-        ai_repositories: Arc::new(
-            systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
-        ),
+        ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
         analytics_repositories: Arc::new(
             systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
                 .expect("analytics repositories"),
         ),
-        file_repository: Arc::new(
-            systemprompt_files::FileRepository::new(&pool).expect("file repository"),
-        ),
+        file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
         mcp_session_repository: Arc::new(
-            systemprompt_mcp::repository::McpSessionRepository::new(&pool)
-                .expect("mcp session repository"),
+            systemprompt_mcp::repository::McpSessionRepository::new(&pool),
         ),
         managed_repository: Arc::new(
-            systemprompt_marketplace::managed::ManagedRepository::new(&pool)
-                .expect("managed repository"),
+            systemprompt_marketplace::managed::ManagedRepository::new(&pool),
         ),
     };
     let dbg = format!("{data:?}");

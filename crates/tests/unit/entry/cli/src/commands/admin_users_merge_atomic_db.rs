@@ -30,7 +30,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
     let pool = database.test_pool().await;
     ensure_test_bootstrap();
     install_test_signing_key();
-    let repository = Arc::new(UserRepository::new(&pool).expect("user repository"));
+    let repository = Arc::new(UserRepository::new(&pool));
     let service = UserService::new(Arc::clone(&repository));
     let nonce = uuid::Uuid::new_v4().simple().to_string();
     let source = service
@@ -55,7 +55,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
     seed_user_session(&pool, &source.id, &session)
         .await
         .expect("source session");
-    let raw = pool.pool_arc().expect("raw pool");
+    let raw = pool.pool();
     sqlx::query(
         "CREATE FUNCTION reject_cli_merge_attribution() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN IF NEW.tool_name = 'users.merge' THEN RAISE EXCEPTION 'fixture late merge failure'; \
@@ -159,7 +159,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
     drop(service);
     drop(repository);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

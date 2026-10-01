@@ -48,8 +48,7 @@ async fn make_lifecycle() -> (LifecycleOrchestrator, systemprompt_database::DbPo
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
         Arc::clone(&app_paths),
         registry,
     );
@@ -105,8 +104,7 @@ async fn stop_server_cleans_up_stale_db_row() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -131,8 +129,7 @@ async fn health_check_dead_port_returns_false_and_updates_status() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -158,8 +155,7 @@ async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -182,8 +178,7 @@ async fn sync_database_state_marks_unhealthy_crashed() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -207,8 +202,7 @@ async fn reconcile_running_processes_reports_dead_ports() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -235,8 +229,7 @@ async fn repair_inconsistencies_marks_pidless_running_as_stopped() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -258,8 +251,7 @@ async fn delete_crashed_services_runs() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -280,8 +272,7 @@ async fn health_check_with_stale_pid_marks_stopped() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -308,8 +299,7 @@ async fn stop_server_with_stale_db_pid_goes_through_stale_cleanup() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",

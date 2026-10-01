@@ -342,7 +342,7 @@ fn blog_matcher(tmp_cfg: &TempDir) -> anyhow::Result<StaticContentMatcher> {
 
 async fn seed_blog_post(state: &StaticContentState, slug: &str) -> anyhow::Result<()> {
     let uniq = uuid::Uuid::new_v4();
-    let pool = state.ctx.db_pool().pool_arc()?;
+    let pool = state.ctx.db_pool().pool();
     sqlx::query(
         "INSERT INTO markdown_content \
          (id, slug, title, description, body, author, published_at, keywords, source_id, \

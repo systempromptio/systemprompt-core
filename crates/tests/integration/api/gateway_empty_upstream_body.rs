@@ -152,7 +152,7 @@ async fn an_empty_upstream_body_is_audited_as_failed() -> Result<()> {
     let cred = credential(&pool).await?;
     let _ = super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
 
-    let pg = pool.pool_arc()?;
+    let pg = pool.pool();
     let mut settled = None;
     for _ in 0..100 {
         let row: Option<(String, Option<String>)> = sqlx::query_as(

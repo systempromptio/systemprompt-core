@@ -25,11 +25,11 @@ pub struct SessionRepository {
     write_pool: Arc<PgPool>,
 }
 impl SessionRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        Ok(Self {
-            pool: db.pool_arc()?,
-            write_pool: db.write_pool_arc()?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            pool: db.pool(),
+            write_pool: db.write_pool(),
+        }
     }
     pub async fn find_by_id(&self, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
         queries::find_by_id(&self.write_pool, session_id).await

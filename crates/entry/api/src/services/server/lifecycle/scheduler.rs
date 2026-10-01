@@ -30,8 +30,7 @@ pub(in crate::services::server) async fn initialize_scheduler(
         },
     );
 
-    let scheduler =
-        SchedulerService::new(config, Arc::clone(ctx.db_pool()), Arc::new(ctx.clone()))?;
+    let scheduler = SchedulerService::new(config, Arc::clone(ctx.db_pool()), Arc::new(ctx.clone()));
 
     let available_jobs = scheduler.run_bootstrap_jobs(events).await?;
     let startup = scheduler.start().await?;

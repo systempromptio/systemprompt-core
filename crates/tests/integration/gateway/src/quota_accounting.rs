@@ -39,10 +39,9 @@ fn gateway_repos(db: &DbPool) -> systemprompt_api::services::gateway::GatewayRep
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(db),
         )),
     )
-    .expect("gateway repositories")
 }
 
 fn dead_pool() -> DbPool {
@@ -84,7 +83,7 @@ fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestCon
 }
 
 async fn status_of(db: &DbPool, id: &AiRequestId) -> String {
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     sqlx::query_scalar("SELECT status FROM ai_requests WHERE id = $1")
         .bind(id.as_str())
         .fetch_one(pool.as_ref())
@@ -114,8 +113,7 @@ async fn record_a_failed_accounting_write(mode: QuotaFaultMode) -> String {
     }];
     let outcome = post_update_tokens(
         &dead_pool(),
-        &systemprompt_ai::repository::AiQuotaBucketRepository::new(&dead_pool())
-            .expect("quota repo"),
+        &systemprompt_ai::repository::AiQuotaBucketRepository::new(&dead_pool()),
         PostUpdateParams {
             user_id: &user_id,
             windows: &windows,
@@ -158,7 +156,7 @@ async fn a_successful_accounting_write_is_counted() {
     }];
     let outcome = post_update_tokens(
         &db,
-        &systemprompt_ai::repository::AiQuotaBucketRepository::new(&db).expect("quota repo"),
+        &systemprompt_ai::repository::AiQuotaBucketRepository::new(&db),
         PostUpdateParams {
             user_id: &user_id,
             windows: &windows,
@@ -223,8 +221,7 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
         let dead = dead_pool();
         let mut unavailable = repos.clone();
         unavailable.requests = std::sync::Arc::new(
-            systemprompt_ai::repository::AiRequestRepository::new(&dead)
-                .expect("unavailable repository"),
+            systemprompt_ai::repository::AiRequestRepository::new(&dead),
         );
         let faulted = GatewayAudit::new(&unavailable, context);
         assert!(
@@ -269,7 +266,7 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
                 .expect("empty recovery"),
             0
         );
-        let pg = db.pool_arc().expect("pool");
+        let pg = db.pool();
         let row:(String,Option<i32>,Option<i32>,i64,Option<String>)=sqlx::query_as("SELECT status,input_tokens,output_tokens,cost_microdollars,accounting_error FROM ai_requests WHERE id=$1").bind(id.as_str()).fetch_one(pg.as_ref()).await.expect("persisted fault");
         assert_eq!(
             row,

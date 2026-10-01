@@ -81,8 +81,7 @@ impl Job for FileIngestionJob {
                 .with_duration(start_time.elapsed().as_millis() as u64));
         }
 
-        let file_repo = FileRepository::new(db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let file_repo = FileRepository::new(db_pool);
         let stats = process_image_files(&file_repo, files_config, images_dir).await;
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

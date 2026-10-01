@@ -58,7 +58,7 @@ mod behavioral_analysis_seeded {
     async fn execute_flags_high_request_count_fingerprint() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let hash = unique_id("fp_hireq");
 
@@ -105,7 +105,7 @@ mod behavioral_analysis_seeded {
     async fn execute_counts_flagged_as_processed() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let hash = unique_id("fp_counted");
 
@@ -152,7 +152,7 @@ mod behavioral_analysis_seeded {
     async fn execute_flags_sustained_velocity_fingerprint() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let hash = unique_id("fp_velocity");
 
@@ -199,7 +199,7 @@ mod behavioral_analysis_seeded {
     async fn execute_flags_excessive_sessions_fingerprint() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let hash = unique_id("fp_sessions");
 
@@ -246,7 +246,7 @@ mod behavioral_analysis_seeded {
     async fn execute_triggers_ban_path_for_abuse_threshold_crossed() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let hash = unique_id("fp_ban");
         let ip = unique_ip("10.0");
@@ -301,7 +301,7 @@ mod behavioral_analysis_seeded {
     async fn execute_handles_reputation_decay_below_threshold() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let hash = unique_id("fp_decay");
 
@@ -346,7 +346,7 @@ mod behavioral_analysis_seeded {
     async fn execute_skips_ban_when_no_ip_address() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let hash = unique_id("fp_noip");
 
@@ -394,7 +394,7 @@ mod behavioral_analysis_seeded {
     async fn execute_multiple_fingerprints_all_branches() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let fp_high_req = unique_id("fp_multi_req");
         let fp_velocity = unique_id("fp_multi_vel");
@@ -482,7 +482,7 @@ mod malicious_ip_blacklist_seeded {
     async fn execute_bans_high_volume_ip() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let ip = unique_ip("192.168");
         let mut session_ids = Vec::new();
@@ -525,7 +525,7 @@ mod malicious_ip_blacklist_seeded {
     async fn execute_bans_scanner_ip() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let ip = unique_ip("172.16");
         let mut session_ids = Vec::new();
@@ -563,7 +563,7 @@ mod malicious_ip_blacklist_seeded {
     async fn execute_bans_datacenter_ip() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let ip = unique_ip("47.79");
         let sid = unique_id("datacenter_sess");
@@ -595,7 +595,7 @@ mod malicious_ip_blacklist_seeded {
     async fn execute_bans_high_risk_country_ip() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let ip = unique_ip("10.20");
         let mut session_ids = Vec::new();
@@ -633,7 +633,7 @@ mod malicious_ip_blacklist_seeded {
     async fn execute_skips_already_banned_ip() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let ip = unique_ip("192.0");
 
@@ -683,7 +683,7 @@ mod malicious_ip_blacklist_seeded {
     async fn execute_handles_non_high_risk_country_not_banned() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let ip = unique_ip("10.30");
         let mut session_ids = Vec::new();
@@ -721,7 +721,7 @@ mod malicious_ip_blacklist_seeded {
     async fn execute_processes_sessions_without_ip_gracefully() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool must be available");
+        let pg = pool.write_pool();
 
         let mut session_ids = Vec::new();
         for i in 0u64..5 {

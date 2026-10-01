@@ -12,14 +12,14 @@ use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::DynToolCallIntentClaims;
 
 fn intents(db: &systemprompt_database::DbPool) -> DynToolCallIntentClaims {
-    Arc::new(AiRequestRepository::new(db).unwrap())
+    Arc::new(AiRequestRepository::new(db))
 }
 
 #[tokio::test]
 async fn tool_executor_construction_and_clone() {
     let db = test_db_pool().await;
-    let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
+    let tool_repo = Arc::new(ToolUsageRepository::new(&db));
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
     let exec = McpToolExecutor::new(tool_repo, intents(&db), art_repo, "srv-x");
     let _ = exec.clone();
     let _ = format!("{exec:?}");

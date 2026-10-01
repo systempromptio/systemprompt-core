@@ -29,8 +29,7 @@ mod start_owner_resolution_db {
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         let startup = svc.start().await.expect("scheduler must start");
         assert!(startup.handle.is_some(), "scheduler must start");
@@ -62,8 +61,7 @@ mod start_owner_resolution_db {
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         let startup = svc
             .start()
@@ -84,7 +82,6 @@ mod start_owner_resolution_db {
         assert_eq!(skipped.owner, bad_owner);
 
         let logs = LoggingRepository::new(&pool)
-            .expect("logging repository")
             .get_logs_by_module_patterns(&["scheduler".to_owned()], 1000)
             .await
             .expect("query scheduler logs");
@@ -118,8 +115,7 @@ mod start_lifecycle_db {
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         let startup = svc
             .start()
@@ -144,8 +140,7 @@ mod start_lifecycle_db {
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         let err = svc
             .start()
@@ -162,7 +157,7 @@ mod start_lifecycle_db {
         let url = test_database_url();
         let pool = test_db_pool().await;
         let app_ctx = test_app_context(&pool, &url);
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
 
         let job_name = crate::test_jobs::EMPTY_SCHEDULE_JOB;
         sqlx::query!("DELETE FROM scheduled_jobs WHERE job_name = $1", job_name)
@@ -180,11 +175,10 @@ mod start_lifecycle_db {
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         let startup = svc.start().await.expect("start must succeed");
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         assert!(
             repo.find_job(job_name).await.expect("find_job").is_none(),
             "a disabled job config must not be upserted into scheduled_jobs"
@@ -201,7 +195,7 @@ mod start_lifecycle_db {
         let url = test_database_url();
         let pool = test_db_pool().await;
         let app_ctx = test_app_context(&pool, &url);
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
 
         let job_name = crate::test_jobs::EMPTY_SCHEDULE_JOB;
         sqlx::query!("DELETE FROM scheduled_jobs WHERE job_name = $1", job_name)
@@ -217,11 +211,10 @@ mod start_lifecycle_db {
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         let startup = svc.start().await.expect("start must succeed");
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         assert!(
             repo.find_job(job_name).await.expect("find_job").is_none(),
             "an empty-schedule job must not gain a scheduled_jobs row from start()"
@@ -249,8 +242,7 @@ mod start_lifecycle_db {
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         let startup = svc.start().await.expect("start must succeed");
         let handle = startup

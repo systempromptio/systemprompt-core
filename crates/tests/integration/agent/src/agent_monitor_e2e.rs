@@ -11,7 +11,7 @@ async fn agent_monitor_monitor_all_agents_with_none_returns_empty_report() -> Re
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let monitor = AgentMonitor::new(
-        AgentServiceRepository::new(&fx.db, crate::common::unique_instance()).expect("repo"),
+        AgentServiceRepository::new(&fx.db, crate::common::unique_instance()),
     )
     .expect("monitor");
 
@@ -26,7 +26,7 @@ async fn agent_monitor_cleanup_unresponsive_agents_returns_count() -> Result<()>
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let monitor = AgentMonitor::new(
-        AgentServiceRepository::new(&fx.db, crate::common::unique_instance()).expect("repo"),
+        AgentServiceRepository::new(&fx.db, crate::common::unique_instance()),
     )
     .expect("monitor");
 

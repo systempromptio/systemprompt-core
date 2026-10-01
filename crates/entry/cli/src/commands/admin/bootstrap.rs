@@ -119,7 +119,7 @@ async fn connect_user_service() -> Result<UserService> {
         .await
         .context("Failed to connect to database")?,
     );
-    Ok(UserService::new(Arc::new(UserRepository::new(&database)?)))
+    Ok(UserService::new(Arc::new(UserRepository::new(&database))))
 }
 
 async fn ensure_admin_role(user_service: &UserService, user: User) -> Result<User> {

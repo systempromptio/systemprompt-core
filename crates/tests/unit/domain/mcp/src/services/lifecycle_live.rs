@@ -44,8 +44,7 @@ async fn make_lifecycle() -> (LifecycleOrchestrator, systemprompt_database::DbPo
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
         Arc::clone(&app_paths),
         registry,
     );
@@ -103,8 +102,7 @@ async fn seed_service(
     let repo = ServiceRepository::new(
         db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repo.create_service(CreateServiceInput {
         name,
         module_name: "mcp",

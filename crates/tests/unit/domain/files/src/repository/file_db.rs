@@ -29,7 +29,7 @@ fn ai_file(id: uuid::Uuid, user: &UserId) -> File {
 #[tokio::test]
 async fn insert_rejects_non_uuid_file_id() {
     let db = test_db_pool().await;
-    let repo = FileRepository::new(&db).expect("repo");
+    let repo = FileRepository::new(&db);
 
     let request = InsertFileRequest::new(
         FileId::new("not-a-uuid"),
@@ -53,7 +53,7 @@ async fn insert_rejects_non_uuid_file_id() {
 #[tokio::test]
 async fn insert_file_round_trips_all_optional_fields() {
     let db = test_db_pool().await;
-    let repo = FileRepository::new(&db).expect("repo");
+    let repo = FileRepository::new(&db);
     let id = uuid::Uuid::new_v4();
     let user = UserId::new(format!("u-{}", id.simple()));
     let file = ai_file(id, &user);
@@ -92,7 +92,7 @@ async fn insert_file_round_trips_all_optional_fields() {
 #[tokio::test]
 async fn count_ai_images_reflects_inserted_rows() {
     let db = test_db_pool().await;
-    let repo = FileRepository::new(&db).expect("repo");
+    let repo = FileRepository::new(&db);
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
 
     assert_eq!(

@@ -105,10 +105,10 @@ struct Ctx {
 async fn setup() -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
     let provider = Arc::new(SeedingUserProvider {
         pool: pool.clone(),
-        users: UserService::new(Arc::new(UserRepository::new(&pool).expect("user repo"))),
+        users: UserService::new(Arc::new(UserRepository::new(&pool))),
     });
     let service = WebAuthnService::with_config(test_config(), repo.clone(), provider).expect("svc");
     Ctx {

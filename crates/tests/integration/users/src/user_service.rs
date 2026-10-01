@@ -15,7 +15,7 @@ async fn service_create_and_find_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_create_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svccreate_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -46,7 +46,7 @@ async fn service_create_and_find_user() -> Result<()> {
     assert_eq!(found_name.id.to_string(), created.id.to_string());
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -57,7 +57,7 @@ async fn service_create_anonymous_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let fingerprint = format!("svc_anon_{}", uuid::Uuid::new_v4());
     let created = service.create_anonymous(&fingerprint).await?;
@@ -71,7 +71,7 @@ async fn service_create_anonymous_user() -> Result<()> {
     assert!(created.roles.contains(&"anonymous".to_string()));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -82,7 +82,7 @@ async fn service_list_users() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let users = service.list(10, 0).await?;
     assert!(users.len() <= 10);
@@ -95,7 +95,7 @@ async fn service_search_users() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_search_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcsearch_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -112,7 +112,7 @@ async fn service_search_users() -> Result<()> {
     );
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -123,7 +123,7 @@ async fn service_count_users() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     service.count().await?;
 
@@ -135,7 +135,7 @@ async fn service_find_by_role() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let users = service.find_by_role(UserRole::User).await?;
     for user in users {
@@ -150,7 +150,7 @@ async fn service_update_email() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_upd_email_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcupdemail_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -165,7 +165,7 @@ async fn service_update_email() -> Result<()> {
     assert_eq!(updated.id.to_string(), created.id.to_string());
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -176,7 +176,7 @@ async fn service_update_status() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_upd_status_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcupdstatus_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -191,7 +191,7 @@ async fn service_update_status() -> Result<()> {
     assert_eq!(updated.id.to_string(), created.id.to_string());
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -202,7 +202,7 @@ async fn service_assign_roles() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_roles_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcroles_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -217,7 +217,7 @@ async fn service_assign_roles() -> Result<()> {
     assert!(updated.roles.contains(&"user".to_string()));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -228,7 +228,7 @@ async fn service_delete_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_delete_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcdelete_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -242,7 +242,7 @@ async fn service_delete_user() -> Result<()> {
     assert!(found.is_none());
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -253,7 +253,7 @@ async fn service_delete_anonymous_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let fingerprint = format!("svc_del_user_{}", uuid::Uuid::new_v4());
     let created = service.create_anonymous(&fingerprint).await?;
@@ -271,7 +271,7 @@ async fn service_cleanup_old_anonymous() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     service.cleanup_old_anonymous(30).await?;
 
@@ -283,7 +283,7 @@ async fn service_find_first_admin() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let admin = service.find_first_admin().await?;
     if let Some(user) = admin {
@@ -298,7 +298,7 @@ async fn service_get_authenticated_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_auth_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcauth_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -312,7 +312,7 @@ async fn service_get_authenticated_user() -> Result<()> {
     assert_eq!(auth.email, unique_email);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -323,7 +323,7 @@ async fn service_is_temporary_anonymous() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let fingerprint = format!("svc_temp_anon_{}", uuid::Uuid::new_v4());
     let created = service.create_anonymous(&fingerprint).await?;
@@ -332,7 +332,7 @@ async fn service_is_temporary_anonymous() -> Result<()> {
     assert!(is_temp);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -343,7 +343,7 @@ async fn service_list_sessions() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_sessions_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcsessions_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -355,7 +355,7 @@ async fn service_list_sessions() -> Result<()> {
     assert!(sessions.is_empty());
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -366,7 +366,7 @@ async fn service_list_active_sessions() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_active_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcactive_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -378,7 +378,7 @@ async fn service_list_active_sessions() -> Result<()> {
     assert!(sessions.is_empty());
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -389,7 +389,7 @@ async fn service_list_recent_sessions() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_recent_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcrecent_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -401,7 +401,7 @@ async fn service_list_recent_sessions() -> Result<()> {
     assert!(sessions.is_empty());
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -412,7 +412,7 @@ async fn service_list_non_anonymous_with_sessions() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let users = service.list_non_anonymous_with_sessions(10).await?;
     for user in users {
@@ -427,7 +427,7 @@ async fn service_get_with_sessions() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_with_sess_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcwithsess_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -442,7 +442,7 @@ async fn service_get_with_sessions() -> Result<()> {
     assert_eq!(user_with_sessions.active_sessions, 0);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -453,7 +453,7 @@ async fn service_get_activity() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_activity_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcactivity_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -465,7 +465,7 @@ async fn service_get_activity() -> Result<()> {
     assert_eq!(activity.user_id.to_string(), created.id.to_string());
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -476,7 +476,7 @@ async fn service_get_stats() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     service.get_stats().await?;
 
@@ -488,7 +488,7 @@ async fn service_count_with_breakdown() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     service.count_with_breakdown().await?;
 
@@ -500,7 +500,7 @@ async fn service_update_full_name() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_fullname_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcfullname_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -514,7 +514,7 @@ async fn service_update_full_name() -> Result<()> {
     assert_eq!(updated.full_name, Some("New Full Name".to_string()));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -525,7 +525,7 @@ async fn service_update_display_name() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_dispname_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcdispname_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -539,7 +539,7 @@ async fn service_update_display_name() -> Result<()> {
     assert_eq!(updated.display_name, Some("New Display".to_string()));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -550,7 +550,7 @@ async fn service_update_email_verified() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_verified_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcverified_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -562,7 +562,7 @@ async fn service_update_email_verified() -> Result<()> {
     assert_eq!(updated.email_verified, Some(true));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -573,7 +573,7 @@ async fn service_bulk_update_status() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let user1_email = format!("svc_bulk1_{}@example.com", uuid::Uuid::new_v4());
     let user1_name = format!("svcbulk1_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -599,10 +599,10 @@ async fn service_bulk_update_status() -> Result<()> {
     );
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user1.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user2.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -613,7 +613,7 @@ async fn service_bulk_delete() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let user1_email = format!("svc_bulkdel1_{}@example.com", uuid::Uuid::new_v4());
     let user1_name = format!("svcbulkdel1_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -646,7 +646,7 @@ async fn service_list_by_filter_with_status() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_filter_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcfilter_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -660,7 +660,7 @@ async fn service_list_by_filter_with_status() -> Result<()> {
     assert!(users.iter().all(|u| u.status.as_deref() == Some("active")));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -671,7 +671,7 @@ async fn service_list_by_filter_with_role() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
     let unique_email = format!("svc_filterrole_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcfilterrole_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -685,7 +685,7 @@ async fn service_list_by_filter_with_role() -> Result<()> {
     assert!(users.iter().all(|u| u.roles.contains(&"user".to_string())));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -718,7 +718,7 @@ async fn service_merge_users() -> Result<()> {
     target_found.expect("target_found should be present");
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", target.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())

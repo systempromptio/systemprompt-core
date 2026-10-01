@@ -46,7 +46,7 @@ async fn upsert_host_pref_round_trip() -> anyhow::Result<()> {
     let _ = ensure_test_bootstrap();
     let (pool, ctx) = setup_ctx().await?;
     let user = UserId::new(format!("pref-{}", uuid::Uuid::new_v4()));
-    let exec_pool = pool.pool_arc().expect("read pool");
+    let exec_pool = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@test.invalid", user.as_str()))

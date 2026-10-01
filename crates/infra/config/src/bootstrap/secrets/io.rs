@@ -6,11 +6,10 @@
 
 use std::path::Path;
 
-use systemprompt_models::profile::SecretsValidationMode;
 use systemprompt_models::secrets::Secrets;
 
-use super::{SecretsBootstrapError, log_secrets_issue};
-use crate::error::{ConfigError, ConfigResult};
+use super::SecretsBootstrapError;
+use crate::error::ConfigResult;
 
 pub fn load_secrets_from_path(secrets_path: &Path) -> ConfigResult<Secrets> {
     if !secrets_path.exists() {
@@ -26,12 +25,4 @@ pub fn load_secrets_from_path(secrets_path: &Path) -> ConfigResult<Secrets> {
         }
         .into()
     })
-}
-
-pub(super) fn handle_load_error(
-    e: ConfigError,
-    mode: SecretsValidationMode,
-) -> ConfigResult<Secrets> {
-    log_secrets_issue(&e, mode);
-    Err(e)
 }

@@ -20,10 +20,10 @@ pub struct JobRepository {
 }
 
 impl JobRepository {
-    pub fn new(db: &DbPool) -> SchedulerResult<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn upsert_job(

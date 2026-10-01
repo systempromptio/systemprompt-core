@@ -67,7 +67,7 @@ pub async fn insert_analytics_event(
     ts: DateTime<Utc>,
 ) {
     let id = format!("evt-{}", Uuid::new_v4());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query(
         r#"
         INSERT INTO analytics_events
@@ -89,7 +89,7 @@ pub async fn insert_analytics_event(
 // Insert an `engagement_events` row (no session FK required).
 pub async fn insert_engagement_event(pool: &DbPool, session_id: &SessionId) {
     let id = format!("eng-{}", Uuid::new_v4());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query(
         r#"
         INSERT INTO engagement_events (id, session_id, user_id, page_url)
@@ -104,7 +104,7 @@ pub async fn insert_engagement_event(pool: &DbPool, session_id: &SessionId) {
 }
 
 pub async fn delete_session(pool: &DbPool, session_id: &SessionId) {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("DELETE FROM analytics_events WHERE session_id = $1")
         .bind(session_id.as_str())
         .execute(p.as_ref())

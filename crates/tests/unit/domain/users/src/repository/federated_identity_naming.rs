@@ -18,7 +18,7 @@ async fn setup(prefix: &str) -> Ctx {
     let pool = test_db_pool().await;
     let tag = Uuid::new_v4();
     Ctx {
-        repo: UserRepository::new(&pool).expect("repo"),
+        repo: UserRepository::new(&pool),
         issuer: format!("https://idp-{prefix}-{tag}.example.com:8443/realm"),
         external_sub: format!("sub-{prefix}-{tag}"),
     }

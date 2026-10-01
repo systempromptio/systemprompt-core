@@ -60,7 +60,7 @@ async fn counts(pool: &sqlx::PgPool, owner: &UserId) -> (i64, i64, i64) {
 async fn late_message_failure_rolls_back_agent_graph_transfer_then_retry_moves_every_row() {
     let database = DisposableDb::with_schema("agent_owner_reassignment").await;
     let db = database.test_pool().await;
-    let raw = db.write_pool_arc().expect("write pool");
+    let raw = db.write_pool();
     let source = UserId::new(format!("agent-source-{}", uuid::Uuid::new_v4()));
     let target = UserId::new(format!("agent-target-{}", uuid::Uuid::new_v4()));
     seed_user_row(&db, &source, &format!("{source}@agent-owner.invalid"))
@@ -71,7 +71,7 @@ async fn late_message_failure_rolls_back_agent_graph_transfer_then_retry_moves_e
         .expect("target");
     seed_graph(raw.as_ref(), &source, "source").await;
     seed_graph(raw.as_ref(), &target, "target").await;
-    let reassignment = AgentOwnerReassignment::new(&db).expect("agent owner reassignment");
+    let reassignment = AgentOwnerReassignment::new(&db);
 
     sqlx::query(
         "CREATE FUNCTION reject_agent_message_reassignment() RETURNS trigger LANGUAGE plpgsql AS $$ \
@@ -120,7 +120,7 @@ async fn late_message_failure_rolls_back_agent_graph_transfer_then_retry_moves_e
 
     drop(reassignment);
     drop(raw);
-    db.write_pool_arc().expect("write pool").close().await;
+    db.write_pool().close().await;
     drop(db);
     database.drop_now().await;
 }

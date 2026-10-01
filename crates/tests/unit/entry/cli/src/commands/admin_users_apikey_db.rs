@@ -65,7 +65,7 @@ struct StoredKey {
 
 /// `execute` renders to stdout, so the row is where the outcome is visible.
 async fn stored_keys(pool: &DbPool, user: &str) -> Vec<StoredKey> {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query_as::<
         _,
         (

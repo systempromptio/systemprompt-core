@@ -53,9 +53,7 @@ async fn insert_through_closed_pool_propagates_sqlx_error() {
     // id, session id, policy, decision) are evaluated on the failure path.
     let _guard = error_subscriber_guard();
     let db = closed_db_pool().await;
-    let pool = db
-        .write_pool_arc()
-        .expect("closed pool still exposes a write handle");
+    let pool = db.write_pool();
     let repo = GovernanceDecisionRepository::from_pool(pool);
 
     let id = Uuid::new_v4().to_string();
@@ -113,7 +111,7 @@ async fn trace_lookup_is_distinct_and_filters_by_decision_and_time()
 -> Result<(), Box<dyn std::error::Error>> {
     let owned = DisposableDb::with_schema("governance_trace_lookup").await;
     let db = owned.test_pool().await;
-    let pool = db.write_pool_arc().expect("write pool");
+    let pool = db.write_pool();
     let actor = Actor::user(UserId::new("audit-trace-user"));
     seed_user_row(&db, &actor.user_id, "audit-trace-user@example.invalid").await?;
     let evaluated = serde_json::json!([]);

@@ -132,20 +132,8 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
 }
 
 pub fn router(ctx: &AppContext) -> Router {
-    let repo = match crate::repository::tool_usage(ctx.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to initialize MCP tool usage repository");
-            return Router::new();
-        },
-    };
-    let identities = match crate::repository::proxy_identities(ctx.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to initialize MCP proxy identity repository");
-            return Router::new();
-        },
-    };
+    let repo = crate::repository::tool_usage(ctx.db_pool());
+    let identities = crate::repository::proxy_identities(ctx.db_pool());
     let engine = ProxyEngine::new(identities)
         .with_tool_usage_repo(Arc::clone(&repo), ctx.tool_call_intents())
         .with_artifact_ingest(ctx.artifact_ingest_arc());

@@ -5,12 +5,12 @@
 
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
-use systemprompt_models::auth::{JwtAudience, MAX_ACT_CHAIN_DEPTH, UserType};
+use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::execution::context::RequestContext;
 
 use crate::error::{AuthError, AuthResult};
 use crate::extraction::{HeaderExtractor, TokenExtractor};
-use crate::jwt::{ValidationPolicy, decode_rs256_claims};
+use crate::jwt::{ValidationPolicy, decode_session_claims};
 use crate::session::ValidatedSessionClaims;
 
 #[derive(Debug)]
@@ -34,25 +34,7 @@ impl AuthValidationService {
 
     fn validate_token(&self, token: &str) -> AuthResult<ValidatedSessionClaims> {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, &self.audiences);
-        let claims = decode_rs256_claims(token, &policy)?;
-
-        if let Some(ref act) = claims.act {
-            let depth = act.depth();
-            if depth > MAX_ACT_CHAIN_DEPTH {
-                return Err(AuthError::ActChainTooDeep {
-                    depth,
-                    max: MAX_ACT_CHAIN_DEPTH,
-                });
-            }
-        }
-
-        let derived_type = UserType::from_permissions(&claims.scope);
-        if derived_type != claims.user_type {
-            return Err(AuthError::UserTypeMismatch {
-                claimed: claims.user_type,
-                derived: derived_type,
-            });
-        }
+        let claims = decode_session_claims(token, &policy)?;
 
         Ok(ValidatedSessionClaims {
             user_id: UserId::new(claims.sub),
@@ -60,7 +42,7 @@ impl AuthValidationService {
                 .session_id
                 .map(SessionId::new)
                 .ok_or(AuthError::MissingSessionId)?,
-            user_type: derived_type,
+            user_type: claims.user_type,
             jti: claims.jti,
             exp: claims.exp,
         })

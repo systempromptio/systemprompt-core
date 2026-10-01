@@ -14,19 +14,15 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::{OwnerReassignment, ReassignedRows, RepositoryError};
 
-use crate::error::McpDomainResult;
-
 #[derive(Debug, Clone)]
 pub struct McpOwnerReassignment {
     write_pool: Arc<PgPool>,
 }
 
 impl McpOwnerReassignment {
-    pub fn new(db: &DbPool) -> McpDomainResult<Self> {
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| crate::error::McpDomainError::Configuration(e.to_string()))?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 }
 

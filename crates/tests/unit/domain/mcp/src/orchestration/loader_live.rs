@@ -72,8 +72,7 @@ async fn live_setup_scoped(oauth_required: bool, scopes: &str) -> (Live, MockSer
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
         registry,
     );
 
@@ -182,8 +181,7 @@ async fn create_mcp_extensions_empty_input_short_circuits() {
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
         RegistryService::new(UserId::new("owner-empty")),
     );
 
@@ -230,8 +228,7 @@ async fn configured_internal_server_with_stopped_row_is_rejected_without_transpo
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("loader-stopped-instance"),
-    )
-    .expect("service repository");
+    );
     repo.create_service(CreateServiceInput {
         name: &server_name,
         module_name: "mcp",
@@ -281,8 +278,7 @@ async fn internal_server_database_failure_is_distinguished_from_replication_lag(
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("loader-closed-instance"),
-        )
-        .expect("service repository"),
+        ),
         RegistryService::new(fixture_user_id()),
     );
 

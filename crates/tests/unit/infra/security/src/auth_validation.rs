@@ -14,7 +14,6 @@
 //! two mismatch cases below.
 
 use std::collections::BTreeMap;
-use std::sync::Once;
 
 use axum::http::{HeaderMap, HeaderValue};
 use chrono::{Duration, Utc};
@@ -26,19 +25,12 @@ use systemprompt_models::auth::{
 };
 use systemprompt_security::AuthValidationService;
 use systemprompt_security::error::AuthError;
-use systemprompt_security::keys::{RsaSigningKey, authority};
-
-static INSTALL: Once = Once::new();
+use systemprompt_security::keys::RsaSigningKey;
 
 const ISSUER: &str = "https://issuer.test";
 
 fn ensure_authority() -> &'static RsaSigningKey {
-    INSTALL.call_once(|| {
-        let key =
-            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
-        authority::install_for_test(key);
-    });
-    authority::signing_key().expect("authority installed")
+    systemprompt_test_fixtures::install_test_signing_key()
 }
 
 fn base_claims() -> JwtClaims {

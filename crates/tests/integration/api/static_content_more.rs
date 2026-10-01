@@ -131,7 +131,7 @@ async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_se
         format!("session-reuse/{}", uuid::Uuid::new_v4()).parse()?,
     );
     let first = ensure_session(&first_headers, None, None, &state.ctx).await?;
-    let raw = state.ctx.db_pool().pool_arc()?;
+    let raw = state.ctx.db_pool().pool();
     let before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE user_id = $1")
         .bind(first.user_id.as_str())
         .fetch_one(raw.as_ref())

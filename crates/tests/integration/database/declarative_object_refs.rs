@@ -8,11 +8,11 @@
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row};
-use systemprompt_database::{Database, install_extension_schemas};
+use systemprompt_database::Database;
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -104,7 +104,7 @@ async fn connect() -> Fixture {
     let db = Database::new_postgres(&test_database_url())
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
     Fixture {
         pool,
         db: Arc::new(db),

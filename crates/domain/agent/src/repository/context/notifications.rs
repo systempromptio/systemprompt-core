@@ -20,11 +20,9 @@ pub struct ContextNotificationRepository {
 }
 
 impl ContextNotificationRepository {
-    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
-        let write_pool = db.write_pool_arc().map_err(|e| {
-            RepositoryError::InvalidData(format!("PostgreSQL write pool not available: {e}"))
-        })?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 
     // JSON: JSONB `notification_data` column — A2A push-notification payload.

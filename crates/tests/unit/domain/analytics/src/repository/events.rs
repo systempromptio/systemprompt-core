@@ -44,7 +44,7 @@ async fn seed_session(pool: &DbPool, session_id: &SessionId) {
 }
 
 async fn cleanup(pool: &DbPool, session_id: &SessionId) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query("DELETE FROM analytics_events WHERE session_id = $1")
         .bind(session_id.as_str())
         .execute(p.as_ref())
@@ -62,7 +62,7 @@ async fn create_event_folds_content_metadata_into_event_data() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let repo = AnalyticsEventsRepository::new(std::sync::Arc::new(
-        systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+        systemprompt_logging::AnalyticsRepository::new(&pool),
     ));
 
     let sid = SessionId::new(format!("sess-evt-{}", Uuid::new_v4()));
@@ -94,7 +94,7 @@ async fn create_event_folds_content_metadata_into_event_data() {
     let (session_id, data): (Option<String>, Option<serde_json::Value>) =
         sqlx::query_as("SELECT session_id, event_data FROM analytics_events WHERE id = $1")
             .bind(&created.id)
-            .fetch_one(pool.pool_arc().expect("pool").as_ref())
+            .fetch_one(pool.pool().as_ref())
             .await
             .expect("stored event");
     assert_eq!(session_id.as_deref(), Some(sid.as_str()));

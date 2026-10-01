@@ -12,8 +12,6 @@
 //!   entry-crate boot sequence.
 //! - [`try_init_config`] / [`build_from_profile`] — build a runtime
 //!   [`systemprompt_models::Config`] from the active profile.
-//! - [`ConfigService`], [`ConfigValidator`] — utilities used by the
-//!   `systemprompt cloud config` deployment pipeline.
 //! - [`ProviderCatalogService`], [`SecurityConfigService`] — typed mutations of
 //!   the services provider registry and the profile's security section, backing
 //!   the `admin config catalog` / `admin config security` CLI surfaces.
@@ -43,6 +41,7 @@ pub(crate) mod config_loader;
 pub mod error;
 pub mod path_validation;
 pub mod paths;
+pub mod private_file;
 pub(crate) mod services;
 pub(crate) mod skill_validator;
 
@@ -51,17 +50,17 @@ pub use bootstrap::{
     ProfileBootstrapError, ResolvedSource, SecretsBootstrap, SecretsBootstrapError,
     SecretsDocument, SecretsProvider, VaultError, VaultKvProvider, build_loaded_secrets_message,
     decode_master_key, decode_seed, generate_master_key, generate_seed, load_secrets_from_path,
-    log_secrets_issue, log_secrets_skip, log_secrets_warn, persist_seed, resolve_source,
+    persist_seed, resolve_source,
 };
 pub use config_loader::{
     build_from_profile, resolve_instance_id, try_init_config, validate_database_config,
 };
 pub use error::{ConfigError, ConfigResult};
 pub use paths::{AppPaths, BuildPaths, PathError, StoragePaths, SystemPaths, WebPaths};
+pub use private_file::write_private_atomic;
 pub use services::{
-    ConfigService, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
-    EnvironmentConfig, ModelSpec, ProviderCatalogService, ProviderSpec, SecurityChange,
-    SecurityConfigService, SecurityUpdate, ValidationReport, generate_schema, validate_config,
-    validate_yaml_file, validate_yaml_str,
+    ConfigValidationError, ModelSpec, ProviderCatalogService, ProviderSpec, SecurityChange,
+    SecurityConfigService, SecurityUpdate, generate_schema, validate_config, validate_yaml_file,
+    validate_yaml_str,
 };
 pub use skill_validator::SkillConfigValidator;

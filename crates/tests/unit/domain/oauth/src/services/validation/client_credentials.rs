@@ -26,7 +26,6 @@ mod db_backed {
             .expect("seed owner");
         let client_id = ClientId::new(format!("client_{}", Uuid::new_v4().simple()));
         ClientRepository::new(&pool)
-            .expect("client repo")
             .create(CreateClientParams {
                 client_id: client_id.clone(),
                 owner_user_id: owner,
@@ -45,7 +44,7 @@ mod db_backed {
             })
             .await
             .expect("create client");
-        let repo = OAuthRepository::new(&pool).expect("repo");
+        let repo = OAuthRepository::new(&pool);
         (repo, client_id)
     }
 

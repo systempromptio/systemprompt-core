@@ -40,8 +40,7 @@ impl Job for McpSessionCleanupJob {
             )
         })?);
 
-        let repo = McpSessionRepository::new(&db_pool)
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
+        let repo = McpSessionRepository::new(&db_pool);
 
         let retention_days = ctx
             .get_parameter_parsed::<i32>("retention_days")?
@@ -57,7 +56,6 @@ impl Job for McpSessionCleanupJob {
             .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
 
         let identities = McpProxyIdentityRepository::new(&db_pool)
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?
             .cleanup_expired()
             .await
             .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;

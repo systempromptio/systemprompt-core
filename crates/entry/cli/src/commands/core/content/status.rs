@@ -39,7 +39,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContentRepository::new(pool)?;
+    let repo = ContentRepository::new(pool);
 
     let source = SourceId::new(args.source.clone());
     let contents = repo.list_by_source(&source, &LocaleCode::english()).await?;

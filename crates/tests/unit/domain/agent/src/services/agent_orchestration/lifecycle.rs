@@ -32,8 +32,7 @@ fn lifecycle(pool: &systemprompt_database::DbPool) -> AgentLifecycle {
         AgentServiceRepository::new(
             pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo"),
+        ),
         app_paths(),
     )
     .expect("lifecycle")
@@ -43,8 +42,7 @@ fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repo");
+    );
     AgentDatabaseService::new(repo).expect("db service")
 }
 
@@ -169,7 +167,7 @@ async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
     )
     .bind("test-instance")
     .bind(&name)
-    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("raw running service row");
     assert_eq!(
@@ -253,8 +251,7 @@ async fn free_function_verbs_cover_missing_agent_paths() {
     let repo = systemprompt_agent::repository::agent_service::AgentServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("agent service repository");
+    );
     assert!(
         verbs::start_agent(repo.clone(), app_paths(), &name, None)
             .await

@@ -2,8 +2,8 @@
 //!
 //! The manifest signing key is a 32-byte secret used by the
 //! bridge/manifest pipeline to detach-sign module manifests. This
-//! module owns its base64 encoding and the atomic-write helper that
-//! persists rotated seeds back into the secrets file.
+//! module owns its base64 encoding and persists rotated seeds back into
+//! the secrets file through an owner-only atomic write.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -62,17 +62,6 @@ pub fn persist_seed(path: &Path, seed: &[u8; MANIFEST_SIGNING_SEED_BYTES]) -> Co
         serde_json::Value::String(encoded),
     );
     let serialized = serde_json::to_string_pretty(&value)?;
-    write_atomic(path, serialized.as_bytes())?;
+    crate::private_file::write_private_atomic(path, serialized.as_bytes())?;
     Ok(())
-}
-
-fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let parent = path.parent().unwrap_or_else(|| Path::new("."));
-    let file_name = path.file_name().map_or_else(
-        || "secrets.json".to_owned(),
-        |n| n.to_string_lossy().into_owned(),
-    );
-    let tmp = parent.join(format!(".{file_name}.tmp"));
-    std::fs::write(&tmp, bytes)?;
-    std::fs::rename(&tmp, path)
 }

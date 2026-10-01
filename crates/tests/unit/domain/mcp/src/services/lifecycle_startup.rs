@@ -137,8 +137,7 @@ async fn start_server_rejects_external_servers() {
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
         Arc::new(bootstrap.app_paths.clone()),
         registry,
     );

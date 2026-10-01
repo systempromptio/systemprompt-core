@@ -39,7 +39,7 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
         return show_resolved_skill(&name, ctx).await;
     }
     let mut skills = scan_skills(&skills_path)?;
-    let Some((resolver, owner)) = managed_context(ctx).await? else {
+    let Some((resolver, owner)) = managed_context(ctx).await else {
         return Ok(render_list(args.enabled, args.disabled, skills));
     };
     let repository = resolver.repository();
@@ -122,12 +122,10 @@ fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Comm
 
 async fn managed_context(
     ctx: &CommandContext,
-) -> Result<
-    Option<(
-        systemprompt_marketplace::ManagedResourceResolver,
-        systemprompt_identifiers::UserId,
-    )>,
-> {
+) -> Option<(
+    systemprompt_marketplace::ManagedResourceResolver,
+    systemprompt_identifiers::UserId,
+)> {
     let app = match ctx.app_context().await {
         Ok(app) => app,
         Err(error) => {
@@ -135,22 +133,22 @@ async fn managed_context(
                 %error,
                 "managed skills are not resolved: no application context; listing disk skills only"
             );
-            return Ok(None);
+            return None;
         },
     };
-    if app.db_pool().pool_arc()?.is_closed() {
-        return Ok(None);
+    if app.db_pool().pool().is_closed() {
+        return None;
     }
-    Ok(Some((
+    Some((
         systemprompt_marketplace::ManagedResourceResolver::new(
             app.managed_repository().as_ref().clone(),
         ),
         app.system_admin().id().clone(),
-    )))
+    ))
 }
 
 pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Result<CommandOutput> {
-    if let Some((resolver, owner)) = managed_context(ctx).await? {
+    if let Some((resolver, owner)) = managed_context(ctx).await {
         match resolver.resolve_skill(&owner, skill_name).await? {
             ManagedSkillResolution::Withheld(reason) => {
                 return Err(anyhow!(

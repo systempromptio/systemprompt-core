@@ -78,7 +78,7 @@ async fn plugin_token_helper() {
     println!("END_PLUGIN_TOKEN");
 
     let before_refusal: i64 = sqlx::query_scalar("SELECT count(*) FROM user_sessions")
-        .fetch_one(pool.pool_arc().expect("private SQL pool").as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("count sessions before refusal");
     let refusal = keys::execute(
@@ -96,13 +96,13 @@ async fn plugin_token_helper() {
     .await
     .expect_err("non-admin token subject must be refused");
     let after_refusal: i64 = sqlx::query_scalar("SELECT count(*) FROM user_sessions")
-        .fetch_one(pool.pool_arc().expect("private SQL pool").as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("count sessions after refusal");
     let sessions: Vec<(String, String)> = sqlx::query_as(
         "SELECT session_id, user_id FROM user_sessions ORDER BY started_at, session_id",
     )
-    .fetch_all(pool.pool_arc().expect("private SQL pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("read token backing sessions");
     println!(
@@ -117,7 +117,7 @@ async fn plugin_token_helper() {
     );
 
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

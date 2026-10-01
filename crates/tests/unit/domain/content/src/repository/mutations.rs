@@ -13,7 +13,6 @@ use uuid::Uuid;
 
 async fn cleanup(pool: &DbPool, source: &SourceId) {
     ContentRepository::new(pool)
-        .expect("repo")
         .delete_by_source(source)
         .await
         .expect("cleanup");
@@ -23,7 +22,7 @@ async fn cleanup(pool: &DbPool, source: &SourceId) {
 async fn update_sets_category_and_preserves_unspecified_kind() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let source = SourceId::new(format!("mut-{}", Uuid::new_v4()));
     let slug = format!("m-{}", Uuid::new_v4().simple());
 
@@ -72,7 +71,7 @@ async fn update_sets_category_and_preserves_unspecified_kind() {
 async fn update_missing_row_resolves_defaults_then_reports_not_found() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
 
     // No row exists for this id, so `ResolvedUpdate::resolve` sees `current =
     // None`; with `kind` also unspecified it must fall back to the
@@ -95,7 +94,7 @@ async fn update_missing_row_resolves_defaults_then_reports_not_found() {
 #[tokio::test]
 async fn update_on_closed_pool_propagates_error() {
     let pool = closed_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
 
     let result = repo
         .update(&UpdateContentParams::new(

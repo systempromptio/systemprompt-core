@@ -26,7 +26,7 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 async fn repo() -> ApprovalRepository {
     ensure_test_bootstrap();
     let db = test_db_pool().await;
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     ApprovalRepository::new((*pool).clone())
 }
 

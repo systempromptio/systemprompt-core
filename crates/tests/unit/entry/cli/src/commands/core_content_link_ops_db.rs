@@ -50,7 +50,7 @@ async fn seed_link(pool: &DbPool, ctx: &CommandContext) -> (String, String) {
     .await
     .unwrap();
 
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     let row: (String, String) =
         sqlx::query_as("SELECT id, short_code FROM campaign_links WHERE target_url = $1")
             .bind(&target)

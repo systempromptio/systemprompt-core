@@ -84,7 +84,7 @@ async fn setup_authors_a_profile_and_migrates_its_owned_empty_database_via_reexe
     );
 
     let pool = database.test_pool().await;
-    let raw = pool.pool_arc().expect("raw pool");
+    let raw = pool.pool();
     let applied: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM extension_migrations")
         .fetch_one(raw.as_ref())
         .await
@@ -95,7 +95,7 @@ async fn setup_authors_a_profile_and_migrates_its_owned_empty_database_via_reexe
     );
 
     drop(raw);
-    pool.write_pool_arc().unwrap().close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

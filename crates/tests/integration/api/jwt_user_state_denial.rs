@@ -54,7 +54,7 @@ fn whoami(token: &str) -> Request<Body> {
 }
 
 async fn deactivate(pool: &DbPool, user: &UserId) -> Result<()> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     sqlx::query("UPDATE users SET status = 'suspended' WHERE id = $1")
         .bind(user.as_str())
         .execute(pg.as_ref())
@@ -63,7 +63,7 @@ async fn deactivate(pool: &DbPool, user: &UserId) -> Result<()> {
 }
 
 async fn delete_user(pool: &DbPool, user: &UserId) -> Result<()> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     sqlx::query("DELETE FROM users WHERE id = $1")
         .bind(user.as_str())
         .execute(pg.as_ref())

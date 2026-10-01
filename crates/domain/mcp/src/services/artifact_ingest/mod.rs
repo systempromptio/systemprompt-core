@@ -123,8 +123,8 @@ impl ArtifactIngest {
     pub fn from_db(
         db: &systemprompt_database::DbPool,
         secrets: Option<Arc<SecretScanner>>,
-    ) -> McpDomainResult<Self> {
-        Ok(Self::new(ArtifactIngestRepositories::new(db)?, secrets))
+    ) -> Self {
+        Self::new(ArtifactIngestRepositories::new(db), secrets)
     }
 
     pub fn register_scanner(&self, scanner: Arc<dyn ArtifactScanner>) {

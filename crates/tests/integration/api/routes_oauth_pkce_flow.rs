@@ -22,7 +22,7 @@ use systemprompt_test_fixtures::{
 use uuid::Uuid;
 
 async fn seed_user(pool: &systemprompt_database::DbPool, user_id: &UserId) {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user_id.as_str())
         .bind(format!("{}@oauth-fixture.invalid", user_id.as_str()))
@@ -44,7 +44,7 @@ async fn seed_oauth_client_inserts_and_finds_by_id() -> anyhow::Result<()> {
         ..
     } = seed_oauth_client(&pool, &user_id).await?;
 
-    let repo = ClientRepository::new(&pool).expect("client repo");
+    let repo = ClientRepository::new(&pool);
     let found = repo
         .find_by_client_id(&client_id)
         .await

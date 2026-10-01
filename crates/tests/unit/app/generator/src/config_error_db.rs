@@ -353,12 +353,11 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
 }
 
 fn content_analytics(
     pool: &systemprompt_database::DbPool,
 ) -> systemprompt_analytics::ContentAnalyticsRepository {
     systemprompt_analytics::ContentAnalyticsRepository::new(pool)
-        .expect("content analytics repository")
 }

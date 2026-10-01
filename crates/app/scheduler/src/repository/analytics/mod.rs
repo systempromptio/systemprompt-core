@@ -16,9 +16,9 @@ pub struct AnalyticsRepository {
 }
 
 impl AnalyticsRepository {
-    pub fn new(db: &DbPool) -> SchedulerResult<Self> {
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 
     pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {

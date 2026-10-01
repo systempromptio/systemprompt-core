@@ -78,7 +78,8 @@ impl JwksClient {
 
     fn build_jwks_url(&self, issuer: &str) -> Result<Url, JwksClientError> {
         let mut url = self.validate_uri(issuer)?;
-        url.set_path(WELLKNOWN_JWKS_PATH);
+        let path = format!("{}{WELLKNOWN_JWKS_PATH}", url.path().trim_end_matches('/'));
+        url.set_path(&path);
         url.set_query(None);
         url.set_fragment(None);
         Ok(url)

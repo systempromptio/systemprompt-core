@@ -58,7 +58,7 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
 async fn service_row_exists(pool: &DbPool, name: &str) -> bool {
     sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM services WHERE name = $1)")
         .bind(name)
-        .fetch_one(pool.pool_arc().unwrap().as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("read the service table")
 }
@@ -128,7 +128,7 @@ async fn stopping_an_empty_fleet_renders_the_human_form_too() {
 async fn a_dry_run_cleanup_reports_without_stopping_anything() {
     let (pool, app) = app().await;
     let probe = format!("cleanup_probe_{}", uuid::Uuid::new_v4().simple());
-    let raw = pool.pool_arc().unwrap().as_ref().clone();
+    let raw = pool.pool().as_ref().clone();
     // A running row whose PID is this test process: `cleanup` classifies it as
     // live, so a dry run has to report it without removing it.
     sqlx::query(

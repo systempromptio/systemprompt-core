@@ -11,7 +11,7 @@ use super::{bootstrapped_pool, completed_record, seed_request, user};
 #[tokio::test]
 async fn usage_reads_are_scoped_to_the_owner() {
     let pool = bootstrapped_pool().await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
     let owner = user();
     let stranger = user();
     let email = format!("{}@ai.invalid", owner.as_str());
@@ -51,7 +51,7 @@ async fn usage_reads_are_scoped_to_the_owner() {
 #[tokio::test]
 async fn sample_by_id_hydrates_turns_and_splits_the_response() {
     let pool = bootstrapped_pool().await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
     let owner = user();
     let email = format!("{}@ai.invalid", owner.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &owner, &email)
@@ -84,7 +84,7 @@ async fn sample_by_id_hydrates_turns_and_splits_the_response() {
 #[tokio::test]
 async fn conversation_sampling_selects_the_latest_turn_and_keeps_its_wire_evidence() {
     let pool = bootstrapped_pool().await;
-    let repo = AiRequestRepository::new(&pool).unwrap();
+    let repo = AiRequestRepository::new(&pool);
     let owner = user();
     systemprompt_test_fixtures::seed_user_row(&pool, &owner, &format!("{owner}@ai.invalid"))
         .await
@@ -98,7 +98,7 @@ async fn conversation_sampling_selects_the_latest_turn_and_keeps_its_wire_eviden
     let latest_id = repo.insert(&latest).await.unwrap();
     sqlx::query("UPDATE ai_requests SET created_at = NOW() - INTERVAL '1 minute' WHERE id = $1")
         .bind(earlier_id.as_str())
-        .execute(pool.write_pool_arc().unwrap().as_ref())
+        .execute(pool.write_pool().as_ref())
         .await
         .unwrap();
     repo.insert_message(&latest_id, "user", "latest question", 0)
@@ -112,12 +112,10 @@ async fn conversation_sampling_selects_the_latest_turn_and_keeps_its_wire_eviden
         .unwrap();
     let tools = json!([{"name":"lookup"}]);
     AiRequestPayloadRepository::new(&pool)
-        .unwrap()
         .upsert_offered_tools(&latest_id, &tools)
         .await
         .unwrap();
     AiRequestPayloadRepository::new(&pool)
-        .unwrap()
         .upsert_prepared(&latest_id, "prepared-latest", None)
         .await
         .unwrap();

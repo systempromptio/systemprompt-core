@@ -57,8 +57,8 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContentRepository::new(pool)?;
-    let content_analytics = ContentAnalyticsRepository::new(pool)?;
+    let repo = ContentRepository::new(pool);
+    let content_analytics = ContentAnalyticsRepository::new(pool);
 
     let source = SourceId::new(args.source.clone());
     let days_i64 = parse_duration(&args.since)?;

@@ -47,7 +47,7 @@ fn unique(prefix: &str) -> (String, String) {
 #[tokio::test]
 async fn end_specific_session_succeeds() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("sesend");
     let user = service.create(&n, &e, None, None).await.unwrap();
     let session_id = create_local_session_row(
@@ -82,7 +82,7 @@ async fn end_unknown_session_reports_not_found() {
 #[tokio::test]
 async fn end_all_sessions_for_user() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("sesall");
     let user = service.create(&n, &e, None, None).await.unwrap();
     create_local_session_row(

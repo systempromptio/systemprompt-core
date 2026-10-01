@@ -39,7 +39,7 @@ fn cache_capacity_zero_clamps_to_one() {
 async fn revoke_jti_then_is_revoked() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
 
     let uid = Uuid::new_v4();
     let jti = format!("jti-{}", Uuid::new_v4());
@@ -54,7 +54,7 @@ async fn revoke_jti_then_is_revoked() {
 async fn revoke_jti_is_idempotent_on_conflict() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
 
     let uid = Uuid::new_v4();
     let jti = format!("jti-{}", Uuid::new_v4());
@@ -68,7 +68,7 @@ async fn revoke_jti_is_idempotent_on_conflict() {
 async fn expired_jti_not_revoked() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
 
     let uid = Uuid::new_v4();
     let jti = format!("jti-{}", Uuid::new_v4());
@@ -82,7 +82,7 @@ async fn expired_jti_not_revoked() {
 async fn revoke_jtis_for_user_batch() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
 
     let uid = Uuid::new_v4();
     let jtis = vec![
@@ -105,7 +105,7 @@ async fn revoke_jtis_for_user_batch() {
 async fn cleanup_expired_jti_revocations_removes_past_rows() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
 
     let uid = Uuid::new_v4();
     let jti = format!("jti-{}", Uuid::new_v4());

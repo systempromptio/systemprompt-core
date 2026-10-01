@@ -35,7 +35,7 @@ fn make_entry(module: &str, msg: &str) -> LogEntry {
 #[tokio::test]
 async fn database_log_service_log_get_recent_delete() {
     let db = test_db_pool().await;
-    let svc = DatabaseLogService::new(&db).expect("ctor");
+    let svc = DatabaseLogService::new(&db);
     let entry = make_entry("svc-test-mod", "svc-msg");
     let id = entry.id.clone();
     svc.log(entry).await.unwrap();
@@ -57,7 +57,7 @@ async fn database_log_service_log_get_recent_delete() {
 #[tokio::test]
 async fn database_log_service_from_repository() {
     let db = test_db_pool().await;
-    let repo = systemprompt_logging::LoggingRepository::new(&db).unwrap();
+    let repo = systemprompt_logging::LoggingRepository::new(&db);
     let svc = DatabaseLogService::from_repository(repo);
     let _ = svc.repository();
 }
@@ -65,7 +65,7 @@ async fn database_log_service_from_repository() {
 #[tokio::test]
 async fn maintenance_service_full_surface() {
     let db = test_db_pool().await;
-    let svc = LoggingMaintenanceService::new(&db).expect("ctor");
+    let svc = LoggingMaintenanceService::new(&db);
 
     let _recent = svc.get_recent_logs(10).await.unwrap();
 

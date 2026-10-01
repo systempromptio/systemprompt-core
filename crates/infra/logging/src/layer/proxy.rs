@@ -3,8 +3,9 @@
 //! [`ProxyDatabaseLayer`] is installed in the subscriber stack before a
 //! database pool exists, buffering span attribution into span extensions. Once
 //! [`ProxyDatabaseLayer::attach`] supplies a pool it delegates to the real
-//! `DatabaseLayer`; until then span fields are recorded so attribution is not
-//! lost across the boot window. The free functions build the [`LogEntry`]
+//! `DatabaseLayer` and hands the caller the writer's [`LogWriterHandle`] (only
+//! on the first attach); until then span fields are recorded so attribution is
+//! not lost across the boot window. The free functions build the [`LogEntry`]
 //! actor triple by walking the span tree.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -18,7 +19,7 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::LookupSpan;
 
-use super::DatabaseLayer;
+use super::{DatabaseLayer, LogWriterHandle};
 use super::visitor::{FieldVisitor, SpanContext, SpanFields, SpanVisitor, extract_span_context};
 use crate::models::{LogEntry, LogLevel};
 use systemprompt_database::DbPool;
@@ -50,8 +51,14 @@ impl ProxyDatabaseLayer {
         }
     }
 
-    pub fn attach(&self, db_pool: DbPool) {
-        self.inner.get_or_init(|| DatabaseLayer::new(db_pool));
+    pub fn attach(&self, db_pool: DbPool) -> Option<LogWriterHandle> {
+        let mut writer = None;
+        self.inner.get_or_init(|| {
+            let (layer, handle) = DatabaseLayer::new(db_pool);
+            writer = Some(handle);
+            layer
+        });
+        writer
     }
 }
 

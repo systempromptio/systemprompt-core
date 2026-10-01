@@ -21,6 +21,7 @@ pub mod net;
 pub mod oauth;
 pub mod orphans;
 pub mod paths;
+pub mod schema;
 pub mod secrets;
 pub mod service_row;
 pub mod subprocess;
@@ -36,7 +37,7 @@ pub use app_context::{
     default_governance_engine, fixture_analytics_repositories, fixture_app_context_with,
     fixture_app_context_with_config, fixture_app_context_with_hook,
     fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
-    fixture_fingerprint_repository, test_app_context,
+    fixture_fingerprint_repository, test_app_context, FIXTURE_JWT_ISSUER,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
@@ -61,6 +62,7 @@ pub use oauth::{
     TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
 };
 pub use paths::{repo_path, repo_root};
+pub use schema::{install_extension_schemas, install_extension_schemas_with_config};
 pub use secrets::{ensure_test_secrets_bootstrap, install_named_secret};
 pub use service_row::seed_running_service;
 pub use subprocess::{

@@ -55,7 +55,7 @@ async fn seed(pool: &DbPool) {
          request_count = 5, started_at = NOW() - INTERVAL '2 minutes' WHERE session_id = $1",
     )
     .bind(session_id.as_str())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 
@@ -69,7 +69,7 @@ async fn seed(pool: &DbPool) {
     .bind(&server)
     .bind(user_id.as_str())
     .bind(Uuid::new_v4().to_string())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 
@@ -82,7 +82,7 @@ async fn seed(pool: &DbPool) {
     .bind(Uuid::new_v4().to_string())
     .bind(Uuid::new_v4().to_string())
     .bind(user_id.as_str())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 }

@@ -40,13 +40,13 @@ mod scheduler_repository {
     #[tokio::test]
     async fn new_succeeds_against_migrated_db() {
         let pool = test_db_pool().await;
-        let _repo = SchedulerRepository::new(&pool).expect("composite repo should construct");
+        let _repo = SchedulerRepository::new(&pool);
     }
 
     #[tokio::test]
     async fn upsert_then_find_returns_inserted_row() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let name = unique_job_name("sched_upsert");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
@@ -66,7 +66,7 @@ mod scheduler_repository {
     #[tokio::test]
     async fn find_missing_job_returns_none() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let missing = unique_job_name("sched_absent");
 
         let found = repo.find_job(&missing).await.expect("find should succeed");
@@ -76,7 +76,7 @@ mod scheduler_repository {
     #[tokio::test]
     async fn upsert_conflict_updates_schedule_and_enabled() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let name = unique_job_name("sched_conflict");
 
         repo.upsert_job(&name, "0 0 1 * * *", true)
@@ -98,7 +98,7 @@ mod scheduler_repository {
     #[tokio::test]
     async fn update_job_execution_persists_status_and_error() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let name = unique_job_name("sched_exec");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
@@ -130,7 +130,7 @@ mod scheduler_repository {
     #[tokio::test]
     async fn update_job_execution_success_clears_error() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let name = unique_job_name("sched_success");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
@@ -176,7 +176,7 @@ mod scheduler_repository {
     #[tokio::test]
     async fn each_recorded_run_advances_run_count() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let name = unique_job_name("sched_runcount");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
@@ -208,7 +208,7 @@ mod scheduler_repository {
     #[tokio::test]
     async fn list_enabled_jobs_includes_enabled_excludes_disabled() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let enabled = unique_job_name("sched_list_on");
         let disabled = unique_job_name("sched_list_off");
 
@@ -234,7 +234,7 @@ mod scheduler_repository {
     #[tokio::test]
     async fn cleanup_empty_contexts_returns_rows_affected_count() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
 
         // No seeded contexts; the DELETE simply affects whatever stale empty
         // contexts exist (0 on a fresh DB). The call must succeed and return a
@@ -253,13 +253,13 @@ mod job_repository {
     #[tokio::test]
     async fn new_succeeds() {
         let pool = test_db_pool().await;
-        let _repo = JobRepository::new(&pool).expect("job repo should construct");
+        let _repo = JobRepository::new(&pool);
     }
 
     #[tokio::test]
     async fn set_enabled_toggles_flag() {
         let pool = test_db_pool().await;
-        let repo = JobRepository::new(&pool).expect("repo");
+        let repo = JobRepository::new(&pool);
         let name = unique_job_name("job_set_enabled");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
@@ -290,7 +290,7 @@ mod job_repository {
     #[tokio::test]
     async fn list_recent_runs_includes_executed_job() {
         let pool = test_db_pool().await;
-        let repo = JobRepository::new(&pool).expect("repo");
+        let repo = JobRepository::new(&pool);
         let name = unique_job_name("job_recent");
 
         repo.upsert_job(&name, "0 0 * * * *", true)
@@ -320,7 +320,7 @@ mod job_repository {
     #[tokio::test]
     async fn list_recent_runs_respects_limit() {
         let pool = test_db_pool().await;
-        let repo = JobRepository::new(&pool).expect("repo");
+        let repo = JobRepository::new(&pool);
 
         let rows = repo.list_recent_runs(2).await.expect("list recent");
         assert!(
@@ -333,7 +333,7 @@ mod job_repository {
     #[tokio::test]
     async fn list_recent_runs_excludes_never_run_job() {
         let pool = test_db_pool().await;
-        let repo = JobRepository::new(&pool).expect("repo");
+        let repo = JobRepository::new(&pool);
         let name = unique_job_name("job_never_run");
 
         // Inserted but never executed: last_run stays NULL, so it must not
@@ -357,13 +357,13 @@ mod analytics_repository {
     #[tokio::test]
     async fn new_succeeds() {
         let pool = test_db_pool().await;
-        let _repo = AnalyticsRepository::new(&pool).expect("analytics repo should construct");
+        let _repo = AnalyticsRepository::new(&pool);
     }
 
     #[tokio::test]
     async fn cleanup_empty_contexts_executes_for_various_windows() {
         let pool = test_db_pool().await;
-        let repo = AnalyticsRepository::new(&pool).expect("repo");
+        let repo = AnalyticsRepository::new(&pool);
 
         for hours in [0_i64, 1, 24, 168] {
             repo.cleanup_empty_contexts(hours)
@@ -375,8 +375,8 @@ mod analytics_repository {
     #[tokio::test]
     async fn cleanup_collects_orphaned_cli_contexts_but_spares_session_bound_ones() {
         let pool = test_db_pool().await;
-        let repo = AnalyticsRepository::new(&pool).expect("repo");
-        let raw = pool.pool_arc().expect("raw pool");
+        let repo = AnalyticsRepository::new(&pool);
+        let raw = pool.pool();
 
         let user_id = systemprompt_test_fixtures::unique_user_id("schedgc");
         let session_id = systemprompt_identifiers::SessionId::generate();
@@ -447,13 +447,13 @@ mod security_repository {
     #[tokio::test]
     async fn new_succeeds() {
         let pool = test_db_pool().await;
-        let _repo = SecurityRepository::new(&pool).expect("security repo should construct");
+        let _repo = SecurityRepository::new(&pool);
     }
 
     #[tokio::test]
     async fn find_high_volume_ips_returns_well_formed_records() {
         let pool = test_db_pool().await;
-        let repo = SecurityRepository::new(&pool).expect("repo");
+        let repo = SecurityRepository::new(&pool);
 
         // A very high threshold guarantees an empty result on any realistic
         // DB, but the aggregation + filter_map mapping path still executes.
@@ -479,7 +479,7 @@ mod security_repository {
     #[tokio::test]
     async fn find_scanner_ips_executes() {
         let pool = test_db_pool().await;
-        let repo = SecurityRepository::new(&pool).expect("repo");
+        let repo = SecurityRepository::new(&pool);
 
         let records = repo
             .find_scanner_ips(1)
@@ -494,7 +494,7 @@ mod security_repository {
     #[tokio::test]
     async fn find_recent_ips_executes() {
         let pool = test_db_pool().await;
-        let repo = SecurityRepository::new(&pool).expect("repo");
+        let repo = SecurityRepository::new(&pool);
 
         let records = repo
             .find_recent_ips()
@@ -508,7 +508,7 @@ mod security_repository {
     #[tokio::test]
     async fn find_high_risk_country_ips_populates_country() {
         let pool = test_db_pool().await;
-        let repo = SecurityRepository::new(&pool).expect("repo");
+        let repo = SecurityRepository::new(&pool);
 
         let records = repo
             .find_high_risk_country_ips(i64::MAX)
@@ -563,7 +563,7 @@ mod empty_context_audit_guards {
         }
 
         fn raw(&self) -> std::sync::Arc<sqlx::PgPool> {
-            self.pool.pool_arc().expect("raw pool")
+            self.pool.pool()
         }
 
         async fn seed_old_context(&self, context_id: &str) {
@@ -643,7 +643,7 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn context_with_tool_execution_survives_cleanup() {
         let seed = Seed::new("auditmte").await;
-        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        let repo = AnalyticsRepository::new(&seed.pool);
         // The audit row is written first: a concurrent sweep would otherwise
         // collect the context through the gap before it is protected.
         let ctx_id = unique_job_name("auditctx_mte");
@@ -663,7 +663,7 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn context_with_governance_decision_survives_cleanup() {
         let seed = Seed::new("auditgd").await;
-        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        let repo = AnalyticsRepository::new(&seed.pool);
         let ctx_id = unique_job_name("auditctx_gd");
         seed.seed_governance_decision(&unique_job_name("auditdec"), &ctx_id)
             .await;
@@ -681,7 +681,7 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn truly_empty_old_context_is_deleted() {
         let seed = Seed::new("auditbare").await;
-        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        let repo = AnalyticsRepository::new(&seed.pool);
         let ctx_id = unique_job_name("auditctx_bare");
         seed.seed_old_context(&ctx_id).await;
 
@@ -697,7 +697,7 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn count_empty_contexts_counts_what_cleanup_deletes() {
         let seed = Seed::new("auditcount").await;
-        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        let repo = AnalyticsRepository::new(&seed.pool);
         let collectable = unique_job_name("auditctx_count_bare");
         let protected = unique_job_name("auditctx_count_mte");
         seed.seed_tool_execution(&unique_job_name("auditexec"), &protected)
@@ -728,17 +728,16 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn orphaned_tool_execution_survives_all_retention_sweeps() {
         let seed = Seed::new("auditorphan").await;
-        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        let repo = AnalyticsRepository::new(&seed.pool);
         let exec_id = unique_job_name("auditexec_orphan");
         let missing_ctx = unique_job_name("auditctx_missing");
         seed.seed_tool_execution(&exec_id, &missing_ctx).await;
 
         repo.cleanup_empty_contexts(1).await.expect("context sweep");
 
-        let logs = systemprompt_logging::LoggingRepository::new(&seed.pool).expect("logs repo");
+        let logs = systemprompt_logging::LoggingRepository::new(&seed.pool);
         let seen = logs.distinct_log_user_ids().await.expect("log owners");
         let orphans = systemprompt_users::UserRepository::new(&seed.pool)
-            .expect("users repo")
             .missing_ids(&seen)
             .await
             .expect("missing owners");
@@ -749,7 +748,6 @@ mod empty_context_audit_guards {
             .await
             .expect("old logs");
         systemprompt_oauth::repository::OauthCleanupRepository::new(&seed.pool)
-            .expect("oauth cleanup repo")
             .delete_expired()
             .await
             .expect("oauth expiry sweep");
@@ -776,7 +774,7 @@ mod forget_retired_jobs {
     #[tokio::test]
     async fn an_empty_inventory_forgets_nothing() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let name = unique_job_name("sched_empty_inventory");
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
@@ -800,7 +798,7 @@ mod forget_retired_jobs {
     #[tokio::test]
     async fn a_job_another_version_still_runs_is_kept() {
         let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let other_version = unique_job_name("sched_other_version");
         repo.upsert_job(&other_version, "0 0 * * * *", true)
             .await

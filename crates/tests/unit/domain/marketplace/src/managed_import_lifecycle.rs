@@ -25,7 +25,7 @@ async fn importing_captured_skills_retains_one_snapshot_and_immutable_files_per_
     seed_user_row(&db, &owner, &format!("{owner}@managed.invalid"))
         .await
         .unwrap();
-    let repository = ManagedRepository::new(&db).unwrap();
+    let repository = ManagedRepository::new(&db);
     let source = repository
         .register_source(&owner, "captured-authoring", &SourceSpec::Managed)
         .await

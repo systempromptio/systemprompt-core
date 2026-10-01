@@ -31,7 +31,7 @@ pub(crate) async fn seed_request(pool: &DbPool, user_id: &UserId) -> AiRequestId
     seed_user_row(pool, user_id, &email)
         .await
         .expect("seed user");
-    let repo = systemprompt_ai::repository::AiRequestRepository::new(pool).expect("repo");
+    let repo = systemprompt_ai::repository::AiRequestRepository::new(pool);
     let record = AiRequestRecord::builder(
         AiRequestId::generate(),
         user_id.clone(),

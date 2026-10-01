@@ -210,8 +210,7 @@ fn build_service(
     }
     let service = ImageService::with_providers(
         ImageServiceParts {
-            ai_request_repo: systemprompt_ai::repository::AiRequestRepository::new(pool)
-                .expect("ai request repository"),
+            ai_request_repo: systemprompt_ai::repository::AiRequestRepository::new(pool),
             storage_config: config,
             file_storage: file_storage(&dir),
             file_provider,
@@ -465,8 +464,7 @@ async fn provider_registry_accessors_report_state() {
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
     let (dir, config) = storage_config();
     let mut service = ImageService::new(ImageServiceParts {
-        ai_request_repo: systemprompt_ai::repository::AiRequestRepository::new(&pool)
-            .expect("ai request repository"),
+        ai_request_repo: systemprompt_ai::repository::AiRequestRepository::new(&pool),
         storage_config: config,
         file_storage: file_storage(&dir),
         file_provider,
@@ -551,8 +549,7 @@ fn build_failing_service(pool: &DbPool) -> (tempfile::TempDir, ImageService) {
     );
     let service = ImageService::with_providers(
         ImageServiceParts {
-            ai_request_repo: systemprompt_ai::repository::AiRequestRepository::new(pool)
-                .expect("ai request repository"),
+            ai_request_repo: systemprompt_ai::repository::AiRequestRepository::new(pool),
             storage_config: config,
             file_storage: file_storage(&dir),
             file_provider: Arc::new(FailingFileProvider),

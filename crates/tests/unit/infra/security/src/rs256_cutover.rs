@@ -7,8 +7,6 @@
 //! 4. tokens signed by an unrelated RSA key are rejected (proxy for
 //!    foreign-issuer JWKS lookup miss).
 
-use std::sync::Once;
-
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, decode_header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
@@ -18,15 +16,8 @@ use systemprompt_models::auth::{
 };
 use systemprompt_security::keys::{RsaSigningKey, authority};
 
-static INSTALL: Once = Once::new();
-
 fn ensure_authority() -> &'static RsaSigningKey {
-    INSTALL.call_once(|| {
-        let key =
-            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
-        authority::install_for_test(key);
-    });
-    authority::signing_key().expect("authority installed")
+    systemprompt_test_fixtures::install_test_signing_key()
 }
 
 fn sample_claims(iss: &str) -> JwtClaims {
@@ -150,17 +141,25 @@ fn active_decoding_key_verifies_locally_minted_token() {
 }
 
 #[test]
-fn install_for_test_is_idempotent() {
+fn install_accepts_the_installed_key_again() {
+    let key = ensure_authority();
+    authority::install(key.clone()).expect("reinstalling the same key is accepted");
+    assert_eq!(authority::signing_key().expect("installed").kid(), key.kid());
+}
+
+#[test]
+fn install_refuses_a_different_key() {
     let first = ensure_authority();
-    let kid_before = first.kid().to_string();
+    let foreign = systemprompt_test_fixtures::next_test_key();
 
-    // A second install with a distinct key must be a no-op: the authority is
-    // set exactly once per process and never rebound.
-    authority::install_for_test(systemprompt_test_fixtures::next_test_key());
-
-    let kid_after = authority::signing_key().expect("still installed").kid();
+    let err = authority::install(foreign).expect_err("a second, different key must be refused");
+    assert!(
+        matches!(err, authority::TokenAuthorityError::ConflictingKey { .. }),
+        "unexpected error: {err}"
+    );
     assert_eq!(
-        kid_before, kid_after,
-        "install_for_test must not replace an already-installed authority"
+        authority::signing_key().expect("still installed").kid(),
+        first.kid(),
+        "a refused install must not replace the installed authority"
     );
 }

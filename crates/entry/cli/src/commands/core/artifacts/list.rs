@@ -43,7 +43,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ArtifactRepository::new(pool)?;
+    let repo = ArtifactRepository::new(pool);
 
     let artifacts = if let Some(ref ctx_id) = args.context {
         let context_id = ContextId::try_new(ctx_id).context("Invalid --context id")?;

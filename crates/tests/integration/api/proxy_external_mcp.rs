@@ -232,7 +232,7 @@ async fn mount_accessor(server: &MockServer) {
 }
 
 async fn wait_for_execution_row(pool: &DbPool, tool: &str) -> Option<(String, String)> {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     for _ in 0..100 {
         let row: Option<(String, String)> = sqlx::query_as(
             "SELECT status, server_name FROM mcp_tool_executions WHERE tool_name = $1",
@@ -359,7 +359,7 @@ async fn external_non_tool_call_passes_through_without_audit() -> anyhow::Result
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
     assert_eq!(String::from_utf8_lossy(&bytes), upstream_body);
 
-    let p = h.pool.pool_arc().expect("read pool");
+    let p = h.pool.pool();
     let audited: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM mcp_tool_executions WHERE server_name = $1")
             .bind(&h.ext_name)
@@ -435,7 +435,7 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
     let repo = ServiceRepository::new(
         h.ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
     // Why: the row carries a port from an earlier run under another offset;
     // the resolver must trust the port this instance spawns, not the row.
     let stale_port = 5321;
@@ -699,7 +699,7 @@ async fn external_session_insert_failure_is_fail_closed_and_retry_persists_one_b
         )
         .mount(&h.server)
         .await;
-    let write = h.pool.write_pool_arc()?;
+    let write = h.pool.write_pool();
     sqlx::raw_sql(
         "CREATE FUNCTION reject_external_session_insert() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'owned external session fault'; END $$; \
@@ -842,7 +842,7 @@ async fn external_session_is_bound_to_provider_credential_and_rotation_does_not_
     )
     .bind(&h.ext_name)
     .bind("credential-bound-session")
-    .fetch_one(h.pool.pool_arc()?.as_ref())
+    .fetch_one(h.pool.pool().as_ref())
     .await?;
     assert_eq!(binding_before.0, "stable-owner");
     assert_eq!(binding_before.1.len(), 32);
@@ -899,7 +899,7 @@ async fn external_session_is_bound_to_provider_credential_and_rotation_does_not_
     )
     .bind(&h.ext_name)
     .bind("credential-bound-session")
-    .fetch_one(h.pool.pool_arc()?.as_ref())
+    .fetch_one(h.pool.pool().as_ref())
     .await?;
     assert_eq!(binding_after.0, binding_before.0);
     assert_eq!(
@@ -1041,7 +1041,7 @@ async fn invalid_external_session_header_is_fail_closed_and_valid_retry_binds() 
     .await
     .map_err(|_| anyhow::anyhow!("invalid-header request timed out"))??;
     assert_eq!(invalid.status(), StatusCode::FORBIDDEN);
-    let write = h.pool.write_pool_arc()?;
+    let write = h.pool.write_pool();
     let count: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM mcp_external_sessions WHERE server_name = $1")
             .bind(&h.ext_name)

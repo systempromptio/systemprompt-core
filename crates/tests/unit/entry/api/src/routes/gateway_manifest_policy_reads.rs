@@ -66,16 +66,17 @@ async fn manifest_is_not_signed_when_the_revocation_read_fails() {
         healthy.session_provider().expect("session provider"),
         healthy.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(healthy.oauth_repositories().oauth.clone()),
+        healthy.config().jwt_issuer.clone(),
     ));
     let consumer = seed_bridge_credential(&pool, "manifest-policy@example.invalid")
         .await
         .expect("consumer credential");
 
     let broken_users = Arc::new(Database::from_pools(
-        pool.pool_arc().expect("read pool"),
+        pool.pool(),
         Some(closed_write_pool(&boot.database_url).await),
     ));
-    let user_repository = Arc::new(UserRepository::new(&broken_users).expect("user repository"));
+    let user_repository = Arc::new(UserRepository::new(&broken_users));
     let degraded = fixture_app_context_with_user_repository(
         &pool,
         &boot.database_url,

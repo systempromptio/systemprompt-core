@@ -193,7 +193,7 @@ async fn cleanup_owned_helper() {
     drop(cancel);
     drop(dry);
     drop(repo);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

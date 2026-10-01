@@ -48,7 +48,7 @@ pub(super) struct BridgeSessionSummary {
 
 pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
-    let repo = BridgeSessionRepository::new(app.db_pool())?;
+    let repo = BridgeSessionRepository::new(app.db_pool());
     let within = Duration::from_secs(args.within_secs);
 
     let rows = match args.user_id.as_ref().filter(|u| !u.as_str().is_empty()) {

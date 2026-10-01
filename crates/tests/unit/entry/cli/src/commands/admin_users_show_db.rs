@@ -48,7 +48,7 @@ fn unique(prefix: &str) -> (String, String) {
 #[tokio::test]
 async fn show_finds_user_by_email_with_sessions_and_activity() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (name, email) = unique("show");
     let user = service
         .create(&name, &email, Some("Full Name"), Some("Disp"))

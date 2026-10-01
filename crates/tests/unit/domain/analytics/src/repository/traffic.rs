@@ -64,7 +64,7 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
     };
     repo.create_session(&params).await.expect("seed session");
 
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query(
         "UPDATE user_sessions SET request_count = $2, is_behavioral_bot = $3 WHERE session_id = $1",
     )
@@ -78,7 +78,7 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
 }
 
 async fn cleanup_sessions(pool: &DbPool, prefix: &str) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query(
         "DELETE FROM analytics_events WHERE session_id IN \
          (SELECT session_id FROM user_sessions WHERE landing_page LIKE $1 || '%')",
@@ -105,7 +105,7 @@ fn window() -> (chrono::DateTime<Utc>, chrono::DateTime<Utc>) {
 async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
+    let repo = TrafficAnalyticsRepository::new(&pool);
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
     let guide = format!("{prefix}/guides/a");
@@ -227,7 +227,7 @@ async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
 async fn get_pages_engaged_only_excludes_zero_request_sessions() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
+    let repo = TrafficAnalyticsRepository::new(&pool);
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
     let page = format!("{prefix}/landing");
@@ -310,9 +310,9 @@ async fn seed_link_click(
 async fn get_navigation_groups_internal_link_clicks_by_transition() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
+    let repo = TrafficAnalyticsRepository::new(&pool);
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
-        systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+        systemprompt_logging::AnalyticsRepository::new(&pool),
     ));
 
     let prefix = format!("/tn-{}", Uuid::new_v4());
@@ -375,9 +375,9 @@ async fn get_navigation_groups_internal_link_clicks_by_transition() {
 async fn get_navigation_include_external_returns_external_clicks() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
+    let repo = TrafficAnalyticsRepository::new(&pool);
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
-        systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+        systemprompt_logging::AnalyticsRepository::new(&pool),
     ));
 
     let prefix = format!("/tn-{}", Uuid::new_v4());

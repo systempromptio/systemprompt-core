@@ -107,7 +107,7 @@ fn act_chain_and_approver_are_omitted_when_empty() {
 
 
 fn pg(pool: &systemprompt_database::DbPool) -> std::sync::Arc<sqlx::PgPool> {
-    pool.pool_arc().expect("fixture pool is connected")
+    pool.pool()
 }
 
 fn unique_audit() -> DecisionAudit {

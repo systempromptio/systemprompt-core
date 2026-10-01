@@ -14,7 +14,6 @@ mod types;
 
 use std::sync::Arc;
 
-use crate::error::Result;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
@@ -27,10 +26,10 @@ pub struct BannedIpRepository {
 }
 
 impl BannedIpRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub fn from_pool(pool: Arc<PgPool>) -> Self {

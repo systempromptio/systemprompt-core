@@ -128,7 +128,7 @@ impl Job for OtlpExportJob {
         let db_pool = ctx
             .db_pool::<DbPool>()
             .ok_or_else(|| SchedulerError::missing_context("DbPool"))?;
-        let pool = db_pool.write_pool_arc().map_err(SchedulerError::from)?;
+        let pool = db_pool.write_pool();
         let instance_id = ctx
             .app_context::<AppContext>()
             .map(|app| app.config().instance_id.clone());

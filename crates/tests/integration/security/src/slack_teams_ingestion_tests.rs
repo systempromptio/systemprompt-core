@@ -25,7 +25,7 @@ struct Fixture {
 
 async fn setup() -> Fixture {
     let db = test_db_pool().await;
-    let pg = db.pool_arc().expect("read pool");
+    let pg = db.pool();
     Fixture { db, pg }
 }
 
@@ -110,7 +110,7 @@ async fn role_values(pg: &PgPool, entity_type: &str, id: &str) -> Vec<String> {
 async fn slack_happy_path_projects_entity_and_rules() {
     let f = setup().await;
     let id = slack_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     let report = service
         .ingest_slack_apps(
@@ -159,7 +159,7 @@ async fn slack_happy_path_projects_entity_and_rules() {
 async fn teams_happy_path_projects_entity_and_rules() {
     let f = setup().await;
     let id = teams_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     let report = service
         .ingest_teams_apps(
@@ -179,7 +179,7 @@ async fn disabled_and_empty_role_apps_produce_no_rows() {
     let f = setup().await;
     let disabled = slack_id();
     let empty = slack_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     let mut apps = HashMap::new();
     apps.insert(
@@ -214,7 +214,7 @@ async fn delete_orphans_is_scoped_to_the_ingested_ids() {
     let f = setup().await;
     let kept = slack_id();
     let swept = slack_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     // First pass seeds both workspaces.
     let mut both = HashMap::new();
@@ -257,7 +257,7 @@ async fn delete_orphans_is_scoped_to_the_ingested_ids() {
 async fn re_ingest_without_override_is_idempotent() {
     let f = setup().await;
     let id = slack_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     service
         .ingest_slack_apps(

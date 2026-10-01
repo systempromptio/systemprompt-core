@@ -126,7 +126,7 @@ async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(format!("tx-owner-{}", Uuid::new_v4()));
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@tx.invalid", user.as_str()))
@@ -404,7 +404,7 @@ async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@tx.invalid", user.as_str()))
@@ -581,7 +581,7 @@ async fn seeded_client_with_owner() -> anyhow::Result<(OAuthClientFixture, UserI
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@tx.invalid", user.as_str()))

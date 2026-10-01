@@ -33,7 +33,7 @@ pub struct OAuthClientFixture {
 }
 
 pub async fn seed_oauth_client(pool: &DbPool, user_id: &UserId) -> Result<OAuthClientFixture> {
-    let repo = ClientRepository::new(pool).map_err(|e| anyhow::anyhow!("client repo: {e}"))?;
+    let repo = ClientRepository::new(pool);
     let client_id = ClientId::new(format!("test-client-{}", Uuid::new_v4().simple()));
 
     repo.create(CreateClientParams {

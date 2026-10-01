@@ -10,7 +10,7 @@ use uuid::Uuid;
 async fn repo() -> OAuthRepository {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    OAuthRepository::new(&pool).expect("repo")
+    OAuthRepository::new(&pool)
 }
 
 #[test]

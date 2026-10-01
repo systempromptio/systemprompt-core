@@ -37,7 +37,7 @@ impl Fixture {
         // The in-process guard orders tests inside one process.
         let guard = acquire_serial().await;
         let db = test_db_pool().await;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let pool = db.pool().as_ref().clone();
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = format!("test_user_{tag}");
         let context_id = format!("test_ctx_{tag}");
@@ -119,7 +119,7 @@ impl Fixture {
     }
 
     async fn repo(&self) -> Result<CostAnalyticsRepository> {
-        Ok(CostAnalyticsRepository::new(&self.db)?)
+        Ok(CostAnalyticsRepository::new(&self.db))
     }
 
     async fn cleanup(&self) -> Result<()> {

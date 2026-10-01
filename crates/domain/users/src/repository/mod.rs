@@ -27,7 +27,6 @@ pub use rate_limit_bucket::UserRateLimitBucketRepository;
 pub use role_directory::UsersRoleDirectory;
 pub use user::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, PurgeCount, UpdateUserParams};
 
-use crate::error::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -41,9 +40,9 @@ pub struct UserRepository {
 }
 
 impl UserRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 }

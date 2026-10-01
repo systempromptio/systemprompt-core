@@ -28,7 +28,7 @@ async fn persisted_task_error(pool: &systemprompt_database::DbPool, task_id: &Ta
         "SELECT error_message FROM agent_tasks WHERE task_id = $1",
     )
     .bind(task_id.as_str())
-    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("task error query")
     .expect("failed task error")

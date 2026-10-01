@@ -44,11 +44,9 @@ pub struct QuotaBucketState {
 }
 
 impl AiQuotaBucketRepository {
-    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 
     pub async fn increment(

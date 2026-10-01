@@ -52,7 +52,7 @@ async fn seed_request(
     tokens: i32,
     cost: i64,
 ) -> Result<()> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let id = AiRequestId::generate();
     sqlx::query(
         "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, \

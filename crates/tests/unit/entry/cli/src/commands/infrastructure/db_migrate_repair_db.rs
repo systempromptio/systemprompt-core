@@ -39,7 +39,7 @@ async fn tamper_checksum(pool: &DbPool) -> Option<(String, i64, String)> {
         "SELECT extension_id, version::bigint, checksum FROM extension_migrations \
          ORDER BY extension_id, version LIMIT 1",
     )
-    .fetch_optional(pool.pool_arc().unwrap().as_ref())
+    .fetch_optional(pool.pool().as_ref())
     .await
     .unwrap();
     let (ext, version, original) = row?;
@@ -49,7 +49,7 @@ async fn tamper_checksum(pool: &DbPool) -> Option<(String, i64, String)> {
     )
     .bind(&ext)
     .bind(version)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
     Some((ext, version, original))
@@ -63,7 +63,7 @@ async fn restore_checksum(pool: &DbPool, ext: &str, version: i64, checksum: &str
     .bind(ext)
     .bind(version)
     .bind(checksum)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 }
@@ -130,7 +130,7 @@ async fn repair_dry_run_reports_tampered_checksum_drift() {
     )
     .bind(&ext)
     .bind(version)
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert_eq!(checksum, original);
@@ -168,7 +168,7 @@ async fn reconcile_only_rewrites_checksum_in_place() {
     )
     .bind(&ext)
     .bind(version)
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
 

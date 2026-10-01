@@ -76,7 +76,7 @@ systemprompt_security::register_subject_attribute_provider!(|_ctx| std::sync::Ar
 fn quota_repo(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_ai::repository::AiQuotaBucketRepository {
-    systemprompt_ai::repository::AiQuotaBucketRepository::new(db).expect("quota repo")
+    systemprompt_ai::repository::AiQuotaBucketRepository::new(db)
 }
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 
@@ -404,7 +404,7 @@ async fn post_update_increments_token_counts() {
 async fn policy_resolver_falls_back_when_empty() {
     let p = pool().await;
     let resolver = PolicyResolver::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&p).expect("policy repo"),
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&p),
     );
     let _spec1 = resolver
         .resolve(QuotaFaultMode::Open)
@@ -456,6 +456,6 @@ fn unreadable_policy_resolver() -> PolicyResolver {
             Some(std::sync::Arc::new(dead)),
         ));
     PolicyResolver::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&db).expect("policy repo"),
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&db),
     )
 }

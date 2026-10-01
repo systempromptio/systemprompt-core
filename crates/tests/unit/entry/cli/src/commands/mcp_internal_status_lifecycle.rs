@@ -91,7 +91,7 @@ async fn internal_status_helper() {
     println!("END_DETAILED_STATUS");
 
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

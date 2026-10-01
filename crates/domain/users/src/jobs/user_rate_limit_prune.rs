@@ -46,8 +46,7 @@ impl Job for UserRateLimitPruneJob {
             .unwrap_or(DEFAULT_RETAIN_SECS);
         let before = Utc::now() - Duration::seconds(retain_secs);
 
-        let repository = UserRateLimitBucketRepository::new(&db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let repository = UserRateLimitBucketRepository::new(&db_pool);
         let pruned = repository
             .prune(before)
             .await

@@ -85,6 +85,7 @@ fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
         analytics,
         user_provider,
         jti_revocation,
+        ctx.config().jwt_issuer.clone(),
     )))
 }
 
@@ -100,7 +101,7 @@ pub fn gateway_repositories(
         ctx.db_pool(),
         journal,
         ctx.context_materializer(),
-    )?
+    )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
     .with_session_store(ctx.session_store())
     .with_payload_cap(payload_cap_bytes))

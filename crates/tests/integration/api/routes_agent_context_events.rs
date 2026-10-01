@@ -26,7 +26,7 @@ async fn seed_context(pool: &DbPool) -> anyhow::Result<(UserId, ContextId)> {
     seed_user_session(pool, &user_id, &session_id).await?;
 
     let context_id = ContextId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     sqlx::query(
         "INSERT INTO user_contexts (context_id, user_id, session_id, name) VALUES ($1, $2, $3, $4)",
     )

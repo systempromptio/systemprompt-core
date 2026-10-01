@@ -31,7 +31,7 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let ban_repository = BannedIpRepository::new(pool)?;
+    let ban_repository = BannedIpRepository::new(pool);
 
     let bans = match args.source {
         Some(ref source) => {

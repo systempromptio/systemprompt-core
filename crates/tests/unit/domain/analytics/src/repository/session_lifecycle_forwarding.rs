@@ -40,7 +40,7 @@ async fn isolated_repository(
 }
 
 async fn drop_isolated(database: DisposableDb, pool: systemprompt_database::DbPool) {
-    pool.write_pool_arc().unwrap().close().await;
+    pool.write_pool().close().await;
     database.drop_now().await;
 }
 
@@ -121,7 +121,7 @@ async fn activity_usage_scanner_and_conversion_mutations_persist_together() {
     ))
     .await
     .unwrap();
-    let db = pool.pool_arc().unwrap();
+    let db = pool.pool();
     sqlx::query("UPDATE user_sessions SET last_activity_at = CURRENT_TIMESTAMP - INTERVAL '2 hours' WHERE session_id = $1")
         .bind(sid.as_str())
         .execute(db.as_ref())
@@ -199,7 +199,7 @@ async fn migration_moves_only_source_owner_then_bulk_revoke_removes_active_acces
     assert_eq!(repo.revoke_all_for_user(&new).await.unwrap(), 2);
     assert!(repo.find_active_by_id(&first).await.unwrap().is_none());
     assert!(repo.find_active_by_id(&outsider).await.unwrap().is_some());
-    let db = pool.pool_arc().unwrap();
+    let db = pool.pool();
     let revoked = sqlx::query_scalar::<_, bool>(
         "SELECT bool_and(revoked_at IS NOT NULL) FROM user_sessions WHERE user_id = $1",
     )
@@ -229,7 +229,7 @@ async fn inactive_cleanup_ends_only_stale_sessions_and_preserves_fresh_session()
         .await
         .unwrap();
     }
-    let db = pool.pool_arc().unwrap();
+    let db = pool.pool();
     sqlx::query("UPDATE user_sessions SET last_activity_at = CURRENT_TIMESTAMP - INTERVAL '8 hours' WHERE session_id = $1")
         .bind(stale.as_str())
         .execute(db.as_ref())

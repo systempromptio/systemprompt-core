@@ -14,7 +14,7 @@ async fn missing_private_credentials_fail_initial_import_and_sync_without_launch
     seed_user_row(&db, &owner, &format!("{owner}@credentials.invalid"))
         .await
         .expect("owner");
-    let repository = ManagedRepository::new(&db).expect("managed repository");
+    let repository = ManagedRepository::new(&db);
     let reference = format!("absent-private-reference-{}", TraceId::generate());
     let source = repository
         .register_source(

@@ -44,10 +44,7 @@ impl Job for CleanupAnonymousUsersJob {
             .get_parameter_parsed::<i32>("retention_days")?
             .unwrap_or(DEFAULT_RETENTION_DAYS);
 
-        let repository = Arc::new(
-            UserRepository::new(&db_pool)
-                .map_err(|e| ProviderError::Configuration(e.to_string()))?,
-        );
+        let repository = Arc::new(UserRepository::new(&db_pool));
         let user_service = UserService::new(repository);
         let deleted_users = if ctx.enforce() {
             user_service

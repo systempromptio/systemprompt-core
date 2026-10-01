@@ -26,6 +26,6 @@ pub fn fixture_system_admin(username: &str) -> SystemAdmin {
 }
 
 pub fn merging_user_service(pool: &DbPool) -> anyhow::Result<UserService> {
-    Ok(UserService::new(Arc::new(UserRepository::new(pool)?))
-        .with_owner_reassignments(systemprompt_runtime::owner_reassignments(pool)?))
+    Ok(UserService::new(Arc::new(UserRepository::new(pool)))
+        .with_owner_reassignments(systemprompt_runtime::owner_reassignments(pool)))
 }

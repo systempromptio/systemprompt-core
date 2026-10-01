@@ -18,7 +18,7 @@ use systemprompt_extension::LoaderError;
 const JWKS_RATE_LIMIT_PER_SECOND: u64 = 2;
 
 pub fn jwks_router(ctx: &AppContext) -> Result<Router, LoaderError> {
-    let limits = RateLimitState::from_context(ctx)?;
+    let limits = RateLimitState::from_context(ctx);
     Router::new()
         .route(ApiPaths::WELLKNOWN_JWKS, get(handle_jwks))
         .with_state(ctx.clone())

@@ -17,7 +17,7 @@ use crate::common::Fixture;
 
 fn publishing_service(fx: &Fixture) -> Result<ArtifactPublishingService> {
     let repositories = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let steps = Arc::new(ExecutionStepRepository::new(&fx.db)?);
+    let steps = Arc::new(ExecutionStepRepository::new(&fx.db));
     let skills = Arc::new(SkillService::new(
         systemprompt_test_fixtures::not_managed_skills(),
         steps,

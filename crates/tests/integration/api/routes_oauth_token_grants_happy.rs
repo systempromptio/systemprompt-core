@@ -124,7 +124,7 @@ async fn seed_grant(
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@grants.invalid", user.as_str()))
@@ -132,7 +132,7 @@ async fn seed_grant(
         .await?;
     let client = seed_oauth_client(&pool, &user).await?;
 
-    let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
+    let repo = OAuthRepository::new(&pool);
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4().simple()));
     let params = AuthCodeParams {
         code: &code,
@@ -606,7 +606,7 @@ async fn seed_public_grant() -> anyhow::Result<SeededGrant> {
     let grant = seed_grant(None, None).await?;
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query(
         "UPDATE oauth_clients SET token_endpoint_auth_method = 'none', client_secret_hash = NULL \
          WHERE client_id = $1",

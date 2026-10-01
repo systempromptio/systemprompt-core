@@ -44,7 +44,7 @@ impl Job for CleanupInactiveSessionsJob {
             .get_parameter_parsed::<i32>("inactive_hours")?
             .unwrap_or(DEFAULT_INACTIVE_HOURS);
 
-        let session_repo = SessionRepository::new(&db_pool).map_err(SchedulerError::from)?;
+        let session_repo = SessionRepository::new(&db_pool);
         let closed_sessions = session_repo
             .cleanup_inactive(inactive_hours)
             .await

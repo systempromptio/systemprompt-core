@@ -69,7 +69,7 @@ mod state_verifier_seeded {
     #[tokio::test]
     async fn running_status_nonexistent_pid_becomes_crashed() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_seed_running_crashed");
 
         insert_service(&pg, &name, "mcp", "running", Some(999_999_998), 29100).await;
@@ -113,7 +113,7 @@ mod state_verifier_seeded {
     #[tokio::test]
     async fn running_status_null_pid_becomes_crashed() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_seed_running_nopid");
 
         insert_service(&pg, &name, "agent", "running", None, 29101).await;
@@ -152,7 +152,7 @@ mod state_verifier_seeded {
     #[tokio::test]
     async fn starting_status_nonexistent_pid_becomes_stopped() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_seed_starting_stopped");
 
         insert_service(&pg, &name, "mcp", "starting", Some(999_999_997), 29102).await;
@@ -196,7 +196,7 @@ mod state_verifier_seeded {
     #[tokio::test]
     async fn starting_status_null_pid_becomes_stopped() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_seed_starting_nopid");
 
         insert_service(&pg, &name, "mcp", "starting", None, 29103).await;
@@ -235,7 +235,7 @@ mod state_verifier_seeded {
     #[tokio::test]
     async fn disabled_config_with_stopped_db_row_maps_to_cleanup_db() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_seed_disabled_stopped");
 
         insert_service(&pg, &name, "mcp", "stopped", None, 29104).await;
@@ -274,7 +274,7 @@ mod state_verifier_seeded {
     #[tokio::test]
     async fn disabled_config_with_crashed_db_row_maps_to_cleanup_db() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_seed_disabled_crashed");
 
         insert_service(&pg, &name, "agent", "running", Some(999_999_996), 29105).await;
@@ -318,7 +318,7 @@ mod state_verifier_seeded {
     #[tokio::test]
     async fn orphan_db_row_not_in_config_is_included() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_seed_orphan");
 
         insert_service(&pg, &name, "mcp", "stopped", None, 29106).await;
@@ -353,7 +353,7 @@ mod state_verifier_seeded {
     #[tokio::test]
     async fn multiple_db_rows_mixed_states() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
 
         let name_a = unique_name("sv_multi_a");
         let name_b = unique_name("sv_multi_b");
@@ -422,7 +422,7 @@ mod reconciler_seeded {
     #[tokio::test]
     async fn reconcile_cleanup_db_for_disabled_stopped_row() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("rec_seed_cleanup");
 
         insert_service(&pg, &name, "mcp", "stopped", None, 29120).await;
@@ -452,7 +452,7 @@ mod reconciler_seeded {
     #[tokio::test]
     async fn reconcile_start_for_enabled_crashed_row() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("rec_seed_restart");
 
         insert_service(&pg, &name, "agent", "running", Some(999_999_994), 29121).await;
@@ -490,7 +490,7 @@ mod reconciler_seeded {
     #[tokio::test]
     async fn reconcile_cleanup_db_removes_row_from_db() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("rec_seed_deleted");
 
         insert_service(&pg, &name, "mcp", "stopped", None, 29122).await;
@@ -529,7 +529,7 @@ mod reconciler_seeded {
     #[tokio::test]
     async fn reconcile_mixed_configs_seeded_runs_multiple_branches() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
 
         let name_start = unique_name("rec_mix_start");
         let name_cleanup = unique_name("rec_mix_cleanup");
@@ -634,7 +634,7 @@ mod verifier_query_methods_seeded {
     #[tokio::test]
     async fn get_crashed_services_returns_seeded_crashed_state() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_crashed_filter");
 
         insert_service(&pg, &name, "mcp", "running", Some(999_999_993), 29140).await;
@@ -666,7 +666,7 @@ mod verifier_query_methods_seeded {
     #[tokio::test]
     async fn get_services_needing_action_includes_crashed_enabled_service() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_action_filter");
 
         insert_service(&pg, &name, "agent", "running", Some(999_999_992), 29141).await;
@@ -726,7 +726,7 @@ mod state_verifier_live {
     #[tokio::test]
     async fn running_row_with_live_pid_and_responsive_port_is_running() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_live_running");
 
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
@@ -768,7 +768,7 @@ mod state_verifier_live {
     #[tokio::test]
     async fn disabled_running_row_with_live_pid_needs_stop() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_live_disabled_running");
 
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
@@ -809,7 +809,7 @@ mod state_verifier_live {
     #[tokio::test]
     async fn running_row_with_live_pid_and_unresponsive_port_is_starting() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_live_starting");
 
         let port = reserved_free_port();
@@ -853,7 +853,7 @@ mod state_verifier_live {
     #[tokio::test]
     async fn starting_row_with_live_pid_stays_starting() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let name = unique_name("sv_live_starting_row");
 
         let port = reserved_free_port();

@@ -37,8 +37,7 @@ impl Job for OauthCleanupJob {
 
         debug!("Job started");
 
-        let repository = OauthCleanupRepository::new(&db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let repository = OauthCleanupRepository::new(&db_pool);
         let counts = repository
             .delete_expired()
             .await

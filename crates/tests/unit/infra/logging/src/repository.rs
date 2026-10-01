@@ -19,7 +19,7 @@ async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically()
     use systemprompt_traits::analytics_events::{AnalyticsEventRecord, AnalyticsEventStore};
 
     let db = test_db_pool().await;
-    let pool = db.write_pool_arc().unwrap();
+    let pool = db.write_pool();
     let session_id = SessionId::new(unique_id("event-store"));
     sqlx::query("INSERT INTO user_sessions (session_id, session_source) VALUES ($1, 'web')")
         .bind(session_id.as_str())
@@ -33,7 +33,7 @@ async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically()
         std::sync::Arc::new(unavailable_replica),
         Some(pool.clone()),
     ));
-    let store = AnalyticsRepository::new(&split_db).unwrap();
+    let store = AnalyticsRepository::new(&split_db);
     assert!(!store.has_analytics_events(&session_id).await.unwrap());
     store.persist_events(&[]).await.unwrap();
     let first = AnalyticsEventRecord {
@@ -149,13 +149,13 @@ fn make_entry(module: &str, msg: &str, actor: &(UserId, SessionId, TraceId)) -> 
 #[tokio::test]
 async fn repository_new_succeeds() {
     let db = test_db_pool().await;
-    drop(LoggingRepository::new(&db).expect("repo new"));
+    drop(LoggingRepository::new(&db));
 }
 
 #[tokio::test]
 async fn log_with_database_persists_then_fetch_by_id() {
     let db = test_db_pool().await;
-    let repo = LoggingRepository::new(&db).unwrap();
+    let repo = LoggingRepository::new(&db);
     let actor = make_actor("persist");
     let entry = make_entry("repo-test", "persisted row", &actor);
     let id = entry.id.clone();
@@ -174,7 +174,7 @@ async fn log_with_database_persists_then_fetch_by_id() {
 #[tokio::test]
 async fn log_rejects_invalid_entry() {
     let db = test_db_pool().await;
-    let repo = LoggingRepository::new(&db).unwrap();
+    let repo = LoggingRepository::new(&db);
     let actor = make_actor("invalid");
     let mut bad = make_entry("ok-mod", "ok-msg", &actor);
     bad.module = String::new();
@@ -185,7 +185,7 @@ async fn log_rejects_invalid_entry() {
 #[tokio::test]
 async fn get_recent_logs_returns_inserted_rows() {
     let db = test_db_pool().await;
-    let repo = LoggingRepository::new(&db).unwrap();
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("recent");
     let mut ids = Vec::new();
@@ -206,7 +206,7 @@ async fn get_recent_logs_returns_inserted_rows() {
 #[tokio::test]
 async fn get_logs_paginated_with_filter() {
     let db = test_db_pool().await;
-    let repo = LoggingRepository::new(&db).unwrap();
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("paginated");
     let mut ids = Vec::new();
@@ -235,7 +235,7 @@ async fn get_logs_paginated_with_filter() {
 #[tokio::test]
 async fn get_logs_by_module_patterns() {
     let db = test_db_pool().await;
-    let repo = LoggingRepository::new(&db).unwrap();
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("by-mod");
     let e = make_entry("module-pattern-test", "pat", &actor);
@@ -254,7 +254,7 @@ async fn get_logs_by_module_patterns() {
 #[tokio::test]
 async fn update_log_entry_updates_message() {
     let db = test_db_pool().await;
-    let repo = LoggingRepository::new(&db).unwrap();
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("update");
     let mut e = make_entry("update-mod", "old", &actor);
@@ -273,7 +273,7 @@ async fn update_log_entry_updates_message() {
 #[tokio::test]
 async fn cleanup_old_logs_removes_old_rows() {
     let db = test_db_pool().await;
-    let repo = LoggingRepository::new(&db).unwrap();
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("cleanup");
     let mut e = make_entry("cleanup-mod", "old-msg", &actor);
@@ -293,12 +293,12 @@ async fn cleanup_old_logs_removes_old_rows() {
 #[tokio::test]
 async fn database_log_service_construction() {
     let db = test_db_pool().await;
-    let svc = DatabaseLogService::new(&db).expect("ctor");
+    let svc = DatabaseLogService::new(&db);
     let _r = svc.repository();
 }
 
 #[tokio::test]
 async fn analytics_repository_constructs() {
     let db = test_db_pool().await;
-    let _repo = AnalyticsRepository::new(&db).expect("repo");
+    let _repo = AnalyticsRepository::new(&db);
 }

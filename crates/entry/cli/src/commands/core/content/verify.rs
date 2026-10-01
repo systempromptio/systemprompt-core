@@ -32,7 +32,7 @@ pub struct VerifyArgs {
 
 pub async fn execute(args: VerifyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let repo = ContentRepository::new(&pool)?;
+    let repo = ContentRepository::new(&pool);
 
     let content = if uuid::Uuid::parse_str(&args.identifier).is_ok() {
         let id = ContentId::new(args.identifier.clone());

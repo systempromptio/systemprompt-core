@@ -49,7 +49,7 @@ struct Fixture {
 impl Fixture {
     async fn new(tag_prefix: &str) -> Self {
         let pool = test_db_pool().await;
-        let raw = pool.pool_arc().unwrap().as_ref().clone();
+        let raw = pool.pool().as_ref().clone();
 
         let tag = uuid::Uuid::new_v4().simple().to_string();
         let user_id = format!("{tag_prefix}_user_{tag}");

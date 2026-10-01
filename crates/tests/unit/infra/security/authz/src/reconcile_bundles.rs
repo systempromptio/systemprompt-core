@@ -48,7 +48,7 @@ fn marketplace(id: &str, role: &str) -> (MarketplaceId, MarketplaceConfig) {
 }
 
 async fn rules_for(db: &DbPool, entity_id: &str) -> Vec<(String, String)> {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query_as::<_, (String, String)>(
         "SELECT rule_value, source FROM access_control_rules WHERE entity_id = $1 ORDER BY \
          rule_value",
@@ -60,7 +60,7 @@ async fn rules_for(db: &DbPool, entity_id: &str) -> Vec<(String, String)> {
 }
 
 async fn cleanup(db: &DbPool, entity_id: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("DELETE FROM access_control_rules WHERE entity_id = $1")
         .bind(entity_id)
         .execute(&*pg)

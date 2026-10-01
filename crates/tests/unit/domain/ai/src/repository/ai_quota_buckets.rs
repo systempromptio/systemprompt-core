@@ -7,7 +7,7 @@ use super::{bootstrapped_pool, user};
 
 async fn test_repo() -> (AiQuotaBucketRepository, systemprompt_database::DbPool) {
     let pool = bootstrapped_pool().await;
-    let repo = AiQuotaBucketRepository::new(&pool).expect("repo");
+    let repo = AiQuotaBucketRepository::new(&pool);
     (repo, pool)
 }
 

@@ -2,7 +2,7 @@ use std::env;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use systemprompt_database::{Database, install_extension_schemas};
+use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
 use systemprompt_extension::ExtensionRegistry;
 
 #[allow(unused_imports)]
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
     let count = registry.schema_extensions().len();
     println!("Discovered {count} schema-bearing extensions");
 
-    install_extension_schemas(&registry, db.write())
+    install_extension_schemas_full(&registry, db.write(), &[], MigrationConfig::default())
         .await
         .map_err(|e| anyhow::anyhow!("Schema installation failed: {e}"))?;
 

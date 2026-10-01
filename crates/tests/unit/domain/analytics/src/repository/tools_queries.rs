@@ -27,7 +27,7 @@ async fn insert_execution(pool: &DbPool, seed: ExecutionSeed<'_>) {
     )
     .await
     .expect("retained tool user");
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query(
         r"
         INSERT INTO mcp_tool_executions
@@ -49,7 +49,7 @@ async fn insert_execution(pool: &DbPool, seed: ExecutionSeed<'_>) {
 }
 
 async fn cleanup(pool: &DbPool, prefix: &str) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query("DELETE FROM mcp_tool_executions WHERE tool_name LIKE $1")
         .bind(format!("{prefix}%"))
         .execute(p.as_ref())
@@ -106,7 +106,7 @@ async fn seed_two_tools(pool: &DbPool, prefix: &str, server: &str) {
 async fn list_tools_filtered_covers_all_sort_orders() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
+    let repo = ToolAnalyticsRepository::new(&pool);
 
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
@@ -161,7 +161,7 @@ async fn list_tools_filtered_covers_all_sort_orders() {
 async fn list_tools_unfiltered_covers_all_sort_orders() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
+    let repo = ToolAnalyticsRepository::new(&pool);
 
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
@@ -193,7 +193,7 @@ async fn list_tools_unfiltered_covers_all_sort_orders() {
 async fn get_stats_and_summary_report_seeded_executions() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
+    let repo = ToolAnalyticsRepository::new(&pool);
 
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
@@ -238,7 +238,7 @@ async fn get_stats_and_summary_report_seeded_executions() {
 async fn detail_queries_break_down_status_errors_and_agents() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
+    let repo = ToolAnalyticsRepository::new(&pool);
 
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());

@@ -45,33 +45,6 @@ fn config_error_invalid_database_url() {
 }
 
 #[test]
-fn config_error_unresolved_variables() {
-    let e = ConfigError::UnresolvedVariables {
-        passes: 3,
-        unresolved: "${FOO}".to_owned(),
-    };
-    let msg = format!("{e}");
-    assert!(msg.contains("3"), "got: {msg}");
-    assert!(msg.contains("${FOO}"), "got: {msg}");
-}
-
-#[test]
-fn config_error_validation_errors() {
-    let e = ConfigError::ValidationErrors { count: 5 };
-    let msg = format!("{e}");
-    assert!(msg.contains("5"), "got: {msg}");
-}
-
-#[test]
-fn config_error_environment_config_missing() {
-    let e = ConfigError::EnvironmentConfigMissing {
-        path: std::path::PathBuf::from("/some/path"),
-    };
-    let msg = format!("{e}");
-    assert!(msg.contains("/some/path"), "got: {msg}");
-}
-
-#[test]
 fn config_error_profile_path_report() {
     let e = ConfigError::ProfilePathReport {
         message: "system path missing".to_owned(),

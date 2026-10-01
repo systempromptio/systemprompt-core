@@ -27,7 +27,6 @@ async fn seed(repo: &ContentRepository, source: &SourceId, category: &CategoryId
 
 async fn cleanup(pool: &DbPool, source: &SourceId) {
     ContentRepository::new(pool)
-        .expect("repo")
         .delete_by_source(source)
         .await
         .expect("cleanup");
@@ -37,7 +36,7 @@ async fn cleanup(pool: &DbPool, source: &SourceId) {
 async fn search_without_filters_lists_recent_content() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let source = SourceId::new(format!("srch-{}", Uuid::new_v4()));
     let category = CategoryId::new(format!("cat-{}", Uuid::new_v4()));
     seed(
@@ -48,10 +47,7 @@ async fn search_without_filters_lists_recent_content() {
     )
     .await;
 
-    let service = SearchService::new(
-        SearchRepository::new(&pool).expect("search repo"),
-        ContentRepository::new(&pool).expect("content repo"),
-    );
+    let service = SearchService::new(SearchRepository::new(&pool), ContentRepository::new(&pool));
     let response = service
         .search(&SearchRequest {
             query: String::new(),
@@ -72,10 +68,7 @@ async fn search_with_filter_but_no_category_returns_empty() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
 
-    let service = SearchService::new(
-        SearchRepository::new(&pool).expect("search repo"),
-        ContentRepository::new(&pool).expect("content repo"),
-    );
+    let service = SearchService::new(SearchRepository::new(&pool), ContentRepository::new(&pool));
     let response = service
         .search(&SearchRequest {
             query: String::new(),
@@ -93,16 +86,13 @@ async fn search_with_filter_but_no_category_returns_empty() {
 async fn search_by_category_returns_only_matching_rows() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let source = SourceId::new(format!("srch-{}", Uuid::new_v4()));
     let category = CategoryId::new(format!("cat-{}", Uuid::new_v4()));
     let slug = format!("s-{}", Uuid::new_v4().simple());
     seed(&repo, &source, &category, &slug).await;
 
-    let service = SearchService::new(
-        SearchRepository::new(&pool).expect("search repo"),
-        ContentRepository::new(&pool).expect("content repo"),
-    );
+    let service = SearchService::new(SearchRepository::new(&pool), ContentRepository::new(&pool));
 
     // Through the request API.
     let response = service

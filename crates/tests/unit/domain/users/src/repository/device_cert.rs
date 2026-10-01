@@ -16,7 +16,7 @@ struct Ctx {
 async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = UserRepository::new(&pool).expect("repo");
+    let repo = UserRepository::new(&pool);
     let user_id = unique_user_id(prefix);
     seed_user_row(&pool, &user_id, &format!("{}@dc.invalid", user_id.as_str()))
         .await

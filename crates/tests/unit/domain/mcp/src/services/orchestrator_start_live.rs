@@ -77,8 +77,7 @@ async fn live_server(prefix: &str) -> LiveServer {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("service repository");
+    );
     let orchestrator = McpOrchestrator::new(
         repo.clone(),
         app_paths,

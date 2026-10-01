@@ -48,7 +48,7 @@ impl Fixture {
         // The in-process guard orders tests inside one process.
         let guard = acquire_serial().await;
         let db = test_db_pool().await;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let pool = db.pool().as_ref().clone();
         let tag = Uuid::new_v4().simple().to_string();
         Ok(Self {
             pool,

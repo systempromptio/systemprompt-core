@@ -43,7 +43,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
 async fn seed(pool: &DbPool) -> (Content, String) {
     let source = format!("covsrc{}", uuid::Uuid::new_v4().simple());
     let slug = format!("covslug{}", uuid::Uuid::new_v4().simple());
-    let repo = ContentRepository::new(pool).unwrap();
+    let repo = ContentRepository::new(pool);
     let params = CreateContentParams::new(
         slug.clone(),
         format!("Title for {slug}"),

@@ -65,22 +65,15 @@ impl std::fmt::Debug for TaskRepository {
 }
 
 impl TaskRepository {
-    pub fn new(
-        db: &DbPool,
-        sessions: DynSessionUsageCounters,
-    ) -> Result<Self, crate::error::AgentError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        Ok(Self {
+    pub fn new(db: &DbPool, sessions: DynSessionUsageCounters) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self {
             pool,
             write_pool,
-            constructor: TaskConstructor::new(db)?,
+            constructor: TaskConstructor::new(db),
             sessions,
-        })
+        }
     }
 
     pub async fn create_task(

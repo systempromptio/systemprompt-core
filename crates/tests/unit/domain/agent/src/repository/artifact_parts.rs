@@ -27,7 +27,7 @@ async fn persist_and_read_back_all_part_kinds_in_sequence_order() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     let artifact_id = ArtifactId::generate();
 
     sqlx::query("INSERT INTO task_artifacts (artifact_id, task_id, context_id, artifact_type) VALUES ($1, $2, $3, 'text')")
@@ -92,7 +92,7 @@ async fn get_parts_rejects_non_object_data_content() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     let artifact_id = ArtifactId::generate();
 
     sqlx::query("INSERT INTO task_artifacts (artifact_id, task_id, context_id, artifact_type) VALUES ($1, $2, $3, 'text')")
@@ -129,7 +129,7 @@ async fn get_parts_empty_for_unknown_artifact() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
 
     let parts = get_artifact_parts(pg.as_ref(), &ArtifactId::generate(), &context_id)
         .await

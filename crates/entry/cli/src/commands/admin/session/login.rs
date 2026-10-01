@@ -175,7 +175,7 @@ async fn create_cli_context(
         .and_then(|n| n.to_str())
         .unwrap_or("unknown");
 
-    let context_repo = ContextRepository::new(db_pool)?;
+    let context_repo = ContextRepository::new(db_pool);
     context_repo
         .get_or_create_cli_context(
             user_id,

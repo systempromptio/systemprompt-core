@@ -25,7 +25,7 @@ fn app_for(ctx: &AppContext, user: &str) -> axum::Router {
 
 async fn seed_owned_task(pool: &DbPool, owner: &UserId) -> anyhow::Result<(ContextId, TaskId)> {
     seed_user_row(pool, owner, &format!("{}@test.local", owner.as_str())).await?;
-    let p = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let p = pool.pool();
     let context_id = ContextId::generate();
     let task_id = TaskId::generate();
     sqlx::query!(

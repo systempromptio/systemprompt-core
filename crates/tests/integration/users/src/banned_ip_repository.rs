@@ -20,7 +20,7 @@ async fn repository_creation_from_db_pool() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     repo.count_active_bans().await?;
 
@@ -31,7 +31,7 @@ async fn repository_creation_from_db_pool() -> Result<()> {
 async fn repository_creation_from_pool_arc() -> Result<()> {
     let db = test_db_pool().await;
 
-    let pool = db.pool_arc()?;
+    let pool = db.pool();
     let repo = BannedIpRepository::from_pool(pool);
 
     repo.count_active_bans().await?;
@@ -44,7 +44,7 @@ async fn is_banned_returns_false_for_unbanned_ip() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.255.254";
     cleanup_test_ip(&repo, test_ip).await;
@@ -60,7 +60,7 @@ async fn is_banned_returns_true_for_banned_ip() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.1";
     cleanup_test_ip(&repo, test_ip).await;
@@ -86,7 +86,7 @@ async fn ban_ip_creates_new_ban() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.2";
     cleanup_test_ip(&repo, test_ip).await;
@@ -120,7 +120,7 @@ async fn ban_ip_with_fingerprint() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.3";
     let fingerprint = "test-fingerprint-123";
@@ -150,7 +150,7 @@ async fn ban_ip_permanent() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.4";
     cleanup_test_ip(&repo, test_ip).await;
@@ -183,7 +183,7 @@ async fn ban_ip_increments_ban_count_on_repeat() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.5";
     cleanup_test_ip(&repo, test_ip).await;
@@ -222,7 +222,7 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.6";
     cleanup_test_ip(&repo, test_ip).await;
@@ -265,7 +265,7 @@ async fn unban_ip_removes_ban() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.7";
     cleanup_test_ip(&repo, test_ip).await;
@@ -293,7 +293,7 @@ async fn unban_ip_returns_false_for_nonexistent() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.200.200";
     cleanup_test_ip(&repo, test_ip).await;
@@ -309,7 +309,7 @@ async fn get_ban_returns_none_for_unbanned() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.200.201";
     cleanup_test_ip(&repo, test_ip).await;
@@ -325,7 +325,7 @@ async fn list_active_bans_returns_active_bans() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.8";
     cleanup_test_ip(&repo, test_ip).await;
@@ -352,7 +352,7 @@ async fn list_bans_by_source_filters_correctly() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.9";
     let unique_source = "unique_integration_test_source";
@@ -378,7 +378,7 @@ async fn list_bans_by_fingerprint_filters_correctly() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.10";
     let unique_fp = "unique_test_fingerprint_xyz";
@@ -410,7 +410,7 @@ async fn count_active_bans_returns_count() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     repo.count_active_bans().await?;
 
@@ -422,7 +422,7 @@ async fn cleanup_expired_runs_without_error() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     repo.cleanup_expired().await?;
 

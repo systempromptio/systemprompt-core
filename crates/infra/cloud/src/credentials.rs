@@ -15,6 +15,7 @@ use validator::Validate;
 
 use crate::auth;
 use crate::error::{CloudError, CloudResult};
+use crate::private_dir::write_private_json;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CloudCredentials {
@@ -134,27 +135,7 @@ impl CloudCredentials {
                 )),
             })?;
 
-        if let Some(dir) = path.parent() {
-            fs::create_dir_all(dir)?;
-
-            let gitignore_path = dir.join(".gitignore");
-            if !gitignore_path.exists() {
-                fs::write(&gitignore_path, "*\n")?;
-            }
-        }
-
-        let content = serde_json::to_string_pretty(self)?;
-        fs::write(path, content)?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(path)?.permissions();
-            perms.set_mode(0o600);
-            fs::set_permissions(path, perms)?;
-        }
-
-        Ok(())
+        write_private_json(path, self)
     }
 
     pub fn delete_from_path(path: &Path) -> CloudResult<()> {

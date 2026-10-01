@@ -27,7 +27,7 @@ pub(super) async fn execute(args: LogCleanupArgs, ctx: &CommandContext) -> Resul
 }
 
 pub async fn execute_with_pool(args: LogCleanupArgs, pool: &DbPool) -> Result<CommandOutput> {
-    let repo = LoggingRepository::new(pool)?;
+    let repo = LoggingRepository::new(pool);
     let cutoff = chrono::Utc::now() - chrono::Duration::days(i64::from(args.days));
 
     if args.dry_run {

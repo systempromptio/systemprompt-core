@@ -47,7 +47,7 @@ fn skills_root() -> std::path::PathBuf {
 
 fn service_with(pool: &DbPool, managed: DynManagedSkillResolver) -> SkillService {
     ensure_test_bootstrap();
-    let repo = Arc::new(ExecutionStepRepository::new(pool).expect("step repo"));
+    let repo = Arc::new(ExecutionStepRepository::new(pool));
     SkillService::new(managed, repo, recording_webhooks()).expect("skill service")
 }
 
@@ -263,7 +263,7 @@ async fn load_skill_records_an_execution_step_for_the_task() {
         Some("Tracked body.\n"),
     );
 
-    let step_repo = Arc::new(ExecutionStepRepository::new(&pool).expect("step repo"));
+    let step_repo = Arc::new(ExecutionStepRepository::new(&pool));
     let svc = SkillService::new(
         not_managed_skills(),
         Arc::clone(&step_repo),
@@ -365,7 +365,7 @@ fn coverage_skill_service_requires_a_profile_before_loading_disk_content() {
     assert!(ProfileBootstrap::get().is_err());
     let rt = tokio::runtime::Runtime::new().expect("runtime");
     let pool = rt.block_on(test_db_pool());
-    let repo = Arc::new(ExecutionStepRepository::new(&pool).expect("step repo"));
+    let repo = Arc::new(ExecutionStepRepository::new(&pool));
     let err = SkillService::new(not_managed_skills(), repo, recording_webhooks()).unwrap_err();
     assert!(err.to_string().contains("Profile not initialized"));
 }

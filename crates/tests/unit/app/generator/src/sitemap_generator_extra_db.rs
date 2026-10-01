@@ -72,7 +72,7 @@ fn install_config(boot: &TestBootstrap, tag: &str) {
 }
 
 async fn seed(db: &DbPool, source_id: &SourceId, slug: &str, locale: &str) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let params = CreateContentParams::new(
         slug.to_owned(),
         "Title".to_owned(),
@@ -86,7 +86,7 @@ async fn seed(db: &DbPool, source_id: &SourceId, slug: &str, locale: &str) {
 }
 
 async fn cleanup(db: &DbPool, tags: &[&str]) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     for tag in tags {
         let _ = repo.delete_by_source(&SourceId::new(*tag)).await;
     }
@@ -180,5 +180,5 @@ async fn generate_sitemap_with_closed_pool_is_fetch_error() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
 }

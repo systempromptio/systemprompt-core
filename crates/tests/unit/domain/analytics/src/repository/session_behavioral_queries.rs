@@ -168,7 +168,7 @@ async fn count_unique_ips_by_fingerprint() {
         .expect("unique ips");
     assert_eq!(unique, 2);
 
-    let p = pool.pool_arc().expect("pool");
+    let p = pool.pool();
     sqlx::query("DELETE FROM user_sessions WHERE fingerprint_hash = $1")
         .bind(&fp)
         .execute(p.as_ref())

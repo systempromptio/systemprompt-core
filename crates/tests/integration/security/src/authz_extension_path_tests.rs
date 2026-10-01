@@ -74,7 +74,7 @@ impl AuthzDecisionHook for RecordingHook {
 #[tokio::test]
 async fn extension_hook_evaluated_and_audited() {
     let pool = test_db_pool().await;
-    let write_pool = pool.write_pool_arc().expect("write pool");
+    let write_pool = pool.write_pool();
 
     let route = format!("route-{}", uuid::Uuid::new_v4());
     // Why: the composite now runs RuleBasedHook ahead of the extension hook;

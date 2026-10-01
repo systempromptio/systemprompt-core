@@ -15,7 +15,7 @@ fn unique(prefix: &str) -> String {
 
 async fn test_provider() -> (PostgresProvider, sqlx::PgPool) {
     let db = test_pool().await;
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     (PostgresProvider::from_pool(pg.clone()), (*pg).clone())
 }
 
@@ -186,8 +186,8 @@ async fn the_database_handle_reports_its_pools_and_liveness() {
         !db.write_pool().is_closed(),
         "a postgres-backed handle must expose a live write pool"
     );
-    db.pool_arc().expect("read pool arc");
-    db.write_pool_arc().expect("write pool arc");
+    db.pool();
+    db.write_pool();
 
     db.test_connection()
         .await
@@ -208,7 +208,7 @@ async fn the_database_handle_reports_its_pools_and_liveness() {
 async fn the_database_handle_runs_a_batch_and_opens_a_plain_transaction() {
     let db = test_pool().await;
     let table = unique("batch_tbl");
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
 
     db.execute_batch(&format!(
         "CREATE TABLE IF NOT EXISTS \"{table}\" (id TEXT PRIMARY KEY);"

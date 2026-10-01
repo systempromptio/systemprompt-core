@@ -32,6 +32,7 @@ pub struct JwtContextExtractor {
     user_provider: Arc<dyn UserProvider>,
     user_cache: Arc<UserCache>,
     jti_revocation: JtiRevocationChecker,
+    issuer: String,
 }
 
 impl std::fmt::Debug for JwtContextExtractor {
@@ -47,6 +48,7 @@ impl JwtContextExtractor {
         session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
         jti_revocation: JtiRevocationChecker,
+        issuer: String,
     ) -> Self {
         Self {
             token_extractor: TokenExtractor::browser_only(),
@@ -54,6 +56,7 @@ impl JwtContextExtractor {
             user_provider,
             user_cache: UserCache::new(),
             jti_revocation,
+            issuer,
         }
     }
 
@@ -65,7 +68,7 @@ impl JwtContextExtractor {
             .token_extractor
             .extract(headers)
             .map_err(|_e| ContextExtractionError::MissingAuthHeader)?;
-        extract_user_context(&token)
+        extract_user_context(&token, &self.issuer)
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))
     }
 
@@ -132,7 +135,7 @@ impl JwtContextExtractor {
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,
     ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
-        let jwt_context = extract_user_context(jwt_token.as_str())
+        let jwt_context = extract_user_context(jwt_token.as_str(), &self.issuer)
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))?;
 
         let user = self.validate(&jwt_context, "gateway").await?;

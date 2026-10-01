@@ -33,7 +33,7 @@ async fn seed_file(pool: &DbPool, ai_content: bool, user_id: &str) -> String {
     .bind(&url)
     .bind(ai_content)
     .bind(user_id)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
     id.to_string()
@@ -153,7 +153,7 @@ fn delete_args(file: &str, yes: bool, dry_run: bool) -> delete::DeleteArgs {
 }
 
 async fn file_exists(pool: &DbPool, id: &str) -> bool {
-    let repo = FileRepository::new(pool).unwrap();
+    let repo = FileRepository::new(pool);
     repo.find_by_id(&FileId::new(id.to_owned()))
         .await
         .unwrap()

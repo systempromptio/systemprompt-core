@@ -48,7 +48,7 @@ fn slug() -> String {
 }
 
 async fn seed_content(pool: &DbPool, source: &str, slug: &str) -> Content {
-    let repo = ContentRepository::new(pool).unwrap();
+    let repo = ContentRepository::new(pool);
     let params = CreateContentParams::new(
         slug.to_owned(),
         format!("Title for {slug}"),
@@ -155,7 +155,7 @@ async fn edit_sets_scalar_fields() {
         .unwrap();
     assert_eq!(card_title(&out), "Content Updated");
 
-    let repo = ContentRepository::new(&pool).unwrap();
+    let repo = ContentRepository::new(&pool);
     let updated = repo.get_by_id(&content.id).await.unwrap().unwrap();
     assert_eq!(updated.title, "New Title");
     assert_eq!(updated.description, "New Desc");
@@ -180,7 +180,7 @@ async fn edit_by_slug_with_source_and_flags() {
         .await
         .unwrap();
 
-    let repo = ContentRepository::new(&pool).unwrap();
+    let repo = ContentRepository::new(&pool);
     let updated = repo
         .get_by_source_and_slug(
             &SourceId::new(source),
@@ -229,7 +229,7 @@ async fn edit_clears_image_and_category() {
         .await
         .unwrap();
 
-    let repo = ContentRepository::new(&pool).unwrap();
+    let repo = ContentRepository::new(&pool);
     let updated = repo.get_by_id(&content.id).await.unwrap().unwrap();
     assert!(updated.image.is_none());
     assert!(updated.category_id.is_none());
@@ -245,7 +245,7 @@ async fn edit_assigns_an_existing_category_and_persists_it() {
         .bind(&category)
         .bind(format!("Category {category}"))
         .bind(format!("slug-{category}"))
-        .execute(pool.pool_arc().expect("read pool").as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .expect("seed category");
 
@@ -261,7 +261,6 @@ async fn edit_assigns_an_existing_category_and_persists_it() {
     .expect("assign an existing category");
 
     let updated = ContentRepository::new(&pool)
-        .unwrap()
         .get_by_id(&content.id)
         .await
         .unwrap()
@@ -489,7 +488,7 @@ async fn delete_dry_run_keeps_content() {
     .unwrap();
     assert_eq!(card_title(&out), "Content Delete (Dry Run)");
 
-    let repo = ContentRepository::new(&pool).unwrap();
+    let repo = ContentRepository::new(&pool);
     assert!(repo.get_by_id(&content.id).await.unwrap().is_some());
 }
 
@@ -535,7 +534,7 @@ async fn delete_with_yes_removes_content() {
     .unwrap();
     assert_eq!(card_title(&out), "Content Deleted");
 
-    let repo = ContentRepository::new(&pool).unwrap();
+    let repo = ContentRepository::new(&pool);
     assert!(repo.get_by_id(&content.id).await.unwrap().is_none());
 }
 

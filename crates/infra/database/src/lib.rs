@@ -14,9 +14,8 @@
 //! - [`PostgresProvider`] — the `PostgreSQL` implementation.
 //! - [`RepositoryError`] / [`DatabaseResult`] — canonical typed error/result
 //!   returned from non-trait public APIs.
-//! - [`MigrationService`], [`install_extension_schemas`],
-//!   [`install_extension_schemas_full`] — lifecycle helpers driving
-//!   extension-supplied DDL.
+//! - [`MigrationService`], [`install_extension_schemas_full`] — lifecycle
+//!   helpers driving extension-supplied DDL.
 //! - [`DatabaseAdminService`], [`QueryExecutor`], [`AdminSql`],
 //!   [`SafeIdentifier`] — admin/introspection layer used by the CLI.
 //! - [`resilience`] — domain-agnostic resilience primitives
@@ -56,25 +55,19 @@ pub mod models;
 #[macro_use]
 pub mod repository;
 pub mod resilience;
-pub mod scope;
 pub mod services;
 
 pub use extension::DatabaseExtension;
 
 pub use models::{
-    ArtifactId, ClientId, ColumnInfo, ContentId, ContextId, DatabaseInfo, DatabaseQuery,
-    DatabaseTransaction, DbValue, ExecutionStepId, FileId, FromDatabaseRow, FromDbValue, IndexInfo,
-    JsonRow, LogId, QueryResult, QueryRow, QuerySelector, SessionId, SkillId, TableInfo, TaskId,
-    ToDbValue, TokenId, TraceId, UserId, parse_database_datetime,
+    ColumnInfo, DatabaseInfo, DatabaseQuery, DatabaseTransaction, DbValue, FromDbValue, IndexInfo,
+    JsonRow, QueryResult, QueryRow, QuerySelector, TableInfo, ToDbValue, parse_database_datetime,
 };
 
-pub use scope::{ConnectionScopeProvider, ScopeError, ScopeSetting, SharedScopeProvider};
 pub use services::{
-    BoxFuture, Database, DatabaseCliDisplay, DatabaseExt, DatabaseProvider, DatabaseProviderExt,
-    DbPool, PoolConfig, PostgresProvider, SqlExecutor, begin_scoped, with_scoped_transaction,
-    with_transaction, with_transaction_retry,
+    BoxFuture, Database, DatabaseCliDisplay, DatabaseExt, DatabaseProvider, DbPool, PoolConfig,
+    PostgresProvider, SqlExecutor, with_transaction_retry,
 };
-pub use systemprompt_models::RequestScope;
 
 pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
@@ -85,9 +78,8 @@ pub use lifecycle::{
     OrphanMigrationLedger, OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus,
     SchemaInstallReport, SchemaResidue, SlotCollision, SplitCreateTable, TombstonedSlot,
     UndeclaredTable, audit_migration_cost, audit_one, audit_schema_residue,
-    check_migration_references, check_trigger_routines, install_extension_schemas,
-    install_extension_schemas_full, install_extension_schemas_with_config, is_retirement,
-    replica_status, split_create_table_foreign_keys, validate_column_exists,
+    check_migration_references, check_trigger_routines, install_extension_schemas_full,
+    is_retirement, replica_status, split_create_table_foreign_keys, validate_column_exists,
     validate_database_connection, validate_table_exists, validate_write_pool_is_primary,
 };
 pub use repository::{
@@ -98,8 +90,6 @@ pub use admin::{
     AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT, DatabaseAdminService, IdentifierError,
     QueryExecutor, QueryExecutorError, SafeIdentifier,
 };
-pub use sqlx::types::Json;
-pub use sqlx::{PgPool, Pool, Postgres, Transaction};
 
 use systemprompt_traits::DatabaseHandle;
 

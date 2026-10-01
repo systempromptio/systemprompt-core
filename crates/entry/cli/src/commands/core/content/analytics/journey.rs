@@ -30,7 +30,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repositories = ContentRepositories::new(pool)?;
+    let repositories = ContentRepositories::new(pool);
     let service = LinkAnalyticsService::new(repositories.link, repositories.link_analytics);
 
     let nodes = service

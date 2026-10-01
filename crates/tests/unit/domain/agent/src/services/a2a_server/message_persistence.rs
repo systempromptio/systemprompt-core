@@ -32,7 +32,7 @@ fn publishing(
     repositories: &A2ARepositories,
     webhooks: DynWebhookBroadcaster,
 ) -> ArtifactPublishingService {
-    let steps = Arc::new(ExecutionStepRepository::new(pool).expect("step repo"));
+    let steps = Arc::new(ExecutionStepRepository::new(pool));
     let skills =
         Arc::new(SkillService::new(not_managed_skills(), steps, webhooks).expect("skills"));
     ArtifactPublishingService::new(repositories, skills)

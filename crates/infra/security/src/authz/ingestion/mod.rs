@@ -114,11 +114,9 @@ pub struct AccessControlIngestionService {
 }
 
 impl AccessControlIngestionService {
-    pub fn new(db: &DbPool) -> AuthzResult<Self> {
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|err| AuthzError::Validation(err.to_string()))?;
-        Ok(Self::from_pool(write_pool))
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self::from_pool(write_pool)
     }
 
     pub fn from_pool(pool: Arc<PgPool>) -> Self {

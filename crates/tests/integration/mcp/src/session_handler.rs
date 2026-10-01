@@ -12,8 +12,7 @@ use systemprompt_test_fixtures::test_db_pool;
 async fn handler_new_succeeds() {
     let db = test_db_pool().await;
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db)
-            .expect("mcp session repository"),
+        systemprompt_mcp::repository::McpSessionRepository::new(&db),
     ));
     let _ = format!("{handler:?}");
 }
@@ -26,10 +25,7 @@ async fn handler_with_timeouts_succeeds() {
         keep_alive: Some(std::time::Duration::from_secs(30)),
     };
     let handler = DatabaseSessionHandler::with_timeouts(
-        std::sync::Arc::new(
-            systemprompt_mcp::repository::McpSessionRepository::new(&db)
-                .expect("mcp session repository"),
-        ),
+        std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         timeouts,
         None,
     );
@@ -40,8 +36,7 @@ async fn handler_with_timeouts_succeeds() {
 async fn create_then_close_session_lifecycle() {
     let db = test_db_pool().await;
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db)
-            .expect("mcp session repository"),
+        systemprompt_mcp::repository::McpSessionRepository::new(&db),
     ));
 
     let (session_id, _transport) = handler
@@ -69,8 +64,7 @@ async fn create_then_close_session_lifecycle() {
 async fn close_unknown_session_is_idempotent() {
     let db = test_db_pool().await;
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db)
-            .expect("mcp session repository"),
+        systemprompt_mcp::repository::McpSessionRepository::new(&db),
     ));
 
     let fake: rmcp::transport::streamable_http_server::session::SessionId =
@@ -82,8 +76,7 @@ async fn close_unknown_session_is_idempotent() {
 async fn has_session_returns_false_for_unknown() {
     let db = test_db_pool().await;
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db)
-            .expect("mcp session repository"),
+        systemprompt_mcp::repository::McpSessionRepository::new(&db),
     ));
 
     let fake: rmcp::transport::streamable_http_server::session::SessionId =

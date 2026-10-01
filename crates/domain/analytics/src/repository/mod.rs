@@ -45,7 +45,6 @@ pub use tools::ToolAnalyticsRepository;
 pub use tools::list_queries::ToolListParams;
 pub use traffic::{NavigationQuery, PageQuery, TrafficAnalyticsRepository};
 
-use crate::error::Result;
 use systemprompt_database::DbPool;
 
 #[derive(Debug, Clone)]
@@ -62,17 +61,17 @@ impl AnalyticsRepositories {
         sessions: systemprompt_traits::DynSessionStore,
         event_sink: systemprompt_traits::DynAnalyticsEventStore,
         content: systemprompt_traits::DynContentCatalogStats,
-    ) -> Result<Self> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             sessions: SessionRepository::new(
                 db,
                 sessions,
                 std::sync::Arc::clone(&event_sink),
                 content,
-            )?,
-            costs: CostAnalyticsRepository::new(db)?,
-            engagement: EngagementRepository::new(db)?,
+            ),
+            costs: CostAnalyticsRepository::new(db),
+            engagement: EngagementRepository::new(db),
             events: AnalyticsEventsRepository::new(event_sink),
-        })
+        }
     }
 }

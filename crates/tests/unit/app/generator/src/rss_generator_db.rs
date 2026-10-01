@@ -67,7 +67,7 @@ fn install_content_config(boot: &TestBootstrap, key: &str, source_id: &str, bran
 }
 
 async fn seed_post(db: &DbPool, source_id: &SourceId, slug: &str) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let params = CreateContentParams::new(
         slug.to_owned(),
         format!("Feed title {slug}"),
@@ -80,7 +80,7 @@ async fn seed_post(db: &DbPool, source_id: &SourceId, slug: &str) {
 }
 
 async fn cleanup(db: &DbPool, source_id: &SourceId) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let _ = repo.delete_by_source(source_id).await;
 }
 
@@ -435,5 +435,5 @@ async fn rss_provider_fetch_items_defaults_url_pattern_without_sitemap() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
 }

@@ -75,7 +75,7 @@ fn seed_reporting_evidence() {
             )
             .bind(uuid::Uuid::new_v4().to_string())
             .bind(user_id.as_str())
-            .execute(db.pool_arc().expect("pool").as_ref())
+            .execute(db.pool().as_ref())
             .await
             .expect("seed context");
         });

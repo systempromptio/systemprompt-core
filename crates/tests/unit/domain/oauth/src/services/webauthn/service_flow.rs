@@ -90,14 +90,14 @@ struct Ctx {
 async fn setup() -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
     let user_id = unique_user_id("wa-flow");
     let email = format!("{}@waflow.invalid", user_id.as_str());
     seed_user_row(&pool, &user_id, &email)
         .await
         .expect("seed user");
     let provider = SeededUserProvider {
-        users: UserService::new(Arc::new(UserRepository::new(&pool).expect("user repo"))),
+        users: UserService::new(Arc::new(UserRepository::new(&pool))),
     };
     let service =
         WebAuthnService::with_config(test_config(), repo, Arc::new(provider)).expect("svc");

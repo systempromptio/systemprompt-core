@@ -18,8 +18,8 @@ async fn create_user_with_all_fields() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("test_create_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("testuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -51,8 +51,8 @@ async fn create_user_without_display_name_uses_full_name() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("test_nodisplay_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("nodisplay_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -75,8 +75,8 @@ async fn create_anonymous_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let fingerprint = format!("fp_{}", uuid::Uuid::new_v4());
     let user = repo.create_anonymous(&fingerprint).await?;
@@ -97,8 +97,8 @@ async fn find_by_id_returns_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("find_by_id_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findbyid_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -122,7 +122,7 @@ async fn find_by_id_returns_none_for_nonexistent() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let fake_id = UserId::new("nonexistent-user-id".to_string());
     let found = repo.find_by_id(&fake_id).await?;
@@ -136,8 +136,8 @@ async fn find_by_email_returns_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("find_email_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findemail_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -160,7 +160,7 @@ async fn find_by_email_returns_none_for_nonexistent() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let found = repo.find_by_email("nonexistent@example.com").await?;
     assert!(found.is_none());
@@ -173,8 +173,8 @@ async fn find_by_name_returns_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("find_name_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findname_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -197,8 +197,8 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("find_role_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findrole_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -224,7 +224,7 @@ async fn find_first_admin_returns_admin_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let admin = repo.find_first_admin().await?;
     if let Some(user) = admin {
@@ -239,8 +239,8 @@ async fn update_email_changes_email() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("update_email_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("updateemail_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -264,8 +264,8 @@ async fn update_full_name_changes_name() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("update_name_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("updatename_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -287,8 +287,8 @@ async fn update_status_changes_status() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("update_status_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("updatestatus_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -312,8 +312,8 @@ async fn update_email_verified_sets_flag() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("verify_email_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("verifyemail_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -335,8 +335,8 @@ async fn update_all_fields_updates_everything() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("update_all_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("updateall_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -369,8 +369,8 @@ async fn assign_roles_updates_roles() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("assign_roles_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("assignroles_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -394,7 +394,7 @@ async fn delete_removes_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let unique_email = format!("delete_user_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("deleteuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -413,7 +413,7 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let fake_id = UserId::new("nonexistent-delete-id".to_string());
     let result = repo.delete(&fake_id).await;
@@ -431,7 +431,7 @@ async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     repo.cleanup_old_anonymous(30).await?;
 
@@ -443,8 +443,8 @@ async fn find_authenticated_user_returns_active_user() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("auth_user_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("authuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -468,8 +468,8 @@ async fn find_authenticated_user_returns_none_for_inactive() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("inactive_auth_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("inactiveauth_{}", &uuid::Uuid::new_v4().to_string()[..8]);

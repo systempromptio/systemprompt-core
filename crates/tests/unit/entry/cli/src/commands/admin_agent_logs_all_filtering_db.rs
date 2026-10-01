@@ -28,7 +28,7 @@ async fn all_agent_database_logs_match_operational_modules_strip_ansi_and_hide_p
         .await
         .expect("seed log actor");
     let actor = LogActor::new(user, SessionId::generate(), TraceId::generate());
-    let repository = LoggingRepository::new(&pool).expect("logging repository");
+    let repository = LoggingRepository::new(&pool);
     seed(
         &repository,
         &actor,
@@ -72,7 +72,7 @@ async fn all_agent_database_logs_match_operational_modules_strip_ansi_and_hide_p
     assert!(!rendered.contains("noisy startup"), "{artifact}");
     assert!(!rendered.contains("unrelated billing log"), "{artifact}");
 
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

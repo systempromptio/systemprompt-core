@@ -5,7 +5,7 @@ use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 
 async fn ctx_repo(pool: &systemprompt_database::DbPool) -> ContextRepository {
-    ContextRepository::new(pool).expect("context repo")
+    ContextRepository::new(pool)
 }
 
 #[tokio::test]
@@ -443,7 +443,7 @@ async fn stored_session(
     pool: &systemprompt_database::DbPool,
     context_id: &ContextId,
 ) -> Option<String> {
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     sqlx::query_scalar::<_, Option<String>>(
         "SELECT session_id FROM user_contexts WHERE context_id = $1",
     )

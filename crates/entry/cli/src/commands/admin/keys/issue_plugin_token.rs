@@ -77,7 +77,7 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
         .context("Failed to connect to database")?;
     let db_pool = DbPool::from(Arc::new(db));
 
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let user = user_service
         .find_by_email(&email)
         .await

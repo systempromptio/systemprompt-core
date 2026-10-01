@@ -37,7 +37,4 @@ mod extension;
 mod resilience;
 
 #[cfg(test)]
-mod scope;
-
-#[cfg(test)]
 mod services;

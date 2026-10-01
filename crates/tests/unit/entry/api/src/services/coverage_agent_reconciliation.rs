@@ -259,7 +259,7 @@ async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event
         "event preserves the registry parse diagnosis: {message}"
     );
     let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM services WHERE module_name = 'agent'")
-        .fetch_one(pool.pool_arc().expect("agent pool").as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("agent service count");
     assert_eq!(
@@ -267,6 +267,6 @@ async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event
         "registry failure starts and persists no agent services"
     );
     drop(ctx);
-    pool.write_pool_arc().expect("agent pool").close().await;
+    pool.write_pool().close().await;
     database.drop_now().await;
 }

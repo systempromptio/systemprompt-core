@@ -26,14 +26,14 @@ pub struct ServiceRepository {
 }
 
 impl ServiceRepository {
-    pub fn new(db: &DbPool, instance_id: InstanceId) -> DatabaseResult<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self {
+    pub fn new(db: &DbPool, instance_id: InstanceId) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self {
             pool,
             write_pool,
             instance_id,
-        })
+        }
     }
 
     pub const fn instance_id(&self) -> &InstanceId {

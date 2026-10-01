@@ -92,3 +92,36 @@ fn persist_seed_errors_when_file_missing() {
     let err = persist_seed(&path, &generate_seed()).unwrap_err();
     assert!(!format!("{err}").is_empty());
 }
+
+#[cfg(unix)]
+#[test]
+fn persist_seed_keeps_the_secrets_file_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("secrets.json");
+    std::fs::write(&path, br#"{"oauth_at_rest_pepper": "abc"}"#).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+    persist_seed(&path, &generate_seed()).unwrap();
+
+    let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600, "rewritten secrets file must be owner-only");
+}
+
+#[cfg(unix)]
+#[test]
+fn write_private_atomic_creates_owner_only_and_leaves_no_staging_file() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("token.json");
+    systemprompt_config::write_private_atomic(&path, b"first").unwrap();
+    systemprompt_config::write_private_atomic(&path, b"second").unwrap();
+
+    assert_eq!(std::fs::read(&path).unwrap(), b"second");
+    let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600);
+    let entries: Vec<_> = std::fs::read_dir(tmp.path()).unwrap().collect();
+    assert_eq!(entries.len(), 1, "staging files must not be left behind");
+}

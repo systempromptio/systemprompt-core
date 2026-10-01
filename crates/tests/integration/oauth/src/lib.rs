@@ -47,7 +47,7 @@ pub async fn setup_test_db() -> DbPool {
 }
 
 async fn seed_fixture_user(db: &DbPool) {
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(systemprompt_test_fixtures::fixture_user_id().as_str())
         .bind("test-user@example.invalid")
@@ -57,7 +57,7 @@ async fn seed_fixture_user(db: &DbPool) {
 }
 
 pub async fn create_test_user(db: &DbPool) -> UserId {
-    let repo = UserRepository::new(db).expect("Failed to create user repository");
+    let repo = UserRepository::new(db);
     let unique_id = Uuid::new_v4();
     let name = format!("test_user_{}", unique_id);
     let email = format!("test_{}@example.com", unique_id);
@@ -71,6 +71,6 @@ pub async fn create_test_user(db: &DbPool) -> UserId {
 }
 
 pub async fn cleanup_test_user(db: &DbPool, user_id: &UserId) {
-    let repo = UserRepository::new(db).expect("Failed to create user repository");
+    let repo = UserRepository::new(db);
     let _ = repo.delete(user_id).await;
 }

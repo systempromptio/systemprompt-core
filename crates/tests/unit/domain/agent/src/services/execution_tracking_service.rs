@@ -22,7 +22,7 @@ async fn setup() -> (
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let repo = Arc::new(ExecutionStepRepository::new(&pool).expect("exec repo"));
+    let repo = Arc::new(ExecutionStepRepository::new(&pool));
     (ExecutionTrackingService::new(repo), task_id, r)
 }
 

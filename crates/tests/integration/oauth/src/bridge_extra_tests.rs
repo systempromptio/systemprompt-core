@@ -3,7 +3,6 @@
 //! bridge OAuth client provisioning.
 
 use std::path::PathBuf;
-use std::sync::Once;
 
 use crate::{create_test_user, setup_test_db};
 use systemprompt_models::Config;
@@ -13,26 +12,19 @@ use systemprompt_oauth::services::{
     BridgeExchangeRequest, exchange_bridge_session_code, hash_exchange_code,
     issue_bridge_exchange_code, provision_bridge_oauth_client,
 };
-use systemprompt_security::keys::authority;
 
 fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRepository {
-    systemprompt_oauth::OAuthRepository::new(db).expect("oauth repo")
+    systemprompt_oauth::OAuthRepository::new(db)
 }
 
 fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::UserService {
     systemprompt_users::UserService::new(std::sync::Arc::new(
-        systemprompt_users::UserRepository::new(db).expect("user repo"),
+        systemprompt_users::UserRepository::new(db),
     ))
 }
 
-static AUTHORITY: Once = Once::new();
-
 fn ensure_runtime() {
-    AUTHORITY.call_once(|| {
-        let key =
-            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
-        authority::install_for_test(key);
-    });
+    systemprompt_test_fixtures::install_test_signing_key();
     let _ = Config::install(test_config());
 }
 

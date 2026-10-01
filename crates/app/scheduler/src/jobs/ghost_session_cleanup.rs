@@ -36,7 +36,7 @@ impl Job for GhostSessionCleanupJob {
                 .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
         );
 
-        let pool = db_pool.write_pool_arc().map_err(SchedulerError::from)?;
+        let pool = db_pool.write_pool();
 
         // Why: a browser heuristic. Bridge, OAuth and API sessions never load
         // a landing page or run JavaScript, so without the source filter every

@@ -73,7 +73,7 @@ async fn insert_request(
     .bind(tokens)
     .bind(cost)
     .bind(synthetic)
-    .execute(pool.pool_arc().expect("SQL pool").as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .expect("seed AI request");
 }
@@ -91,12 +91,12 @@ async fn seed(pool: &DbPool) -> Seed {
     sqlx::query("UPDATE users SET name = $1 WHERE id = $2")
         .bind(format!("Cost Owner {tag}"))
         .bind(named.as_str())
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     sqlx::query("UPDATE users SET name = '' WHERE id = $1")
         .bind(unnamed.as_str())
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
 

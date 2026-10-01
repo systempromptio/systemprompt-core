@@ -60,10 +60,9 @@ pub(super) fn gw_repos(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(db),
         )),
     )
-    .expect("gateway repos")
 }
 
 const API_KEY_ENV: &str = "ANTHROPIC_API_KEY";
@@ -339,7 +338,7 @@ fn streaming_sse_body() -> String {
 }
 
 async fn poll_completion(pool: &DbPool, id: &AiRequestId) -> Option<i32> {
-    let pg = pool.pool_arc().expect("read pool");
+    let pg = pool.pool();
     for _ in 0..50 {
         let row: Option<(Option<i32>,)> =
             sqlx::query_as("SELECT tokens_used FROM ai_requests WHERE id = $1")
@@ -403,7 +402,7 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
         Some(18),
         "input+output tokens recorded on completion"
     );
-    let pg = pool.pool_arc()?;
+    let pg = pool.pool();
     type DurableRequest = (
         String,
         String,
@@ -461,7 +460,7 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
         .expect(1)
         .mount(&upstream)
         .await;
-    let raw = pool.pool_arc().expect("private database pool");
+    let raw = pool.pool();
     sqlx::query(
         "CREATE FUNCTION reject_gateway_audit() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'injected audit admission failure'; END $$",
@@ -647,7 +646,7 @@ async fn enforcing_secret_scan_denies_before_upstream_and_persists_the_decision(
          ORDER BY created_at DESC LIMIT 1",
     )
     .bind(cred.user_id.as_str())
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await?;
     assert_eq!(row.0, "deny");
     assert_eq!(row.1, session_id.as_str());
@@ -702,7 +701,7 @@ async fn warn_secret_scan_allows_upstream_and_persists_a_correlated_warning() ->
          WHERE user_id=$1 AND policy='secret_scan' ORDER BY created_at DESC LIMIT 1",
     )
     .bind(cred.user_id.as_str())
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await?;
     assert_eq!(row.0, "warn");
     assert_eq!(row.1, session_id.as_str());
@@ -891,7 +890,7 @@ async fn upstream_5xx_is_recorded_upstream_error() -> anyhow::Result<()> {
 }
 
 async fn install_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
-    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    let pg = pool.pool();
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
          TRUE, 100)",
@@ -907,7 +906,7 @@ async fn install_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> 
 }
 
 async fn remove_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
-    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    let pg = pool.pool();
     sqlx::query("DELETE FROM ai_gateway_policies WHERE name = $1")
         .bind(name)
         .execute(pg.as_ref())
@@ -920,7 +919,7 @@ async fn poll_findings(
     id: &AiRequestId,
     want: usize,
 ) -> Vec<(String, String, String)> {
-    let pg = pool.pool_arc().expect("read pool");
+    let pg = pool.pool();
     for _ in 0..100 {
         let rows: Vec<(String, String, String)> = sqlx::query_as(
             "SELECT phase, category, severity FROM ai_safety_findings WHERE ai_request_id = $1 \
@@ -1135,7 +1134,7 @@ async fn install_response_block_policy(
     name: &str,
     block_response: &[&str],
 ) -> anyhow::Result<()> {
-    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    let pg = pool.pool();
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
          TRUE, 100)",
@@ -1193,11 +1192,9 @@ async fn dispatch_against_jailbreak_upstream(
             pool,
             gateway_journal(),
             std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-                systemprompt_agent::repository::ContextRepository::new(pool)
-                    .expect("context repository"),
+                systemprompt_agent::repository::ContextRepository::new(pool),
             )),
-        )
-        .expect("repos"),
+        ),
         di,
     )
     .await
@@ -1320,7 +1317,7 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
     let database = systemprompt_test_fixtures::DisposableDb::with_schema("coverage_gw_quota").await;
     let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "quota@example.invalid").await?;
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     sqlx::query("INSERT INTO ai_gateway_policies (id,name,spec,enabled,priority) VALUES ($1,$2,$3,true,100)")
         .bind("coverage-quota").bind("coverage-quota")
         .bind(serde_json::json!({"quota_mode":mode,"quota_windows":[{"window_seconds":60,"max_requests":1}]}))
@@ -1454,7 +1451,7 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
     let error: Option<String> =
         sqlx::query_scalar("SELECT error_message FROM ai_requests WHERE id=$1")
             .bind(id.as_str())
-            .fetch_one(pool.pool_arc().unwrap().as_ref())
+            .fetch_one(pool.pool().as_ref())
             .await?;
     assert!(error.unwrap().contains("fixture"));
     Ok(())
@@ -1491,11 +1488,9 @@ fn owned_gateway_repos(
         pool,
         journal,
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(pool)
-                .expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(pool),
         )),
     )
-    .expect("owned gateway repositories")
 }
 
 struct AbortOnDrop<T>(Option<tokio::task::JoinHandle<T>>);
@@ -1634,7 +1629,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
             .await;
     let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, "journal-retry@example.invalid").await?;
-    let write = pool.write_pool_arc()?;
+    let write = pool.write_pool();
     // The fault is scoped to the status transition settlement performs:
     // admission also updates ai_requests, through the message_count trigger on
     // ai_request_messages, and an unscoped BEFORE UPDATE would fault there.
@@ -1824,7 +1819,7 @@ async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_d
     }
     let persisted: i64 = sqlx::query_scalar("SELECT count(*) FROM ai_requests WHERE id = $1")
         .bind(request_id.as_str())
-        .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await?;
     assert_eq!(persisted, 0, "route resolution precedes audit creation");
     assert!(

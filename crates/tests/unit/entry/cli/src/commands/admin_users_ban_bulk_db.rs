@@ -174,7 +174,7 @@ async fn bulk_delete_requires_confirmation_and_filter() {
 #[tokio::test]
 async fn bulk_delete_dry_run_then_execute_scoped_by_role() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let role = format!("covrole_{}", Uuid::new_v4().simple());
     let (n, e) = unique("bulkdel");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -211,7 +211,7 @@ async fn bulk_delete_reports_empty_match() {
 #[tokio::test]
 async fn bulk_update_validates_status_and_applies_by_role() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let role = format!("covupd_{}", Uuid::new_v4().simple());
     let (n, e) = unique("bulkupd");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -276,7 +276,7 @@ async fn bulk_update_validates_status_and_applies_by_role() {
 #[tokio::test]
 async fn export_writes_file_and_prints_without_path() {
     let pool = test_db_pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let role = format!("covexp_{}", Uuid::new_v4().simple());
     let (n, e) = unique("export");
     let user = service.create(&n, &e, None, None).await.unwrap();

@@ -11,17 +11,15 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::{OwnerReassignment, ReassignedRows, RepositoryError};
 
-use crate::error::FilesResult;
-
 #[derive(Debug, Clone)]
 pub struct FilesOwnerReassignment {
     write_pool: Arc<PgPool>,
 }
 
 impl FilesOwnerReassignment {
-    pub fn new(db: &DbPool) -> FilesResult<Self> {
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 }
 

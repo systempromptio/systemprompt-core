@@ -37,8 +37,7 @@ async fn make_orchestrator() -> McpOrchestrator {
     let service_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("service repository");
+    );
     McpOrchestrator::new(service_repo, app_paths, registry).expect("orchestrator")
 }
 
@@ -55,8 +54,7 @@ async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     let name = format!("orch-run-{}", uuid::Uuid::new_v4().simple());
     repo.create_service(CreateServiceInput {
         name: &name,

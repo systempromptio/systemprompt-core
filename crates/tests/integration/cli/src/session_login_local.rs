@@ -17,7 +17,7 @@ use systemprompt_users::{UserRepository, UserService};
 async fn fetch_admin_user_returns_bootstrapped_user_by_name() {
     let db = test_db_pool().await;
 
-    let service = UserService::new(Arc::new(UserRepository::new(&db).expect("user repository")));
+    let service = UserService::new(Arc::new(UserRepository::new(&db)));
 
     let unique = uuid::Uuid::new_v4();
     let username = format!("login_local_admin_{}", &unique.to_string()[..8]);
@@ -40,7 +40,7 @@ async fn fetch_admin_user_returns_bootstrapped_user_by_name() {
     assert_eq!(resolved.email, email);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc().expect("pool").as_ref())
+        .execute(db.pool().as_ref())
         .await;
 }
 

@@ -28,8 +28,6 @@ pub use context::ContextRepository;
 pub use ownership::AgentOwnerReassignment;
 pub use systemprompt_traits::RepositoryError;
 
-use crate::error::AgentError;
-
 /// The collaborators [`A2ARepositories`] needs beyond the database: every
 /// one is required, so a runtime without a managed-skill authority or a
 /// tool-execution ledger cannot be assembled.
@@ -73,22 +71,21 @@ impl std::fmt::Debug for A2ARepositories {
 }
 
 impl A2ARepositories {
-    pub fn new(db: &DbPool, deps: A2aDependencies) -> Result<Self, AgentError> {
+    pub fn new(db: &DbPool, deps: A2aDependencies) -> Self {
         let A2aDependencies {
             session_usage,
             instance_id,
             managed_skills,
             tool_executions,
         } = deps;
-        let agent_services = agent_service::AgentServiceRepository::new(db, instance_id)?;
-        let tasks = task::TaskRepository::new(db, session_usage)?;
-        let contexts = ContextRepository::new(db)?;
-        let context_notifications = context::ContextNotificationRepository::new(db)
-            .map_err(|e| AgentError::Init(e.to_string()))?;
-        let artifacts = content::ArtifactRepository::new(db)?;
-        let execution_steps = execution::ExecutionStepRepository::new(db)?;
+        let agent_services = agent_service::AgentServiceRepository::new(db, instance_id);
+        let tasks = task::TaskRepository::new(db, session_usage);
+        let contexts = ContextRepository::new(db);
+        let context_notifications = context::ContextNotificationRepository::new(db);
+        let artifacts = content::ArtifactRepository::new(db);
+        let execution_steps = execution::ExecutionStepRepository::new(db);
 
-        Ok(Self {
+        Self {
             managed_skill_resolver: managed_skills,
             tool_executions,
             agent_services,
@@ -97,7 +94,7 @@ impl A2ARepositories {
             context_notifications,
             artifacts,
             execution_steps,
-        })
+        }
     }
 
     #[must_use]

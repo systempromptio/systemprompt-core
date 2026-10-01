@@ -42,19 +42,16 @@ pub(super) fn assemble_content_analytics(
         content_routing.clone(),
     ));
     let sessions: systemprompt_traits::DynSessionStore =
-        Arc::new(systemprompt_users::SessionRepository::new(database)?);
-    let event_store = Arc::new(
-        systemprompt_logging::AnalyticsRepository::new(database)
-            .map_err(|error| RuntimeError::Internal(error.to_string()))?,
-    );
-    let content_stats = Arc::new(systemprompt_content::ContentRepository::new(database)?);
+        Arc::new(systemprompt_users::SessionRepository::new(database));
+    let event_store = Arc::new(systemprompt_logging::AnalyticsRepository::new(database));
+    let content_stats = Arc::new(systemprompt_content::ContentRepository::new(database));
     let analytics_repositories = Arc::new(
         systemprompt_analytics::repository::AnalyticsRepositories::new(
             database,
             Arc::clone(&sessions),
             event_store,
             content_stats,
-        )?,
+        ),
     );
     let analytics_service = Arc::new(AnalyticsService::new(
         geoip_reader.clone(),
@@ -62,13 +59,7 @@ pub(super) fn assemble_content_analytics(
         &analytics_repositories,
     ));
 
-    let fingerprint_repo = match FingerprintRepository::new(database, sessions) {
-        Ok(repo) => Some(Arc::new(repo)),
-        Err(e) => {
-            tracing::warn!(error = %e, "Failed to initialize fingerprint repository");
-            None
-        },
-    };
+    let fingerprint_repo = Some(Arc::new(FingerprintRepository::new(database, sessions)));
 
     Ok(ContentAnalytics {
         geoip_reader,

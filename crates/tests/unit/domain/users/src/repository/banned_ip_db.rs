@@ -14,7 +14,7 @@ struct Ctx {
 async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = BannedIpRepository::new(&pool).expect("repo");
+    let repo = BannedIpRepository::new(&pool);
     let tag = Uuid::new_v4();
     let [a, b, c, ..] = *tag.as_bytes();
     Ctx {

@@ -55,10 +55,9 @@ fn gw_repos(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(db),
         )),
     )
-    .expect("gateway repos")
 }
 
 async fn router_and_pool() -> Result<(Router, DbPool)> {
@@ -237,7 +236,7 @@ async fn seed_ai_request(
     user: &UserId,
     model: &str,
 ) -> Result<()> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     sqlx::query(
         "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, cost_microdollars, \
          cache_hit, is_streaming, status, actor_kind, actor_id) VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', 'anthropic', \
@@ -252,7 +251,7 @@ async fn seed_ai_request(
 }
 
 async fn model_column(pool: &DbPool, id: &AiRequestId) -> Result<String> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: (String,) = sqlx::query_as("SELECT model FROM ai_requests WHERE id = $1")
         .bind(id.as_str())
         .fetch_one(pg.as_ref())
@@ -261,7 +260,7 @@ async fn model_column(pool: &DbPool, id: &AiRequestId) -> Result<String> {
 }
 
 async fn system_prompt_override_column(pool: &DbPool, id: &AiRequestId) -> Result<Option<String>> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: (Option<String>,) =
         sqlx::query_as("SELECT system_prompt_override FROM ai_requests WHERE id = $1")
             .bind(id.as_str())
@@ -271,7 +270,7 @@ async fn system_prompt_override_column(pool: &DbPool, id: &AiRequestId) -> Resul
 }
 
 async fn route_match_column(pool: &DbPool, id: &AiRequestId) -> Result<Option<String>> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: (Option<String>,) =
         sqlx::query_as("SELECT route_match FROM ai_requests WHERE id = $1")
             .bind(id.as_str())

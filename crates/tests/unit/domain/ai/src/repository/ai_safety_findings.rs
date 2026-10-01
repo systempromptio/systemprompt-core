@@ -9,7 +9,7 @@ async fn insert_returns_generated_id() {
     let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
-    let repo = AiSafetyFindingRepository::new(&pool).expect("repo");
+    let repo = AiSafetyFindingRepository::new(&pool);
 
     let id = repo
         .insert(InsertSafetyFinding {
@@ -31,7 +31,7 @@ async fn insert_allows_null_excerpt() {
     let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
-    let repo = AiSafetyFindingRepository::new(&pool).expect("repo");
+    let repo = AiSafetyFindingRepository::new(&pool);
 
     let id = repo
         .insert(InsertSafetyFinding {
@@ -53,7 +53,7 @@ async fn the_rollup_separates_findings_from_the_ones_that_blocked() {
     let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
-    let repo = AiSafetyFindingRepository::new(&pool).expect("repo");
+    let repo = AiSafetyFindingRepository::new(&pool);
     let category = format!("warn_rollup_{}", uuid::Uuid::new_v4().simple());
 
     for blocked in [true, false, false] {

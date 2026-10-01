@@ -89,7 +89,7 @@ async fn inactive_existing_admin_is_refused_without_granting_a_role() {
     .expect("create initial bootstrap administrator");
 
     let pool = database.test_pool().await;
-    let raw = pool.pool_arc().expect("private SQL pool");
+    let raw = pool.pool();
     sqlx::query("UPDATE users SET status = 'inactive', roles = ARRAY['user'] WHERE name = $1")
         .bind(&configured)
         .execute(raw.as_ref())
@@ -115,7 +115,7 @@ async fn inactive_existing_admin_is_refused_without_granting_a_role() {
     assert_eq!(roles, ["user"]);
 
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

@@ -49,7 +49,7 @@ pub(super) async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool())?;
+    let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool());
     execute_internal(args, &repo, config).await
 }
 

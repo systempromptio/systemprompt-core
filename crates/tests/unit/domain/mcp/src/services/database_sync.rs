@@ -18,8 +18,7 @@ async fn cleanup_stale_services_empty_table_returns_ok() {
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     cleanup_stale_services(&svc_repo).await.unwrap();
 }
 
@@ -29,8 +28,7 @@ async fn delete_crashed_services_empty_table_returns_ok() {
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     delete_crashed_services(&svc_repo).await.unwrap();
 }
 
@@ -40,8 +38,7 @@ async fn sync_database_state_empty_servers_returns_ok() {
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     sync_database_state(&svc_repo, &[]).await.unwrap();
 }
 
@@ -51,13 +48,11 @@ async fn reconcile_running_processes_reports_a_pidless_running_service() {
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     let name = format!("sync-rec-{}", uuid::Uuid::new_v4().simple());
     let port = 65515;
     repo.create_service(CreateServiceInput {
@@ -84,8 +79,7 @@ async fn repair_database_inconsistencies_runs() {
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     repair_database_inconsistencies(&svc_repo).await.unwrap();
 }
 
@@ -95,8 +89,7 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    );
     let keep = format!("sync-keep-{}", uuid::Uuid::new_v4().simple());
     let drop_name = format!("sync-drop-{}", uuid::Uuid::new_v4().simple());
     for (name, port) in [(&keep, 65514u16), (&drop_name, 65513u16)] {
@@ -116,8 +109,7 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
         &ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .unwrap(),
+        ),
         &enabled,
     )
     .await

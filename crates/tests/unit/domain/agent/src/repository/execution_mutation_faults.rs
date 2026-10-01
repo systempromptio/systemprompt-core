@@ -13,7 +13,7 @@ use systemprompt_test_fixtures::closed_db_pool;
 
 async fn repository() -> ExecutionStepRepository {
     let pool = closed_db_pool().await;
-    ExecutionStepRepository::new(&pool).expect("a lazy pool still yields a repository")
+    ExecutionStepRepository::new(&pool)
 }
 
 #[tokio::test]

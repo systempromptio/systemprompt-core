@@ -29,7 +29,7 @@ pub struct AddArgs {
 
 pub(super) async fn execute(args: AddArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let ban_repository = BannedIpRepository::new(&pool)?;
+    let ban_repository = BannedIpRepository::new(&pool);
 
     let duration = if args.permanent {
         BanDuration::Permanent

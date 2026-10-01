@@ -3,8 +3,6 @@
 //! the downstream hook endpoint relies on. A token issued for plugin A must
 //! also be rejected when driven against plugin B.
 
-use std::sync::Once;
-
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
@@ -13,19 +11,12 @@ use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
 use systemprompt_security::HookTokenValidator;
-use systemprompt_security::keys::{RsaSigningKey, authority};
-
-static INSTALL: Once = Once::new();
+use systemprompt_security::keys::RsaSigningKey;
 
 const ISSUER: &str = "hook-issuer";
 
 fn ensure_authority() -> &'static RsaSigningKey {
-    INSTALL.call_once(|| {
-        let key =
-            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
-        authority::install_for_test(key);
-    });
-    authority::signing_key().expect("authority installed")
+    systemprompt_test_fixtures::install_test_signing_key()
 }
 
 fn hook_claims(plugin_id: &str, subject: &str) -> JwtClaims {

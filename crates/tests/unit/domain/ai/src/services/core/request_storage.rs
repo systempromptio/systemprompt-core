@@ -78,8 +78,8 @@ fn response(request_id: Uuid, content: &str) -> AiResponse {
 
 fn storage(pool: &DbPool, provider: Arc<RecordingSessionProvider>) -> RequestStorage {
     RequestStorage::new(
-        AiRequestRepository::new(pool).expect("repo"),
-        AiRequestPayloadRepository::new(pool).expect("payloads"),
+        AiRequestRepository::new(pool),
+        AiRequestPayloadRepository::new(pool),
         provider,
     )
 }
@@ -152,7 +152,7 @@ async fn stored_request_persists_messages_and_assistant_reply() {
     let response = response(request_id, "final answer");
     store(&storage, &request, &response, 55).await;
 
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let roles: Vec<String> = sqlx::query_scalar!(
         "SELECT m.role FROM ai_request_messages m
          JOIN ai_requests r ON r.id = m.request_id
@@ -204,8 +204,8 @@ async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
     let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let storage = RequestStorage::new(
-        AiRequestRepository::new(&pool).expect("repo"),
-        AiRequestPayloadRepository::new(&pool).expect("payloads"),
+        AiRequestRepository::new(&pool),
+        AiRequestPayloadRepository::new(&pool),
         Arc::new(FailingSessionProvider),
     );
 
@@ -230,7 +230,7 @@ async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap()
     .unwrap_or(0);
@@ -244,7 +244,7 @@ async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
 async fn a_fully_attributed_context_records_every_identifier_on_the_audit_row() {
     let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
-    let raw = pool.pool_arc().expect("read pool").as_ref().clone();
+    let raw = pool.pool().as_ref().clone();
 
     // `ai_requests.task_id` and `.mcp_execution_id` are foreign keys, so the
     // rows they point at have to exist before the audit write.
@@ -302,7 +302,7 @@ async fn a_fully_attributed_context_records_every_identifier_on_the_audit_row() 
         "SELECT task_id, trace_id, mcp_execution_id FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("audit row");
 
@@ -346,7 +346,7 @@ async fn a_failed_status_records_the_error_text_and_a_rejected_one_does_not() {
         "SELECT status, error_message FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("audit row");
 
@@ -382,7 +382,7 @@ async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
         "SELECT error_message FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert_eq!(
@@ -439,7 +439,7 @@ async fn failed_derived_context_materialization_preserves_the_audit_and_messages
     store(&storage, &request, &response, 17).await;
 
     assert_eq!(*materializer.calls.lock().expect("lock"), vec![expected]);
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let stored: (String, i64) =
         sqlx::query_as("SELECT status, cost_microdollars FROM ai_requests WHERE request_id = $1")
             .bind(request_id.to_string())

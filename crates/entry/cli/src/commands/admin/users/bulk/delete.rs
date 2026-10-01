@@ -70,7 +70,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
     }
 
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
 
     let users = user_service
         .list_by_filter(

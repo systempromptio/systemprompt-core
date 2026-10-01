@@ -35,8 +35,7 @@ async fn make_orchestrator() -> McpOrchestrator {
     let service_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("service repository");
+    );
     McpOrchestrator::new(service_repo, app_paths, registry).expect("orchestrator")
 }
 

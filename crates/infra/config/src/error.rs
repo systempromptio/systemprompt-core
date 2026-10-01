@@ -7,9 +7,8 @@
 //! matching only on the documented variants.
 //!
 //! Upstream errors are composed via `#[from]` so callers can use `?`
-//! transparently from `std::io`, `serde_json`, `serde_yaml`, and
-//! `regex` operations performed inside the bootstrap and validator
-//! pipelines.
+//! transparently from `std::io`, `serde_json` and `serde_yaml`
+//! operations performed inside the bootstrap pipeline.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -94,15 +93,6 @@ pub enum ConfigError {
 
     #[error("Invalid database URL: {message}")]
     InvalidDatabaseUrl { message: String },
-
-    #[error("Failed to resolve variables after {passes} passes: {unresolved}")]
-    UnresolvedVariables { passes: usize, unresolved: String },
-
-    #[error("{count} validation error(s)")]
-    ValidationErrors { count: usize },
-
-    #[error("Required config file missing: {path}")]
-    EnvironmentConfigMissing { path: PathBuf },
 
     #[error(
         "Profile is missing required `system_admin.username` and `SYSTEMPROMPT_SYSTEM_ADMIN` is \

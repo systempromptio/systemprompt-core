@@ -55,7 +55,7 @@ fn cfg_json() -> CliConfig {
 async fn seed_file(pool: &DbPool, f: &File<'_>) -> String {
     let id = Uuid::new_v4();
     let path = format!("/tmp/aicount/{}.png", Uuid::new_v4());
-    let write = pool.write_pool_arc().expect("write pool");
+    let write = pool.write_pool();
     sqlx::query(
         "INSERT INTO files (id, path, public_url, mime_type, ai_content, user_id, deleted_at) \
          VALUES ($5, $1, $1, 'image/png', $2, $3, CASE WHEN $4 THEN NOW() ELSE NULL END)",

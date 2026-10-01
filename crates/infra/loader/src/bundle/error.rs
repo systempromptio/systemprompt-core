@@ -48,6 +48,9 @@ pub enum VerifyFailure {
 
     #[error("bundle is missing bundle.json")]
     MissingManifest,
+
+    #[error("the source pins neither a sha256 digest nor an ed25519 key")]
+    NoVerification,
 }
 
 #[derive(Debug, Error)]

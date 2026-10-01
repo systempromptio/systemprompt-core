@@ -21,10 +21,10 @@ async fn reassigning_an_owner_moves_requests_and_signatures_but_discards_source_
             .await
             .unwrap();
     }
-    let requests = AiRequestRepository::new(&pool).unwrap();
+    let requests = AiRequestRepository::new(&pool);
     requests.insert(&completed_record(&source)).await.unwrap();
     requests.insert(&completed_record(&source)).await.unwrap();
-    let quotas = AiQuotaBucketRepository::new(&pool).unwrap();
+    let quotas = AiQuotaBucketRepository::new(&pool);
     quotas
         .increment(IncrementParams {
             subject_kind: "user",
@@ -40,7 +40,7 @@ async fn reassigning_an_owner_moves_requests_and_signatures_but_discards_source_
         })
         .await
         .unwrap();
-    let signatures = AiThoughtSignatureRepository::new(&pool).unwrap();
+    let signatures = AiThoughtSignatureRepository::new(&pool);
     let conversation = GatewayConversationId::from_prefix_hash(Uuid::new_v4().as_u128() as u64);
     signatures
         .upsert(&ThoughtSignatureWrite {
@@ -54,11 +54,10 @@ async fn reassigning_an_owner_moves_requests_and_signatures_but_discards_source_
         .unwrap();
 
     let moved = AiOwnerReassignment::new(&pool)
-        .unwrap()
         .reassign_owner(&source, &target)
         .await
         .unwrap();
-    let read = pool.pool_arc().unwrap();
+    let read = pool.pool();
     let request_count = sqlx::query_scalar!(
         "SELECT count(*) AS \"n!\" FROM ai_requests WHERE user_id=$1",
         target.as_str()
@@ -109,12 +108,10 @@ async fn signature_update_fault_rolls_back_owner_reassignment_across_all_ai_tabl
             .expect("seed user");
     }
     AiRequestRepository::new(&pool)
-        .expect("requests repository")
         .insert(&completed_record(&source))
         .await
         .expect("source request");
     AiQuotaBucketRepository::new(&pool)
-        .expect("quota repository")
         .increment(IncrementParams {
             subject_kind: "user",
             subject_id: source.as_str(),
@@ -129,7 +126,7 @@ async fn signature_update_fault_rolls_back_owner_reassignment_across_all_ai_tabl
         })
         .await
         .expect("source quota");
-    let signatures = AiThoughtSignatureRepository::new(&pool).expect("signature repository");
+    let signatures = AiThoughtSignatureRepository::new(&pool);
     let conversation = GatewayConversationId::from_prefix_hash(Uuid::new_v4().as_u128() as u64);
     signatures
         .upsert(&ThoughtSignatureWrite {
@@ -141,12 +138,11 @@ async fn signature_update_fault_rolls_back_owner_reassignment_across_all_ai_tabl
         })
         .await
         .expect("source signature");
-    let writer = pool.pool_arc().expect("private SQL pool");
+    let writer = pool.pool();
     sqlx::raw_sql(sqlx::AssertSqlSafe("CREATE FUNCTION reject_owner_signature_reassignment() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fixture signature owner update rejection'; END $$; CREATE TRIGGER reject_owner_signature_reassignment BEFORE UPDATE OF user_id ON ai_gateway_thought_signatures FOR EACH ROW EXECUTE FUNCTION reject_owner_signature_reassignment()"))
         .execute(writer.as_ref()).await.expect("install private signature fault");
 
     let error = AiOwnerReassignment::new(&pool)
-        .expect("owner reassignment")
         .reassign_owner(&source, &target)
         .await
         .expect_err("signature fault must abort reassignment");
@@ -206,7 +202,6 @@ async fn signature_update_fault_rolls_back_owner_reassignment_across_all_ai_tabl
     sqlx::raw_sql(sqlx::AssertSqlSafe("DROP TRIGGER reject_owner_signature_reassignment ON ai_gateway_thought_signatures; DROP FUNCTION reject_owner_signature_reassignment()"))
         .execute(writer.as_ref()).await.expect("remove private signature fault");
     let moved = AiOwnerReassignment::new(&pool)
-        .expect("owner reassignment")
         .reassign_owner(&source, &target)
         .await
         .expect("the same owners recover after the signature store is repaired");
@@ -253,7 +248,7 @@ async fn signature_update_fault_rolls_back_owner_reassignment_across_all_ai_tabl
 
     drop(writer);
     drop(signatures);
-    pool.pool_arc().expect("private SQL pool").close().await;
+    pool.pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

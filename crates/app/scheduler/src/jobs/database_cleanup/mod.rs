@@ -29,7 +29,7 @@ use systemprompt_database::DbPool;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::profile::RetentionConfig;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
 use crate::error::SchedulerError;
@@ -72,9 +72,7 @@ impl Job for DatabaseCleanupJob {
         if let Some(days) = ctx.get_parameter_parsed::<u32>("log_retention_days")? {
             retention.logs_days = days;
         }
-        let pool = db_pool
-            .write_pool_arc()
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let pool = db_pool.write_pool();
 
         debug!("Job started");
         let orphaned = delete_orphaned_logs(&db_pool, ctx.enforce()).await?;

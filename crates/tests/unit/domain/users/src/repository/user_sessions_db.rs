@@ -19,9 +19,7 @@ async fn setup(prefix: &str) -> Ctx {
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let email = format!("{prefix}-{}@sess.invalid", Uuid::new_v4().simple());
     seed_user_row(&pool, &user_id, &email).await.expect("user");
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     Ctx { service, user_id }
 }
 

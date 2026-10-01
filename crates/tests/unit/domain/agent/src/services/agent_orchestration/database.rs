@@ -30,8 +30,7 @@ async fn service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repo");
+    );
     AgentDatabaseService::new(repo).expect("db service")
 }
 
@@ -252,7 +251,7 @@ async fn remove_unknown_service_is_ok() {
 async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_the_row() {
     let pool = test_db_pool().await;
     let svc = service(&pool).await;
-    let raw = pool.pool_arc().expect("raw database pool");
+    let raw = pool.pool();
     let name = unique_name("orch-corrupt-process");
     svc.register_agent(&name, std::process::id(), 9309)
         .await

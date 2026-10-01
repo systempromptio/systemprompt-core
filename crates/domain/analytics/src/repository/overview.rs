@@ -24,9 +24,9 @@ pub struct OverviewAnalyticsRepository {
 }
 
 impl OverviewAnalyticsRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        Ok(Self { pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        Self { pool }
     }
 
     pub async fn get_conversation_count(

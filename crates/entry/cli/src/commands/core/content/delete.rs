@@ -30,7 +30,7 @@ pub struct DeleteArgs {
 
 pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let repo = ContentRepository::new(&pool)?;
+    let repo = ContentRepository::new(&pool);
 
     let content = if args.identifier.starts_with("content_")
         || args.identifier.contains('-') && args.identifier.len() > 30

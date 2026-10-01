@@ -25,9 +25,9 @@ pub struct AnalyticsRepository {
 }
 
 impl AnalyticsRepository {
-    pub fn new(db: &DbPool) -> Result<Self, LoggingError> {
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 
     pub async fn log_event(&self, event: &AnalyticsEvent) -> Result<i64, LoggingError> {

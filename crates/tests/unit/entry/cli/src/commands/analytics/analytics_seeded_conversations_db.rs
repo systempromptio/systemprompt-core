@@ -53,7 +53,6 @@ async fn seed_conversation(pool: &DbPool) -> String {
         .unwrap();
 
     let context_id = ContextRepository::new(pool)
-        .unwrap()
         .create_context(
             &user_id,
             Some(&session_id),
@@ -75,7 +74,7 @@ async fn seed_conversation(pool: &DbPool) -> String {
         .bind(status)
         .bind(&agent)
         .bind(user_id.as_str())
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }
@@ -204,7 +203,7 @@ async fn gateway_conversations_project_exact_owners_counts_and_global_order() {
     install_test_signing_key();
     let database = DisposableDb::with_schema("cli_gateway_conversation_projection").await;
     let pool = database.test_pool().await;
-    let raw = pool.pool_arc().expect("private SQL pool");
+    let raw = pool.pool();
     let older_owner = unique_user_id("gwconvo_old");
     let newer_owner = unique_user_id("gwconvo_new");
     let older_session = SessionId::generate();
@@ -327,7 +326,7 @@ async fn gateway_conversations_project_exact_owners_counts_and_global_order() {
 
     drop(raw);
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

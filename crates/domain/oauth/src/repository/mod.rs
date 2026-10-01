@@ -34,7 +34,6 @@ pub use webauthn_challenge::{
     WebAuthnChallengeKind,
 };
 
-use crate::error::OauthResult;
 use systemprompt_database::DbPool;
 
 /// Bundle of the OAuth-domain repositories, constructed once at a composition
@@ -47,11 +46,11 @@ pub struct OAuthRepositories {
 }
 
 impl OAuthRepositories {
-    pub fn new(db: &DbPool) -> OauthResult<Self> {
-        Ok(Self {
-            oauth: OAuthRepository::new(db)?,
-            bridge_host_prefs: BridgeHostPrefsRepository::new(db)?,
-            bridge_sessions: BridgeSessionRepository::new(db)?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            oauth: OAuthRepository::new(db),
+            bridge_host_prefs: BridgeHostPrefsRepository::new(db),
+            bridge_sessions: BridgeSessionRepository::new(db),
+        }
     }
 }

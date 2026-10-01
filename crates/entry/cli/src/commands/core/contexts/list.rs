@@ -30,7 +30,7 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContextRepository::new(pool)?;
+    let repo = ContextRepository::new(pool);
 
     let contexts = repo
         .list_contexts_with_stats(&session.user_id)

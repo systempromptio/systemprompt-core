@@ -11,19 +11,15 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::{OwnerReassignment, ReassignedRows, RepositoryError};
 
-use crate::error::AgentError;
-
 #[derive(Debug, Clone)]
 pub struct AgentOwnerReassignment {
     write_pool: Arc<PgPool>,
 }
 
 impl AgentOwnerReassignment {
-    pub fn new(db: &DbPool) -> Result<Self, AgentError> {
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| AgentError::Init(e.to_string()))?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 }
 

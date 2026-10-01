@@ -25,7 +25,7 @@ async fn setup() -> Ctx {
 
 impl Ctx {
     fn raw(&self) -> std::sync::Arc<sqlx::PgPool> {
-        self.pool.pool_arc().expect("raw pool")
+        self.pool.pool()
     }
 
     async fn purge(&self, id: &UserId) {

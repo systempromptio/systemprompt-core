@@ -21,11 +21,7 @@ impl PrivacyFixture {
     }
 
     pub async fn finish(self) {
-        self.pool
-            .write_pool_arc()
-            .expect("write pool")
-            .close()
-            .await;
+        self.pool.write_pool().close().await;
         self.database.drop_now().await;
     }
 }

@@ -81,7 +81,7 @@ mod recorded {
     }
 
     async fn converted(db: &DbPool, session: &SessionId) -> Result<bool> {
-        let p = db.pool_arc()?;
+        let p = db.pool();
         let row: (Option<chrono::DateTime<chrono::Utc>>,) =
             sqlx::query_as("SELECT converted_at FROM user_sessions WHERE session_id = $1")
                 .bind(session.as_str())

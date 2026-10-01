@@ -38,7 +38,7 @@ async fn cleanup(provider: &FilesAiPersistenceProvider, id: &FileId) {
 #[tokio::test]
 async fn from_repository_constructs() {
     let db = test_db_pool().await;
-    let repo = FileRepository::new(&db).expect("repo");
+    let repo = FileRepository::new(&db);
     let _ = FilesAiPersistenceProvider::from_repository(repo);
 }
 
@@ -46,7 +46,7 @@ async fn from_repository_constructs() {
 async fn insert_then_find_by_id_round_trips_all_fields() {
     let db = test_db_pool().await;
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
     );
     let id = new_uuid();
     let file_id = FileId::new(id.to_string());
@@ -81,7 +81,7 @@ async fn insert_then_find_by_id_round_trips_all_fields() {
 async fn insert_without_optional_fields_persists() {
     let db = test_db_pool().await;
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
     );
     let id = new_uuid();
     let file_id = FileId::new(id.to_string());
@@ -115,7 +115,7 @@ async fn insert_without_optional_fields_persists() {
 async fn find_by_id_missing_returns_none() {
     let db = test_db_pool().await;
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
     );
     let missing = FileId::new(uuid::Uuid::new_v4().to_string());
     let r = provider.find_by_id(&missing).await.expect("find");
@@ -126,7 +126,7 @@ async fn find_by_id_missing_returns_none() {
 async fn list_by_user_returns_inserted_files() {
     let db = test_db_pool().await;
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
     );
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
     let id_a = new_uuid();
@@ -160,7 +160,7 @@ async fn list_by_user_returns_inserted_files() {
 async fn list_by_user_respects_limit() {
     let db = test_db_pool().await;
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
     );
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
     let id_a = new_uuid();
@@ -187,7 +187,7 @@ async fn list_by_user_respects_limit() {
 async fn list_by_user_empty_for_unknown_user() {
     let db = test_db_pool().await;
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
     );
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
     let files = provider.list_by_user(&user, 10, 0).await.expect("list");
@@ -198,7 +198,7 @@ async fn list_by_user_empty_for_unknown_user() {
 async fn delete_soft_deletes_file() {
     let db = test_db_pool().await;
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
     );
     let id = new_uuid();
     let file_id = FileId::new(id.to_string());

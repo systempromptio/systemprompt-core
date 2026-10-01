@@ -46,25 +46,25 @@ impl GatewayRepositories {
         db: &DbPool,
         journal: GatewayJournal,
         context_materializer: DynContextMaterializer,
-    ) -> Result<Self, systemprompt_ai::error::RepositoryError> {
-        let requests = Arc::new(AiRequestRepository::new(db)?);
-        Ok(Self {
+    ) -> Self {
+        let requests = Arc::new(AiRequestRepository::new(db));
+        Self {
             journal: Arc::new(journal),
-            quota_buckets: AiQuotaBucketRepository::new(db)?,
+            quota_buckets: AiQuotaBucketRepository::new(db),
             requests,
-            payloads: Arc::new(AiRequestPayloadRepository::new(db)?),
-            client_evidence: Arc::new(AiRequestClientEvidenceRepository::new(db)?),
-            safety_findings: AiSafetyFindingRepository::new(db)?,
-            gateway_policies: AiGatewayPolicyRepository::new(db)?,
+            payloads: Arc::new(AiRequestPayloadRepository::new(db)),
+            client_evidence: Arc::new(AiRequestClientEvidenceRepository::new(db)),
+            safety_findings: AiSafetyFindingRepository::new(db),
+            gateway_policies: AiGatewayPolicyRepository::new(db),
             thought_signatures: Arc::new(ThoughtSignatureCache::new(
                 TTL,
-                Arc::new(AiThoughtSignatureRepository::new(db)?),
+                Arc::new(AiThoughtSignatureRepository::new(db)),
             )),
             context_materializer,
             artifact_ingest: None,
             sessions: None,
             payload_cap_bytes: AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES,
-        })
+        }
     }
 
     #[must_use]

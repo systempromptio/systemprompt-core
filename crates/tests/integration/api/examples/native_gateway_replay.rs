@@ -160,7 +160,7 @@ fn context(
     }
 }
 async fn settled(db: &DbPool, id: &AiRequestId, expected: Option<&str>) -> Result<Value> {
-    let pg = db.pool_arc()?;
+    let pg = db.pool();
     for _ in 0..100 {
         let row: Option<Value> =
             sqlx::query_scalar("SELECT to_jsonb(r) FROM ai_requests r WHERE id=$1")
@@ -230,9 +230,9 @@ async fn replay() -> Result<()> {
         &db,
         journal,
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(&db)?,
+            systemprompt_agent::repository::ContextRepository::new(&db),
         )),
-    )?;
+    );
     let cred = seed_admin_credential(
         &db,
         &format!("native-replay-{}@example.invalid", uuid::Uuid::new_v4()),
@@ -368,7 +368,7 @@ async fn replay() -> Result<()> {
                     .is_empty(),
                 "Unpriced native request reached upstream"
             );
-            let pg = db.pool_arc()?;
+            let pg = db.pool();
             let unknown_row: Option<Value> =
                 sqlx::query_scalar("SELECT to_jsonb(r) FROM ai_requests r WHERE id=$1")
                     .bind(unknown_id.as_str())

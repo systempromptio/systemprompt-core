@@ -47,6 +47,9 @@ pub fn verify_bundle(
     verification: &BundleVerification,
     core_version: &str,
 ) -> BundleResult<SignedBundleManifest> {
+    if verification.is_empty() {
+        return Err(VerifyFailure::NoVerification.into());
+    }
     if let Some(expected) = verification.sha256.as_deref() {
         let actual = file_digest(archive)?;
         if !actual.eq_ignore_ascii_case(expected) {

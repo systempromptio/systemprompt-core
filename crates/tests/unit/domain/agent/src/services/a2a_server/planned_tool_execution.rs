@@ -46,7 +46,7 @@ async fn harness(provider: StubAiProvider) -> Harness {
         context_id: ctx,
         tx,
         request_ctx,
-        execution_step_repo: Arc::new(ExecutionStepRepository::new(&pool).expect("exec repo")),
+        execution_step_repo: Arc::new(ExecutionStepRepository::new(&pool)),
     };
     Harness { context, rx }
 }

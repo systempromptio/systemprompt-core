@@ -6,11 +6,11 @@ use std::sync::Arc;
 
 use systemprompt_database::{
     BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DbPool, PostgresProvider,
-    install_extension_schemas_with_config,
 };
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition, Seed,
 };
+use systemprompt_test_fixtures::install_extension_schemas_with_config;
 
 use crate::services::db_helper::test_pool;
 
@@ -59,18 +59,18 @@ pub(super) fn registry_with(ext: StubExtension) -> ExtensionRegistry {
 
 pub(super) async fn provider_and_db() -> (PostgresProvider, DbPool) {
     let db = test_pool().await;
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     (PostgresProvider::from_pool(pg), db)
 }
 
 pub(super) async fn drop_table(db: &DbPool, table: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let ddl = format!("DROP TABLE IF EXISTS \"{table}\"");
     let _ = sqlx::query(sqlx::AssertSqlSafe(ddl)).execute(&*pg).await;
 }
 
 pub(super) async fn table_exists(db: &DbPool, table: &str) -> bool {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND \
          table_name = $1)",
@@ -110,7 +110,7 @@ async fn install_creates_schema_index_and_applies_seed_idempotently() {
             .expect("install");
     }
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let seeded: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT COUNT(*) FROM \"{table}\" WHERE label = 'seeded'"
     )))
@@ -358,7 +358,7 @@ async fn install_surfaces_seed_execution_failure_and_rolls_back() {
         other => panic!("expected SeedFailed(execute), got {other:?}"),
     }
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let rows: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT COUNT(*) FROM \"{table}\""
     )))
@@ -394,7 +394,7 @@ async fn install_applies_update_and_multi_statement_seed() {
         .await
         .expect("multi-statement seed applies");
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let label: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT label FROM \"{table}\" WHERE id = 1"
     )))
@@ -442,7 +442,7 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
         "SELECT EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = $1)",
     )
     .bind(format!("{table}_body_idx"))
-    .fetch_one(&*db.write_pool_arc().expect("write pool"))
+    .fetch_one(&*db.write_pool())
     .await
     .expect("index probe");
     assert!(
@@ -784,7 +784,7 @@ async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
         .await
         .expect("a guarded view drop is declarative and must install");
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let view_exists: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM information_schema.views WHERE table_schema = 'public' AND \
          table_name = $1)",
@@ -837,7 +837,7 @@ async fn an_unguarded_drop_is_rejected_as_imperative() {
 }
 
 async fn bootstrap_lock_is_free(db: &DbPool) -> bool {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let mut probe = pg.acquire().await.expect("probe connection");
     let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1)")
         .bind(BOOTSTRAP_ADVISORY_LOCK_KEY)

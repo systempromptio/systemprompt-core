@@ -57,7 +57,7 @@ async fn heartbeat_rejects_a_session_claimed_by_another_token_without_recording_
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = read_text(response).await?;
     assert!(body.contains("session_id must match"), "{body}");
-    let active = BridgeSessionRepository::new(&pool)?
+    let active = BridgeSessionRepository::new(&pool)
         .list_active_for_user(&credential.user_id, Duration::from_secs(60))
         .await?;
     assert!(
@@ -93,7 +93,7 @@ async fn incompatible_heartbeat_is_recorded_with_its_usage_and_reported_incompat
     let body = read_body(response).await?;
     assert_eq!(body["compatible"], false);
     assert_eq!(body["min_bridge_version"], "0.28.0");
-    let active = BridgeSessionRepository::new(&pool)?
+    let active = BridgeSessionRepository::new(&pool)
         .list_active_for_user(&credential.user_id, Duration::from_secs(60))
         .await?;
     let persisted = active
@@ -164,7 +164,7 @@ async fn heartbeat_storage_failure_is_reported_and_a_retry_records_the_session()
         ))
         .await?;
     assert_eq!(recovered.status(), StatusCode::OK);
-    let active = BridgeSessionRepository::new(&pool)?
+    let active = BridgeSessionRepository::new(&pool)
         .list_active_for_user(&credential.user_id, Duration::from_secs(60))
         .await?;
     let persisted = active
@@ -208,7 +208,7 @@ async fn device_fingerprint_cannot_move_between_users_and_the_owner_can_still_ro
     assert_eq!(first["consumer_id"], owner.user_id.as_str());
     let device_id = first["device_id"].clone();
     let first_credential = first["credential"].as_str().unwrap().to_owned();
-    let repository = ManagedRepository::new(&pool)?;
+    let repository = ManagedRepository::new(&pool);
     let first_identity = repository
         .authenticate_consumer_device(&first_credential)
         .await?;

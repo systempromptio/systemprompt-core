@@ -21,7 +21,7 @@ fn test_token_id() -> RefreshTokenId {
 }
 
 async fn create_test_client(db: &systemprompt_database::DbPool, client_id: &ClientId) -> ClientId {
-    let repo = ClientRepository::new(db).expect("Failed to create client repo");
+    let repo = ClientRepository::new(db);
     let params = CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
@@ -45,7 +45,7 @@ async fn create_test_client(db: &systemprompt_database::DbPool, client_id: &Clie
 }
 
 async fn cleanup_test_client(db: &systemprompt_database::DbPool, client_id: &ClientId) {
-    let repo = ClientRepository::new(db).expect("Failed to create client repo");
+    let repo = ClientRepository::new(db);
     let _ = repo.delete(client_id).await;
 }
 
@@ -56,7 +56,7 @@ async fn test_authorization_code_lifecycle() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db);
 
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
@@ -105,7 +105,7 @@ async fn test_authorization_code_pkce() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db);
 
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
@@ -142,7 +142,7 @@ async fn test_authorization_code_pkce_invalid_verifier() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db);
 
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
@@ -188,7 +188,7 @@ async fn test_refresh_token_lifecycle() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db);
 
     let token_id = test_token_id();
     let scopes = "openid profile";
@@ -236,7 +236,7 @@ async fn test_refresh_token_expiration() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db);
 
     let token_id = test_token_id();
     let scopes = "openid";
@@ -268,7 +268,7 @@ async fn test_refresh_token_revocation() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db);
 
     let token_id = test_token_id();
     let scopes = "openid";

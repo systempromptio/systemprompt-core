@@ -12,7 +12,6 @@ pub mod analytics;
 
 pub use analytics::LinkAnalyticsRepository;
 
-use crate::error::ContentError;
 use crate::models::{CampaignLink, CreateLinkParams};
 use chrono::Utc;
 use sqlx::PgPool;
@@ -27,10 +26,10 @@ pub struct LinkRepository {
 }
 
 impl LinkRepository {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        let pool = db.pool_arc().map_err(ContentError::Repository)?;
-        let write_pool = db.write_pool_arc().map_err(ContentError::Repository)?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn create_link(

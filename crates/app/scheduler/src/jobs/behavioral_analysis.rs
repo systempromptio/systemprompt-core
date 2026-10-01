@@ -56,13 +56,9 @@ impl Job for BehavioralAnalysisJob {
 
         let fingerprint_repo = FingerprintRepository::new(
             &db_pool,
-            std::sync::Arc::new(
-                systemprompt_users::SessionRepository::new(&db_pool)
-                    .map_err(SchedulerError::from)?,
-            ),
-        )
-        .map_err(SchedulerError::from)?;
-        let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(SchedulerError::from)?;
+            std::sync::Arc::new(systemprompt_users::SessionRepository::new(&db_pool)),
+        );
+        let banned_ip_repo = BannedIpRepository::new(&db_pool);
 
         info!("Starting behavioral analysis job");
 

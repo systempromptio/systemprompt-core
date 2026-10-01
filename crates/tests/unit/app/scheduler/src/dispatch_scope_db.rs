@@ -37,19 +37,18 @@ fn bootstrap_config(jobs: Vec<JobConfig>) -> SchedulerConfig {
 
 async fn dispatch_on(pool: &DbPool, url: &str, instance_id: &str, jobs: Vec<JobConfig>) {
     let app_ctx = context_for_instance(pool, url, instance_id);
-    let svc = SchedulerService::new(bootstrap_config(jobs), Arc::clone(pool), app_ctx)
-        .expect("SchedulerService::new");
+    let svc = SchedulerService::new(bootstrap_config(jobs), Arc::clone(pool), app_ctx);
     svc.run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch must not abort");
 }
 
 async fn seed_row(pool: &DbPool) -> SchedulerRepository {
-    let repo = SchedulerRepository::new(pool).expect("repo");
+    let repo = SchedulerRepository::new(pool);
     repo.upsert_job(NODE_JOB, "", true)
         .await
         .expect("seed scheduled_jobs row");
-    let pg = pool.write_pool_arc().expect("write pool");
+    let pg = pool.write_pool();
     sqlx::query!(
         "UPDATE scheduled_jobs SET last_run = NULL, last_instance_id = NULL WHERE job_name = $1",
         NODE_JOB
@@ -116,7 +115,7 @@ mod cluster_scope {
         let _guard = SERIALIZE.lock().await;
         let repo = seed_row(&pool).await;
 
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let mut peer = pg.acquire().await.expect("peer connection");
         let key: i64 = sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, NODE_JOB)
             .fetch_one(peer.as_mut())

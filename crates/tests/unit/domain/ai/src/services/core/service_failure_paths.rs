@@ -28,7 +28,7 @@ async fn failed_request_count(pool: &DbPool, user_id: &UserId) -> i64 {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1 AND status = 'failed'",
         user_id.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("count failed requests")
     .unwrap_or(0)
@@ -65,7 +65,7 @@ async fn a_failed_tooled_request_is_audited_as_failed_with_its_error_message() {
         "SELECT error_message FROM ai_requests WHERE user_id = $1 AND status = 'failed'",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert!(
@@ -145,7 +145,7 @@ async fn a_disabled_provider_entry_is_not_built() {
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect("a disabled entry must not stop the service building");
 
@@ -185,7 +185,7 @@ async fn an_enabled_provider_with_no_registry_entry_is_skipped_rather_than_fatal
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect("an unknown provider name must be skipped, not abort construction");
 
@@ -219,7 +219,7 @@ async fn a_default_provider_that_was_never_built_fails_construction() {
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect_err("a service with no enabled provider cannot serve anything");
     assert!(
@@ -239,7 +239,7 @@ async fn a_default_provider_that_was_never_built_fails_construction() {
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect_err("a default naming an unbuilt provider must fail construction");
     assert!(
@@ -321,7 +321,7 @@ async fn a_completed_request_records_a_nonzero_cost_from_the_provider_pricing() 
         "SELECT cost_microdollars FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert!(

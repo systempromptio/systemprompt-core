@@ -126,23 +126,18 @@ pub struct SchedulerService {
 }
 
 impl SchedulerService {
-    pub fn new(
-        config: SchedulerConfig,
-        db_pool: DbPool,
-        app_context: Arc<AppContext>,
-    ) -> SchedulerResult<Self> {
-        let repository = SchedulerRepository::new(&db_pool)?;
+    pub fn new(config: SchedulerConfig, db_pool: DbPool, app_context: Arc<AppContext>) -> Self {
+        let repository = SchedulerRepository::new(&db_pool);
         let user_repository = Arc::clone(app_context.user_repository());
-        let logging_repository = systemprompt_logging::LoggingRepository::new(&db_pool)
-            .map_err(|e| SchedulerError::Internal(e.to_string()))?;
-        Ok(Self {
+        let logging_repository = systemprompt_logging::LoggingRepository::new(&db_pool);
+        Self {
             config,
             db_pool,
             repository,
             user_repository,
             logging_repository,
             app_context,
-        })
+        }
     }
 
     pub async fn start(self) -> SchedulerResult<SchedulerStartup> {

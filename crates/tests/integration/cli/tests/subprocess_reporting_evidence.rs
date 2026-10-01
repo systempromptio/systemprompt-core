@@ -57,13 +57,7 @@ fn card_field<'a>(card: &'a Value, heading: &str) -> &'a Value {
 }
 
 async fn raw_pool(database: &DisposableDb) -> sqlx::PgPool {
-    database
-        .test_pool()
-        .await
-        .pool_arc()
-        .expect("raw PostgreSQL pool")
-        .as_ref()
-        .clone()
+    database.test_pool().await.pool().as_ref().clone()
 }
 
 #[tokio::test]

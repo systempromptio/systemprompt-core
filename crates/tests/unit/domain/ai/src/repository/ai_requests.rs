@@ -11,7 +11,7 @@ use super::{bootstrapped_pool, completed_record, seed_request, user};
 
 async fn test_repo() -> (AiRequestRepository, systemprompt_database::DbPool) {
     let pool = bootstrapped_pool().await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
     (repo, pool)
 }
 

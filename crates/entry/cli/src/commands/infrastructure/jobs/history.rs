@@ -35,7 +35,7 @@ pub(super) async fn execute(args: HistoryArgs, ctx: &CommandContext) -> Result<C
 }
 
 pub async fn execute_with_pool(args: HistoryArgs, pool: &DbPool) -> Result<CommandOutput> {
-    let repo = JobRepository::new(pool)?;
+    let repo = JobRepository::new(pool);
 
     let entries: Vec<JobHistoryEntry> = if let Some(ref job_name) = args.job {
         match repo.find_job(job_name).await? {

@@ -16,7 +16,7 @@ async fn seed_execution(
     output: Option<&str>,
 ) -> anyhow::Result<String> {
     let id = Uuid::new_v4().to_string();
-    let raw = pool.pool_arc()?;
+    let raw = pool.pool();
     sqlx::query(
         "INSERT INTO mcp_tool_executions
             (mcp_execution_id, tool_name, server_name, started_at, input, output, status, user_id)

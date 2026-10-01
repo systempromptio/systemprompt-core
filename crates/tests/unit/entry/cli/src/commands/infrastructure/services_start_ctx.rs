@@ -56,7 +56,7 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
 
 async fn applied_migration_count(pool: &DbPool) -> i64 {
     sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM extension_migrations")
-        .fetch_one(pool.pool_arc().unwrap().as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("count applied migrations")
 }
@@ -67,7 +67,7 @@ async fn applied_migration_count(pool: &DbPool) -> i64 {
 async fn service_row_exists(pool: &DbPool, name: &str) -> bool {
     sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM services WHERE name = $1)")
         .bind(name)
-        .fetch_one(pool.pool_arc().unwrap().as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("read the service table")
 }

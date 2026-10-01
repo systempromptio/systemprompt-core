@@ -234,7 +234,7 @@ async fn task_insert_failure_streams_internal_error_without_dispatch_or_partial_
         .await
         .expect("tasks before rejected insert")
         .len();
-    let writer = pool.pool_arc().expect("private SQL pool");
+    let writer = pool.pool();
     sqlx::raw_sql(sqlx::AssertSqlSafe(
         "CREATE FUNCTION reject_stream_task_insert() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'fixture task insert rejection'; END $$; \

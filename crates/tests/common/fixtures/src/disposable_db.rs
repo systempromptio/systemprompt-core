@@ -34,12 +34,7 @@ impl DisposableDb {
     // random suffix so parallel tests never collide.
     async fn create(prefix: &str) -> Result<Self> {
         let base_url = test_database_url();
-        let admin = connect(&base_url)
-            .await?
-            .pool_arc()
-            .context("the maintenance pool must expose a raw handle")?
-            .as_ref()
-            .clone();
+        let admin = connect(&base_url).await?.pool().as_ref().clone();
 
         crate::orphans::sweep_databases(&admin).await;
         let name = crate::orphans::database_name(prefix);
@@ -61,9 +56,11 @@ impl DisposableDb {
     async fn installed(prefix: &str) -> Result<Self> {
         let db = Self::create(prefix).await?;
         let pool = connect(&db.url).await?;
-        systemprompt_database::install_extension_schemas(
+        systemprompt_database::install_extension_schemas_full(
             &ExtensionRegistry::discover().context("extension registry discovery")?,
             pool.write(),
+            &[],
+            systemprompt_database::MigrationConfig::default(),
         )
         .await
         .context("failed to install the extension schemas into the disposable database")?;

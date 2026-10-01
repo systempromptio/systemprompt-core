@@ -26,7 +26,7 @@ struct Fixture {
 
 async fn setup() -> Fixture {
     let db = test_db_pool().await;
-    let pg = db.pool_arc().expect("read pool");
+    let pg = db.pool();
     let id = MarketplaceId::new(format!("mp-test-{}", Uuid::new_v4()));
     cleanup(&pg, &id).await;
     Fixture { db, pg, id }
@@ -130,7 +130,7 @@ async fn role_values(pg: &PgPool, id: &MarketplaceId) -> Vec<String> {
 #[tokio::test]
 async fn happy_path_projects_entity_and_rules() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     let report = service
         .ingest_marketplace_access(
@@ -175,7 +175,7 @@ async fn happy_path_projects_entity_and_rules() {
 #[tokio::test]
 async fn delete_orphans_drops_roles_absent_from_the_new_pass() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     service
         .ingest_marketplace_access(
@@ -211,7 +211,7 @@ async fn delete_orphans_drops_roles_absent_from_the_new_pass() {
 #[tokio::test]
 async fn override_existing_updates_justification() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     service
         .ingest_marketplace_access(
@@ -259,7 +259,7 @@ async fn override_existing_updates_justification() {
 #[tokio::test]
 async fn attribute_rules_project_to_extension_rule_type_rows() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
     let mut block = access(&[], true, None);
     block.rules = vec![rule(
         "adfs_group",
@@ -287,7 +287,7 @@ async fn attribute_rules_project_to_extension_rule_type_rows() {
 #[tokio::test]
 async fn deny_rule_writes_access_deny() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
     let mut block = access(&[], true, None);
     block.rules = vec![rule(
         "project",
@@ -313,7 +313,7 @@ async fn deny_rule_writes_access_deny() {
 #[tokio::test]
 async fn delete_orphans_only_touches_declared_bands() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
     let options = IngestOptions {
         delete_orphans: true,
         ..IngestOptions::default()
@@ -352,7 +352,7 @@ async fn delete_orphans_only_touches_declared_bands() {
 #[tokio::test]
 async fn invalid_rule_type_slug_is_rejected_before_any_write() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
     let mut block = access(&["engineer"], true, None);
     block.rules = vec![rule("Bad-Slug", &["x"], MarketplaceRuleAccess::Allow)];
 

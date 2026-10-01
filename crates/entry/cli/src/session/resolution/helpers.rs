@@ -200,9 +200,7 @@ pub async fn revalidate_context(
     session: &mut CliSession,
     profile_name: &str,
 ) -> Option<CliSession> {
-    let context_repo = ContextRepository::new(db_pool)
-        .map_err(|e| tracing::debug!(error = %e, "Failed to build context repository"))
-        .ok()?;
+    let context_repo = ContextRepository::new(db_pool);
 
     let is_valid = context_repo
         .validate_context_ownership(&session.context_id, &session.user_id)

@@ -17,7 +17,7 @@ struct Ctx {
 async fn setup() -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = BridgeSessionRepository::new(&pool).expect("repo");
+    let repo = BridgeSessionRepository::new(&pool);
     let user_id = unique_user_id("bs");
     seed_user_row(&pool, &user_id, &format!("{}@bs.invalid", user_id.as_str()))
         .await

@@ -1,7 +1,8 @@
 //! Test-only signing key install and JWT minting helpers.
 //!
 //! [`install_test_signing_key`] is idempotent — the underlying authority cell
-//! is process-wide, so the first caller wins. Concurrent test runs must share
+//! is process-wide and accepts only one key, so every caller installs the same
+//! fixture key. Concurrent test runs must share
 //! the same key, which is fine because every test that consumes a JWT resolves
 //! it via [`mint_admin_jwt`] / [`mint_bridge_jwt`]. The key is the committed
 //! fixture from [`crate::keys`] rather than a freshly generated one.
@@ -16,7 +17,7 @@ use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
-use systemprompt_security::keys::authority::{active_kid, encoding_key, install_for_test};
+use systemprompt_security::keys::authority::{active_kid, encoding_key, install};
 use systemprompt_security::keys::RsaSigningKey;
 
 static SIGNING_KEY: OnceLock<RsaSigningKey> = OnceLock::new();
@@ -24,7 +25,7 @@ static SIGNING_KEY: OnceLock<RsaSigningKey> = OnceLock::new();
 pub fn install_test_signing_key() -> &'static RsaSigningKey {
     SIGNING_KEY.get_or_init(|| {
         let key = crate::keys::test_key(crate::keys::AUTHORITY_KEY_INDEX);
-        install_for_test(key.clone());
+        install(key.clone()).expect("install the fixture signing key");
         key
     })
 }

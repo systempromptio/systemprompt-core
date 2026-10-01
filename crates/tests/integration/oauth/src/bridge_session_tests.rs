@@ -4,7 +4,6 @@
 //! that row must carry the analytics captured from the exchange request.
 
 use std::path::PathBuf;
-use std::sync::Once;
 
 use crate::{create_test_user, setup_test_db};
 use http::HeaderMap;
@@ -14,22 +13,15 @@ use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_oauth::services::{BridgeAccessRequest, issue_bridge_access};
-use systemprompt_security::keys::authority;
 
 fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::UserService {
     systemprompt_users::UserService::new(std::sync::Arc::new(
-        systemprompt_users::UserRepository::new(db).expect("user repo"),
+        systemprompt_users::UserRepository::new(db),
     ))
 }
 
-static AUTHORITY: Once = Once::new();
-
 fn ensure_runtime() {
-    AUTHORITY.call_once(|| {
-        let key =
-            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
-        authority::install_for_test(key);
-    });
+    systemprompt_test_fixtures::install_test_signing_key();
     // `Config::install` is a one-shot global; ignore the error when another
     // test in this binary already installed it.
     let _ = Config::install(test_config());
@@ -170,7 +162,7 @@ async fn bridge_session_captures_request_analytics() {
         .get(systemprompt_identifiers::headers::SESSION_ID)
         .expect("minted token carries a session id");
 
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let row = sqlx::query!(
         "SELECT ip_address, user_agent FROM user_sessions WHERE session_id = $1",
         session_id
@@ -266,7 +258,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     .await
     .expect("re-mint with the same session id must not fail");
 
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let count = sqlx::query_scalar!(
         "SELECT COUNT(*) FROM user_sessions WHERE session_id = $1",
         supplied.as_str()

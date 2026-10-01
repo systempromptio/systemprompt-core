@@ -36,7 +36,7 @@ pub async fn execute_with_pool(
     config: &crate::cli_settings::CliConfig,
     prompter: &dyn crate::interactive::Prompter,
 ) -> Result<CommandOutput> {
-    let repo = ContextRepository::new(pool)?;
+    let repo = ContextRepository::new(pool);
 
     let context_id = resolve_context(&args.context, &session.user_id, &repo).await?;
 

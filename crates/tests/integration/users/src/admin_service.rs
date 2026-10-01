@@ -17,7 +17,7 @@ async fn admin_find_user_by_email() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let unique_email = format!("admin_find_email_{}@example.com", uuid::Uuid::new_v4());
@@ -32,7 +32,7 @@ async fn admin_find_user_by_email() -> Result<()> {
     assert_eq!(found.name, unique_name);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -43,7 +43,7 @@ async fn admin_find_user_by_name() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let unique_email = format!("admin_find_name_{}@example.com", uuid::Uuid::new_v4());
@@ -58,7 +58,7 @@ async fn admin_find_user_by_name() -> Result<()> {
     assert_eq!(found.email, unique_email);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -69,7 +69,7 @@ async fn admin_find_user_by_uuid() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let unique_email = format!("admin_find_uuid_{}@example.com", uuid::Uuid::new_v4());
@@ -84,7 +84,7 @@ async fn admin_find_user_by_uuid() -> Result<()> {
     assert_eq!(found.email, unique_email);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -95,7 +95,7 @@ async fn admin_find_user_returns_none_for_nonexistent() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service);
 
     let found = admin_service
@@ -111,7 +111,7 @@ async fn admin_promote_user_to_admin() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let unique_email = format!("admin_promote_{}@example.com", uuid::Uuid::new_v4());
@@ -132,7 +132,7 @@ async fn admin_promote_user_to_admin() -> Result<()> {
     }
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -143,7 +143,7 @@ async fn admin_promote_already_admin_returns_already_admin() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let unique_email = format!("admin_already_{}@example.com", uuid::Uuid::new_v4());
@@ -166,7 +166,7 @@ async fn admin_promote_already_admin_returns_already_admin() -> Result<()> {
     }
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -177,7 +177,7 @@ async fn admin_promote_nonexistent_returns_not_found() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service);
 
     let result = admin_service
@@ -194,7 +194,7 @@ async fn admin_demote_user_from_admin() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let unique_email = format!("admin_demote_{}@example.com", uuid::Uuid::new_v4());
@@ -219,7 +219,7 @@ async fn admin_demote_user_from_admin() -> Result<()> {
     }
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -230,7 +230,7 @@ async fn admin_demote_non_admin_returns_not_admin() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let unique_email = format!("admin_nonadmin_{}@example.com", uuid::Uuid::new_v4());
@@ -249,7 +249,7 @@ async fn admin_demote_non_admin_returns_not_admin() -> Result<()> {
     }
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc()?.as_ref())
+        .execute(db.pool().as_ref())
         .await;
 
     Ok(())
@@ -260,7 +260,7 @@ async fn admin_demote_nonexistent_returns_not_found() -> Result<()> {
     let db = test_db_pool().await;
 
     let db_pool = &db;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let admin_service = UserAdminService::new(user_service);
 
     let result = admin_service

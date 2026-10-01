@@ -61,7 +61,7 @@ async fn upload_context_scoped_persists_file_and_row() {
     let pool = test_db_pool().await;
     let cfg = files_config(b, None);
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        systemprompt_files::FileRepository::new(&pool),
         cfg.clone(),
         local_storage(b),
     );
@@ -88,7 +88,7 @@ async fn upload_context_scoped_persists_file_and_row() {
     let on_disk = cfg.uploads().join(&expected_rel);
     assert_eq!(std::fs::read(&on_disk).expect("stored file"), CONTENT);
 
-    let repo = FileRepository::new(&pool).expect("repo");
+    let repo = FileRepository::new(&pool);
     let row = repo
         .find_by_id(&uploaded.file_id)
         .await
@@ -124,7 +124,7 @@ async fn upload_rejected_when_persistence_disabled() {
         Some("files:\n  upload:\n    persistence_mode: disabled\n"),
     );
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        systemprompt_files::FileRepository::new(&pool),
         cfg,
         local_storage(b),
     );
@@ -143,7 +143,7 @@ async fn upload_rejects_oversized_base64_payload() {
     let pool = test_db_pool().await;
     let cfg = files_config(b, Some("files:\n  upload:\n    max_file_size_bytes: 16\n"));
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        systemprompt_files::FileRepository::new(&pool),
         cfg,
         local_storage(b),
     );
@@ -166,7 +166,7 @@ async fn upload_rejects_invalid_base64() {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        systemprompt_files::FileRepository::new(&pool),
         files_config(b, None),
         local_storage(b),
     );
@@ -186,7 +186,7 @@ async fn upload_user_library_scopes_path_to_user() {
         Some("files:\n  upload:\n    persistence_mode: user_library\n"),
     );
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        systemprompt_files::FileRepository::new(&pool),
         cfg,
         local_storage(b),
     );
@@ -206,7 +206,7 @@ async fn upload_user_library_scopes_path_to_user() {
         )
     );
 
-    let repo = FileRepository::new(&pool).expect("repo");
+    let repo = FileRepository::new(&pool);
     repo.delete(&uploaded.file_id).await.expect("cleanup");
 }
 
@@ -219,7 +219,7 @@ async fn upload_user_library_without_user_uses_anonymous() {
         Some("files:\n  upload:\n    persistence_mode: user_library\n"),
     );
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        systemprompt_files::FileRepository::new(&pool),
         cfg,
         local_storage(b),
     );
@@ -233,7 +233,7 @@ async fn upload_user_library_without_user_uses_anonymous() {
         format!("users/anonymous/images/{}.png", uploaded.file_id.as_str())
     );
 
-    let repo = FileRepository::new(&pool).expect("repo");
+    let repo = FileRepository::new(&pool);
     repo.delete(&uploaded.file_id).await.expect("cleanup");
 }
 
@@ -246,7 +246,7 @@ async fn upload_rejects_user_id_with_traversal() {
         Some("files:\n  upload:\n    persistence_mode: user_library\n"),
     );
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        systemprompt_files::FileRepository::new(&pool),
         cfg,
         local_storage(b),
     );
@@ -280,7 +280,7 @@ async fn upload_db_failure_removes_stored_file() {
     let pool: DbPool = Arc::new(Database::from_pools(Arc::new(read), Some(Arc::new(closed))));
 
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        systemprompt_files::FileRepository::new(&pool),
         cfg.clone(),
         local_storage(b),
     );
@@ -311,7 +311,7 @@ async fn upload_io_error_when_uploads_path_is_blocked() {
     std::fs::write(cfg.uploads(), b"blocker").expect("blocker at uploads root");
 
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        systemprompt_files::FileRepository::new(&pool),
         cfg,
         local_storage(b),
     );

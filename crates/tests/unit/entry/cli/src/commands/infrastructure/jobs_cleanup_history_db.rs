@@ -34,7 +34,7 @@ async fn seed_session(pool: &DbPool, activity: chrono::DateTime<Utc>) -> String 
     )
     .bind(&id)
     .bind(activity)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
     id
@@ -44,7 +44,7 @@ async fn session_ended(pool: &DbPool, id: &str) -> bool {
     let ended: Option<chrono::DateTime<Utc>> =
         sqlx::query_scalar("SELECT ended_at FROM user_sessions WHERE session_id = $1")
             .bind(id)
-            .fetch_one(pool.pool_arc().unwrap().as_ref())
+            .fetch_one(pool.pool().as_ref())
             .await
             .unwrap();
     ended.is_some()
@@ -134,7 +134,7 @@ async fn cleanup_logs_delete_reports_zero_for_future_threshold() {
 
 async fn seed_job_run(pool: &DbPool, status: JobStatus, error: Option<&str>) -> String {
     let name = format!("cov-job-{}", Uuid::new_v4().simple());
-    let repo = JobRepository::new(pool).unwrap();
+    let repo = JobRepository::new(pool);
     repo.upsert_job(&name, "0 * * * *", true).await.unwrap();
     repo.update_job_execution(
         &name,

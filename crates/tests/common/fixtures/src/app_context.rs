@@ -30,26 +30,26 @@ use systemprompt_users::UserService;
 
 use crate::user::{fixture_system_admin, fixture_user_id};
 
+pub const FIXTURE_JWT_ISSUER: &str = "https://issuer.test";
+
 pub fn fixture_analytics_repositories(
     db: &DbPool,
 ) -> Result<systemprompt_analytics::repository::AnalyticsRepositories> {
     Ok(
         systemprompt_analytics::repository::AnalyticsRepositories::new(
             db,
-            Arc::new(systemprompt_users::sessions::SessionRepository::new(db)?),
-            Arc::new(systemprompt_logging::AnalyticsRepository::new(db)?),
-            Arc::new(systemprompt_content::repository::ContentRepository::new(
-                db,
-            )?),
-        )?,
+            Arc::new(systemprompt_users::sessions::SessionRepository::new(db)),
+            Arc::new(systemprompt_logging::AnalyticsRepository::new(db)),
+            Arc::new(systemprompt_content::repository::ContentRepository::new(db)),
+        ),
     )
 }
 
 pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintRepository> {
     Ok(FingerprintRepository::new(
         db,
-        Arc::new(systemprompt_users::sessions::SessionRepository::new(db)?),
-    )?)
+        Arc::new(systemprompt_users::sessions::SessionRepository::new(db)),
+    ))
 }
 
 pub fn fixture_config(database_url: &str) -> Config {
@@ -78,7 +78,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         api_server_url: "http://127.0.0.1".to_string(),
         api_internal_url: "http://127.0.0.1".to_string(),
         api_external_url: "http://127.0.0.1".to_string(),
-        jwt_issuer: "https://issuer.test".to_string(),
+        jwt_issuer: FIXTURE_JWT_ISSUER.to_string(),
         jwt_access_token_expiration: 3600,
         jwt_refresh_token_expiration: 86_400,
         jwt_audiences: systemprompt_models::auth::JwtAudience::standard(),
@@ -141,7 +141,7 @@ pub fn fixture_app_context_with(
 
 pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<Arc<AppContext>> {
     let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool)?);
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
     fixture_app_context_assembled(
         pool,
         config,
@@ -209,7 +209,7 @@ fn fixture_app_context_full(
     marketplace_filter: Arc<dyn MarketplaceFilter>,
     authz_hook: SharedAuthzHook,
 ) -> Result<Arc<AppContext>> {
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool)?);
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
     fixture_app_context_assembled(
         pool,
         fixture_config(database_url),
@@ -259,7 +259,7 @@ fn fixture_app_context_assembled(
             fingerprint_repo: Some(Arc::new(fixture_fingerprint_repository(pool)?)),
             user_service: Some(Arc::new(
                 UserService::new(Arc::clone(&user_repository))
-                    .with_owner_reassignments(systemprompt_runtime::owner_reassignments(pool)?),
+                    .with_owner_reassignments(systemprompt_runtime::owner_reassignments(pool)),
             )),
             a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                 pool,
@@ -271,26 +271,26 @@ fn fixture_app_context_assembled(
                         crate::agent::ToolExecutionLedger::Exists,
                     ),
                 },
-            )?),
+            )),
             content_repositories: Arc::new(
-                systemprompt_content::repository::ContentRepositories::new(pool)?,
+                systemprompt_content::repository::ContentRepositories::new(pool),
             ),
             oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
                 pool,
-            )?),
+            )),
             user_repository,
             service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
                 pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )?),
-            ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(pool)?),
+            )),
+            ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(pool)),
             analytics_repositories,
-            file_repository: Arc::new(systemprompt_files::FileRepository::new(pool)?),
+            file_repository: Arc::new(systemprompt_files::FileRepository::new(pool)),
             mcp_session_repository: Arc::new(
-                systemprompt_mcp::repository::McpSessionRepository::new(pool)?,
+                systemprompt_mcp::repository::McpSessionRepository::new(pool),
             ),
             managed_repository: Arc::new(
-                systemprompt_marketplace::managed::ManagedRepository::new(pool)?,
+                systemprompt_marketplace::managed::ManagedRepository::new(pool),
             ),
         },
         ConfigPlane {
@@ -331,7 +331,7 @@ fn fixture_app_context_assembled(
 pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::ArtifactIngest>> {
     Ok(Arc::new(systemprompt_mcp::ArtifactIngest::from_db(
         db, None,
-    )?))
+    )))
 }
 
 // The vendor-neutral warn-only chain: what a deployment without a

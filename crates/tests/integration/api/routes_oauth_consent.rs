@@ -96,7 +96,7 @@ async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(format!("consent-owner-{}", Uuid::new_v4()));
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@consent.invalid", user.as_str()))

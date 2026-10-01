@@ -47,7 +47,7 @@ fn test_ctx() -> RequestContext {
 #[tokio::test]
 async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let repo = ArtifactIngest::from_db(&db, None);
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();
 
@@ -93,7 +93,7 @@ async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
 #[tokio::test]
 async fn the_result_meta_names_the_ui_resource_even_when_rendering_failed() {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let repo = ArtifactIngest::from_db(&db, None);
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();
 

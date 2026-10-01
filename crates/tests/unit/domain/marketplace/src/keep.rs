@@ -38,7 +38,7 @@ struct Fixture {
 async fn setup() -> Fixture {
     ensure_test_bootstrap();
     let db = test_db_pool().await;
-    let pg = db.pool_arc().expect("read pool");
+    let pg = db.pool();
     let tag = Uuid::new_v4().simple().to_string();
     let fixture = Fixture {
         db,
@@ -169,7 +169,7 @@ fn candidate_in(f: &Fixture, record_owner: bool, markets: &[&str]) -> Marketplac
 }
 
 async fn visible(f: &Fixture, candidate: &MarketplaceCandidate, roles: &[&str]) -> Vec<String> {
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
     let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
     let user = UserId::new("keep-sets-test-user");
     let sets = keep_sets(
@@ -268,7 +268,7 @@ async fn the_plugin_itself_is_kept_when_its_rule_names_the_role() {
     let f = setup().await;
     grant_role(&f, "plugin", &f.plugin, "engineer").await;
 
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
     let user = UserId::new("keep-sets-test-user");
     let roles = vec!["engineer".to_owned()];
     let sets = keep_sets(
@@ -301,7 +301,7 @@ async fn a_plugin_granted_by_a_second_marketplace_is_kept() {
     grant_role(&f, "marketplace", &f.market2, "contractor").await;
 
     let candidate = candidate_in(&f, true, &[&f.market, &f.market2]);
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
     let user = UserId::new("keep-sets-test-user");
     let roles = vec!["contractor".to_owned()];
     let sets = keep_sets(

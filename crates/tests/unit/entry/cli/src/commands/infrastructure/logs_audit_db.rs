@@ -56,7 +56,6 @@ async fn seed_request(pool: &DbPool) -> AiRequestId {
     .model("claude-fixture-1")
     .build();
     AiRequestRepository::new(pool)
-        .expect("request repo")
         .insert(&record)
         .await
         .expect("seed an ai request")

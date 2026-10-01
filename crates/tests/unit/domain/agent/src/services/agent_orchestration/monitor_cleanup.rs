@@ -37,8 +37,7 @@ fn db_service(pool: &systemprompt_database::DbPool, name: &str, port: u16) -> Ag
     let repo = AgentServiceRepository::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repo");
+    );
     AgentDatabaseService::with_registry(repo, registry)
 }
 

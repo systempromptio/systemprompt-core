@@ -84,7 +84,7 @@ pub async fn execute_with_pool(
         return Ok(CommandOutput::card_value("File Unlink (Dry Run)", &output));
     }
 
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     service.unlink_from_content(&content_id, &file_id).await?;
 
