@@ -169,7 +169,6 @@ async fn registration_then_authentication_roundtrip_succeeds() {
         .do_authentication(origin(), rcr)
         .expect("softtoken assertion");
     OauthCleanupRepository::new(&ctx.pool)
-        .expect("cleanup repository")
         .delete_expired_webauthn_challenges()
         .await
         .expect("fresh auth state must survive cleanup");

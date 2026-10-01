@@ -123,7 +123,6 @@ async fn cleanup_expired_removes_only_expired() {
     .expect("store dead");
 
     let removed = OauthCleanupRepository::new(&db)
-        .expect("cleanup repo")
         .delete_expired_state_bindings()
         .await
         .expect("cleanup ok");

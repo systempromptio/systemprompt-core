@@ -140,7 +140,7 @@ async fn unrecognised_stored_status_is_invalid_data() {
         .await
         .expect("register");
 
-    let raw = pool.pool_arc().expect("raw database pool");
+    let raw = pool.pool();
     sqlx::query("UPDATE services SET status = 'degraded' WHERE name = $1")
         .bind(&name)
         .execute(raw.as_ref())

@@ -499,7 +499,7 @@ async fn use_execute_resolved_switches_to_named_context() {
 async fn non_interactive_delete_without_yes_is_refused_and_keeps_the_context() {
     let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxnoyes").await;
-    let repo = ContextRepository::new(&pool).unwrap();
+    let repo = ContextRepository::new(&pool);
     let active = repo
         .get_or_create_cli_context(&user_id, &session_id, "noyes-active")
         .await

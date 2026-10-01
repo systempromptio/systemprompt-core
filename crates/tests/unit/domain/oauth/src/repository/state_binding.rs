@@ -105,7 +105,7 @@ async fn expired_binding_cannot_be_consumed() {
 async fn cleanup_expired_state_bindings_removes_past() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
     let token = format!("state-{}", Uuid::new_v4());
     repo.store_state_binding(
         StateBindingParams::builder(&token)
@@ -115,7 +115,6 @@ async fn cleanup_expired_state_bindings_removes_past() {
     .await
     .expect("store");
     let removed = OauthCleanupRepository::new(&pool)
-        .expect("cleanup repo")
         .delete_expired_state_bindings()
         .await
         .expect("cleanup");

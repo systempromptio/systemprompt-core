@@ -112,7 +112,6 @@ async fn cleanup_expired_jti_revocations_removes_past_rows() {
     let exp = Utc::now() - Duration::hours(2);
     repo.revoke_jti(&jti, uid, exp).await.expect("revoke");
     let removed = OauthCleanupRepository::new(&pool)
-        .expect("cleanup repo")
         .delete_expired_jti_revocations()
         .await
         .expect("cleanup");

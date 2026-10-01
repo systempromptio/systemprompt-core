@@ -5,12 +5,13 @@
 
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use systemprompt_config::write_private_atomic;
 use clap::Args;
 use serde::Serialize;
 
 use super::signing::BundleSigningKey;
-use crate::shared::{CommandOutput, write_private_atomic};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct KeygenArgs {
@@ -45,7 +46,12 @@ fn write_key(key: &BundleSigningKey, out: Option<&std::path::Path>) -> Result<Ke
 
     match out {
         Some(path) => {
-            write_private_atomic(path, &key.seed_b64())?;
+            if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+                std::fs::create_dir_all(parent)
+                    .with_context(|| format!("Failed to create {}", parent.display()))?;
+            }
+            write_private_atomic(path, key.seed_b64().as_bytes())
+                .with_context(|| format!("Failed to write {}", path.display()))?;
             outcome.seed_file = Some(path.display().to_string());
         },
         None => outcome.seed = Some(key.seed_b64()),

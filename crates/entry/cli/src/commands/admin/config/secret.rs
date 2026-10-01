@@ -12,12 +12,12 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::{ProfileBootstrap, write_private_atomic};
 
 use super::profile_io::{load_profile, profile_dir};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
-use crate::shared::{CommandOutput, render_result, write_private_atomic};
+use crate::shared::{CommandOutput, render_result};
 
 const RESERVED: &[&str] = &[
     "oauth_at_rest_pepper",
@@ -97,5 +97,6 @@ pub fn set_secret(secrets_file: &Path, name: &str, value: &str) -> Result<()> {
     object.insert(name.to_owned(), serde_json::Value::String(value.to_owned()));
 
     let serialized = serde_json::to_string_pretty(&doc).context("Failed to serialize secrets")?;
-    write_private_atomic(secrets_file, &serialized)
+    write_private_atomic(secrets_file, serialized.as_bytes())
+        .with_context(|| format!("Failed to write {}", secrets_file.display()))
 }

@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
+use systemprompt_config::write_private_atomic;
 use std::path::Path;
 use systemprompt_cloud::ProfilePath;
 use systemprompt_loader::ProfileLoader;
@@ -14,7 +15,7 @@ use super::edit_document::ProfileDocument;
 use super::edit_secrets::edit_api_keys;
 use super::edit_settings::{edit_runtime_settings, edit_security_settings, edit_server_settings};
 use crate::context::CommandContext;
-use crate::shared::{resolve_profile_path, write_private_atomic};
+use crate::shared::resolve_profile_path;
 
 pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
     let profile_path =
@@ -141,7 +142,8 @@ fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Re
 
     if secrets_changed {
         let content = serde_json::to_string_pretty(&secrets)?;
-        write_private_atomic(&secrets_path, &content)?;
+        write_private_atomic(&secrets_path, content.as_bytes())
+            .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
     }
 
     if profile_changed {

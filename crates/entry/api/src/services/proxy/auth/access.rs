@@ -225,7 +225,10 @@ fn ensure_required_scopes(
     user: &AuthenticatedUser,
 ) -> Result<(), ProxyError> {
     if required_scopes.is_empty() {
-        return Ok(());
+        tracing::error!(service = %service_name, "OAuth required but no scopes are declared");
+        return Err(ProxyError::Forbidden {
+            service: format!("{service_name} requires OAuth but declares no scopes"),
+        });
     }
     let has_required_scope = required_scopes.iter().any(|required_scope_str| {
         Permission::from_str(required_scope_str).map_or_else(

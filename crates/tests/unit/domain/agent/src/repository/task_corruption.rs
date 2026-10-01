@@ -12,7 +12,7 @@ async fn unreadable_task_metadata_is_an_error() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     sqlx::query("UPDATE agent_tasks SET metadata = '{\"task_type\": 42}'::jsonb WHERE task_id = $1")
         .bind(task_id.to_string())
         .execute(pg.as_ref())
@@ -36,7 +36,7 @@ async fn task_without_agent_name_is_an_error() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     sqlx::query("UPDATE agent_tasks SET agent_name = NULL WHERE task_id = $1")
         .bind(task_id.to_string())
         .execute(pg.as_ref())

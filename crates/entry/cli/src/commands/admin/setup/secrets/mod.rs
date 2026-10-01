@@ -12,6 +12,7 @@ mod data;
 pub mod prompts;
 
 use anyhow::{Context, Result};
+use systemprompt_config::write_private_atomic;
 use std::path::Path;
 use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
@@ -19,7 +20,7 @@ use systemprompt_logging::CliService;
 use super::SetupArgs;
 use crate::CliConfig;
 use crate::interactive::Prompter;
-use crate::shared::{generate_identity, write_private_atomic};
+use crate::shared::generate_identity;
 use data::resolve_primary;
 use prompts::{resolve_interactive_primary, select_provider_keys};
 
@@ -128,7 +129,12 @@ fn validate_secrets(secrets: &SecretsData) -> Result<()> {
 
 pub(super) fn save(secrets: &SecretsData, secrets_path: &Path) -> Result<()> {
     let content = serde_json::to_string_pretty(secrets).context("Failed to serialize secrets")?;
-    write_private_atomic(secrets_path, &content)?;
+    if let Some(parent) = secrets_path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create {}", parent.display()))?;
+    }
+    write_private_atomic(secrets_path, content.as_bytes())
+        .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
 
     CliService::success(&format!("Saved secrets to {}", secrets_path.display()));
 

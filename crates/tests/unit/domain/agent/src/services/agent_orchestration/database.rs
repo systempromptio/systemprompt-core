@@ -157,7 +157,7 @@ async fn status_and_stamp(raw: &sqlx::PgPool, name: &str) -> (String, String) {
 async fn error_row_reads_as_failed_without_rewriting_it() {
     let pool = test_db_pool().await;
     let svc = service(&pool).await;
-    let raw = pool.pool_arc().expect("raw database pool");
+    let raw = pool.pool();
     let name = unique_name("orch-crash");
     svc.register_agent(&name, DEAD_PID, 9308)
         .await
@@ -189,8 +189,7 @@ async fn mcp_rows_are_invisible_to_agent_supervision() {
     let services = systemprompt_database::ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("services repo");
+    );
     let name = unique_name("orch-mcp-row");
     services
         .upsert_service_process(systemprompt_database::UpsertServiceProcessInput {

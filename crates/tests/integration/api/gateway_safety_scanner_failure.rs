@@ -59,7 +59,7 @@ impl SafetyScanner for FailingOnMarkerScanner {
 register_safety_scanner!(FailingOnMarkerScanner::default, name = SCANNER);
 
 async fn install_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
-    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    let pg = pool.pool();
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
          TRUE, 100)",
@@ -73,7 +73,7 @@ async fn install_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
 }
 
 async fn remove_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
-    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    let pg = pool.pool();
     sqlx::query("DELETE FROM ai_gateway_policies WHERE name = $1")
         .bind(name)
         .execute(pg.as_ref())
@@ -82,7 +82,7 @@ async fn remove_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
 }
 
 async fn poll_categories(pool: &DbPool, id: &AiRequestId) -> Vec<String> {
-    let pg = pool.pool_arc().expect("read pool");
+    let pg = pool.pool();
     for _ in 0..100 {
         let rows: Vec<(String,)> =
             sqlx::query_as("SELECT category FROM ai_safety_findings WHERE ai_request_id = $1")

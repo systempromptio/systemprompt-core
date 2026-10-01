@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
+use systemprompt_config::write_private_atomic;
 use regex::Regex;
 use std::path::Path;
 use systemprompt_cloud::constants::container;
@@ -15,7 +16,6 @@ use systemprompt_logging::CliService;
 use systemprompt_models::{CliPaths, Profile};
 
 use crate::commands::cloud::init::templates::ai_config;
-use crate::shared::write_private_atomic;
 
 use systemprompt_cloud::deploy::DockerfileBuilder;
 
@@ -189,7 +189,8 @@ pub fn save_secrets(
     }
 
     let content = serde_json::to_string_pretty(&secrets).context("Failed to serialize secrets")?;
-    write_private_atomic(secrets_path, &content)
+    write_private_atomic(secrets_path, content.as_bytes())
+        .with_context(|| format!("Failed to write {}", secrets_path.display()))
 }
 
 pub fn get_services_path() -> Result<String> {

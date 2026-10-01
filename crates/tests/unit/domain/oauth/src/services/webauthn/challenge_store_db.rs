@@ -239,7 +239,7 @@ async fn expired_challenge_is_not_consumable_and_is_purged_by_cleanup() {
         .expect("consume");
     assert!(consumed.is_none(), "ttl 0 must already be expired");
 
-    let cleanup = OauthCleanupRepository::new(&ctx.pool).expect("cleanup repository");
+    let cleanup = OauthCleanupRepository::new(&ctx.pool);
     cleanup
         .delete_expired_webauthn_challenges()
         .await

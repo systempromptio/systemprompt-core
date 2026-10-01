@@ -15,7 +15,7 @@ struct Ctx {
 async fn setup() -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ClientRepository::new(&pool).expect("client repo");
+    let repo = ClientRepository::new(&pool);
     let owner = unique_user_id("cleanup-owner");
     seed_user_row(
         &pool,

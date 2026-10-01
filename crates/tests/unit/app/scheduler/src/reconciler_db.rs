@@ -25,8 +25,7 @@ mod reconciler_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
     }
 
@@ -38,8 +37,7 @@ mod reconciler_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let result = reconciler
@@ -69,8 +67,7 @@ mod reconciler_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let configs = [ServiceConfig {
@@ -96,8 +93,7 @@ mod reconciler_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let configs = [ServiceConfig {
@@ -146,8 +142,7 @@ mod reconciler_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let configs = vec![
@@ -181,8 +176,7 @@ mod reconciler_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let configs = [ServiceConfig {
@@ -552,8 +546,7 @@ mod reconciler_action_arms {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let name = unique_name("rec-restart-ok");
@@ -593,8 +586,7 @@ mod reconciler_action_arms {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let name = unique_name("rec-restart-fail");
@@ -640,8 +632,7 @@ mod reconciler_action_arms {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let name = unique_name("rec-orphan-db");
@@ -665,14 +656,13 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn orphan_sweep_leaves_another_instances_row_alone() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let name = unique_name("rec-orphan-scoped");
@@ -721,8 +711,7 @@ mod reconciler_action_arms {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let (mut child, port) = spawn_port_holder();
@@ -754,8 +743,7 @@ mod reconciler_action_arms {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let (mut child, port) = spawn_port_holder();
@@ -811,8 +799,7 @@ mod reconciler_noop_arm {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository builds"),
+            ),
         );
 
         let mut child = Command::new("python3")

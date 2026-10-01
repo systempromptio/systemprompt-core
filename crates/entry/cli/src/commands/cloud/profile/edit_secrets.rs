@@ -3,14 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use systemprompt_config::write_private_atomic;
 use std::path::Path;
 use systemprompt_cloud::ProfilePath;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use crate::interactive::Prompter;
-use crate::shared::write_private_atomic;
 
 pub(super) fn edit_api_keys(prompter: &dyn Prompter, profile_dir: &Path) -> Result<()> {
     CliService::section("API Keys (secrets.json)");
@@ -52,7 +52,8 @@ pub(super) fn edit_api_keys(prompter: &dyn Prompter, profile_dir: &Path) -> Resu
     }
 
     let content = serde_json::to_string_pretty(&secrets)?;
-    write_private_atomic(&secrets_path, &content)?;
+    write_private_atomic(&secrets_path, content.as_bytes())
+        .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
 
     CliService::success("API keys updated");
     Ok(())

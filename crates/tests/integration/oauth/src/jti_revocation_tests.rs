@@ -83,7 +83,6 @@ async fn cleanup_expired_drops_only_expired_rows() {
         .expect("dead revoke");
 
     OauthCleanupRepository::new(&db)
-        .expect("cleanup repo")
         .delete_expired_jti_revocations()
         .await
         .expect("cleanup ok");
