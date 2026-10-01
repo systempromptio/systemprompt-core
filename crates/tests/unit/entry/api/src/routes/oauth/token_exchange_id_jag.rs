@@ -15,21 +15,16 @@ use systemprompt_models::Config;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TYP;
 use systemprompt_test_fixtures::{
-    fixture_config, fixture_database_url, fixture_db_pool, install_test_signing_key,
+    fixture_config, install_test_signing_key, test_database_url, test_db_pool,
 };
 use uuid::Uuid;
 
 const CLIENT: &str = "sp_web";
 
 fn config() -> Config {
-    fixture_config(&fixture_database_url().unwrap())
+    fixture_config(&test_database_url())
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 /// Sign an ID-JAG with the authority key the fixture installs, so the
 /// self-issued verification path resolves it by `kid`.
@@ -78,7 +73,7 @@ async fn validate(token: &str, pool: &DbPool, config: &Config) -> anyhow::Result
 #[tokio::test]
 async fn rejects_a_token_without_the_id_jag_typ() {
     let config = config();
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let token = sign_id_jag(
         &config,
         Some("JWT"),
@@ -96,7 +91,7 @@ async fn rejects_a_token_without_the_id_jag_typ() {
 #[tokio::test]
 async fn rejects_a_token_that_is_not_rs256() {
     let config = config();
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let key = install_test_signing_key();
     let mut header = Header::new(Algorithm::HS256);
     header.kid = Some(key.kid().to_owned());
@@ -118,7 +113,7 @@ async fn rejects_a_token_that_is_not_rs256() {
 #[tokio::test]
 async fn rejects_an_issuer_that_is_not_trusted() {
     let mut config = config();
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let mut body = claims(&config, &Uuid::new_v4().to_string(), "admin");
     body["iss"] = serde_json::json!("https://attacker.test");
     let token = sign_id_jag(&config, Some(ID_JAG_TYP), Algorithm::RS256, body);
@@ -134,7 +129,7 @@ async fn rejects_an_issuer_that_is_not_trusted() {
 #[tokio::test]
 async fn accepts_a_self_issued_id_jag_and_carries_its_scope() {
     let config = config();
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let token = sign_id_jag(
         &config,
         Some(ID_JAG_TYP),
@@ -152,7 +147,7 @@ async fn accepts_a_self_issued_id_jag_and_carries_its_scope() {
 #[tokio::test]
 async fn refuses_the_same_id_jag_twice() {
     let config = config();
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let token = sign_id_jag(
         &config,
         Some(ID_JAG_TYP),
@@ -181,7 +176,7 @@ fn unsigned(header: &str, payload: &str) -> String {
 }
 
 async fn reject(token: &str, config: &Config) -> String {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     validate(token, &pool, config)
         .await
         .expect_err("this ID-JAG must be refused")
@@ -247,7 +242,7 @@ async fn a_trusted_issuer_id_jag_whose_jwks_is_unreachable_is_refused() {
 #[tokio::test]
 async fn a_signed_id_jag_with_an_unrepresentable_expiry_is_rejected_without_burning_its_jti() {
     let config = config();
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let jti = Uuid::new_v4().to_string();
     let mut body = claims(&config, &jti, "admin");
     body["exp"] = serde_json::json!(i64::MAX);

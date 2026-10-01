@@ -8,7 +8,7 @@
 
 use systemprompt_api::services::server::readiness::init_readiness;
 use systemprompt_api::services::server::shutdown;
-use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, fixture_app_context};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_app_context};
 
 #[tokio::test]
 async fn a_server_that_finishes_first_has_its_own_result_returned_unchanged() {
@@ -32,7 +32,7 @@ async fn a_server_that_finishes_first_has_its_own_result_returned_unchanged() {
 async fn an_unreadable_service_registry_does_not_abort_child_termination() {
     let boot = ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
 
     let completed = tokio::time::timeout(
         std::time::Duration::from_secs(10),

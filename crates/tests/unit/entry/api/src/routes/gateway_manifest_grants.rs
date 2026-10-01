@@ -31,8 +31,8 @@ use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context_with, fixture_db_pool, init_isolated_bootstrap,
-    install_test_signing_key, seed_bridge_credential, seed_user_row,
+    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, install_test_signing_key,
+    seed_bridge_credential, seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -120,9 +120,7 @@ struct Harness {
 async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
     let boot = boot();
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database");
+    let pool = test_db_pool().await;
     let ctx = fixture_app_context_with(&pool, &boot.database_url, boot_paths(boot), filter)
         .expect("fixture context");
     let owner = ctx.system_admin().id();
@@ -783,10 +781,8 @@ struct PrivateConsumer {
 }
 
 async fn private_consumer(label: &str) -> PrivateConsumer {
-    let database = systemprompt_test_fixtures::DisposableDb::installed(label)
-        .await
-        .unwrap();
-    let pool = database.pool().await.unwrap();
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
+    let pool = database.test_pool().await;
     let boot = boot();
     let ctx = fixture_app_context_with(
         &pool,

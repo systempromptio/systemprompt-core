@@ -18,7 +18,7 @@ use systemprompt_api::services::gateway::protocol::canonical_response::{
 };
 use systemprompt_api::services::gateway::signature_cache::ThoughtSignatureCache;
 use systemprompt_models::services::WireProtocol;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 const TTL: Duration = Duration::from_secs(60);
 
@@ -30,10 +30,7 @@ struct Harness {
 
 impl Harness {
     async fn open() -> Self {
-        let url = fixture_database_url().expect("signature cache database URL");
-        let pool = fixture_db_pool(&url)
-            .await
-            .expect("signature cache database pool");
+        let pool = test_db_pool().await;
         let repository = Arc::new(AiThoughtSignatureRepository::new(&pool).expect("repository"));
         let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
@@ -390,15 +387,8 @@ fn block_on_db(body: impl AsyncFnOnce(Harness)) {
         });
 }
 
-fn db_available() -> bool {
-    fixture_database_url().is_ok()
-}
-
 #[test]
 fn gemini_hydration_records_hit_and_miss() {
-    if !db_available() {
-        return;
-    }
     let hits = counter_value(
         "gateway_signature_hydration_total",
         ("outcome", "hit"),
@@ -434,9 +424,6 @@ fn gemini_hydration_records_hit_and_miss() {
 
 #[test]
 fn non_gemini_hydration_records_nothing() {
-    if !db_available() {
-        return;
-    }
     for wire in [
         Some(WireProtocol::Anthropic),
         Some(WireProtocol::OpenAiChat),

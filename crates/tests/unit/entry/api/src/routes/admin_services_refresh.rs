@@ -16,12 +16,12 @@ use systemprompt_loader::services_root::{
 };
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, fixture_app_context};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_app_context};
 
 async fn context() -> std::sync::Arc<AppContext> {
     let boot = ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    fixture_app_context(&pool, &boot.database_url).expect("fixture context")
+    test_app_context(&pool, &boot.database_url)
 }
 
 fn req_ctx() -> RequestContext {

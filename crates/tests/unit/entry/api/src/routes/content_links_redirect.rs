@@ -15,15 +15,9 @@ use systemprompt_content::{GenerateLinkParams, LinkGenerationService, LinkType};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    let url = fixture_database_url().expect("content links database URL");
-    fixture_db_pool(&url)
-        .await
-        .expect("content links database pool")
-}
 
 fn ctx(session_id: &str) -> RequestContext {
     let mut ctx = RequestContext::new(
@@ -61,7 +55,7 @@ fn content_repos(pool: &systemprompt_database::DbPool) -> std::sync::Arc<Content
 
 #[tokio::test]
 async fn unknown_short_code_is_not_found() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let response = redirect_handler(
         State(content_repos(&pool)),
         Extension(ctx("sess-unknown")),
@@ -79,7 +73,7 @@ async fn unknown_short_code_is_not_found() {
 
 #[tokio::test]
 async fn a_known_short_code_redirects_to_its_target() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let target = format!(
         "https://example.invalid/landing/{}",
         Uuid::new_v4().simple()
@@ -111,7 +105,7 @@ async fn a_known_short_code_redirects_to_its_target() {
 
 #[tokio::test]
 async fn a_bot_session_still_redirects_but_is_not_tracked() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let target = format!("https://example.invalid/bot/{}", Uuid::new_v4().simple());
     let code = make_link(&pool, &target).await;
 
@@ -133,7 +127,7 @@ async fn a_bot_session_still_redirects_but_is_not_tracked() {
 
 #[tokio::test]
 async fn the_same_code_can_be_followed_repeatedly() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let target = format!("https://example.invalid/repeat/{}", Uuid::new_v4().simple());
     let code = make_link(&pool, &target).await;
 

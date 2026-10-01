@@ -13,14 +13,9 @@ use systemprompt_api::services::middleware::JtiRevocationChecker;
 use systemprompt_database::DbPool;
 use systemprompt_models::execution::context::ContextExtractionError;
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().expect("DATABASE_URL"))
-        .await
-        .expect("the revocation tests need a reachable test database")
-}
 
 fn checker(pool: &DbPool) -> JtiRevocationChecker {
     JtiRevocationChecker::from_repository(OAuthRepository::new(pool).expect("oauth repository"))
@@ -59,7 +54,7 @@ fn is_revoked_error(result: &Result<(), ContextExtractionError>) -> bool {
 
 #[tokio::test]
 async fn a_token_that_was_never_revoked_is_admitted() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     checker(&pool)
         .ensure_not_revoked(&jti())
         .await
@@ -68,7 +63,7 @@ async fn a_token_that_was_never_revoked_is_admitted() {
 
 #[tokio::test]
 async fn a_revoked_token_is_refused() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let jti = jti();
     revoke(&pool, &jti, 60).await;
 
@@ -87,7 +82,7 @@ async fn a_revoked_token_is_refused() {
 // filter is the mutation this test exists to catch.
 #[tokio::test]
 async fn a_revocation_that_has_itself_expired_no_longer_refuses() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let jti = jti();
     revoke(&pool, &jti, -60).await;
 
@@ -102,7 +97,7 @@ async fn a_revocation_that_has_itself_expired_no_longer_refuses() {
 // this one decides whether such a token is acceptable at all.
 #[tokio::test]
 async fn a_token_with_no_jti_claim_is_not_checked() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     checker(&pool)
         .ensure_not_revoked("")
         .await
@@ -115,7 +110,7 @@ async fn a_token_with_no_jti_claim_is_not_checked() {
 // still in an attacker's hands.
 #[tokio::test]
 async fn a_token_seen_revoked_stays_refused_after_the_row_is_deleted() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let jti = jti();
     revoke(&pool, &jti, 60).await;
 
@@ -144,7 +139,7 @@ async fn a_token_seen_revoked_stays_refused_after_the_row_is_deleted() {
 // checker with a cold cache sees the revocation the warm one missed.
 #[tokio::test]
 async fn a_token_admitted_before_revocation_keeps_working_until_the_cache_ages_out() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let jti = jti();
 
     let warm = checker(&pool);
@@ -168,7 +163,7 @@ async fn a_token_admitted_before_revocation_keeps_working_until_the_cache_ages_o
 
 #[tokio::test]
 async fn a_revocation_store_failure_rejects_the_token_without_disclosing_its_jti() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let checker = checker(&pool);
     pool.write_pool_arc().expect("write pool").close().await;
     let private_jti = jti();

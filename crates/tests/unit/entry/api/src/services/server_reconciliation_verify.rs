@@ -17,7 +17,7 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{McpServerConfig, McpServerType};
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
+    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
 };
 
 fn orchestrator(
@@ -75,10 +75,8 @@ fn required(name: &str) -> McpServerConfig {
 }
 
 async fn live_pool() -> DbPool {
-    let boot = ensure_test_bootstrap();
-    fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database")
+    ensure_test_bootstrap();
+    test_db_pool().await
 }
 
 async fn seed(pool: &DbPool, name: &str, status: &str) {
@@ -109,7 +107,7 @@ async fn drop_row(pool: &DbPool, name: &str) {
 async fn a_required_server_with_a_running_row_passes_verification() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("verified");
     seed(&pool, &name, "running").await;
 
@@ -127,7 +125,7 @@ async fn a_required_server_with_a_running_row_passes_verification() {
 async fn a_required_server_with_no_row_at_all_fails_startup_and_is_named() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("unregistered");
 
     let error = verify_database_registration(&[required(&name)], &ctx, None)
@@ -146,7 +144,7 @@ async fn a_required_server_with_no_row_at_all_fails_startup_and_is_named() {
 async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_that_status() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("halfup");
     seed(&pool, &name, "starting").await;
 
@@ -168,7 +166,7 @@ async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_
 async fn every_failing_server_is_reported_not_just_the_first() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let missing = unique_name("missing");
     let stopped = unique_name("stopped");
     seed(&pool, &stopped, "stopped").await;
@@ -191,7 +189,7 @@ async fn every_failing_server_is_reported_not_just_the_first() {
 async fn an_unreachable_database_fails_verification_rather_than_passing_it() {
     let boot = ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("unreachable");
 
     let error = verify_database_registration(&[required(&name)], &ctx, None)
@@ -214,7 +212,7 @@ async fn an_unreachable_database_fails_verification_rather_than_passing_it() {
 async fn a_required_server_that_never_started_is_named_in_the_refusal() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("neverstarted");
 
     let error = handle_missing_servers(&[required(&name)], &orchestrator(&ctx), None)
@@ -237,7 +235,7 @@ async fn a_required_server_that_never_started_is_named_in_the_refusal() {
 async fn several_servers_that_never_started_are_all_named() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let first = unique_name("absent_one");
     let second = unique_name("absent_two");
 

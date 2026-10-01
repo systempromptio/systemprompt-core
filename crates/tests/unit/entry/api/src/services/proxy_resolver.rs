@@ -10,14 +10,12 @@ use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
+    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
 };
 
 async fn live_pool() -> DbPool {
-    let boot = ensure_test_bootstrap();
-    fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database")
+    ensure_test_bootstrap();
+    test_db_pool().await
 }
 
 fn unique_name(prefix: &str) -> String {
@@ -55,7 +53,7 @@ async fn delete_service(pool: &DbPool, name: &str) {
 async fn an_unreachable_database_is_reported_as_a_database_error_not_a_missing_service() {
     let boot = ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
 
     let error = ServiceResolver::resolve("anything", &ctx)
         .await
@@ -72,7 +70,7 @@ async fn an_unreachable_database_is_reported_as_a_database_error_not_a_missing_s
 async fn a_service_no_row_names_is_reported_as_not_found() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
 
     let error = ServiceResolver::resolve(&unique_name("absent"), &ctx)
         .await
@@ -89,7 +87,7 @@ async fn a_service_no_row_names_is_reported_as_not_found() {
 async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("stopped");
     seed_service(&pool, &name, "stopped").await;
 
@@ -123,7 +121,7 @@ async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
 async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retried_forever() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_unregistered");
     seed_service(&pool, &name, "crashed").await;
 
@@ -161,7 +159,7 @@ async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retri
 async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_recovers");
     seed_service(&pool, &name, "crashed").await;
 
@@ -201,7 +199,7 @@ async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
 async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_then_outage");
     seed_service(&pool, &name, "crashed").await;
 

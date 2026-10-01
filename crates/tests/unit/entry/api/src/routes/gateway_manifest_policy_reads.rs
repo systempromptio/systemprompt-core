@@ -12,8 +12,8 @@ use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_app_context_with, fixture_app_context_with_user_repository,
-    fixture_db_pool, init_isolated_bootstrap, install_test_signing_key, seed_bridge_credential,
-    seed_user_row,
+    init_isolated_bootstrap, install_test_signing_key, seed_bridge_credential, seed_user_row,
+    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use systemprompt_users::UserRepository;
@@ -50,9 +50,7 @@ async fn closed_write_pool(url: &str) -> Arc<sqlx::PgPool> {
 async fn manifest_is_not_signed_when_the_revocation_read_fails() {
     let boot = boot();
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database");
+    let pool = test_db_pool().await;
     let healthy = fixture_app_context_with(
         &pool,
         &boot.database_url,

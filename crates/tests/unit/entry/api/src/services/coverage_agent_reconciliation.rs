@@ -1,6 +1,6 @@
 use systemprompt_api::services::server::lifecycle::agents::reconcile_agents;
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_db_pool, init_services_bootstrap, install_test_signing_key,
+    init_services_bootstrap, install_test_signing_key, test_app_context, test_db_pool,
 };
 
 fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
@@ -57,8 +57,8 @@ async fn coverage_required_agent_failure_is_retried_and_blocks_api_startup() {
     let name = format!("reconcile_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Required", true));
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).unwrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
     let err = reconcile_agents(&ctx, None).await.unwrap_err();
     let message = err.to_string();
     assert!(message.contains("failed to start after retry"), "{message}");
@@ -76,8 +76,8 @@ async fn coverage_disabled_agent_does_not_block_api_startup_on_an_occupied_port(
     let name = format!("disabled_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Disabled", false));
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).unwrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
     assert_eq!(reconcile_agents(&ctx, None).await.unwrap(), 0);
     assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_ok());
 }
@@ -177,11 +177,8 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     let name = format!("reconcile_running_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Running cleanup", true));
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("agent reconciliation database fixture");
-    let ctx = fixture_app_context(&pool, &boot.database_url)
-        .expect("agent reconciliation application fixture");
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
     let mut owned = OwnedMarkedAgent::spawn(&name);
 
     ctx.a2a_repositories()
@@ -225,12 +222,10 @@ async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event
     );
     install_test_signing_key();
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("malformed_agent_registry_startup")
-            .await
-            .expect("private agent reconciliation database");
-    let pool = database.pool().await.expect("private agent pool");
-    let ctx = fixture_app_context(&pool, database.url())
-        .expect("agent reconciliation application fixture");
+        systemprompt_test_fixtures::DisposableDb::with_schema("malformed_agent_registry_startup")
+            .await;
+    let pool = database.test_pool().await;
+    let ctx = test_app_context(&pool, database.url());
     let (events, mut receiver) = systemprompt_traits::startup_channel();
 
     let error = reconcile_agents(&ctx, Some(&events))

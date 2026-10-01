@@ -12,7 +12,7 @@ use std::sync::Arc;
 use systemprompt_analytics::SessionRepository;
 use systemprompt_api::services::middleware::analytics::detection::collect_analysis_input;
 use systemprompt_identifiers::SessionId;
-use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
 
 async fn dead_repo() -> Arc<SessionRepository> {
     let pool = closed_db_pool().await;
@@ -24,10 +24,8 @@ async fn dead_repo() -> Arc<SessionRepository> {
 }
 
 async fn live_repo() -> Arc<SessionRepository> {
-    let boot = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database");
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     Arc::new(
         systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
             .map(|repositories| repositories.sessions)

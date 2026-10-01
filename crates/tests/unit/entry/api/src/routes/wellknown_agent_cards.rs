@@ -9,15 +9,13 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use systemprompt_api::routes::wellknown::agent_cards::wellknown_router;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
 use tower::ServiceExt;
 
 async fn router() -> axum::Router {
     let boot = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database");
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
     wellknown_router(&ctx)
 }
 

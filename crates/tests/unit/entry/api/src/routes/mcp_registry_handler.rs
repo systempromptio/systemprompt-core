@@ -15,14 +15,12 @@
 use axum::extract::State;
 use axum::response::IntoResponse;
 use systemprompt_api::routes::mcp::registry::handle_mcp_registry;
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 
 async fn ctx() -> systemprompt_runtime::AppContext {
-    let url = fixture_database_url().expect("MCP registry database URL");
-    let pool = fixture_db_pool(&url)
-        .await
-        .expect("MCP registry database pool");
-    (*fixture_app_context(&pool, &url).expect("MCP registry app context")).clone()
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    (*test_app_context(&pool, &url)).clone()
 }
 
 struct Reply {
@@ -84,23 +82,22 @@ async fn a_failure_names_the_registry_and_is_never_an_empty_list() {
             "the success envelope must carry meta.version: {}",
             reply.body
         );
-        return;
+    } else {
+        assert_eq!(
+            reply.status,
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "the only non-success outcome is a load failure"
+        );
+        assert!(
+            reply.body.contains("MCP registry"),
+            "a failure must name what could not be loaded: {}",
+            reply.body
+        );
+        let value: serde_json::Value = serde_json::from_str(&reply.body).expect("json");
+        assert!(
+            !value["data"].is_array(),
+            "a failed load must not present as an empty server list: {}",
+            reply.body
+        );
     }
-
-    assert_eq!(
-        reply.status,
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        "the only non-success outcome is a load failure"
-    );
-    assert!(
-        reply.body.contains("MCP registry"),
-        "a failure must name what could not be loaded: {}",
-        reply.body
-    );
-    let value: serde_json::Value = serde_json::from_str(&reply.body).expect("json");
-    assert!(
-        !value["data"].is_array(),
-        "a failed load must not present as an empty server list: {}",
-        reply.body
-    );
 }

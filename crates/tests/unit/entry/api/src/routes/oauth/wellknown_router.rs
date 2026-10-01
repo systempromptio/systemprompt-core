@@ -15,17 +15,15 @@ use axum::http::{Request, StatusCode};
 use systemprompt_api::routes::oauth::wellknown_routes;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_database_url, fixture_db_pool,
+    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
 use tower::ServiceExt;
 
 async fn router() -> Router {
-    let url = fixture_database_url().expect("DATABASE_URL");
+    let url = test_database_url();
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url)
-        .await
-        .expect("the discovery route tests need a reachable test database");
-    let ctx = fixture_app_context(&pool, &url).expect("app context");
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &url);
     wellknown_routes(&ctx)
 }
 
