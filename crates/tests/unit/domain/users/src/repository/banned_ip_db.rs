@@ -16,10 +16,10 @@ async fn setup(prefix: &str) -> Ctx {
     let pool = test_db_pool().await;
     let repo = BannedIpRepository::new(&pool).expect("repo");
     let tag = Uuid::new_v4();
-    let octet = u128::from_le_bytes(*tag.as_bytes()) % 200 + 10;
+    let [a, b, c, ..] = *tag.as_bytes();
     Ctx {
         repo,
-        ip: format!("10.{}.{}.{}", octet % 250, (octet / 7) % 250, prefix.len()),
+        ip: format!("10.{a}.{b}.{c}"),
         source: format!("src-{prefix}-{}", tag.simple()),
         fingerprint: format!("fp-{prefix}-{}", tag.simple()),
     }
