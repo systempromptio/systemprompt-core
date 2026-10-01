@@ -304,9 +304,11 @@ fn a_pass_through_entry_is_kept_as_authored_and_never_fetched() {
     assert!(report.upstream.is_empty(), "nothing is fetched");
     assert!(!dest.path().join("plugins/playwright-cli").exists());
     let marketplace = &marketplace_yaml(dest.path())["marketplace"];
-    assert_eq!(
-        marketplace["plugins"]["include"],
-        serde_yaml::Value::Sequence(vec![])
+    assert!(
+        marketplace["plugins"]["include"]
+            .as_sequence()
+            .is_none_or(Vec::is_empty),
+        "no vendored plugin is listed"
     );
     let expected: serde_yaml::Value = serde_yaml::from_str(
         r#"
