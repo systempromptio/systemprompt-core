@@ -29,7 +29,7 @@
 //! fetched but kept as authored on the marketplace config
 //! (`external_plugins`), and Claude Code fetches it itself. Such an entry must
 //! pin a `sha`, and its name may not repeat a vendored plugin's
-//! ([`pass_through`]).
+//! (`pass_through`).
 //!
 //! ## Destination
 //!

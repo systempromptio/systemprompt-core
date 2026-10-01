@@ -8098,7 +8098,6 @@ dependencies = [
  "serde_json",
  "sqlx",
  "systemprompt-config",
- "systemprompt-database",
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-models",
@@ -8607,7 +8606,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-oauth",
- "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-users",
  "tokio",
@@ -8750,7 +8748,6 @@ name = "systemprompt-runtime-tests"
 version = "0.0.11"
 dependencies = [
  "async-trait",
- "axum",
  "chrono",
  "inventory",
  "serde_jcs",

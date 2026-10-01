@@ -12,7 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-files = { workspace = true }
-systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
