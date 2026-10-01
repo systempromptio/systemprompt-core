@@ -66,6 +66,6 @@ pub async fn ensure_session(
         session_id: session_info.session_id,
         user_id: session_info.user_id,
         is_new: session_info.is_new,
-        jwt_token: Some(session_info.jwt_token),
+        jwt_token: Some(session_info.jwt_token.as_str().to_owned()),
     })
 }

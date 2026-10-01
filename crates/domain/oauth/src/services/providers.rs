@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{AccessTokenId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
@@ -109,7 +109,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             client_id: None,
         };
 
-        let jti = generate_secure_token("jwt");
+        let jti = AccessTokenId::new(generate_secure_token("jwt"));
         let signing = JwtSigningParams {
             issuer: &self.issuer,
         };

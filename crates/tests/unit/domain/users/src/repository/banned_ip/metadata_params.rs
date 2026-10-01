@@ -1,5 +1,6 @@
 //! Tests for BanIpWithMetadataParams.
 
+use systemprompt_identifiers::SessionId;
 use systemprompt_users::{BanDuration, BanIpWithMetadataParams};
 
 mod ban_ip_with_metadata_params_tests {
@@ -56,15 +57,17 @@ mod ban_ip_with_metadata_params_tests {
 
     #[test]
     fn with_session_id_sets_session() {
+        let session_id = SessionId::new("session-abc-123");
         let params =
             BanIpWithMetadataParams::new("192.168.1.1", "Test", BanDuration::Hours(1), "test")
-                .with_session_id("session-abc-123");
+                .with_session_id(&session_id);
 
-        assert_eq!(params.session_id, Some("session-abc-123"));
+        assert_eq!(params.session_id, Some(&session_id));
     }
 
     #[test]
     fn builder_methods_can_be_chained() {
+        let session_id = SessionId::new("session-xyz");
         let params = BanIpWithMetadataParams::new(
             "192.168.1.1",
             "Complete ban",
@@ -74,7 +77,7 @@ mod ban_ip_with_metadata_params_tests {
         .with_source_fingerprint("fp123")
         .with_offense_path("/admin/login")
         .with_user_agent("curl/7.68.0")
-        .with_session_id("session-xyz");
+        .with_session_id(&session_id);
 
         assert_eq!(params.ip_address, "192.168.1.1");
         assert_eq!(params.reason, "Complete ban");
@@ -83,7 +86,7 @@ mod ban_ip_with_metadata_params_tests {
         assert_eq!(params.source_fingerprint, Some("fp123"));
         assert_eq!(params.offense_path, Some("/admin/login"));
         assert_eq!(params.user_agent, Some("curl/7.68.0"));
-        assert_eq!(params.session_id, Some("session-xyz"));
+        assert_eq!(params.session_id, Some(&session_id));
     }
 
     #[test]

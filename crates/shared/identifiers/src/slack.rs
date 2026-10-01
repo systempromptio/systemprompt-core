@@ -7,6 +7,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-crate::define_id!(SlackWorkspaceId);
-crate::define_id!(SlackChannelId);
-crate::define_id!(SlackUserId);
+crate::define_id!(SlackWorkspaceId, checked, |value| {
+    crate::macros::validate_non_empty("SlackWorkspaceId", value)
+});
+crate::define_id!(SlackChannelId, checked, |value| {
+    crate::macros::validate_non_empty("SlackChannelId", value)
+});
+crate::define_id!(SlackUserId, checked, |value| {
+    crate::macros::validate_non_empty("SlackUserId", value)
+});

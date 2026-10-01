@@ -93,7 +93,7 @@ async fn get_by_slug_and_locale_finds_existing_row() {
 async fn get_by_id_returns_none_for_unknown_id() {
     let db = test_db_pool().await;
     let repo = ContentRepository::new(&db);
-    let missing = ContentId::new(uuid::Uuid::new_v4().to_string());
+    let missing = ContentId::generate();
     let result = repo.get_by_id(&missing).await.expect("query unknown id");
     assert!(result.is_none());
 }

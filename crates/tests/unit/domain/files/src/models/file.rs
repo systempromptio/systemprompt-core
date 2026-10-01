@@ -2,13 +2,13 @@
 
 use chrono::Utc;
 use systemprompt_files::{File, FileMetadata, ImageMetadata};
-use systemprompt_identifiers::{SessionId, TraceId};
+use systemprompt_identifiers::{FileId, SessionId, TraceId};
 use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 fn create_test_file() -> File {
     let now = Utc::now();
     File {
-        id: uuid::Uuid::new_v4(),
+        id: FileId::generate(),
         path: "/storage/images/test.png".to_string(),
         public_url: "/files/images/test.png".to_string(),
         mime_type: "image/png".to_string(),
@@ -28,7 +28,7 @@ fn create_test_file() -> File {
 fn create_test_file_with_metadata(metadata: FileMetadata) -> File {
     let now = Utc::now();
     File {
-        id: uuid::Uuid::new_v4(),
+        id: FileId::generate(),
         path: "/storage/images/test.png".to_string(),
         public_url: "/files/images/test.png".to_string(),
         mime_type: "image/png".to_string(),
@@ -46,11 +46,10 @@ fn create_test_file_with_metadata(metadata: FileMetadata) -> File {
 }
 
 #[test]
-fn test_file_id_returns_file_id() {
+fn test_file_id_is_a_uuid() {
     let file = create_test_file();
-    let file_id = file.id();
 
-    assert_eq!(file_id.as_str(), file.id.to_string());
+    assert!(file.id.to_uuid().is_ok());
 }
 
 #[test]
@@ -58,7 +57,7 @@ fn test_file_id_format() {
     let uuid = uuid::Uuid::new_v4();
     let now = Utc::now();
     let file = File {
-        id: uuid,
+        id: FileId::from_uuid(uuid),
         path: "/test.png".to_string(),
         public_url: "/files/test.png".to_string(),
         mime_type: "image/png".to_string(),
@@ -74,9 +73,9 @@ fn test_file_id_format() {
         deleted_at: None,
     };
 
-    let file_id = file.id();
+    assert_eq!(file.id.as_str(), uuid.to_string());
     assert!(
-        file_id
+        file.id
             .as_str()
             .chars()
             .all(|c| c.is_ascii_hexdigit() || c == '-')
@@ -136,7 +135,7 @@ fn test_file_metadata_with_checksums() {
 fn test_file_with_all_optional_ids() {
     let now = Utc::now();
     let file = File {
-        id: uuid::Uuid::new_v4(),
+        id: FileId::generate(),
         path: "/storage/test.png".to_string(),
         public_url: "/files/test.png".to_string(),
         mime_type: "image/png".to_string(),
@@ -175,7 +174,7 @@ fn test_file_ai_content_flag() {
 fn test_file_deleted_at() {
     let now = Utc::now();
     let active_file = File {
-        id: uuid::Uuid::new_v4(),
+        id: FileId::generate(),
         path: "/test.png".to_string(),
         public_url: "/files/test.png".to_string(),
         mime_type: "image/png".to_string(),
@@ -194,7 +193,7 @@ fn test_file_deleted_at() {
     assert!(active_file.deleted_at.is_none());
 
     let deleted_file = File {
-        id: uuid::Uuid::new_v4(),
+        id: FileId::generate(),
         path: "/test.png".to_string(),
         public_url: "/files/test.png".to_string(),
         mime_type: "image/png".to_string(),

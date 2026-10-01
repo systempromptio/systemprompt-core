@@ -17,6 +17,7 @@ use serde_json::json;
 
 use crate::services::proxy::backend::ProxyError;
 use crate::services::request_base_url::resolve as resolve_request_base_url;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::modules::ApiPaths;
@@ -32,7 +33,11 @@ impl AuthValidator {
         service_name: &str,
         req_context: Option<&RequestContext>,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let result = AuthService::authorize_service_access(headers, service_name);
+        let service = ServiceName::try_new(service_name).map_err(|e| {
+            tracing::debug!(error = %e, "Proxy request names no service");
+            StatusCode::NOT_FOUND
+        })?;
+        let result = AuthService::authorize_service_access(headers, &service);
 
         if let Err(status) = &result {
             let trace_id =

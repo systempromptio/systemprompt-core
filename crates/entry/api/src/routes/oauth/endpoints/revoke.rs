@@ -16,7 +16,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
+use systemprompt_identifiers::{AccessTokenId, ClientId, RefreshTokenId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::{Config, RequestContext};
 use systemprompt_oauth::OAuthState;
@@ -120,7 +120,9 @@ async fn revoke_refresh_token(
     token: &str,
     caller: &Caller<'_>,
 ) -> Result<bool, OAuthHttpError> {
-    let token_id = RefreshTokenId::new(token);
+    let Ok(token_id) = RefreshTokenId::try_new(token) else {
+        return Ok(false);
+    };
     let Some(holder) = repo.find_refresh_token_holder(&token_id).await? else {
         return Ok(false);
     };
@@ -155,7 +157,14 @@ async fn revoke_access_token(
     };
     caller.check_client(claims.client_id.as_ref())?;
 
-    if !caller.owns(&UserId::new(&claims.sub)) {
+    let owner = match UserId::try_new(&claims.sub) {
+        Ok(owner) => owner,
+        Err(e) => {
+            tracing::debug!(error = %e, "Access token subject is not a user id; nothing to revoke");
+            return Ok(());
+        },
+    };
+    if !caller.owns(&owner) {
         tracing::warn!(
             caller = %caller.user_id,
             "Refused to revoke an access token owned by another user"
@@ -163,7 +172,10 @@ async fn revoke_access_token(
         return Ok(());
     }
 
-    record_jti_revocation(repo, &claims.jti, &claims.sub, claims.exp).await?;
+    match AccessTokenId::try_new(&claims.jti) {
+        Ok(jti) => record_jti_revocation(repo, &jti, &owner, claims.exp).await?,
+        Err(e) => tracing::debug!(error = %e, "Access token has no jti; nothing to record"),
+    }
 
     if let Some(session_id) = &claims.session_id {
         state
@@ -177,28 +189,13 @@ async fn revoke_access_token(
 
 async fn record_jti_revocation(
     repo: &OAuthRepository,
-    jti: &str,
-    sub: &str,
+    jti: &AccessTokenId,
+    owner: &UserId,
     exp: i64,
 ) -> Result<(), OAuthHttpError> {
-    if jti.is_empty() {
-        tracing::debug!("Access token has no jti; nothing to record");
-        return Ok(());
-    }
-    let user_uuid = match uuid::Uuid::parse_str(sub) {
-        Ok(u) => u,
-        Err(e) => {
-            tracing::debug!(
-                error = %e,
-                sub = %sub,
-                "Access token sub is not a UUID; cannot record jti"
-            );
-            return Ok(());
-        },
-    };
     let exp =
         chrono::DateTime::<chrono::Utc>::from_timestamp(exp, 0).unwrap_or_else(chrono::Utc::now);
-    repo.revoke_jti(jti, user_uuid, exp).await?;
+    repo.revoke_jti(jti, owner, exp).await?;
     Ok(())
 }
 

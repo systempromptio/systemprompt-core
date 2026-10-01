@@ -14,11 +14,11 @@ use crate::models::reporting::{
 impl AgentAnalyticsRepository {
     pub async fn agent_exists(
         &self,
-        agent_name: &str,
+        agent_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<i64> {
-        let pattern = format!("%{}%", agent_name);
+        let pattern = format!("%{}%", agent_filter);
         let count = sqlx::query_scalar!(
             r#"SELECT COUNT(*)::bigint as "count!" FROM report_agent_tasks WHERE agent_name ILIKE $1 AND started_at >= $2 AND started_at < $3"#,
             pattern,
@@ -32,11 +32,11 @@ impl AgentAnalyticsRepository {
 
     pub async fn get_agent_summary(
         &self,
-        agent_name: &str,
+        agent_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<AgentSummaryRow> {
-        let pattern = format!("%{}%", agent_name);
+        let pattern = format!("%{}%", agent_filter);
         sqlx::query_as!(
             AgentSummaryRow,
             r#"
@@ -60,11 +60,11 @@ impl AgentAnalyticsRepository {
 
     pub async fn get_status_breakdown(
         &self,
-        agent_name: &str,
+        agent_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<AgentStatusBreakdownRow>> {
-        let pattern = format!("%{}%", agent_name);
+        let pattern = format!("%{}%", agent_filter);
         sqlx::query_as!(
             AgentStatusBreakdownRow,
             r#"
@@ -86,11 +86,11 @@ impl AgentAnalyticsRepository {
 
     pub async fn get_top_errors(
         &self,
-        agent_name: &str,
+        agent_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<AgentErrorRow>> {
-        let pattern = format!("%{}%", agent_name);
+        let pattern = format!("%{}%", agent_filter);
         sqlx::query_as!(
             AgentErrorRow,
             r#"
@@ -116,11 +116,11 @@ impl AgentAnalyticsRepository {
 
     pub async fn get_hourly_distribution(
         &self,
-        agent_name: &str,
+        agent_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<AgentHourlyRow>> {
-        let pattern = format!("%{}%", agent_name);
+        let pattern = format!("%{}%", agent_filter);
         sqlx::query_as!(
             AgentHourlyRow,
             r#"

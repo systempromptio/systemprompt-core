@@ -3,7 +3,7 @@
 // authority-signed fixture JWTs (issuer "test", audience "api").
 
 use http::{HeaderMap, StatusCode};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ServiceName, UserId};
 use systemprompt_oauth::services::jwt::{
     AuthService, AuthenticationService, AuthorizationService, extract_bearer_token,
     extract_cookie_token,
@@ -72,7 +72,8 @@ fn authorize_service_access_accepts_valid_token() {
     ensure_test_bootstrap();
     let (user_id, headers) = minted_headers("svcacc@test.invalid");
 
-    let user = AuthorizationService::authorize_service_access(&headers, "mcp").expect("authorized");
+    let user = AuthorizationService::authorize_service_access(&headers, &ServiceName::new("mcp"))
+        .expect("authorized");
     assert_eq!(user.id.to_string(), user_id.as_str());
 }
 
@@ -81,8 +82,8 @@ fn authorize_service_access_rejects_invalid_jwt() {
     ensure_test_bootstrap();
     let headers = bearer_headers("still.not.ajwt");
 
-    let err =
-        AuthorizationService::authorize_service_access(&headers, "mcp").expect_err("invalid jwt");
+    let err = AuthorizationService::authorize_service_access(&headers, &ServiceName::new("mcp"))
+        .expect_err("invalid jwt");
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
 
@@ -158,7 +159,8 @@ fn auth_service_facade_delegates_all_paths() {
 
     let user = AuthService::authenticate(&headers).expect("authenticate");
     assert_eq!(user.id.to_string(), user_id.as_str());
-    let user = AuthService::authorize_service_access(&headers, "api").expect("service access");
+    let user = AuthService::authorize_service_access(&headers, &ServiceName::new("api"))
+        .expect("service access");
     assert_eq!(user.id.to_string(), user_id.as_str());
     let user = AuthService::authorize_required_audience(&headers, "api").expect("required aud");
     assert_eq!(user.id.to_string(), user_id.as_str());

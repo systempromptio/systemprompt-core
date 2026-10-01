@@ -11,9 +11,10 @@
 use chrono::{Duration, Utc};
 use systemprompt_api::services::middleware::JtiRevocationChecker;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::AccessTokenId;
 use systemprompt_models::execution::context::ContextExtractionError;
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{seed_user_row, test_db_pool, unique_user_id};
 use uuid::Uuid;
 
 
@@ -21,28 +22,32 @@ fn checker(pool: &DbPool) -> JtiRevocationChecker {
     JtiRevocationChecker::from_repository(OAuthRepository::new(pool))
 }
 
-fn jti() -> String {
-    format!("jti-revocation-{}", Uuid::new_v4().simple())
+fn jti() -> AccessTokenId {
+    AccessTokenId::new(format!("jti-revocation-{}", Uuid::new_v4().simple()))
 }
 
-async fn revoke(pool: &DbPool, jti: &str, minutes_from_now: i64) {
+async fn revoke(pool: &DbPool, jti: &AccessTokenId, minutes_from_now: i64) {
+    let owner = unique_user_id("jti-owner");
+    seed_user_row(pool, &owner, &format!("{}@jti.invalid", owner.as_str()))
+        .await
+        .expect("seed the token owner");
     let p = pool.pool();
     sqlx::query(
         "INSERT INTO oauth_jti_revocations (jti, user_id, exp) VALUES ($1, $2, $3) \
          ON CONFLICT (jti) DO UPDATE SET exp = EXCLUDED.exp",
     )
-    .bind(jti)
-    .bind(Uuid::new_v4())
+    .bind(jti.as_str())
+    .bind(owner.as_str())
     .bind(Utc::now() + Duration::minutes(minutes_from_now))
     .execute(&*p)
     .await
     .expect("record the revocation");
 }
 
-async fn forget(pool: &DbPool, jti: &str) {
+async fn forget(pool: &DbPool, jti: &AccessTokenId) {
     let p = pool.pool();
     sqlx::query("DELETE FROM oauth_jti_revocations WHERE jti = $1")
-        .bind(jti)
+        .bind(jti.as_str())
         .execute(&*p)
         .await
         .expect("drop the revocation");
@@ -90,18 +95,6 @@ async fn a_revocation_that_has_itself_expired_no_longer_refuses() {
         .ensure_not_revoked(&jti)
         .await
         .expect("a revocation past its own expiry is spent and must not reject");
-}
-
-// Why: a token with no `jti` claim cannot be named in a revocation row, so
-// there is nothing to look up. It is admitted deliberately — the gate above
-// this one decides whether such a token is acceptable at all.
-#[tokio::test]
-async fn a_token_with_no_jti_claim_is_not_checked() {
-    let pool = test_db_pool().await;
-    checker(&pool)
-        .ensure_not_revoked("")
-        .await
-        .expect("an empty jti has nothing to look up");
 }
 
 // Why: the positive half of the cache is sticky on purpose. Once a token has
@@ -179,7 +172,7 @@ async fn a_revocation_store_failure_rejects_the_token_without_disclosing_its_jti
         "{message}"
     );
     assert!(
-        !message.contains(&private_jti),
+        !message.contains(private_jti.as_str()),
         "the token identifier leaked: {message}"
     );
 }

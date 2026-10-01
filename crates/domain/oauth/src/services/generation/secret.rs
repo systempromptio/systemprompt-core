@@ -28,10 +28,6 @@ pub fn generate_client_secret() -> String {
     format!("secret_{secret}")
 }
 
-pub fn generate_access_token_jti() -> String {
-    uuid::Uuid::new_v4().to_string()
-}
-
 pub fn hash_client_secret(secret: &str) -> Result<String> {
     use bcrypt::{DEFAULT_COST, hash};
     Ok(hash(secret, DEFAULT_COST)?)

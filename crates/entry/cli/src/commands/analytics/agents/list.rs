@@ -96,7 +96,7 @@ async fn execute_internal(
             };
 
             AgentListRow {
-                agent_name: row.agent_name,
+                agent_name: row.agent_name.to_string(),
                 task_count: row.task_count,
                 success_rate,
                 avg_execution_time_ms: row.avg_execution_time_ms,

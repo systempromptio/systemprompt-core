@@ -57,8 +57,8 @@ fn agent_for_prefers_routing_then_falls_back_to_default() {
 }
 
 #[test]
-fn validate_rejects_empty_tenant() {
-    let app = yaml(
+fn deserialize_rejects_empty_tenant() {
+    let parsed: Result<TeamsAppConfig, _> = serde_yaml::from_str(
         r#"
 tenant_id: ""
 app_id: "a"
@@ -66,7 +66,7 @@ app_password_ref: "ref"
 default_agent: "agent"
 "#,
     );
-    assert!(app.validate("primary").is_err());
+    assert!(parsed.is_err());
 }
 
 #[test]

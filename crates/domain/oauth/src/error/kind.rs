@@ -86,7 +86,6 @@ impl OauthError {
             | Self::InvalidTokenLifetime { .. }
             | Self::Bcrypt(_)
             | Self::Json(_)
-            | Self::InvalidUserId { .. }
             | Self::CimdHttpClient(_)
             | Self::CimdFetch { .. }
             | Self::CimdStatus { .. }

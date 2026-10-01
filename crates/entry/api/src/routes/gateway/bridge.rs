@@ -65,9 +65,9 @@ pub async fn set_enabled_host(
 ) -> Result<Json<SetHostPrefResponse>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
 
-    if body.host_id.parse::<HostKind>().is_err() {
+    let Ok(host) = body.host_id.parse::<HostKind>() else {
         return Err(BridgeError::UnknownHost(body.host_id).into());
-    }
+    };
 
     if body.enabled {
         let services = bridge_data::load_services_config()
@@ -77,7 +77,7 @@ pub async fn set_enabled_host(
         }
     }
 
-    bridge_data::upsert_host_pref(&ctx, &claims.user_id, &body.host_id, body.enabled)
+    bridge_data::upsert_host_pref(&ctx, &claims.user_id, host, body.enabled)
         .await
         .map_err(BridgeError::from)?;
 
@@ -108,9 +108,9 @@ pub async fn set_host_model_filter(
 ) -> Result<Json<HostModelFilterResponse>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
 
-    if body.host_id.parse::<HostKind>().is_err() {
+    let Ok(host) = body.host_id.parse::<HostKind>() else {
         return Err(BridgeError::UnknownHost(body.host_id).into());
-    }
+    };
 
     let normalized = body
         .model_protocols
@@ -126,14 +126,9 @@ pub async fn set_host_model_filter(
         })
         .transpose()?;
 
-    bridge_data::set_host_model_protocols(
-        &ctx,
-        &claims.user_id,
-        &body.host_id,
-        normalized.as_deref(),
-    )
-    .await
-    .map_err(BridgeError::from)?;
+    bridge_data::set_host_model_protocols(&ctx, &claims.user_id, host, normalized.as_deref())
+        .await
+        .map_err(BridgeError::from)?;
 
     Ok(Json(HostModelFilterResponse {
         host_id: body.host_id,

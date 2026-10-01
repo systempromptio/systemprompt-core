@@ -13,7 +13,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use sqlx::types::Json;
-use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
+use systemprompt_identifiers::{ManagedResourceId, PublicationId, ResourceRevisionId, UserId};
 use systemprompt_models::managed::{
     ASSEMBLER_VERSION, MAX_BYTES, MAX_FILES, MAX_REVISIONS, RevisionManifest,
 };
@@ -60,8 +60,8 @@ impl ManagedRepository {
                             SelectionRow {
                                 generation,
                                 state,
-                                publication_id,
-                                revision_id: row.revision_id,
+                                publication_id: PublicationId::new(publication_id),
+                                revision_id: row.revision_id.map(ResourceRevisionId::new),
                                 bundle_digest: row.bundle_digest,
                             },
                         )?;

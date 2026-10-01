@@ -18,9 +18,9 @@ fn create_test_client_row() -> OAuthClientRow {
         application_type: "web".to_owned(),
         client_uri: Some("https://example.com".to_string()),
         logo_uri: Some("https://example.com/logo.png".to_string()),
-        is_active: Some(true),
-        created_at: Some(Utc::now()),
-        updated_at: Some(Utc::now()),
+        is_active: true,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
         last_used_at: Some(Utc::now()),
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
     }

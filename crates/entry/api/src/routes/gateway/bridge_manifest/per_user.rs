@@ -72,7 +72,7 @@ pub(super) async fn load_per_user_context(
         Ok(rows) if rows.is_empty() => instance_hosts,
         Ok(rows) => instance_hosts
             .into_iter()
-            .filter(|h| rows.iter().any(|r| r == h))
+            .filter(|h| rows.iter().any(|r| r.as_str() == h))
             .collect(),
         Err(e) => {
             return Err(BridgeError::internal(
@@ -83,7 +83,10 @@ pub(super) async fn load_per_user_context(
     };
 
     let host_model_protocols = match bridge_data::load_host_model_protocols(ctx, user_id).await {
-        Ok(rows) => rows.into_iter().collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(|(host, protocols)| (host.as_str().to_owned(), protocols))
+            .collect(),
         Err(e) => {
             tracing::warn!(
                 error = %e,

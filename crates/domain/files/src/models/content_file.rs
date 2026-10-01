@@ -5,8 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
-use systemprompt_identifiers::ContentId;
+use systemprompt_identifiers::{ContentId, FileId};
 
 use crate::error::{FilesError, FilesResult};
 
@@ -53,11 +52,11 @@ impl std::fmt::Display for FileRole {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentFile {
     pub id: i32,
     pub content_id: ContentId,
-    pub file_id: uuid::Uuid,
+    pub file_id: FileId,
     pub role: FileRole,
     pub display_order: i32,
     pub created_at: DateTime<Utc>,

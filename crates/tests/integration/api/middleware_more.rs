@@ -24,6 +24,7 @@ use systemprompt_api::services::middleware::{
     site_auth_gate,
 };
 use systemprompt_extension::SiteAuthConfig;
+use systemprompt_identifiers::AccessTokenId;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::routing::EventMetadata;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
@@ -323,12 +324,7 @@ async fn jti_revocation_checker_fails_closed_on_revoked() -> Result<()> {
         systemprompt_oauth::repository::OAuthRepository::new(&pool),
     );
 
-    assert!(
-        checker.ensure_not_revoked("").await.is_ok(),
-        "empty jti short-circuits to allow"
-    );
-
-    let fresh = format!("jti-fresh-{}", Uuid::new_v4());
+    let fresh = AccessTokenId::new(format!("jti-fresh-{}", Uuid::new_v4()));
     assert!(
         checker.ensure_not_revoked(&fresh).await.is_ok(),
         "an unrevoked jti passes (cache miss then DB lookup)"

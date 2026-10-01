@@ -30,10 +30,6 @@ fn default_matcher() -> String {
     "*".to_owned()
 }
 
-fn default_hook_id() -> HookId {
-    HookId::new("")
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum HookEvent {
@@ -142,8 +138,8 @@ impl FromStr for HookCategory {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DiskHookConfig {
-    #[serde(default = "default_hook_id")]
-    pub id: HookId,
+    #[serde(default)]
+    pub id: Option<HookId>,
     #[serde(default)]
     pub name: String,
     #[serde(default)]

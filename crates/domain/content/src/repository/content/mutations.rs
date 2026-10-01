@@ -19,7 +19,7 @@ pub(super) async fn create(
     pool: &Arc<PgPool>,
     params: &CreateContentParams,
 ) -> Result<Content, sqlx::Error> {
-    let id = ContentId::new(uuid::Uuid::new_v4().to_string());
+    let id = ContentId::generate();
     let now = Utc::now();
     sqlx::query_as!(
         Content,
@@ -110,7 +110,7 @@ pub(super) async fn update(
         params.image,
         params.version_hash,
         now,
-        resolved.category_id,
+        resolved.category_id.as_ref().map(CategoryId::as_str),
         resolved.kind,
         resolved.public,
         resolved.author,
@@ -123,7 +123,7 @@ pub(super) async fn update(
 }
 
 struct ResolvedUpdate {
-    category_id: Option<String>,
+    category_id: Option<CategoryId>,
     kind: String,
     public: bool,
     author: String,
@@ -134,11 +134,9 @@ struct ResolvedUpdate {
 impl ResolvedUpdate {
     fn resolve(params: &UpdateContentParams, current: Option<&Content>) -> Self {
         let category_id = match &params.category_id {
-            CategoryIdUpdate::Set(cat) => Some(cat.as_str().to_owned()),
+            CategoryIdUpdate::Set(cat) => Some(cat.clone()),
             CategoryIdUpdate::Clear => None,
-            CategoryIdUpdate::Unchanged => {
-                current.and_then(|c| c.category_id.as_ref().map(|cat| cat.as_str().to_owned()))
-            },
+            CategoryIdUpdate::Unchanged => current.and_then(|c| c.category_id.clone()),
         };
 
         let kind = params.kind.clone().unwrap_or_else(|| {

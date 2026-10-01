@@ -36,7 +36,7 @@ async fn create_user_with_all_fields() -> Result<()> {
     assert_eq!(user.email, unique_email);
     assert_eq!(user.full_name, Some("Test User".to_string()));
     assert_eq!(user.display_name, Some("Test".to_string()));
-    assert_eq!(user.status, Some("active".to_string()));
+    assert_eq!(user.status, UserStatus::Active);
     assert!(user.roles.contains(&"user".to_string()));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user.id.as_str())
@@ -250,7 +250,7 @@ async fn update_email_changes_email() -> Result<()> {
     let updated = repo.update_email(&created.id, &new_email).await?;
 
     assert_eq!(updated.email, new_email);
-    assert_eq!(updated.email_verified, Some(false)); // Should reset on email change
+    assert!(!updated.email_verified);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -298,7 +298,7 @@ async fn update_status_changes_status() -> Result<()> {
         .update_status(&created.id, UserStatus::Suspended)
         .await?;
 
-    assert_eq!(updated.status, Some("suspended".to_string()));
+    assert_eq!(updated.status, UserStatus::Suspended);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -321,7 +321,7 @@ async fn update_email_verified_sets_flag() -> Result<()> {
 
     let updated = repo.update_email_verified(&created.id, true).await?;
 
-    assert_eq!(updated.email_verified, Some(true));
+    assert!(updated.email_verified);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -355,7 +355,7 @@ async fn update_all_fields_updates_everything() -> Result<()> {
     assert_eq!(updated.email, new_email);
     assert_eq!(updated.full_name, Some("Updated Full Name".to_string()));
     assert_eq!(updated.display_name, Some("Updated Display".to_string()));
-    assert_eq!(updated.status, Some("inactive".to_string()));
+    assert_eq!(updated.status, UserStatus::Inactive);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -454,7 +454,7 @@ async fn find_authenticated_user_returns_active_user() -> Result<()> {
     let auth_user = auth_user.expect("find_authenticated_user should return active user");
     assert_eq!(auth_user.id.to_string(), created.id.to_string());
     assert_eq!(auth_user.email, unique_email);
-    assert_eq!(auth_user.status, Some("active".to_string()));
+    assert_eq!(auth_user.status, UserStatus::Active);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())

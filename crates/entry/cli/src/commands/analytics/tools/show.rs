@@ -135,7 +135,7 @@ fn build_usage_by_agent(rows: Vec<ToolAgentUsageRow>) -> Vec<AgentUsageItem> {
     let agent_total: i64 = rows.iter().map(|r| r.usage_count).sum();
     rows.into_iter()
         .map(|row| AgentUsageItem {
-            agent_name: row.agent_name.unwrap_or_else(|| "Direct Call".to_owned()),
+            agent_name: row.caller.to_string(),
             count: row.usage_count,
             percentage: if agent_total > 0 {
                 (row.usage_count as f64 / agent_total as f64) * 100.0

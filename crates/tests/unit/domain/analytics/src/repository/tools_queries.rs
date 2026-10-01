@@ -5,6 +5,7 @@
 //! the ILIKE filters isolate its own data.
 
 use chrono::{DateTime, Duration, Utc};
+use systemprompt_analytics::models::ToolCaller;
 use systemprompt_analytics::{ToolAnalyticsRepository, ToolListParams};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
@@ -125,7 +126,7 @@ async fn list_tools_filtered_covers_all_sort_orders() {
             .await
             .expect("list filtered");
         assert_eq!(rows.len(), 2, "sort_order={sort_order}");
-        assert!(rows.iter().all(|r| r.server_name == server));
+        assert!(rows.iter().all(|r| r.server_name.as_str() == server));
     }
 
     let by_count = repo
@@ -138,7 +139,7 @@ async fn list_tools_filtered_covers_all_sort_orders() {
         })
         .await
         .expect("list by count");
-    assert_eq!(by_count[0].tool_name, format!("{prefix}-fast"));
+    assert_eq!(by_count[0].tool_name.as_str(), format!("{prefix}-fast"));
     assert_eq!(by_count[0].execution_count, 2);
     assert_eq!(by_count[0].success_count, 2);
 
@@ -152,7 +153,7 @@ async fn list_tools_filtered_covers_all_sort_orders() {
         })
         .await
         .expect("list by avg time");
-    assert_eq!(by_avg_time[0].tool_name, format!("{prefix}-slow"));
+    assert_eq!(by_avg_time[0].tool_name.as_str(), format!("{prefix}-slow"));
 
     cleanup(&pool, &prefix).await;
 }
@@ -181,7 +182,7 @@ async fn list_tools_unfiltered_covers_all_sort_orders() {
             .expect("list unfiltered");
         let mine: Vec<_> = rows
             .iter()
-            .filter(|r| r.tool_name.starts_with(&prefix))
+            .filter(|r| r.tool_name.as_str().starts_with(&prefix))
             .collect();
         assert_eq!(mine.len(), 2, "sort_order={sort_order}");
     }
@@ -264,7 +265,7 @@ async fn detail_queries_break_down_status_errors_and_agents() {
         .await
         .expect("agents");
     assert_eq!(agents.len(), 1);
-    assert_eq!(agents[0].agent_name.as_deref(), Some("Direct Call"));
+    assert_eq!(agents[0].caller, ToolCaller::DirectCall);
     assert_eq!(agents[0].usage_count, 3);
 
     let trends_filtered = repo

@@ -216,7 +216,7 @@ fn test_file_upload_request_debug() {
 
 #[test]
 fn test_uploaded_file_struct() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let uploaded = UploadedFile {
         file_id: file_id.clone(),
         path: "/storage/uploads/test.png".to_string(),
@@ -233,7 +233,7 @@ fn test_uploaded_file_struct() {
 
 #[test]
 fn test_uploaded_file_debug() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let uploaded = UploadedFile {
         file_id,
         path: "/storage/test.png".to_string(),

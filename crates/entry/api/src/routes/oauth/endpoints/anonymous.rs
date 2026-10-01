@@ -81,7 +81,7 @@ async fn issue_anonymous_session(
 
     let jwt_token = session_info.jwt_token;
     let body = AnonymousTokenResponse {
-        access_token: jwt_token.clone(),
+        access_token: jwt_token.as_str().to_owned(),
         token_type: TokenType::Bearer.to_string(),
         expires_in,
         session_id: session_info.session_id,
@@ -89,7 +89,7 @@ async fn issue_anonymous_session(
         client_id,
         client_type,
     };
-    Ok(token_response(body, &jwt_token, expires_in))
+    Ok(token_response(body, jwt_token.as_str(), expires_in))
 }
 
 fn build_session_service(state: &OAuthState) -> SessionCreationService {

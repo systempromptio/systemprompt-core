@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use systemprompt_identifiers::{
-    ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
+    AccessTokenId, ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
 };
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
@@ -26,9 +26,7 @@ use systemprompt_traits::{
 
 use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
 use crate::services::authenticated_user::load_authenticated_user;
-use crate::services::generation::{
-    JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt,
-};
+use crate::services::generation::{JwtConfig, JwtSigningParams, generate_jwt};
 
 const DEFAULT_ACCESS_TTL_SECONDS: u64 = 3600;
 const EXCHANGE_CODE_BYTES: usize = 32;
@@ -131,7 +129,7 @@ pub async fn issue_bridge_access(
     let token = generate_jwt(
         &auth_user,
         config,
-        generate_access_token_jti(),
+        AccessTokenId::generate(),
         &session_id,
         &signing,
     )?;

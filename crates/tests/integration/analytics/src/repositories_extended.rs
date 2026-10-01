@@ -243,7 +243,7 @@ async fn agent_repository_smoke() -> Result<()> {
         let listed = repo
             .list_agents(fx.window_start, fx.window_end, 10, order)
             .await?;
-        assert!(listed.iter().any(|r| r.agent_name == agent));
+        assert!(listed.iter().any(|r| r.agent_name.as_str() == agent));
     }
 
     let exists = repo
@@ -299,7 +299,7 @@ async fn tool_repository_smoke() -> Result<()> {
             })
             .await?;
         assert!(
-            listed.iter().any(|r| r.tool_name == tool),
+            listed.iter().any(|r| r.tool_name.as_str() == tool),
             "seeded tool must surface in list_tools with sort order {order:?}"
         );
     }
@@ -313,7 +313,7 @@ async fn tool_repository_smoke() -> Result<()> {
             sort_order: "call_count",
         })
         .await?;
-    assert!(filtered.iter().any(|r| r.tool_name == tool));
+    assert!(filtered.iter().any(|r| r.tool_name.as_str() == tool));
 
     let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
     assert!(stats.total_executions >= 2);

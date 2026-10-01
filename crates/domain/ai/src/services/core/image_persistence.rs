@@ -102,7 +102,7 @@ async fn persist_file_record(
     let metadata = serde_json::to_value(image_metadata).map_err(AiError::SerializationError)?;
 
     let file_id = Uuid::parse_str(response.id.as_str())
-        .map(|uuid| FileId::new(uuid.to_string()))
+        .map(FileId::from_uuid)
         .map_err(AiError::InvalidFileId)?;
 
     let params =

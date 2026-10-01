@@ -96,11 +96,7 @@ pub(super) async fn execute_with_pool(
 
     let users: Vec<_> = if let Some(status_filter) = args.status {
         let status: UserStatus = status_filter.into();
-        let status_str = status.as_str();
-        users
-            .into_iter()
-            .filter(|u| u.status.as_deref() == Some(status_str))
-            .collect()
+        users.into_iter().filter(|u| u.status == status).collect()
     } else {
         users
     };
@@ -114,7 +110,7 @@ pub(super) async fn execute_with_pool(
                 id: u.id.clone(),
                 name: u.name.clone(),
                 email: u.email.clone(),
-                status: u.status.clone(),
+                status: u.status.to_string(),
                 roles: u.roles.clone(),
                 created_at: u.created_at,
             })

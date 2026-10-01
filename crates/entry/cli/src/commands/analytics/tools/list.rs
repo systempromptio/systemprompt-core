@@ -101,8 +101,8 @@ async fn execute_internal(args: ListArgs, repo: &ToolAnalyticsRepository) -> Res
             };
 
             ToolListRow {
-                tool_name: row.tool_name,
-                server_name: row.server_name,
+                tool_name: row.tool_name.to_string(),
+                server_name: row.server_name.to_string(),
                 execution_count: row.execution_count,
                 success_rate,
                 avg_execution_time_ms: row.avg_time as i64,

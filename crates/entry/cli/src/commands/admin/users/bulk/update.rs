@@ -8,7 +8,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_users::{UserRepository, UserService};
+use systemprompt_users::{UserRepository, UserService, UserStatus};
 
 use crate::commands::admin::users::types::BulkUpdateOutput;
 use crate::context::CommandContext;
@@ -17,13 +17,13 @@ use crate::shared::CommandOutput;
 #[derive(Debug, Args)]
 pub struct UpdateArgs {
     #[arg(long, help = "New status to set (active, inactive, suspended)")]
-    pub set_status: String,
+    pub set_status: UserStatus,
 
     #[arg(long, help = "Filter by current role (e.g., 'anonymous')")]
     pub role: Option<String>,
 
     #[arg(long, help = "Filter by current status")]
-    pub status: Option<String>,
+    pub status: Option<UserStatus>,
 
     #[arg(long, help = "Filter by age: users older than N days")]
     pub older_than: Option<i64>,
@@ -73,12 +73,13 @@ pub(super) async fn execute(args: UpdateArgs, ctx: &CommandContext) -> Result<Co
         ));
     }
 
-    let valid_statuses = ["active", "inactive", "suspended"];
-    if !valid_statuses.contains(&args.set_status.as_str()) {
+    if !matches!(
+        args.set_status,
+        UserStatus::Active | UserStatus::Inactive | UserStatus::Suspended
+    ) {
         return Err(anyhow!(
-            "Invalid status '{}'. Must be one of: {}",
-            args.set_status,
-            valid_statuses.join(", ")
+            "Invalid status '{}'. Must be one of: active, inactive, suspended",
+            args.set_status
         ));
     }
 
@@ -87,7 +88,7 @@ pub(super) async fn execute(args: UpdateArgs, ctx: &CommandContext) -> Result<Co
 
     let users = user_service
         .list_by_filter(
-            args.status.as_deref(),
+            args.status,
             args.role.as_deref(),
             args.older_than,
             args.limit,
@@ -109,7 +110,7 @@ pub(super) async fn execute(args: UpdateArgs, ctx: &CommandContext) -> Result<Co
         let output = DryRunOutput {
             dry_run: true,
             would_update: users.len(),
-            new_status: args.set_status.clone(),
+            new_status: args.set_status.to_string(),
             message: format!(
                 "Would update {} user(s) to status '{}'",
                 users.len(),
@@ -124,7 +125,7 @@ pub(super) async fn execute(args: UpdateArgs, ctx: &CommandContext) -> Result<Co
 
     let user_ids: Vec<_> = users.iter().map(|u| u.id.clone()).collect();
     let updated = user_service
-        .bulk_update_status(&user_ids, &args.set_status)
+        .bulk_update_status(&user_ids, args.set_status)
         .await?;
 
     let output = BulkUpdateOutput {

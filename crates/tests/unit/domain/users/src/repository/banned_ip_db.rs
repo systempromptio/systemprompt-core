@@ -1,5 +1,6 @@
 //! DB-backed tests for banned-IP mutation, lookup, and listing queries.
 
+use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_users::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIpRepository};
 use uuid::Uuid;
@@ -109,16 +110,18 @@ async fn reban_increments_count_and_permanent_ban_stays_permanent() {
 #[tokio::test]
 async fn ban_with_metadata_accumulates_session_ids_and_keeps_metadata() {
     let ctx = setup("meta").await;
+    let sess_one = SessionId::new("sess-one");
+    let sess_two = SessionId::new("sess-two");
     let first = BanIpWithMetadataParams::new(&ctx.ip, "bot", BanDuration::Days(1), &ctx.source)
         .with_source_fingerprint(&ctx.fingerprint)
         .with_offense_path("/admin")
         .with_user_agent("badbot/1.0")
-        .with_session_id("sess-one");
+        .with_session_id(&sess_one);
     ctx.repo.ban_ip_with_metadata(first).await.expect("first");
 
     let second =
         BanIpWithMetadataParams::new(&ctx.ip, "bot again", BanDuration::Days(1), &ctx.source)
-            .with_session_id("sess-two");
+            .with_session_id(&sess_two);
     ctx.repo.ban_ip_with_metadata(second).await.expect("second");
 
     let ban = ctx

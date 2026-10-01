@@ -52,7 +52,7 @@ pub(super) async fn execute_with_pool(
                 id: u.id.clone(),
                 name: u.name.clone(),
                 email: u.email.clone(),
-                status: u.status.clone(),
+                status: u.status.to_string(),
                 roles: u.roles.clone(),
                 created_at: u.created_at,
             })

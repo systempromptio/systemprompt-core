@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::{AuthorizationCode, RefreshTokenId};
+use systemprompt_identifiers::{AccessTokenId, AuthorizationCode, RefreshTokenId};
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
@@ -28,7 +28,7 @@ async fn token_and_revocation_lookups_read_the_primary() {
 
     assert!(
         !repo
-            .is_jti_revoked(&nonce)
+            .is_jti_revoked(&AccessTokenId::new(&nonce))
             .await
             .expect("jti lookup on primary")
     );

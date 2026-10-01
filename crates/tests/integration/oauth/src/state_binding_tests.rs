@@ -18,10 +18,8 @@ async fn roundtrip_consumes_once() {
     let client_id = ClientId::new("client_state_test");
 
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://example.invalid/cb")
             .with_return_to("/dashboard")
-            .with_client_id(&client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .build(),
     )
     .await
@@ -52,10 +50,8 @@ async fn expired_row_rejected() {
     let client_id = ClientId::new("client_state_test_expired");
 
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://example.invalid/cb")
             .with_return_to("/x")
-            .with_client_id(&client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .with_expires_at(Utc::now() - Duration::seconds(1))
             .build(),
     )
@@ -77,10 +73,8 @@ async fn tampered_state_rejected() {
     let client_id = ClientId::new("client_state_test_tamper");
 
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://example.invalid/cb")
             .with_return_to("/orig")
-            .with_client_id(&client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .build(),
     )
     .await
@@ -103,19 +97,15 @@ async fn cleanup_expired_removes_only_expired() {
     let dead_client_id = ClientId::new("cleanup_dead");
 
     repo.store_state_binding(
-        StateBindingParams::builder(&live)
+        StateBindingParams::builder(&live, &live_client_id, "https://example.invalid/cb")
             .with_return_to("/")
-            .with_client_id(&live_client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .build(),
     )
     .await
     .expect("store live");
     repo.store_state_binding(
-        StateBindingParams::builder(&dead)
+        StateBindingParams::builder(&dead, &dead_client_id, "https://example.invalid/cb")
             .with_return_to("/")
-            .with_client_id(&dead_client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .with_expires_at(Utc::now() - Duration::seconds(60))
             .build(),
     )

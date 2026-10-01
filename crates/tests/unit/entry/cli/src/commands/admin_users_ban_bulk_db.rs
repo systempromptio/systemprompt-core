@@ -9,7 +9,7 @@ use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
-use systemprompt_users::{UserRepository, UserService};
+use systemprompt_users::{UserRepository, UserService, UserStatus};
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -221,12 +221,26 @@ async fn bulk_update_validates_status_and_applies_by_role() {
         .unwrap();
 
     let ctx = ctx(&pool);
+    assert!(
+        UsersHarness::try_parse_from([
+            "users",
+            "bulk",
+            "update",
+            "--set-status",
+            "frozen",
+            "--role",
+            &role,
+            "--yes",
+        ])
+        .is_err(),
+        "an unknown status is a usage error"
+    );
     let err = users::execute(
         parse(&[
             "bulk",
             "update",
             "--set-status",
-            "frozen",
+            "deleted",
             "--role",
             &role,
             "--yes",
@@ -268,7 +282,7 @@ async fn bulk_update_validates_status_and_applies_by_role() {
     .unwrap();
 
     let updated = service.find_by_id(&user.id).await.unwrap().unwrap();
-    assert_eq!(updated.status.as_deref(), Some("suspended"));
+    assert_eq!(updated.status, UserStatus::Suspended);
 
     let _ = service.delete(&user.id).await;
 }

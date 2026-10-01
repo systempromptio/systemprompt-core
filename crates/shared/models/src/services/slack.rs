@@ -57,11 +57,6 @@ impl SlackAppConfig {
     }
 
     pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
-        if self.workspace_id.as_str().is_empty() {
-            return Err(ConfigValidationError::invalid_field(format!(
-                "slack app '{name}' has an empty workspace_id"
-            )));
-        }
         if self.default_agent.is_none() && self.routing.is_empty() {
             return Err(ConfigValidationError::required(format!(
                 "slack app '{name}' must set default_agent or at least one routing entry"

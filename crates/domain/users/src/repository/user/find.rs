@@ -24,8 +24,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(User::from))?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -45,8 +46,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(User::from))?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -67,8 +69,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(User::from))?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -88,8 +91,10 @@ impl UserRepository {
             deleted_status
         )
         .fetch_all(&*self.pool)
-        .await
-        .map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -109,8 +114,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(User::from))?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -132,8 +138,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(User::from))?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -152,8 +159,9 @@ impl UserRepository {
             active_status
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(User::from))?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }

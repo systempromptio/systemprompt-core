@@ -79,11 +79,6 @@ impl TeamsAppConfig {
     }
 
     pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
-        if self.tenant_id.as_str().is_empty() {
-            return Err(ConfigValidationError::invalid_field(format!(
-                "teams app '{name}' has an empty tenant_id"
-            )));
-        }
         if self.app_id.is_empty() {
             return Err(ConfigValidationError::invalid_field(format!(
                 "teams app '{name}' has an empty app_id"

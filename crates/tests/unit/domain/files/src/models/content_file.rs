@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use systemprompt_files::{ContentFile, FileRole};
-use systemprompt_identifiers::ContentId;
+use systemprompt_identifiers::{ContentId, FileId};
 
 #[test]
 fn test_file_role_featured_as_str() {
@@ -171,7 +171,7 @@ fn create_test_content_file(role: FileRole) -> ContentFile {
     ContentFile {
         id: 1,
         content_id: ContentId::new("content_123"),
-        file_id: uuid::Uuid::new_v4(),
+        file_id: FileId::generate(),
         role,
         display_order: 0,
         created_at: Utc::now(),
@@ -197,13 +197,13 @@ fn test_content_file_role_roundtrip() {
 #[test]
 fn test_content_file_struct_fields() {
     let now = Utc::now();
-    let file_id = uuid::Uuid::new_v4();
+    let file_id = FileId::generate();
     let content_id = ContentId::new("content_test");
 
     let file = ContentFile {
         id: 42,
         content_id: content_id.clone(),
-        file_id,
+        file_id: file_id.clone(),
         role: FileRole::Attachment,
         display_order: 5,
         created_at: now,

@@ -1,6 +1,10 @@
 //! Repository for `federated_identities` — the `{issuer, external_sub} ->
 //! users.id` mapping used by RFC 8693 token-exchange first-touch.
 //!
+//! A first-touch user always starts with the local `user` role. Roles the
+//! upstream IdP asserts are not copied: no per-issuer role mapping exists, so
+//! granting them would let any trusted issuer mint local privileges.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -9,7 +13,7 @@ use sqlx::Acquire;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::FederatedIdentityClaims;
 
-use crate::error::Result;
+use crate::error::{Result, UserError};
 use crate::models::{User, UserRole, UserRow, UserStatus, normalise_email};
 use crate::repository::UserRepository;
 
@@ -56,7 +60,8 @@ impl UserRepository {
             )
             .fetch_one(&mut *tx)
             .await
-            .map(User::from)?;
+            .map_err(UserError::from)
+            .and_then(User::try_from)?;
             tx.commit().await?;
             return Ok(user);
         }
@@ -87,13 +92,14 @@ impl UserRepository {
             fields.email,
             fields.display_name.as_deref(),
             fields.display_name.as_deref(),
-            fields.status,
+            fields.status.as_str(),
             &fields.roles,
             fields.now,
         )
         .fetch_one(&mut *tx)
         .await
-        .map(User::from)?;
+        .map_err(UserError::from)
+        .and_then(User::try_from)?;
 
         sqlx::query!(
             "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
@@ -135,8 +141,9 @@ async fn link_by_verified_email(
         deleted_status
     )
     .fetch_optional(&mut **tx)
-    .await
-    .map(|row| row.map(User::from))?
+    .await?
+    .map(User::try_from)
+    .transpose()?
     else {
         return Ok(None);
     };
@@ -157,7 +164,7 @@ struct NewFederatedUser {
     name: String,
     email: String,
     display_name: Option<String>,
-    status: &'static str,
+    status: UserStatus,
     roles: Vec<String>,
     now: chrono::DateTime<Utc>,
 }
@@ -192,23 +199,19 @@ impl NewFederatedUser {
         };
 
         Self {
-            id: UserId::new(uuid::Uuid::new_v4().to_string()),
+            id: UserId::generate(),
             name,
             email,
             display_name: claims.name.clone(),
-            status: UserStatus::Active.as_str(),
-            roles: normalised_roles(&claims.roles),
+            status: UserStatus::Active,
+            roles: first_touch_roles(),
             now: Utc::now(),
         }
     }
 }
 
-fn normalised_roles(claim_roles: &[String]) -> Vec<String> {
-    if claim_roles.is_empty() {
-        vec![UserRole::User.as_str().to_owned()]
-    } else {
-        claim_roles.to_vec()
-    }
+fn first_touch_roles() -> Vec<String> {
+    vec![UserRole::User.as_str().to_owned()]
 }
 
 fn short_hash(s: &str) -> String {

@@ -12,7 +12,7 @@ use crate::error::{OauthError, OauthResult};
 use crate::models::PkceMethod;
 use chrono::Utc;
 use pkce::verify_pkce;
-use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
+use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, UserId};
 
 mod params;
 mod pkce;
@@ -254,10 +254,10 @@ impl OAuthRepository {
     pub async fn link_auth_code_to_refresh_token(
         &self,
         code: &AuthorizationCode,
-        refresh_token_id: &str,
+        refresh_token_id: &RefreshTokenId,
     ) -> OauthResult<()> {
         let code_hash = hash_at_rest(code.as_str())?;
-        let refresh_token_id_hash = hash_at_rest(refresh_token_id)?;
+        let refresh_token_id_hash = hash_at_rest(refresh_token_id.as_str())?;
         sqlx::query!(
             "UPDATE oauth_auth_codes SET refresh_token_id = $1 WHERE code = $2",
             refresh_token_id_hash,

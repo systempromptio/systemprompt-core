@@ -11,6 +11,7 @@ use crate::Result;
 use chrono::{DateTime, Utc};
 
 use super::ToolAnalyticsRepository;
+use crate::models::ToolAgentUsageDbRow;
 use crate::models::reporting::{
     ToolAgentUsageRow, ToolErrorRow, ToolExecutionRow, ToolStatsRow, ToolStatusBreakdownRow,
     ToolSummaryRow,
@@ -69,11 +70,11 @@ impl ToolAnalyticsRepository {
 
     pub async fn tool_exists(
         &self,
-        tool_name: &str,
+        tool_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<i64> {
-        let pattern = format!("%{}%", tool_name);
+        let pattern = format!("%{}%", tool_filter);
         let count = sqlx::query_scalar!(
             r#"SELECT COUNT(*)::bigint as "count!" FROM report_mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3"#,
             pattern,
@@ -87,11 +88,11 @@ impl ToolAnalyticsRepository {
 
     pub async fn get_tool_summary(
         &self,
-        tool_name: &str,
+        tool_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<ToolSummaryRow> {
-        let pattern = format!("%{}%", tool_name);
+        let pattern = format!("%{}%", tool_filter);
         sqlx::query_as!(
             ToolSummaryRow,
             r#"
@@ -114,11 +115,11 @@ impl ToolAnalyticsRepository {
 
     pub async fn get_status_breakdown(
         &self,
-        tool_name: &str,
+        tool_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<ToolStatusBreakdownRow>> {
-        let pattern = format!("%{}%", tool_name);
+        let pattern = format!("%{}%", tool_filter);
         sqlx::query_as!(
             ToolStatusBreakdownRow,
             r#"
@@ -139,11 +140,11 @@ impl ToolAnalyticsRepository {
 
     pub async fn get_top_errors(
         &self,
-        tool_name: &str,
+        tool_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<ToolErrorRow>> {
-        let pattern = format!("%{}%", tool_name);
+        let pattern = format!("%{}%", tool_filter);
         sqlx::query_as!(
             ToolErrorRow,
             r#"
@@ -167,13 +168,13 @@ impl ToolAnalyticsRepository {
 
     pub async fn get_usage_by_agent(
         &self,
-        tool_name: &str,
+        tool_filter: &str,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<ToolAgentUsageRow>> {
-        let pattern = format!("%{}%", tool_name);
-        sqlx::query_as!(
-            ToolAgentUsageRow,
+        let pattern = format!("%{}%", tool_filter);
+        let rows = sqlx::query_as!(
+            ToolAgentUsageDbRow,
             r#"
             SELECT
                 COALESCE(at.agent_name, CASE WHEN mte.task_id IS NULL THEN 'Direct Call' ELSE 'Unlinked Task' END) as "agent_name",
@@ -188,8 +189,8 @@ impl ToolAnalyticsRepository {
             pattern, start, end
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(Into::into)
+        .await?;
+        Ok(rows.into_iter().map(ToolAgentUsageRow::from).collect())
     }
 
     pub async fn get_executions_for_trends(

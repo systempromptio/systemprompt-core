@@ -118,7 +118,7 @@ pub async fn handle_token_exchange(
     let access_token = generate_jwt_with_act(
         &delegated_user,
         config,
-        uuid::Uuid::new_v4().to_string(),
+        systemprompt_identifiers::AccessTokenId::generate(),
         &session_id,
         &signing,
         act,

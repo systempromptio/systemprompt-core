@@ -2,8 +2,8 @@
 //! its natural expiry. The handler reads the authenticated `RequestContext`
 //! (jti, token_exp, user id), so we inject it as a request extension directly.
 //! We cover the successful 204 revocation (writing to `oauth_jti_revocations`
-//! and clearing the cookie), plus the missing-jti, non-UUID user, and
-//! out-of-range expiry error branches.
+//! and clearing the cookie), a non-UUID user logging out the same way, plus
+//! the missing-jti and out-of-range expiry error branches.
 
 use std::sync::Once;
 
@@ -165,11 +165,23 @@ async fn logout_missing_jti_returns_invalid_request() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn logout_non_uuid_user_returns_invalid_request() -> anyhow::Result<()> {
+async fn logout_non_uuid_user_revokes_and_returns_204() -> anyhow::Result<()> {
+    let user = UserId::new(format!("seeded-admin-{}", Uuid::new_v4().simple()));
+    seed_user(&user).await?;
     let app = logout_app().await?;
-    let ctx = ctx_with(UserId::new("not-a-uuid"), "some-jti", FUTURE_EXP);
-    let resp = app.oneshot(logout_request(ctx)).await?;
-    assert!(resp.status().is_client_error(), "{}", resp.status());
+    let jti = format!("jti-{}", Uuid::new_v4());
+    let resp = app
+        .oneshot(logout_request(ctx_with(user, &jti, FUTURE_EXP)))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT, "{}", resp.status());
+
+    let (_pool, ctx) = setup_ctx().await?;
+    let revoked = ctx
+        .oauth_repositories()
+        .oauth
+        .is_jti_revoked(&AccessTokenId::new(jti))
+        .await?;
+    assert!(revoked, "a non-UUID user's logout must record the jti");
     Ok(())
 }
 

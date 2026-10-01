@@ -10,7 +10,7 @@ fn file_row(tag: &str, ai_content: bool, user: Option<&UserId>) -> File {
     let id = uuid::Uuid::new_v4();
     let now = Utc::now();
     File {
-        id,
+        id: FileId::from_uuid(id),
         path: format!("/storage/{tag}/{id}.png"),
         public_url: format!("/files/{tag}/{id}.png"),
         mime_type: "image/png".to_owned(),
@@ -54,12 +54,8 @@ async fn list_ai_images_includes_inserted_ai_rows() {
     assert_eq!(by_user[0].id, ai.id);
     assert_eq!(by_user[0].path, ai.path);
 
-    repo.delete(&FileId::new(ai.id.to_string()))
-        .await
-        .expect("cleanup ai");
-    repo.delete(&FileId::new(plain.id.to_string()))
-        .await
-        .expect("cleanup plain");
+    repo.delete(&ai.id.clone()).await.expect("cleanup ai");
+    repo.delete(&plain.id.clone()).await.expect("cleanup plain");
 }
 
 #[tokio::test]
@@ -85,9 +81,7 @@ async fn list_all_and_search_by_path_return_tagged_rows() {
         .expect("search miss");
     assert!(no_matches.is_empty());
 
-    repo.delete(&FileId::new(file.id.to_string()))
-        .await
-        .expect("cleanup");
+    repo.delete(&file.id.clone()).await.expect("cleanup");
 }
 
 #[tokio::test]
@@ -98,7 +92,7 @@ async fn update_metadata_persists_new_checksums() {
 
     let file = file_row(&tag, false, None);
     repo.insert_file(&file).await.expect("insert");
-    let file_id = FileId::new(file.id.to_string());
+    let file_id = file.id.clone();
 
     let metadata =
         FileMetadata::new().with_checksums(FileChecksums::new().with_sha256("abc123def456"));
@@ -158,7 +152,5 @@ async fn get_stats_snapshot_is_internally_consistent() {
             .max(0)
     );
 
-    repo.delete(&FileId::new(file.id.to_string()))
-        .await
-        .expect("cleanup");
+    repo.delete(&file.id.clone()).await.expect("cleanup");
 }

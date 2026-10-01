@@ -8,6 +8,7 @@
 //! - Cleanup of expired bans
 
 use anyhow::Result;
+use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_users::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIpRepository};
 
@@ -226,6 +227,7 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
 
     let test_ip = "192.168.100.6";
     cleanup_test_ip(&repo, test_ip).await;
+    let session_id = SessionId::new("session-xyz");
 
     let params = BanIpWithMetadataParams::new(
         test_ip,
@@ -236,7 +238,7 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
     .with_source_fingerprint("fp-123")
     .with_offense_path("/api/v1/malicious")
     .with_user_agent("TestBot/1.0")
-    .with_session_id("session-xyz");
+    .with_session_id(&session_id);
 
     repo.ban_ip_with_metadata(params).await?;
 

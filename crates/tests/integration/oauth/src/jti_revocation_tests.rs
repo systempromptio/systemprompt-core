@@ -2,16 +2,15 @@
 
 use crate::{create_test_user, setup_test_db};
 use chrono::{Duration, Utc};
+use systemprompt_identifiers::{AccessTokenId, UserId};
 use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository, OauthCleanupRepository};
-use uuid::Uuid;
 
-fn unique_jti() -> String {
-    Uuid::new_v4().to_string()
+fn unique_jti() -> AccessTokenId {
+    AccessTokenId::generate()
 }
 
-async fn user_uuid(db: &systemprompt_database::DbPool) -> Uuid {
-    let id = create_test_user(db).await;
-    Uuid::parse_str(id.as_str()).expect("user id is uuid")
+async fn user_id(db: &systemprompt_database::DbPool) -> UserId {
+    create_test_user(db).await
 }
 
 #[tokio::test]
@@ -19,14 +18,14 @@ async fn revoked_token_visible_to_is_jti_revoked() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db);
     let jti = unique_jti();
-    let user = user_uuid(&db).await;
+    let user = user_id(&db).await;
 
     assert!(
         !repo.is_jti_revoked(&jti).await.expect("query ok"),
         "fresh jti must not be revoked"
     );
 
-    repo.revoke_jti(&jti, user, Utc::now() + Duration::hours(1))
+    repo.revoke_jti(&jti, &user, Utc::now() + Duration::hours(1))
         .await
         .expect("revoke ok");
 
@@ -41,9 +40,9 @@ async fn expired_revocation_row_treated_as_not_revoked() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db);
     let jti = unique_jti();
-    let user = user_uuid(&db).await;
+    let user = user_id(&db).await;
 
-    repo.revoke_jti(&jti, user, Utc::now() - Duration::seconds(60))
+    repo.revoke_jti(&jti, &user, Utc::now() - Duration::seconds(60))
         .await
         .expect("revoke ok");
 
@@ -58,11 +57,11 @@ async fn revoke_is_idempotent() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db);
     let jti = unique_jti();
-    let user = user_uuid(&db).await;
+    let user = user_id(&db).await;
     let exp = Utc::now() + Duration::hours(1);
 
-    repo.revoke_jti(&jti, user, exp).await.expect("first ok");
-    repo.revoke_jti(&jti, user, exp)
+    repo.revoke_jti(&jti, &user, exp).await.expect("first ok");
+    repo.revoke_jti(&jti, &user, exp)
         .await
         .expect("second insert must not raise (ON CONFLICT DO NOTHING)");
 }
@@ -73,12 +72,12 @@ async fn cleanup_expired_drops_only_expired_rows() {
     let repo = OAuthRepository::new(&db);
     let live_jti = unique_jti();
     let dead_jti = unique_jti();
-    let user = user_uuid(&db).await;
+    let user = user_id(&db).await;
 
-    repo.revoke_jti(&live_jti, user, Utc::now() + Duration::hours(1))
+    repo.revoke_jti(&live_jti, &user, Utc::now() + Duration::hours(1))
         .await
         .expect("live revoke");
-    repo.revoke_jti(&dead_jti, user, Utc::now() - Duration::seconds(60))
+    repo.revoke_jti(&dead_jti, &user, Utc::now() - Duration::seconds(60))
         .await
         .expect("dead revoke");
 
@@ -95,12 +94,12 @@ async fn cleanup_expired_drops_only_expired_rows() {
 async fn revoke_jtis_for_user_bulk() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db);
-    let user = user_uuid(&db).await;
-    let jtis: Vec<String> = (0..3).map(|_| unique_jti()).collect();
+    let user = user_id(&db).await;
+    let jtis: Vec<AccessTokenId> = (0..3).map(|_| unique_jti()).collect();
     let exp = Utc::now() + Duration::hours(1);
 
     let inserted = repo
-        .revoke_jtis_for_user(user, &jtis, exp)
+        .revoke_jtis_for_user(&user, &jtis, exp)
         .await
         .expect("bulk revoke");
     assert_eq!(inserted, jtis.len() as u64);
@@ -117,17 +116,21 @@ async fn revoke_jtis_for_user_bulk() {
 fn cache_negative_ttl_then_revocation_sticks() {
     let cache = JtiRevocationCache::new();
 
-    assert_eq!(cache.peek("jti-a"), None, "miss before any record");
-
-    cache.record("jti-a", false);
     assert_eq!(
-        cache.peek("jti-a"),
+        cache.peek(&AccessTokenId::new("jti-a")),
+        None,
+        "miss before any record"
+    );
+
+    cache.record(&AccessTokenId::new("jti-a"), false);
+    assert_eq!(
+        cache.peek(&AccessTokenId::new("jti-a")),
         Some(false),
         "negative result must be visible to subsequent peeks"
     );
 
-    cache.record("jti-b", true);
-    assert_eq!(cache.peek("jti-b"), Some(true));
+    cache.record(&AccessTokenId::new("jti-b"), true);
+    assert_eq!(cache.peek(&AccessTokenId::new("jti-b")), Some(true));
 
     // Re-record as not-revoked should NOT be possible monotonically — but the
     // cache itself is dumb; the repo path simply never records `false` for a

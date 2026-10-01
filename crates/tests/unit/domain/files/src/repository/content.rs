@@ -12,7 +12,7 @@ use systemprompt_identifiers::{ContentId, ContextId, FileId};
 use systemprompt_test_fixtures::test_db_pool;
 
 fn new_file_id() -> FileId {
-    FileId::new(uuid::Uuid::new_v4().to_string())
+    FileId::generate()
 }
 
 fn new_content_id() -> ContentId {

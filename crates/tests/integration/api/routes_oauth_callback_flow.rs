@@ -154,10 +154,8 @@ async fn seed_state_binding(state_token: &str, client_id: &ClientId) -> anyhow::
     let repo = OAuthRepository::new(&pool);
     let redirect_uri = callback_redirect_uri();
     repo.store_state_binding(
-        StateBindingParams::builder(state_token)
+        StateBindingParams::builder(state_token, client_id, &redirect_uri)
             .with_return_to("/dashboard")
-            .with_client_id(client_id)
-            .with_redirect_uri(&redirect_uri)
             .build(),
     )
     .await

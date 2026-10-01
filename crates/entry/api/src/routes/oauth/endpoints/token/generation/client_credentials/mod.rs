@@ -8,7 +8,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
+use systemprompt_identifiers::{
+    AccessTokenId, ClientId, PluginId, SessionId, SessionSource, UserId,
+};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
 use systemprompt_models::errors::ParseEnumError;
@@ -177,7 +179,7 @@ pub async fn generate_client_tokens(
         permissions: permissions.clone(),
         audience,
         expires_in: chrono::Duration::seconds(global_config.jwt_access_token_expiration),
-        plugin_id: options.plugin_id.map(str::to_owned),
+        plugin_id: options.plugin_id.map(PluginId::new),
         client_id: Some(client_id.clone()),
         ..Default::default()
     };
@@ -190,7 +192,7 @@ pub async fn generate_client_tokens(
     let jwt_token = generate_jwt(
         &authenticated,
         config,
-        uuid::Uuid::new_v4().to_string(),
+        AccessTokenId::generate(),
         &session_id,
         &signing,
     )

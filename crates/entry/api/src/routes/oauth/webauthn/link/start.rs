@@ -52,7 +52,7 @@ pub async fn start_link(
         obj.remove("authenticatorAttachment");
     }
 
-    let header_value = HeaderValue::from_str(&challenge_id)
+    let header_value = HeaderValue::from_str(challenge_id.as_str())
         .map_err(|e| internal::server_error("Invalid challenge ID format", e))?;
 
     let mut headers = HeaderMap::new();

@@ -6,7 +6,7 @@
 use super::{AnonymousSessionInfo, SessionCreationParams, SessionCreationService};
 use crate::error::{OauthError, OauthResult};
 use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_traits::CreateSessionInput;
 use uuid::Uuid;
 
@@ -53,7 +53,7 @@ impl SessionCreationService {
             session_id,
             user_id,
             is_new: true,
-            jwt_token: token,
+            jwt_token: JwtToken::new(token),
             fingerprint_hash: params.fingerprint.clone(),
         })
     }

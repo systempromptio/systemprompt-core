@@ -7,7 +7,6 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
-use systemprompt_identifiers::FileId;
 
 use super::types::{FileSearchOutput, FileSummary};
 use crate::CliConfig;
@@ -44,7 +43,7 @@ pub(super) async fn execute_with_pool(
     let files: Vec<FileSummary> = found_files
         .into_iter()
         .map(|f| FileSummary {
-            id: FileId::new(f.id.to_string()),
+            id: f.id,
             path: f.path,
             public_url: f.public_url,
             mime_type: f.mime_type,

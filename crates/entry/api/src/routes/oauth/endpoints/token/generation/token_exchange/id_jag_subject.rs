@@ -12,7 +12,7 @@ use std::str::FromStr;
 
 use chrono::{TimeZone, Utc};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::Permission;
 use systemprompt_oauth::repository::OAuthRepository;
@@ -48,8 +48,13 @@ pub async fn validate_id_jag_subject(
             .ok_or_else(|| TokenError::InvalidGrant {
                 reason: "ID-JAG exp is out of range".to_owned(),
             })?;
+    let jti =
+        AccessTokenId::try_new(claims.jti.as_str()).map_err(|e| TokenError::RejectedGrant {
+            reason: "ID-JAG jti is invalid",
+            source: e.into(),
+        })?;
     let first_use = repo
-        .consume_id_jag_jti(&claims.jti, expires_at)
+        .consume_id_jag_jti(&jti, expires_at)
         .await
         .map_err(|e| TokenError::server("ID-JAG replay store unavailable", e))?;
     if !first_use {

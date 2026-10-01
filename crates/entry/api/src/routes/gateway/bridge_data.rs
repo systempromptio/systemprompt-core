@@ -5,6 +5,7 @@
 
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_loader::{ConfigLoadResult, ConfigLoader};
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_oauth::OauthResult;
@@ -34,7 +35,7 @@ pub async fn load_revocations(
     Ok(ids.into_iter().map(ApiKeyId::new).collect())
 }
 
-pub async fn load_enabled_hosts(ctx: &AppContext, user_id: &UserId) -> OauthResult<Vec<String>> {
+pub async fn load_enabled_hosts(ctx: &AppContext, user_id: &UserId) -> OauthResult<Vec<HostKind>> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
     repo.list_enabled(user_id).await
 }
@@ -42,18 +43,18 @@ pub async fn load_enabled_hosts(ctx: &AppContext, user_id: &UserId) -> OauthResu
 pub async fn upsert_host_pref(
     ctx: &AppContext,
     user_id: &UserId,
-    host_id: &str,
+    host: HostKind,
     enabled: bool,
 ) -> OauthResult<()> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    repo.upsert(user_id, host_id, enabled).await?;
+    repo.upsert(user_id, host, enabled).await?;
     Ok(())
 }
 
 pub async fn load_host_model_protocols(
     ctx: &AppContext,
     user_id: &UserId,
-) -> OauthResult<Vec<(String, Vec<String>)>> {
+) -> OauthResult<Vec<(HostKind, Vec<String>)>> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
     repo.load_model_protocols(user_id).await
 }
@@ -61,12 +62,11 @@ pub async fn load_host_model_protocols(
 pub async fn set_host_model_protocols(
     ctx: &AppContext,
     user_id: &UserId,
-    host_id: &str,
+    host: HostKind,
     protocols: Option<&[String]>,
 ) -> OauthResult<()> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    repo.set_model_protocols(user_id, host_id, protocols)
-        .await?;
+    repo.set_model_protocols(user_id, host, protocols).await?;
     Ok(())
 }
 

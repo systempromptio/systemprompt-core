@@ -7,13 +7,14 @@ use super::WebAuthnService;
 use crate::error::{OauthError, OauthResult as Result};
 use crate::repository::{StoreChallengeParams, WebAuthnChallengeKind};
 use base64::engine::{Engine, general_purpose};
+use systemprompt_identifiers::ChallengeId;
 use tracing::instrument;
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
 #[derive(Debug)]
 pub struct FinishRegistrationParams<'a> {
-    pub challenge_id: &'a str,
+    pub challenge_id: &'a ChallengeId,
     pub username: &'a str,
     pub email: &'a str,
     pub full_name: Option<&'a str>,
@@ -22,7 +23,7 @@ pub struct FinishRegistrationParams<'a> {
 
 #[derive(Debug)]
 pub struct FinishRegistrationParamsBuilder<'a> {
-    challenge_id: &'a str,
+    challenge_id: &'a ChallengeId,
     username: &'a str,
     email: &'a str,
     full_name: Option<&'a str>,
@@ -31,7 +32,7 @@ pub struct FinishRegistrationParamsBuilder<'a> {
 
 impl<'a> FinishRegistrationParamsBuilder<'a> {
     pub const fn new(
-        challenge_id: &'a str,
+        challenge_id: &'a ChallengeId,
         username: &'a str,
         email: &'a str,
         reg_response: &'a RegisterPublicKeyCredential,
@@ -63,7 +64,7 @@ impl<'a> FinishRegistrationParamsBuilder<'a> {
 
 impl<'a> FinishRegistrationParams<'a> {
     pub const fn builder(
-        challenge_id: &'a str,
+        challenge_id: &'a ChallengeId,
         username: &'a str,
         email: &'a str,
         reg_response: &'a RegisterPublicKeyCredential,
@@ -79,7 +80,7 @@ impl WebAuthnService {
         username: &str,
         email: &str,
         full_name: Option<&str>,
-    ) -> Result<(CreationChallengeResponse, String)> {
+    ) -> Result<(CreationChallengeResponse, ChallengeId)> {
         let user_unique_id = Uuid::new_v4();
         let display_name = full_name.filter(|n| !n.is_empty()).unwrap_or(username);
 
@@ -103,12 +104,12 @@ impl WebAuthnService {
             },
         )?;
 
-        let challenge_id = Uuid::new_v4().to_string();
+        let challenge_id = ChallengeId::generate();
 
         let state = serde_json::to_value(&reg_state)?;
         self.oauth_repo
             .store_webauthn_challenge(StoreChallengeParams {
-                challenge: &challenge_id,
+                challenge: challenge_id.as_str(),
                 kind: WebAuthnChallengeKind::Registration,
                 user_id: None,
                 state: &state,
@@ -192,11 +193,11 @@ impl WebAuthnService {
 
     async fn retrieve_and_remove_registration_state(
         &self,
-        challenge_id: &str,
+        challenge_id: &ChallengeId,
     ) -> Result<PasskeyRegistration> {
         let consumed = self
             .oauth_repo
-            .consume_webauthn_challenge(challenge_id, WebAuthnChallengeKind::Registration)
+            .consume_webauthn_challenge(challenge_id.as_str(), WebAuthnChallengeKind::Registration)
             .await?
             .ok_or(OauthError::RegistrationStateExpired)?;
 

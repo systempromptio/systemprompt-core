@@ -101,7 +101,7 @@ pub(super) fn import_plugin(
     let mut rules = Vec::new();
     import_rules_dir(&dir.join("rules"), scope.seen_rules, sink, &mut rules)?;
 
-    let imported_hooks = hooks::import_plugin_hooks(id.as_str(), dir, sink)?;
+    let imported_hooks = hooks::import_plugin_hooks(&id, dir, sink)?;
     warnings.extend(imported_hooks.warnings);
 
     scripts::copy_plugin_scripts(&id, dir, &sidecar.plugin.scripts, sink)?;

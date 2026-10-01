@@ -15,7 +15,7 @@
 
 use std::path::Path;
 
-use systemprompt_identifiers::HookId;
+use systemprompt_identifiers::{HookId, PluginId};
 use systemprompt_models::services::hooks::{HookCategory, HookEvent, HookType};
 
 use crate::error::MarketplaceError;
@@ -31,7 +31,7 @@ pub(super) struct ImportedHooks {
 }
 
 pub(super) fn import_plugin_hooks(
-    plugin_id: &str,
+    plugin_id: &PluginId,
     plugin_dir: &Path,
     sink: &Sink,
 ) -> Result<ImportedHooks, MarketplaceError> {
@@ -55,7 +55,7 @@ pub(super) fn import_plugin_hooks(
             for action in &matcher.hooks {
                 let Some(command) = command_of(action) else {
                     out.warnings.push(ImportWarning::UnsupportedHookAction {
-                        plugin: plugin_id.to_owned(),
+                        plugin: plugin_id.to_string(),
                         event: event.as_str().to_owned(),
                     });
                     continue;
@@ -73,7 +73,7 @@ pub(super) fn import_plugin_hooks(
                     is_async: action.r#async,
                     timeout: action.timeout,
                     category: HookCategory::Custom,
-                    tags: vec![plugin_id.to_owned()],
+                    tags: vec![plugin_id.to_string()],
                 };
                 let rel = Path::new("hooks").join(&dir_name).join("config.yaml");
                 sink.write_yaml(&rel, &doc)?;

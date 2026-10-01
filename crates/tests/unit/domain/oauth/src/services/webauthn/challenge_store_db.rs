@@ -139,7 +139,7 @@ async fn registration_challenge_started_on_replica_a_is_consumable_on_replica_b(
 
     let consumed = ctx
         .repo
-        .consume_webauthn_challenge(&challenge_id, WebAuthnChallengeKind::Registration)
+        .consume_webauthn_challenge(challenge_id.as_str(), WebAuthnChallengeKind::Registration)
         .await
         .expect("consume")
         .expect("challenge stored by replica A is visible through the shared pool");
@@ -301,9 +301,7 @@ async fn store_link_token(repo: &OAuthRepository, user_id: &UserId) -> String {
 }
 
 #[tokio::test]
-async fn non_uuid_link_user_fails_before_reservation_without_consuming_token() {
-    use systemprompt_oauth::repository::TokenValidationResult;
-
+async fn non_uuid_link_user_starts_a_link_ceremony() {
     let ctx = setup().await;
     let user_id = UserId::new(format!("legacy-user-{}", Uuid::new_v4().simple()));
     let email = format!("{}@wastore.invalid", user_id.as_str());
@@ -313,34 +311,23 @@ async fn non_uuid_link_user_fails_before_reservation_without_consuming_token() {
     let raw = store_link_token(&ctx.repo, &user_id).await;
     let before = link_rows(&ctx.pool, &user_id).await;
 
-    let error = ctx
+    let (_, challenge_id, info) = ctx
         .replica_a
         .start_registration_with_token(&raw)
         .await
-        .expect_err("passkey user handle requires a UUID");
-    assert!(
-        matches!(&error, OauthError::InvalidUserId { user_id: rejected, .. } if *rejected == user_id),
-        "{error}"
-    );
+        .expect("an opaque user id can link a passkey");
+    assert_eq!(info.id, user_id);
+    assert!(!challenge_id.as_str().is_empty());
     assert_eq!(
         link_rows(&ctx.pool, &user_id).await,
-        before,
-        "UUID validation must precede challenge reservation"
+        before + 1,
+        "the link challenge is reserved for the opaque user id"
     );
-    assert!(matches!(
-        ctx.repo
-            .validate_setup_token(&hash_token(&raw))
-            .await
-            .expect("validate retained token"),
-        TokenValidationResult::Valid(record) if record.user_id == user_id
-    ));
 }
 
 #[tokio::test]
 async fn link_started_on_replica_a_finishes_on_replica_b() {
     let ctx = setup().await;
-    // The link ceremony needs a UUID user id: it becomes the passkey's
-    // user handle.
     let pool = test_db_pool().await;
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let email = format!("{}@wastore.invalid", user_id.as_str());
@@ -383,7 +370,7 @@ async fn link_started_on_replica_a_finishes_on_replica_b() {
     );
     let row = ctx
         .repo
-        .consume_webauthn_challenge(&challenge_id, WebAuthnChallengeKind::Link)
+        .consume_webauthn_challenge(challenge_id.as_str(), WebAuthnChallengeKind::Link)
         .await
         .expect("consume");
     assert!(
@@ -476,7 +463,7 @@ async fn reserve_link_challenge_replaces_a_challenge_issued_for_another_token() 
     assert_eq!(link_rows(&ctx.pool, &ctx.user_id).await, 1);
     let stale = ctx
         .repo
-        .consume_webauthn_challenge(&first.challenge_id, WebAuthnChallengeKind::Link)
+        .consume_webauthn_challenge(first.challenge_id.as_str(), WebAuthnChallengeKind::Link)
         .await
         .expect("consume");
     assert!(stale.is_none(), "the superseded challenge must be gone");
@@ -557,7 +544,7 @@ async fn reserve_link_challenge_ignores_other_kinds_and_other_users() {
     );
     assert!(
         ctx.repo
-            .consume_webauthn_challenge(&theirs.challenge_id, WebAuthnChallengeKind::Link)
+            .consume_webauthn_challenge(theirs.challenge_id.as_str(), WebAuthnChallengeKind::Link)
             .await
             .expect("consume")
             .is_some(),

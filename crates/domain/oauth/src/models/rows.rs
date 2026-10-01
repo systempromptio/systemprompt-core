@@ -22,9 +22,9 @@ pub(crate) struct OAuthClientDbRow {
     pub application_type: String,
     pub client_uri: Option<String>,
     pub logo_uri: Option<String>,
-    pub is_active: Option<bool>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub last_used_at: Option<DateTime<Utc>>,
     pub owner_user_id: String,
 }

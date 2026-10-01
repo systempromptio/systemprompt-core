@@ -57,7 +57,7 @@ pub async fn start_auth(
         StatusCode::OK,
         Json(StartAuthResponse {
             public_key,
-            challenge_id: ChallengeId::new(challenge_id),
+            challenge_id,
         }),
     )
         .into_response())
@@ -85,7 +85,7 @@ pub async fn finish_auth(
     let webauthn_service = state.webauthn()?;
 
     let (user_id, oauth_state) = webauthn_service
-        .finish_authentication(request.challenge_id.as_str(), &request.credential)
+        .finish_authentication(&request.challenge_id, &request.credential)
         .await
         .map_err(|e| internal::reclassify(e, OAuthHttpError::authentication_failed))?;
 

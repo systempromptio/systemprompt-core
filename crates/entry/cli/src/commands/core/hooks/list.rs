@@ -74,11 +74,7 @@ fn scan_hooks(hooks_path: &Path) -> Result<Vec<HookEntry>> {
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_owned();
-        let id_str = if config.id.as_str().is_empty() {
-            dir_name
-        } else {
-            config.id.as_str().to_owned()
-        };
+        let id_str = config.id.as_ref().map_or(dir_name, ToString::to_string);
 
         entries.push(HookEntry {
             plugin_id: id_str,

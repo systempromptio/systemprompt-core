@@ -12,12 +12,9 @@ use super::OAuthRepository;
 use super::at_rest::hash_at_rest;
 use crate::error::OauthResult;
 use chrono::{DateTime, Duration, Utc};
-use std::sync::LazyLock;
 use systemprompt_identifiers::ClientId;
 
 const DEFAULT_TTL: Duration = Duration::minutes(10);
-
-static EMPTY_CLIENT_ID: LazyLock<ClientId> = LazyLock::new(|| ClientId::new(""));
 
 #[derive(Debug)]
 pub struct StateBindingParams<'a> {
@@ -32,34 +29,24 @@ pub struct StateBindingParams<'a> {
 pub struct StateBindingParamsBuilder<'a> {
     state_token: &'a str,
     return_to: Option<&'a str>,
-    client_id: Option<&'a ClientId>,
-    redirect_uri: Option<&'a str>,
+    client_id: &'a ClientId,
+    redirect_uri: &'a str,
     expires_at: Option<DateTime<Utc>>,
 }
 
 impl<'a> StateBindingParamsBuilder<'a> {
-    pub const fn new(state_token: &'a str) -> Self {
+    pub const fn new(state_token: &'a str, client_id: &'a ClientId, redirect_uri: &'a str) -> Self {
         Self {
             state_token,
             return_to: None,
-            client_id: None,
-            redirect_uri: None,
+            client_id,
+            redirect_uri,
             expires_at: None,
         }
     }
 
     pub const fn with_return_to(mut self, return_to: &'a str) -> Self {
         self.return_to = Some(return_to);
-        self
-    }
-
-    pub const fn with_client_id(mut self, client_id: &'a ClientId) -> Self {
-        self.client_id = Some(client_id);
-        self
-    }
-
-    pub const fn with_redirect_uri(mut self, redirect_uri: &'a str) -> Self {
-        self.redirect_uri = Some(redirect_uri);
         self
     }
 
@@ -72,16 +59,20 @@ impl<'a> StateBindingParamsBuilder<'a> {
         StateBindingParams {
             state_token: self.state_token,
             return_to: self.return_to.unwrap_or("/"),
-            client_id: self.client_id.unwrap_or(&EMPTY_CLIENT_ID),
-            redirect_uri: self.redirect_uri.unwrap_or(""),
+            client_id: self.client_id,
+            redirect_uri: self.redirect_uri,
             expires_at: self.expires_at.unwrap_or_else(|| Utc::now() + DEFAULT_TTL),
         }
     }
 }
 
 impl<'a> StateBindingParams<'a> {
-    pub const fn builder(state_token: &'a str) -> StateBindingParamsBuilder<'a> {
-        StateBindingParamsBuilder::new(state_token)
+    pub const fn builder(
+        state_token: &'a str,
+        client_id: &'a ClientId,
+        redirect_uri: &'a str,
+    ) -> StateBindingParamsBuilder<'a> {
+        StateBindingParamsBuilder::new(state_token, client_id, redirect_uri)
     }
 }
 

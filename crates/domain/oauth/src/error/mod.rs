@@ -130,13 +130,6 @@ pub enum OauthError {
     #[error("stored state is not valid JSON: {0}")]
     Json(#[from] serde_json::Error),
 
-    #[error("user id {user_id} is not a valid UUID: {source}")]
-    InvalidUserId {
-        user_id: systemprompt_identifiers::UserId,
-        #[source]
-        source: uuid::Error,
-    },
-
     #[error("CIMD HTTP client could not be built: {0}")]
     CimdHttpClient(#[source] reqwest::Error),
 

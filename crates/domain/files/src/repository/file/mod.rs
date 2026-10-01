@@ -22,7 +22,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
 use crate::error::{FilesResult, parse_file_uuid};
-use crate::models::{File, FileMetadata};
+use crate::models::{File, FileMetadata, FileRow};
 
 #[derive(Debug, Clone)]
 pub struct FileRepository {
@@ -47,7 +47,7 @@ impl FileRepository {
         let context_id_str = request.context_id.as_ref().map(ContextId::as_str);
 
         sqlx::query_as!(
-            File,
+            FileRow,
             r#"
             INSERT INTO files (id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id, session_id, trace_id, context_id, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
@@ -80,7 +80,7 @@ impl FileRepository {
     }
 
     pub async fn insert_file(&self, file: &File) -> FilesResult<FileId> {
-        let file_id = FileId::new(file.id.to_string());
+        let file_id = file.id.clone();
 
         let mut request = InsertFileRequest::new(
             file_id.clone(),
@@ -118,7 +118,7 @@ impl FileRepository {
         let id_uuid = parse_file_uuid(id)?;
 
         let result = sqlx::query_as!(
-            File,
+            FileRow,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
@@ -129,12 +129,12 @@ impl FileRepository {
         .fetch_optional(&*self.pool)
         .await?;
 
-        Ok(result)
+        Ok(result.map(File::from))
     }
 
     pub async fn find_by_path(&self, path: &str) -> FilesResult<Option<File>> {
         let result = sqlx::query_as!(
-            File,
+            FileRow,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
@@ -145,7 +145,7 @@ impl FileRepository {
         .fetch_optional(&*self.pool)
         .await?;
 
-        Ok(result)
+        Ok(result.map(File::from))
     }
 
     pub async fn list_by_user(
@@ -156,7 +156,7 @@ impl FileRepository {
     ) -> FilesResult<Vec<File>> {
         let user_id_str = user_id.as_str();
         let result = sqlx::query_as!(
-            File,
+            FileRow,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
@@ -171,12 +171,12 @@ impl FileRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(result)
+        Ok(result.into_iter().map(File::from).collect())
     }
 
     pub async fn list_all(&self, limit: i64, offset: i64) -> FilesResult<Vec<File>> {
         let result = sqlx::query_as!(
-            File,
+            FileRow,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
@@ -190,7 +190,7 @@ impl FileRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(result)
+        Ok(result.into_iter().map(File::from).collect())
     }
 
     pub async fn delete(&self, id: &FileId) -> FilesResult<()> {
@@ -232,7 +232,7 @@ impl FileRepository {
     pub async fn search_by_path(&self, query: &str, limit: i64) -> FilesResult<Vec<File>> {
         let pattern = format!("%{query}%");
         let result = sqlx::query_as!(
-            File,
+            FileRow,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>",
                    user_id as "user_id: UserId", session_id as "session_id: SessionId",
@@ -249,6 +249,6 @@ impl FileRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(result)
+        Ok(result.into_iter().map(File::from).collect())
     }
 }

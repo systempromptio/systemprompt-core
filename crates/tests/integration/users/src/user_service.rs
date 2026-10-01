@@ -187,7 +187,7 @@ async fn service_update_status() -> Result<()> {
     let updated = service
         .update_status(&created.id, UserStatus::Suspended)
         .await?;
-    assert_eq!(updated.status, Some("suspended".to_string()));
+    assert_eq!(updated.status, UserStatus::Suspended);
     assert_eq!(updated.id.to_string(), created.id.to_string());
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
@@ -559,7 +559,7 @@ async fn service_update_email_verified() -> Result<()> {
         .await?;
 
     let updated = service.update_email_verified(&created.id, true).await?;
-    assert_eq!(updated.email_verified, Some(true));
+    assert!(updated.email_verified);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool().as_ref())
@@ -588,14 +588,14 @@ async fn service_bulk_update_status() -> Result<()> {
         .await?;
 
     let updated_count = service
-        .bulk_update_status(&[user1.id.clone(), user2.id.clone()], "suspended")
+        .bulk_update_status(&[user1.id.clone(), user2.id.clone()], UserStatus::Suspended)
         .await?;
     assert_eq!(updated_count, 2);
 
     let found1 = service.find_by_id(&user1.id).await?;
     assert_eq!(
-        found1.as_ref().map(|u| u.status.as_deref()),
-        Some(Some("suspended"))
+        found1.as_ref().map(|u| u.status),
+        Some(UserStatus::Suspended)
     );
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user1.id.as_str())
@@ -655,9 +655,9 @@ async fn service_list_by_filter_with_status() -> Result<()> {
         .await?;
 
     let users = service
-        .list_by_filter(Some("active"), None, None, 100)
+        .list_by_filter(Some(UserStatus::Active), None, None, 100)
         .await?;
-    assert!(users.iter().all(|u| u.status.as_deref() == Some("active")));
+    assert!(users.iter().all(|u| u.status == UserStatus::Active));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool().as_ref())

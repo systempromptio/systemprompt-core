@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use clap::{Args, ValueEnum};
 use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, FileRole};
@@ -62,7 +62,8 @@ pub async fn execute_with_pool(
 ) -> Result<CommandOutput> {
     let service = FileRepository::new(pool);
 
-    let file_id = FileId::new(args.file.clone());
+    let file_id = FileId::try_new(&args.file)
+        .map_err(|e| anyhow!("Invalid file ID '{}': {}", args.file, e))?;
     let content_id = ContentId::new(args.content.clone());
     let role: FileRole = args.role.into();
 

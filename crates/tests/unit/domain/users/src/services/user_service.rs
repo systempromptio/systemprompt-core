@@ -109,17 +109,14 @@ async fn update_fields_persist() {
         .update_email_verified(&created.id, true)
         .await
         .expect("update_email_verified");
-    assert_eq!(verified.email_verified, Some(true));
+    assert!(verified.email_verified);
 
     let suspended = ctx
         .service
         .update_status(&created.id, UserStatus::Suspended)
         .await
         .expect("update_status");
-    assert_eq!(
-        suspended.status.as_deref(),
-        Some(UserStatus::Suspended.as_str())
-    );
+    assert_eq!(suspended.status, UserStatus::Suspended);
 
     delete_user(&ctx, &created.id).await;
     ctx.fixture.finish().await;

@@ -7,9 +7,8 @@ use super::WebAuthnService;
 use crate::error::{OauthError, OauthResult as Result};
 use crate::repository::{StoreChallengeParams, WebAuthnChallengeKind};
 use base64::engine::{Engine, general_purpose};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ChallengeId, UserId};
 use tracing::instrument;
-use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
 impl WebAuthnService {
@@ -18,7 +17,7 @@ impl WebAuthnService {
         &self,
         email: &str,
         oauth_state: Option<String>,
-    ) -> Result<(RequestChallengeResponse, String)> {
+    ) -> Result<(RequestChallengeResponse, ChallengeId)> {
         let user = self
             .user_provider
             .find_by_email(email)
@@ -39,12 +38,12 @@ impl WebAuthnService {
             .webauthn
             .start_passkey_authentication(&user_credentials)?;
 
-        let challenge_id = Uuid::new_v4().to_string();
+        let challenge_id = ChallengeId::generate();
 
         let state = serde_json::to_value(&auth_state)?;
         self.oauth_repo
             .store_webauthn_challenge(StoreChallengeParams {
-                challenge: &challenge_id,
+                challenge: challenge_id.as_str(),
                 kind: WebAuthnChallengeKind::Authentication,
                 user_id: Some(&user.id),
                 state: &state,
@@ -68,7 +67,7 @@ impl WebAuthnService {
     #[instrument(skip(self, auth_response), fields(challenge_id = %challenge_id))]
     pub async fn finish_authentication(
         &self,
-        challenge_id: &str,
+        challenge_id: &ChallengeId,
         auth_response: &PublicKeyCredential,
     ) -> Result<(UserId, Option<String>)> {
         let (auth_state, user_id, oauth_state) = self
@@ -109,11 +108,14 @@ impl WebAuthnService {
 
     async fn retrieve_and_remove_authentication_state(
         &self,
-        challenge_id: &str,
+        challenge_id: &ChallengeId,
     ) -> Result<(PasskeyAuthentication, UserId, Option<String>)> {
         let consumed = self
             .oauth_repo
-            .consume_webauthn_challenge(challenge_id, WebAuthnChallengeKind::Authentication)
+            .consume_webauthn_challenge(
+                challenge_id.as_str(),
+                WebAuthnChallengeKind::Authentication,
+            )
             .await?
             .ok_or(OauthError::ChallengeExpired)?;
 

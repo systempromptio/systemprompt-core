@@ -15,10 +15,11 @@ async fn repo() -> OAuthRepository {
 
 #[test]
 fn builder_applies_defaults() {
-    let params = StateBindingParams::builder("tok").build();
+    let client_id = ClientId::new("client-x");
+    let params = StateBindingParams::builder("tok", &client_id, "https://app.invalid/cb").build();
     assert_eq!(params.return_to, "/");
-    assert_eq!(params.client_id.as_str(), "");
-    assert_eq!(params.redirect_uri, "");
+    assert_eq!(params.client_id.as_str(), "client-x");
+    assert_eq!(params.redirect_uri, "https://app.invalid/cb");
     assert!(params.expires_at > Utc::now());
 }
 
@@ -26,10 +27,8 @@ fn builder_applies_defaults() {
 fn builder_overrides_fields() {
     let exp = Utc::now() + Duration::minutes(5);
     let client_id = ClientId::new("client-x");
-    let params = StateBindingParams::builder("tok")
+    let params = StateBindingParams::builder("tok", &client_id, "https://app.invalid/cb")
         .with_return_to("/dashboard")
-        .with_client_id(&client_id)
-        .with_redirect_uri("https://app.invalid/cb")
         .with_expires_at(exp)
         .build();
     assert_eq!(params.return_to, "/dashboard");
@@ -44,10 +43,8 @@ async fn store_then_consume_once() {
     let token = format!("state-{}", Uuid::new_v4());
     let client_id = ClientId::new("cid-x");
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://app.invalid/cb")
             .with_return_to("/back")
-            .with_client_id(&client_id)
-            .with_redirect_uri("https://app.invalid/cb")
             .build(),
     )
     .await
@@ -86,8 +83,9 @@ async fn consume_unknown_returns_none() {
 async fn expired_binding_cannot_be_consumed() {
     let repo = repo().await;
     let token = format!("state-{}", Uuid::new_v4());
+    let client_id = ClientId::new("cid-expired");
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://app.invalid/cb")
             .with_expires_at(Utc::now() - Duration::minutes(1))
             .build(),
     )
@@ -107,8 +105,9 @@ async fn cleanup_expired_state_bindings_removes_past() {
     let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool);
     let token = format!("state-{}", Uuid::new_v4());
+    let client_id = ClientId::new("cid-expired");
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://app.invalid/cb")
             .with_expires_at(Utc::now() - Duration::hours(1))
             .build(),
     )

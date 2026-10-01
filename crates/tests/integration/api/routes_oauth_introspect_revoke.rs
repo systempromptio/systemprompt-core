@@ -207,7 +207,8 @@ fn token_jti(token: &str) -> anyhow::Result<String> {
 
 async fn jti_revoked(jti: &str) -> anyhow::Result<bool> {
     let (_pool, ctx) = setup_ctx().await?;
-    Ok(ctx.oauth_repositories().oauth.is_jti_revoked(jti).await?)
+    let jti = systemprompt_identifiers::AccessTokenId::try_new(jti)?;
+    Ok(ctx.oauth_repositories().oauth.is_jti_revoked(&jti).await?)
 }
 
 #[tokio::test]

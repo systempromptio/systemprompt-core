@@ -37,11 +37,7 @@ pub async fn finish_link(
     let webauthn_service = state.webauthn()?;
 
     let user_id = webauthn_service
-        .finish_registration_with_token(
-            request.challenge_id.as_str(),
-            &request.token,
-            &request.credential,
-        )
+        .finish_registration_with_token(&request.challenge_id, &request.token, &request.credential)
         .await
         .map_err(|e| internal::reclassify(e, OAuthHttpError::link_failed))?;
 

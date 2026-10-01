@@ -33,6 +33,9 @@ domain_error! {
 
         #[error("service error: {0}")]
         Service(String),
+
+        #[error("invalid identifier: {0}")]
+        InvalidIdentifier(#[from] systemprompt_identifiers::error::IdValidationError),
     }
 }
 

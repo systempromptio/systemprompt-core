@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS oauth_jti_revocations (
     jti         TEXT        PRIMARY KEY,
-    user_id     UUID        NOT NULL,
+    user_id     TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     revoked_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     exp         TIMESTAMPTZ NOT NULL
 );
