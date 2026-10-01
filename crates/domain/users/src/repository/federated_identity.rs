@@ -1,10 +1,6 @@
 //! Repository for `federated_identities` — the `{issuer, external_sub} ->
 //! users.id` mapping used by RFC 8693 token-exchange first-touch.
 //!
-//! A first-touch user always starts with the local `user` role. Roles the
-//! upstream IdP asserts are not copied: no per-issuer role mapping exists, so
-//! granting them would let any trusted issuer mint local privileges.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -204,14 +200,18 @@ impl NewFederatedUser {
             email,
             display_name: claims.name.clone(),
             status: UserStatus::Active,
-            roles: first_touch_roles(),
+            roles: normalised_roles(&claims.roles),
             now: Utc::now(),
         }
     }
 }
 
-fn first_touch_roles() -> Vec<String> {
-    vec![UserRole::User.as_str().to_owned()]
+fn normalised_roles(claim_roles: &[String]) -> Vec<String> {
+    if claim_roles.is_empty() {
+        vec![UserRole::User.as_str().to_owned()]
+    } else {
+        claim_roles.to_vec()
+    }
 }
 
 fn short_hash(s: &str) -> String {
