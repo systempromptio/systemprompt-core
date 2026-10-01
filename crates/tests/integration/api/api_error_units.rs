@@ -83,7 +83,7 @@ fn marketplace_error_variants_classify() {
 #[test]
 fn user_error_variants_classify() {
     assert_eq!(
-        status_of(UserError::NotFound("u".to_owned().into()).into()),
+        status_of(UserError::NotFound(systemprompt_identifiers::UserId::new("u")).into()),
         StatusCode::NOT_FOUND
     );
     assert_eq!(

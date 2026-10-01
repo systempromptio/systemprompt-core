@@ -156,7 +156,7 @@ fn user_count_breakdown_multiple_statuses() {
 
 fn create_test_user_export() -> UserExport {
     UserExport {
-        id: "user-export-123".to_string().into(),
+        id: systemprompt_identifiers::UserId::new("user-export-123"),
         name: "exportuser".to_string(),
         email: "export@example.com".to_string(),
         full_name: Some("Export User".to_string()),
@@ -243,7 +243,7 @@ fn user_export_from_user_with_none_fields() {
 #[test]
 fn user_export_with_empty_roles() {
     let export = UserExport {
-        id: "user-empty-roles".to_string().into(),
+        id: systemprompt_identifiers::UserId::new("user-empty-roles"),
         name: "emptyroles".to_string(),
         email: "empty@example.com".to_string(),
         full_name: None,

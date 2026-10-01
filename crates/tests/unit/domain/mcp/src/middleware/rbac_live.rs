@@ -28,8 +28,8 @@ fn sys_ctx() -> SysRequestContext {
         TraceId::new("t-rbac"),
         ContextId::generate(),
         AgentName::try_new("agent-rbac").expect("valid AgentName"),
+        Actor::user(UserId::new("user-rbac")),
     )
-    .with_actor(Actor::user(UserId::new("user-rbac")))
 }
 
 fn server_yaml(name: &str, oauth_required: bool, scopes: &str) -> String {

@@ -138,7 +138,7 @@ extra: nope
 
 #[test]
 fn job_config_new_and_builders() {
-    let owner = UserId::new("user-1");
+    let owner = "user-1".to_owned();
     let j = JobConfig::new("hello");
     assert_eq!(j.name, "hello");
     assert!(j.owner.is_none());

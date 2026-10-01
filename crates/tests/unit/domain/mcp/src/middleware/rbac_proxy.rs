@@ -108,15 +108,15 @@ fn insufficient_scope_is_rejected() {
 }
 
 #[test]
-fn invalid_user_uuid_is_rejected() {
+fn malformed_user_id_is_rejected() {
     let parts = parts_with(&[
         ("x-proxy-verified", "true"),
-        ("x-user-id", "not-a-uuid"),
+        ("x-user-id", "unset"),
         ("x-user-permissions", "mcp"),
         ("authorization", "Bearer t"),
     ]);
     let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::Mcp]), "srv")
-        .expect_err("uuid parse enforced");
+        .expect_err("user id validation enforced");
     assert!(err.to_string().contains("Invalid user ID"));
 }
 

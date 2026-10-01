@@ -6,6 +6,7 @@ use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
+use systemprompt_identifiers::UserId;
 
 const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -15,7 +16,7 @@ fn test_trace_event_creation() {
         event_type: "test_event".to_string(),
         timestamp: Utc::now(),
         details: "Test details".to_string(),
-        user_id: Some("user-123".to_string().into()),
+        user_id: Some(UserId::new("user-123")),
         session_id: Some("session-456".to_string().into()),
         task_id: Some("task-789".to_string().into()),
         context_id: Some(ContextId::try_new(TEST_CTX).expect("valid ContextId")),
@@ -24,7 +25,7 @@ fn test_trace_event_creation() {
 
     assert_eq!(event.event_type, "test_event");
     assert_eq!(event.details, "Test details");
-    assert_eq!(event.user_id, Some("user-123".to_string().into()));
+    assert_eq!(event.user_id, Some(UserId::new("user-123")));
     assert_eq!(event.session_id, Some("session-456".to_string().into()));
     assert_eq!(event.task_id, Some("task-789".to_string().into()));
     assert_eq!(
