@@ -137,7 +137,8 @@ async fn claude_hosts_receive_the_authored_frontmatter_and_other_hosts_do_not() 
 async fn malformed_authored_frontmatter_fails_the_plan_instead_of_being_dropped() {
     let authored: &[u8] = b"---\nallowed-tools: [Read\n---\n# Skill";
     let fixture =
-        crate::consumer_fixture::fixture_with_extra_files(&[("SKILL.md", authored)]).await;
+        crate::consumer_fixture::unplanned_fixture_with_extra_files(&[("SKILL.md", authored)])
+            .await;
     let err = fixture
         .repo
         .consumer_installation_plan(

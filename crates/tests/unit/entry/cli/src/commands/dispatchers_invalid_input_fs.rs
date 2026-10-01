@@ -118,11 +118,13 @@ async fn a_plugin_missing_its_referenced_skill_is_reported_as_invalid() {
     )
     .unwrap();
 
-    // Validation reports the finding in its table rather than failing the
-    // command, so the run succeeds and the invalid row is the outcome.
-    systemprompt_cli::core::execute(core(&["plugins", "validate"]), &ctx())
+    let err = systemprompt_cli::core::execute(core(&["plugins", "validate"]), &ctx())
         .await
-        .unwrap();
+        .unwrap_err();
+    assert!(
+        format!("{err:#}").contains("Plugin validation failed"),
+        "{err:#}"
+    );
 
     // `validate` takes the id positionally, and an unknown one is a hard error.
     let err = systemprompt_cli::core::execute(

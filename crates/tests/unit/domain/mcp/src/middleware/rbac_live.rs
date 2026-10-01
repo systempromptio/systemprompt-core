@@ -16,7 +16,7 @@ use systemprompt_security::authz::{
     AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyAllHook, DenyReason,
     SharedAuthzHook,
 };
-use systemprompt_test_fixtures::mint_admin_jwt;
+use systemprompt_test_fixtures::{mint_admin_jwt, mint_bridge_jwt};
 
 use crate::harness::bootstrap_with_services;
 
@@ -208,10 +208,10 @@ async fn valid_admin_jwt_is_authenticated() {
 #[tokio::test]
 async fn insufficient_scope_is_rejected() {
     let name = unique("rbl_scope");
-    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, ""));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let user = UserId::new(uuid::Uuid::new_v4().to_string());
-    let token = mint_admin_jwt(&user, "rbac-scope@test.invalid", ISSUER);
+    let token = mint_bridge_jwt(&user, "rbac-scope@test.invalid", ISSUER);
 
     let outcome = probe_outcome(RbacProbe {
         server: name,
@@ -226,6 +226,26 @@ async fn insufficient_scope_is_rejected() {
         outcome.contains("Insufficient permissions"),
         "got: {outcome}"
     );
+}
+
+#[tokio::test]
+async fn oauth_required_with_no_declared_scopes_is_rejected() {
+    let name = unique("rbl_noscope");
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, ""));
+
+    let user = UserId::new(uuid::Uuid::new_v4().to_string());
+    let token = mint_admin_jwt(&user, "rbac-noscope@test.invalid", ISSUER);
+
+    let outcome = probe_outcome(RbacProbe {
+        server: name,
+        headers: vec![(
+            "authorization".to_owned(),
+            format!("Bearer {}", token.as_str()),
+        )],
+        hook: Arc::new(AllowAllHook::null()),
+    })
+    .await;
+    assert!(outcome.contains("declares no scopes"), "got: {outcome}");
 }
 
 #[tokio::test]

@@ -27,7 +27,7 @@ use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_user_id, free_port_in_range, init_services_bootstrap,
-    install_test_signing_key, test_app_context, test_db_pool,
+    install_test_signing_key, seed_fixture_system_admin, test_app_context, test_db_pool,
 };
 
 const ENABLED: &str = "fixture_enabled_server";
@@ -118,6 +118,9 @@ fn parse(args: &[&str]) -> McpCommands {
 async fn app() -> (DbPool, Arc<AppContext>) {
     let b = boot();
     let pool = test_db_pool().await;
+    seed_fixture_system_admin(&pool)
+        .await
+        .expect("seed the configured system admin");
     let app = test_app_context(&pool, &b.database_url);
     (pool, app)
 }

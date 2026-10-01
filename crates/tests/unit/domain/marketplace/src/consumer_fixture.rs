@@ -28,14 +28,22 @@ pub async fn fixture() -> Fixture {
 }
 
 pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
-    fixture_with(metadata, &[]).await
+    fixture_with(metadata, &[], true).await
 }
 
 pub async fn fixture_with_extra_files(extra: &[(&str, &[u8])]) -> Fixture {
-    fixture_with(None, extra).await
+    fixture_with(None, extra, true).await
 }
 
-async fn fixture_with(metadata: Option<(&str, &str)>, extra: &[(&str, &[u8])]) -> Fixture {
+pub async fn unplanned_fixture_with_extra_files(extra: &[(&str, &[u8])]) -> Fixture {
+    fixture_with(None, extra, false).await
+}
+
+async fn fixture_with(
+    metadata: Option<(&str, &str)>,
+    extra: &[(&str, &[u8])],
+    plan_runtime_files: bool,
+) -> Fixture {
     ensure_test_bootstrap();
     let db = test_db_pool().await;
     let pool = db.write_pool().as_ref().clone();
@@ -187,29 +195,31 @@ async fn fixture_with(metadata: Option<(&str, &str)>, extra: &[(&str, &[u8])]) -
     repo.set_consumer_grant(&owner, &request.resource_id, &consumer, true)
         .await
         .expect("grant");
-    let plan = repo
-        .consumer_installation_plan(
-            &credential.credential,
-            &request.resource_id,
-            &request.publication_id,
-            request.host,
-        )
-        .await
-        .expect("installation plan");
-    request.runtime_files = plan
-        .runtime_files
-        .iter()
-        .map(
-            |file| systemprompt_models::feedback::receipts::RuntimeFileReadback {
-                path: file.path.clone(),
-                digest: ContentDigest::of(&file.bytes),
-                bytes: file.bytes.len() as u64,
-                executable: file.executable,
-                content_check: ReadbackStatus::Verified,
-                mode_check: ReadbackStatus::Verified,
-            },
-        )
-        .collect();
+    if plan_runtime_files {
+        let plan = repo
+            .consumer_installation_plan(
+                &credential.credential,
+                &request.resource_id,
+                &request.publication_id,
+                request.host,
+            )
+            .await
+            .expect("installation plan");
+        request.runtime_files = plan
+            .runtime_files
+            .iter()
+            .map(
+                |file| systemprompt_models::feedback::receipts::RuntimeFileReadback {
+                    path: file.path.clone(),
+                    digest: ContentDigest::of(&file.bytes),
+                    bytes: file.bytes.len() as u64,
+                    executable: file.executable,
+                    content_check: ReadbackStatus::Verified,
+                    mode_check: ReadbackStatus::Verified,
+                },
+            )
+            .collect();
+    }
     Fixture {
         repo,
         pool,

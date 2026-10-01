@@ -37,9 +37,10 @@ async fn seed_owned_task(pool: &DbPool, owner: &UserId) -> anyhow::Result<(Conte
     .execute(p.as_ref())
     .await?;
     sqlx::query!(
-        "INSERT INTO agent_tasks (task_id, context_id) VALUES ($1, $2)",
+        "INSERT INTO agent_tasks (task_id, context_id, agent_name) VALUES ($1, $2, $3)",
         task_id.as_str(),
         context_id.as_str(),
+        "ownership-agent",
     )
     .execute(p.as_ref())
     .await?;

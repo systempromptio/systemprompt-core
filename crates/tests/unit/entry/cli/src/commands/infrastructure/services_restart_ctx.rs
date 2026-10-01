@@ -201,28 +201,17 @@ async fn restarting_an_unknown_agent_by_name_is_an_error_naming_the_agent() {
 async fn restarting_an_unknown_mcp_server_by_name_is_an_error() {
     let (_pool, ctx) = app_ctx().await;
 
-    // The orchestrator filters by name, so an unregistered name selects nothing
-    // and the restart is a no-op rather than a failure.
-    let plain = restart::execute_mcp(&ctx, "no-such-mcp-server", false, &json_config())
-        .await
-        .expect("restarting an unmatched name selects no services");
-    assert_eq!(service_type(&plain), "mcp");
-    assert_eq!(
-        field(&plain, "service_name").as_deref(),
-        Some("no-such-mcp-server"),
-        "the report must still name the server the operator asked for"
-    );
-
-    let text = restart::execute_mcp(&ctx, "no-such-mcp-server", false, &text_config())
-        .await
-        .expect("text restart of an unmatched name selects no services");
-    assert_eq!(service_type(&text), "mcp");
-    assert_eq!(restarted_count(&text), 1);
-    assert!(message(&text).contains("no-such-mcp-server"));
-
-    let with_build = restart::execute_mcp(&ctx, "no-such-mcp-server", true, &json_config()).await;
-    assert!(
-        with_build.is_ok(),
-        "the build-and-restart arm must behave the same for an unmatched name: {with_build:?}"
-    );
+    for (build, config) in [
+        (false, json_config()),
+        (false, text_config()),
+        (true, json_config()),
+    ] {
+        let err = restart::execute_mcp(&ctx, "no-such-mcp-server", build, &config)
+            .await
+            .expect_err("an unregistered MCP server cannot be restarted");
+        assert!(
+            err.to_string().contains("no-such-mcp-server"),
+            "the failure must name the server that was asked for (build={build}), got {err}"
+        );
+    }
 }

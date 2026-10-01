@@ -66,6 +66,22 @@ pub async fn seed_user_row_with_roles(
     Ok(())
 }
 
+pub async fn seed_fixture_system_admin(pool: &DbPool) -> Result<()> {
+    let p = pool.pool();
+    let id = format!("usr_testadmin_{}", uuid::Uuid::new_v4().simple());
+    sqlx::query!(
+        "INSERT INTO users (id, name, email, roles)
+         VALUES ($1, 'testadmin', 'testadmin@localhost.localdomain', ARRAY['admin', 'user'])
+         ON CONFLICT (email) DO UPDATE
+           SET name = 'testadmin', status = 'active', roles = ARRAY['admin', 'user']",
+        id,
+    )
+    .execute(p.as_ref())
+    .await
+    .map_err(|e| anyhow::anyhow!("seed fixture system admin: {e}"))?;
+    Ok(())
+}
+
 pub async fn seed_user_session(
     pool: &DbPool,
     user_id: &UserId,

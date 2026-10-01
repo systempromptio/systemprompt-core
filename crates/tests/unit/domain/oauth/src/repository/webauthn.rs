@@ -108,7 +108,9 @@ async fn replace_passkey_refuses_a_stale_previous_blob() {
 
     ctx.repo
         .store_webauthn_credential(
-            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &[1u8, 1]).build(),
+            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &[1u8, 1])
+                .with_device_type("platform")
+                .build(),
         )
         .await
         .expect("store");

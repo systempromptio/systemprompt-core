@@ -48,8 +48,8 @@ pub use bootstrap::{
     TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
-    seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_row_with_roles,
-    seed_user_session, AuthedFixture,
+    seed_admin_credential, seed_bridge_credential, seed_fixture_system_admin, seed_user_row,
+    seed_user_row_with_roles, seed_user_session, AuthedFixture,
 };
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;

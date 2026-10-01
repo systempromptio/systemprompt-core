@@ -41,6 +41,10 @@ pub const ROTATING_KEY_COUNT: usize = TEST_KEY_PEMS.len() - 1;
 
 static NEXT_KEY: AtomicUsize = AtomicUsize::new(0);
 
+pub(crate) const fn authority_key_pem() -> &'static str {
+    TEST_KEY_PEMS[AUTHORITY_KEY_INDEX]
+}
+
 /// Load test key `index`, wrapping modulo the number of committed keys.
 pub fn test_key(index: usize) -> RsaSigningKey {
     RsaSigningKey::from_pkcs8_pem(TEST_KEY_PEMS[index % TEST_KEY_PEMS.len()])

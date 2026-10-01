@@ -234,10 +234,14 @@ async fn show_renders_a_seeded_agent_and_rejects_unknown_ones() {
 }
 
 #[tokio::test]
-async fn validate_accepts_the_seeded_configuration() {
+async fn validate_fails_when_an_enabled_agent_names_an_unconfigured_provider() {
     seed_agents();
 
-    run(&["validate"]).await.unwrap();
+    let err = run(&["validate"]).await.unwrap_err();
+    assert!(
+        format!("{err:#}").contains("Agent validation failed"),
+        "{err:#}"
+    );
 }
 
 #[tokio::test]
@@ -321,6 +325,10 @@ async fn edit_rejects_an_unknown_agent() {
 async fn delete_removes_the_selected_agent_and_reloads_the_profile_config() {
     let root = seed_agents();
     let agent_file = root.join("agents/covlister.yaml");
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
+    systemprompt_test_fixtures::seed_fixture_system_admin(&pool)
+        .await
+        .unwrap();
 
     run(&["delete", "covlister", "--yes"]).await.unwrap();
 

@@ -392,7 +392,11 @@ async fn external_accessor_without_banked_token_is_service_unavailable() -> anyh
     assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
     let bytes = to_bytes(resp.into_body(), 64 * 1024).await?;
     let body = String::from_utf8_lossy(&bytes).into_owned();
-    assert!(body.contains("connect the provider account"), "{body}");
+    assert!(body.contains("service_not_running"), "{body}");
+    assert!(
+        !body.contains("no token banked"),
+        "a 5xx carries a fixed message, not the internal cause: {body}"
+    );
     Ok(())
 }
 
