@@ -16,7 +16,7 @@ use super::validation::{
     validate_authorize_request, validate_oauth_parameters,
 };
 use super::{AuthorizeQuery, AuthorizeRequest};
-use crate::routes::oauth::OAuthHttpError;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::services::request_base_url::RequestBaseUrl;
 use axum::extract::{Extension, Form, Query, State};
@@ -53,10 +53,7 @@ async fn issue_server_state(
         .with_client_id(&params.client_id)
         .with_redirect_uri(params.redirect_uri.as_deref().unwrap_or(""))
         .build();
-    repo.store_state_binding(binding).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to persist OAuth state binding");
-        OAuthHttpError::server_error("Failed to persist authorization state")
-    })?;
+    repo.store_state_binding(binding).await.map_err(|e| internal::server_error("Failed to persist authorization state", e))?;
     Ok(server_state)
 }
 
@@ -73,21 +70,11 @@ fn require_csrf_token(params: &AuthorizeQuery) -> Result<CsrfToken, OAuthHttpErr
 
 fn resolve_self_origins(base: &RequestBaseUrl) -> Result<SelfOrigins, OAuthHttpError> {
     let primary_origin = Config::get()
-        .map_err(|e| {
-            tracing::error!(error = %e, "Failed to load config for OAuth self-origin");
-            OAuthHttpError::server_error("Configuration unavailable")
-        })
+        .map_err(|e| internal::server_error("Configuration unavailable", e))
         .and_then(|c| {
             reqwest::Url::parse(&c.api_external_url)
                 .map(|u| u.origin())
-                .map_err(|e| {
-                    tracing::error!(
-                        error = %e,
-                        api_external_url = %c.api_external_url,
-                        "api_external_url is not a valid URL — bootstrap validation should have caught this"
-                    );
-                    OAuthHttpError::server_error("Configuration invalid")
-                })
+                .map_err(|e| internal::server_error("Configuration invalid", e))
         })?;
     Ok(SelfOrigins::new(primary_origin, base.origin().clone()))
 }

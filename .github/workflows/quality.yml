@@ -252,6 +252,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-swallowed-errors
         if: ${{ !cancelled() }}
+      - run: just lint-stringly-errors
+        if: ${{ !cancelled() }}
       - run: just lint-tracing-messages
         if: ${{ !cancelled() }}
       - run: just lint-async-trait

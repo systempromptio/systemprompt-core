@@ -124,8 +124,10 @@ async fn starting_readyz() -> impl IntoResponse {
     )
 }
 
-async fn starting_fallback() -> ApiError {
-    ApiError::service_unavailable("service starting").with_error_key("service_starting")
+async fn starting_fallback() -> Response {
+    tracing::debug!("request answered with 503 while the service is starting");
+    let body = ApiError::service_unavailable("service starting").with_error_key("service_starting");
+    (StatusCode::SERVICE_UNAVAILABLE, Json(body)).into_response()
 }
 
 #[derive(Clone)]

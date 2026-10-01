@@ -170,10 +170,7 @@ async fn revoke_access_token(
             .session_provider()
             .revoke_session(session_id)
             .await
-            .map_err(|e| {
-                tracing::error!(session_id = %session_id, error = %e, "Failed to revoke session");
-                OAuthHttpError::server_error("Failed to revoke session")
-            })?;
+            .map_err(|e| internal::server_error("Failed to revoke session", e))?;
     }
     Ok(())
 }

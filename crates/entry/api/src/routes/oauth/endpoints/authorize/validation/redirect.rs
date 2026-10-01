@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::AuthorizeQuery;
-use crate::routes::oauth::OAuthHttpError;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::validate_redirect_uri;
 
@@ -48,10 +48,7 @@ pub async fn resolve_registered_redirect(
     let client = repo
         .find_client_by_id(&params.client_id)
         .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "Failed to look up OAuth client for redirect check");
-            OAuthHttpError::server_error("Failed to resolve client")
-        })?;
+        .map_err(|e| internal::server_error("Failed to resolve client", e))?;
     let Some(client) = client else {
         return Ok(None);
     };

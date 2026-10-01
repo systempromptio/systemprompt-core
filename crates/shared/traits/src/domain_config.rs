@@ -20,6 +20,13 @@ pub enum DomainConfigError {
     LoadError { message: String },
 
     #[error("Failed to load config: {context}: {source}")]
+    Load {
+        context: &'static str,
+        #[source]
+        source: crate::BoxedSource,
+    },
+
+    #[error("Failed to load config: {context}: {source}")]
     Io {
         context: String,
         #[source]
@@ -34,6 +41,15 @@ pub enum DomainConfigError {
 
     #[error("Validation failed: {message}")]
     ValidationError { message: String },
+}
+
+impl DomainConfigError {
+    pub fn load(context: &'static str, source: impl Into<crate::BoxedSource>) -> Self {
+        Self::Load {
+            context,
+            source: source.into(),
+        }
+    }
 }
 
 pub trait DomainConfig: Send + Sync + Debug {

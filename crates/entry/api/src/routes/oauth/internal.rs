@@ -2,13 +2,11 @@
 //!
 //! An OAuth `error_description` is client-visible and may be copied into a
 //! third-party `redirect_uri`, so a cause never becomes description text: the
-//! response carries an authored description and the cause chain goes to the
-//! log, once, here.
+//! response carries an authored description and the cause rides on the
+//! [`OAuthHttpError`], logged once when the response is written.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-use std::error::Error;
 
 use systemprompt_oauth::OauthError;
 use systemprompt_traits::BoxedSource;
@@ -16,20 +14,11 @@ use systemprompt_traits::BoxedSource;
 use super::{OAuthErrorCode, OAuthHttpError};
 
 pub fn server_error(context: &'static str, source: impl Into<BoxedSource>) -> OAuthHttpError {
-    let source = source.into();
-    tracing::error!(context, cause = %cause_chain(&*source), "OAuth internal failure");
-    OAuthHttpError::server_error(context)
+    OAuthHttpError::server_error(context).with_source(source)
 }
 
 pub fn rejected(error: OAuthHttpError, source: impl Into<BoxedSource>) -> OAuthHttpError {
-    let source = source.into();
-    tracing::warn!(
-        error = error.code().as_str(),
-        description = error.description(),
-        cause = %cause_chain(&*source),
-        "OAuth request rejected"
-    );
-    error
+    error.with_source(source)
 }
 
 pub fn classify_validation(
@@ -57,15 +46,4 @@ pub fn reclassify(
 
 pub fn client_metadata_error(error: OauthError) -> OAuthHttpError {
     classify_validation(error, OAuthHttpError::invalid_client_metadata)
-}
-
-pub fn cause_chain(error: &(dyn Error + 'static)) -> String {
-    let mut chain = error.to_string();
-    let mut next = error.source();
-    while let Some(cause) = next {
-        chain.push_str(": ");
-        chain.push_str(&cause.to_string());
-        next = cause.source();
-    }
-    chain
 }

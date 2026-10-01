@@ -41,17 +41,12 @@ impl DomainConfig for FilesConfigValidator {
     }
 
     fn load(&mut self, _config: &dyn ConfigProvider) -> Result<(), DomainConfigError> {
-        let profile = ProfileBootstrap::get().map_err(|e| DomainConfigError::LoadError {
-            message: e.to_string(),
-        })?;
+        let profile = ProfileBootstrap::get()
+            .map_err(|e| DomainConfigError::load("profile not initialized", e))?;
         let paths = AppPaths::from_profile(&profile.paths, profile.path_resolution(), None)
-            .map_err(|e| DomainConfigError::LoadError {
-                message: e.to_string(),
-            })?;
-        let yaml_config =
-            FilesConfig::load_yaml_config(&paths).map_err(|e| DomainConfigError::LoadError {
-                message: e.to_string(),
-            })?;
+            .map_err(|e| DomainConfigError::load("application paths", e))?;
+        let yaml_config = FilesConfig::load_yaml_config(&paths)
+            .map_err(|e| DomainConfigError::load("files.yaml", e))?;
         self.config = Some(yaml_config);
         Ok(())
     }

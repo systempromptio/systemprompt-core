@@ -8,8 +8,8 @@
 //! Public APIs return [`RuntimeResult<T>`]. [`RuntimeError`] composes
 //! upstream typed errors (`ConfigError`, `RepositoryError`,
 //! `FilesError`, `UserError`, `LoaderError`, `AnalyticsError`,
-//! `ProfileBootstrapError`, `PathError`) via `#[from]` and absorbs
-//! untyped third-party errors into [`RuntimeError::Internal`] as strings.
+//! `ProfileBootstrapError`, `PathError`) via `#[from]`; every variant
+//! built from another error keeps it as its source.
 //!
 //! # Feature flags
 //!

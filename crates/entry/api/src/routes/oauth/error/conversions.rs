@@ -13,7 +13,7 @@ use super::OAuthHttpError;
 
 impl From<ConfigError> for OAuthHttpError {
     fn from(err: ConfigError) -> Self {
-        Self::server_error(err.to_string())
+        Self::server_error("Configuration unavailable").with_source(err)
     }
 }
 
@@ -43,39 +43,41 @@ impl From<OauthError> for OAuthHttpError {
             OauthErrorKind::AuthenticationFailed => Self::authentication_failed(
                 "Authentication failed. Check the email address or register a passkey.",
             ),
-            OauthErrorKind::ServerError => Self::server_error(err.to_string()),
+            OauthErrorKind::ServerError => {
+                Self::server_error("Authorization operation failed").with_source(err)
+            },
         }
     }
 }
 
 impl From<AuthProviderError> for OAuthHttpError {
     fn from(err: AuthProviderError) -> Self {
-        match &err {
-            AuthProviderError::InvalidCredentials | AuthProviderError::InvalidToken => {
-                Self::invalid_client(err.to_string())
+        match err {
+            e @ (AuthProviderError::InvalidCredentials | AuthProviderError::InvalidToken) => {
+                Self::invalid_client(e.to_string())
             },
-            AuthProviderError::UserNotFound => Self::not_found(err.to_string()),
-            AuthProviderError::TokenExpired => Self::invalid_grant(err.to_string()),
-            AuthProviderError::InsufficientPermissions => Self::access_denied(err.to_string()),
-            _ => Self::server_error(err.to_string()),
+            e @ AuthProviderError::UserNotFound => Self::not_found(e.to_string()),
+            e @ AuthProviderError::TokenExpired => Self::invalid_grant(e.to_string()),
+            e @ AuthProviderError::InsufficientPermissions => Self::access_denied(e.to_string()),
+            other => Self::server_error("Authentication provider failed").with_source(other),
         }
     }
 }
 
 impl From<SecretsBootstrapError> for OAuthHttpError {
     fn from(err: SecretsBootstrapError) -> Self {
-        Self::server_error(err.to_string())
+        Self::server_error("Secrets unavailable").with_source(err)
     }
 }
 
 impl From<sqlx::Error> for OAuthHttpError {
     fn from(err: sqlx::Error) -> Self {
-        Self::server_error(err.to_string())
+        Self::server_error("Database operation failed").with_source(err)
     }
 }
 
 impl From<anyhow::Error> for OAuthHttpError {
     fn from(err: anyhow::Error) -> Self {
-        Self::server_error(err.to_string())
+        Self::server_error("Authorization operation failed").with_source(err)
     }
 }

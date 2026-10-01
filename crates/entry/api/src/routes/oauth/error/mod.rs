@@ -20,6 +20,7 @@ use axum::Json;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Serialize;
+use systemprompt_traits::BoxedSource;
 
 mod code;
 mod conversions;
@@ -38,6 +39,7 @@ pub struct OAuthHttpError {
     status: StatusCode,
     description: String,
     redirect: Option<RedirectContext>,
+    source: Option<BoxedSource>,
 }
 
 impl OAuthHttpError {
@@ -48,6 +50,7 @@ impl OAuthHttpError {
             code,
             description: description.into(),
             redirect: None,
+            source: None,
         }
     }
 
@@ -162,6 +165,12 @@ impl OAuthHttpError {
     }
 
     #[must_use]
+    pub fn with_source(mut self, source: impl Into<BoxedSource>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    #[must_use]
     pub const fn code(&self) -> OAuthErrorCode {
         self.code
     }
@@ -172,11 +181,13 @@ impl OAuthHttpError {
     }
 
     fn log(&self) {
+        let cause = self.source.as_deref().map(cause_chain);
         if self.status.is_server_error() {
             tracing::error!(
                 error = self.code.as_str(),
                 description = %self.description,
                 status = self.status.as_u16(),
+                cause = cause.as_deref(),
                 "OAuth server error response"
             );
         } else if self.status.is_client_error() {
@@ -184,10 +195,22 @@ impl OAuthHttpError {
                 error = self.code.as_str(),
                 description = %self.description,
                 status = self.status.as_u16(),
+                cause = cause.as_deref(),
                 "OAuth client error response"
             );
         }
     }
+}
+
+fn cause_chain(error: &(dyn std::error::Error + Send + Sync + 'static)) -> String {
+    let mut chain = error.to_string();
+    let mut next = error.source();
+    while let Some(cause) = next {
+        chain.push_str(": ");
+        chain.push_str(&cause.to_string());
+        next = cause.source();
+    }
+    chain
 }
 
 const SERVER_ERROR_DESCRIPTION: &str = "The authorization server encountered an internal error";

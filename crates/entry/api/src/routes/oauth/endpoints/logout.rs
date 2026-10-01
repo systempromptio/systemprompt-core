@@ -17,7 +17,7 @@ use systemprompt_oauth::repository::OAuthRepository;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::routes::oauth::extractors::OAuthRepo;
 
 #[instrument(skip(repo, req_ctx))]
@@ -42,10 +42,7 @@ pub async fn handle_logout(
     let cookie = HeaderValue::from_str(
         "access_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict",
     )
-    .map_err(|e| {
-        tracing::error!(error = %e, "Failed to build logout Set-Cookie header");
-        OAuthHttpError::server_error("Logout failed")
-    })?;
+    .map_err(|e| internal::server_error("Logout failed", e))?;
     let mut response = (StatusCode::NO_CONTENT).into_response();
     response.headers_mut().insert(header::SET_COOKIE, cookie);
     Ok(response)
@@ -57,8 +54,5 @@ async fn revoke_jti(
     user_id: Uuid,
     exp: DateTime<Utc>,
 ) -> Result<(), OAuthHttpError> {
-    repo.revoke_jti(jti, user_id, exp).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to persist JTI revocation on logout");
-        OAuthHttpError::server_error("Logout failed")
-    })
+    repo.revoke_jti(jti, user_id, exp).await.map_err(|e| internal::server_error("Logout failed", e))
 }

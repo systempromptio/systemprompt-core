@@ -107,13 +107,14 @@ fn malformed_yaml_fails_load_with_parse_error() {
     let mut v = FilesConfigValidator::new();
     let err = v.load(&StubProvider).expect_err("malformed yaml");
     match err {
-        DomainConfigError::LoadError { message } => {
+        DomainConfigError::Load { source, .. } => {
+            let message = source.to_string();
             assert!(
                 message.contains("Failed to parse files.yaml"),
                 "unexpected message: {message}"
             );
         },
-        other => panic!("expected LoadError, got {other:?}"),
+        other => panic!("expected Load, got {other:?}"),
     }
 }
 
@@ -126,12 +127,13 @@ fn unreadable_files_yaml_fails_load_with_read_error() {
     let mut v = FilesConfigValidator::new();
     let err = v.load(&StubProvider).expect_err("unreadable yaml");
     match err {
-        DomainConfigError::LoadError { message } => {
+        DomainConfigError::Load { source, .. } => {
+            let message = source.to_string();
             assert!(
                 message.contains("Failed to read files.yaml"),
                 "unexpected message: {message}"
             );
         },
-        other => panic!("expected LoadError, got {other:?}"),
+        other => panic!("expected Load, got {other:?}"),
     }
 }
