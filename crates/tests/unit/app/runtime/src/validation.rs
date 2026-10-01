@@ -6,7 +6,7 @@
 //!
 //! Note: The main validate_system function is async and requires AppContext.
 //! Full validation testing is performed in integration tests.
-//! The internal validate_database_path function is private and tested inline.
+//! The internal validate_database_url function is private and tested inline.
 
 #[test]
 fn test_empty_path_pattern() {

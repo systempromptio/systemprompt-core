@@ -170,3 +170,29 @@ async fn server_error_response_body_logs_and_returns_500() {
     let resp = e.into_response();
     assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
+
+#[tokio::test]
+async fn server_error_body_does_not_carry_the_internal_description() {
+    let e = OAuthHttpError::server_error("relation \"oauth_clients\" does not exist");
+    let (status, _, body) = body_string(e.into_response()).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    let json: Value = serde_json::from_str(&body).expect("json body");
+    assert_eq!(json["error"], "server_error");
+    assert!(!body.contains("oauth_clients"), "{body}");
+}
+
+#[tokio::test]
+async fn server_error_redirect_does_not_carry_the_internal_description() {
+    let e = OAuthHttpError::server_error("connection refused to db-primary:5432")
+        .with_redirect("https://client.example/cb", Some("s".into()));
+    let resp = e.into_response();
+    let location = resp
+        .headers()
+        .get(header::LOCATION)
+        .expect("Location header")
+        .to_str()
+        .expect("ascii location")
+        .to_owned();
+    assert!(location.contains("error=server_error"), "{location}");
+    assert!(!location.contains("db-primary"), "{location}");
+}

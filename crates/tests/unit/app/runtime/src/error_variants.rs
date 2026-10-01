@@ -30,35 +30,9 @@ fn empty_database_url_message() {
 }
 
 #[test]
-fn database_not_found_message_contains_path() {
-    let err = RuntimeError::DatabaseNotFound {
-        path: "/data/app.db".to_string(),
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("/data/app.db"), "got: {msg}");
-    assert!(
-        msg.contains("not found") || msg.contains("Not found"),
-        "got: {msg}"
-    );
-}
-
-#[test]
-fn database_not_found_message_contains_setup_hint() {
-    let err = RuntimeError::DatabaseNotFound {
-        path: "/x/y.db".to_string(),
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("setup"), "got: {msg}");
-}
-
-#[test]
-fn database_not_file_message_contains_path() {
-    let err = RuntimeError::DatabaseNotFile {
-        path: "/some/dir".to_string(),
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("/some/dir"), "got: {msg}");
-    assert!(msg.contains("not a file"), "got: {msg}");
+fn unsupported_database_url_message_names_the_schemes() {
+    let msg = RuntimeError::UnsupportedDatabaseUrl.to_string();
+    assert!(msg.contains("postgres://"), "got: {msg}");
 }
 
 #[test]
@@ -124,18 +98,7 @@ fn error_debug_is_non_empty() {
 fn all_plain_variants_format_without_panic() {
     let variants: Vec<(RuntimeError, &str)> = vec![
         (RuntimeError::EmptyDatabaseUrl, "DATABASE_URL is empty"),
-        (
-            RuntimeError::DatabaseNotFound {
-                path: "/p".to_string(),
-            },
-            "/p",
-        ),
-        (
-            RuntimeError::DatabaseNotFile {
-                path: "/d".to_string(),
-            },
-            "/d",
-        ),
+        (RuntimeError::UnsupportedDatabaseUrl, "postgresql://"),
         (
             RuntimeError::SystemAdminNotFound {
                 username: "u".to_string(),

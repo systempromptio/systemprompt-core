@@ -159,7 +159,7 @@ pub async fn get_artifact_ui(
 
     let ui_resource: systemprompt_mcp::services::ui_renderer::UiResource = registry
         .render(&artifact)
-        .map_err(|e| ApiHttpError::internal_error(format!("Failed to render artifact UI: {e}")))?;
+        .map_err(|e| ApiHttpError::internal("Failed to render artifact UI", &e))?;
 
     tracing::debug!(artifact_id = %artifact_id, "Artifact UI rendered successfully");
 
@@ -172,5 +172,5 @@ pub async fn get_artifact_ui(
         )
         .header(header::X_FRAME_OPTIONS, "SAMEORIGIN")
         .body(axum::body::Body::from(ui_resource.html))
-        .map_err(|e| ApiHttpError::internal_error(format!("Failed to build response: {e}")))
+        .map_err(|e| ApiHttpError::internal("Failed to build response", &e))
 }

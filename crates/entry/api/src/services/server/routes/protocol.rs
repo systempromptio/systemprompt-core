@@ -23,19 +23,34 @@ use crate::services::middleware::{
     UserOnlyContextMiddleware,
 };
 
-fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
-    let analytics = ctx.analytics_provider()?;
-    let users = ctx.user_provider()?;
+fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
+    let missing = |provider: &str| LoaderError::InitializationFailed {
+        extension: "oauth".to_owned(),
+        message: format!("{provider} is required to mount the OAuth routes"),
+    };
+    let analytics = ctx
+        .analytics_provider()
+        .ok_or_else(|| missing("AnalyticsProvider"))?;
+    let users = ctx.user_provider().ok_or_else(|| missing("UserProvider"))?;
+    let sessions = ctx
+        .session_provider()
+        .ok_or_else(|| missing("SessionProvider"))?;
     let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
         Arc::new(ctx.mcp_registry().clone());
-    let state = OAuthState::new(
+    Ok(OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         analytics,
-        ctx.session_provider()?,
+        sessions,
         users,
     )
-    .with_mcp_registry(mcp_registry);
-    Some(state)
+    .with_mcp_registry(mcp_registry))
+}
+
+fn router_init_failed(extension: &str, error: &dyn std::fmt::Display) -> LoaderError {
+    LoaderError::InitializationFailed {
+        extension: extension.to_owned(),
+        message: error.to_string(),
+    }
 }
 
 pub(super) struct MountCtx<'a> {
@@ -45,7 +60,6 @@ pub(super) struct MountCtx<'a> {
     pub user_middleware: &'a UserOnlyContextMiddleware,
 }
 
-
 pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, LoaderError> {
     let (ctx, limits, public_middleware, user_middleware) = (
         mount.ctx,
@@ -54,19 +68,18 @@ pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
         mount.user_middleware,
     );
     let rate_config = &ctx.config().rate_limits;
-    if let Some(oauth_state) = create_oauth_state(ctx) {
-        let oauth = crate::routes::oauth::public_router()
-            .with_state(oauth_state.clone())
-            .with_rate_limit(limits, rate_config.oauth_public_per_second, "oauth_public")?
-            .with_auth(*public_middleware, AuthzPolicy::public())
-            .merge(
-                crate::routes::oauth::authenticated_router()
-                    .with_state(oauth_state)
-                    .with_rate_limit(limits, rate_config.oauth_auth_per_second, "oauth_auth")?
-                    .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-            );
-        router = router.nest(ApiPaths::OAUTH_BASE, oauth);
-    }
+    let oauth_state = create_oauth_state(ctx)?;
+    let oauth = crate::routes::oauth::public_router()
+        .with_state(oauth_state.clone())
+        .with_rate_limit(limits, rate_config.oauth_public_per_second, "oauth_public")?
+        .with_auth(*public_middleware, AuthzPolicy::public())
+        .merge(
+            crate::routes::oauth::authenticated_router()
+                .with_state(oauth_state)
+                .with_rate_limit(limits, rate_config.oauth_auth_per_second, "oauth_auth")?
+                .with_auth(user_middleware.clone(), AuthzPolicy::user()),
+        );
+    router = router.nest(ApiPaths::OAUTH_BASE, oauth);
     Ok(router)
 }
 
@@ -128,6 +141,7 @@ pub(super) fn mount_agent(
     router = router.nest(
         ApiPaths::AGENTS_BASE,
         crate::routes::proxy::agents::router(ctx)
+            .map_err(|e| router_init_failed("agents_proxy", &e))?
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?
             .with_auth(a2a_middleware, AuthzPolicy::authenticated()),
     );
@@ -151,8 +165,8 @@ pub(super) fn mount_messaging(
 
     router = router.nest(
         ApiPaths::TEAMS_BASE,
-        crate::routes::teams::teams_router()
-            .with_state(ctx.clone())
+        crate::routes::teams::teams_router(ctx)
+            .map_err(|e| router_init_failed("teams", &e))?
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
     );
 
@@ -179,12 +193,15 @@ pub(super) fn mount_mcp_and_stream(
             .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
-    router = router.nest(
-        ApiPaths::MCP_BASE,
-        crate::routes::proxy::mcp::router(ctx)
-            .with_rate_limit(limits, rate_config.mcp_per_second, "mcp")?
-            .with_auth(mcp_middleware, AuthzPolicy::deferred_to_handler()),
-    );
+    let executions = crate::routes::proxy::mcp::executions_router(ctx)
+        .map_err(|e| router_init_failed("mcp_executions", &e))?
+        .with_rate_limit(limits, rate_config.mcp_per_second, "mcp")?
+        .with_auth(user_middleware.clone(), AuthzPolicy::authenticated());
+    let proxy = crate::routes::proxy::mcp::router(ctx)
+        .map_err(|e| router_init_failed("mcp_proxy", &e))?
+        .with_rate_limit(limits, rate_config.mcp_per_second, "mcp")?
+        .with_auth(mcp_middleware, AuthzPolicy::deferred_to_handler());
+    router = router.nest(ApiPaths::MCP_BASE, executions.merge(proxy));
 
     router = router.nest(
         ApiPaths::STREAM_BASE,

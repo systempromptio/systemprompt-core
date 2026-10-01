@@ -105,7 +105,7 @@ settings:
         AgentName::system(),
     ));
 
-    let response = mcp::router(&ctx).oneshot(request).await?;
+    let response = mcp::router(&ctx)?.oneshot(request).await?;
     let (status, body) = body_to_string(response).await?;
     assert_eq!(status, http::StatusCode::OK, "{body}");
     assert_eq!(

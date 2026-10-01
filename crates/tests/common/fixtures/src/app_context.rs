@@ -22,9 +22,7 @@ use systemprompt_models::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_models::{Config, RouteClassifier};
-use systemprompt_runtime::{
-    AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
-};
+use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
 use systemprompt_users::UserService;
 
@@ -301,7 +299,6 @@ fn fixture_app_context_assembled(
         },
         Plugins {
             extension_registry: Arc::new(ExtensionRegistry::new()),
-            api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter,
             marketplace_cache: Arc::new(MarketplaceCache::default()),

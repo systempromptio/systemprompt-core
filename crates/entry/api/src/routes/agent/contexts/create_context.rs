@@ -63,11 +63,8 @@ pub async fn create_context(
                 Err(e) => {
                     tracing::error!(error = %e, "Failed to retrieve created context");
                     api_error_response(
-                        ApiError::internal_error(format!(
-                            "Context created but failed to retrieve: {}",
-                            e
-                        ))
-                        .with_request_context(&req_ctx),
+                        ApiError::internal_error("Context created but failed to retrieve")
+                            .with_request_context(&req_ctx),
                     )
                 },
             }
@@ -75,7 +72,7 @@ pub async fn create_context(
         Err(e) => {
             tracing::error!(error = %e, "Failed to create context");
             api_error_response(
-                ApiError::internal_error(format!("Failed to create context: {e}"))
+                ApiError::internal_error("Failed to create context")
                     .with_request_context(&req_ctx),
             )
         },

@@ -35,7 +35,6 @@ use sqlx::PgPool;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_models::profile::{OtlpExportConfig, OtlpSignal};
-use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
@@ -47,6 +46,7 @@ pub use tail::{BATCH_ROWS, GovernanceRow, LedgerRow, LogRow, RequestRow, SETTLE}
 pub use transport::{BATCHES_TOTAL, RETRY_DELAYS, is_retryable};
 
 use crate::error::{SchedulerError, SchedulerResult};
+use crate::services::scheduling::job_app_context;
 
 pub const JOB_NAME: &str = "otlp_export";
 
@@ -129,8 +129,8 @@ impl Job for OtlpExportJob {
             .db_pool::<DbPool>()
             .ok_or_else(|| SchedulerError::missing_context("DbPool"))?;
         let pool = db_pool.write_pool_arc().map_err(SchedulerError::from)?;
-        let instance_id = ctx
-            .app_context::<AppContext>()
+        let instance_id = job_app_context(ctx)
+            .ok()
             .map(|app| app.config().instance_id.clone());
 
         let report = run(&pool, config, instance_id.as_deref(), true).await?;

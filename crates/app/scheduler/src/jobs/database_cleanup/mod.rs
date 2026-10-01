@@ -28,11 +28,11 @@ use chrono::Utc;
 use systemprompt_database::DbPool;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::profile::RetentionConfig;
-use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 use tracing::{debug, info, warn};
 
 use crate::error::SchedulerError;
+use crate::services::scheduling::job_app_context;
 
 use self::orphans::{delete_orphaned_logs, fail_orphaned_requests};
 use self::tables::{RetentionPass, count_before, delete_in_batches};
@@ -63,9 +63,7 @@ impl Job for DatabaseCleanupJob {
             ctx.db_pool::<DbPool>()
                 .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
         );
-        let app = ctx
-            .app_context::<Arc<AppContext>>()
-            .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
+        let app = job_app_context(ctx)?;
         let mut retention = app.config().retention;
         // Why: the parameter predates the profile block and operators still
         // pass it from the CLI; it stays as an override for the logs window.

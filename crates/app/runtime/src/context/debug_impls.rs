@@ -10,7 +10,6 @@ impl std::fmt::Debug for AppContext {
         f.debug_struct("AppContext")
             .field("config", &"Config")
             .field("database", &"DbPool")
-            .field("api_registry", &"ModuleApiRegistry")
             .field("extension_registry", &self.plugins.extension_registry)
             .field("geoip_reader", &self.subsystems.geoip_reader.is_some())
             .field("content_config", &self.cfg.content_config.is_some())
@@ -68,7 +67,6 @@ impl std::fmt::Debug for Plugins {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Plugins")
             .field("extension_registry", &self.extension_registry)
-            .field("api_registry", &"ModuleApiRegistry")
             .field("mcp_registry", &"RegistryService")
             .field("marketplace_filter", &self.marketplace_filter)
             .field("marketplace_cache", &self.marketplace_cache)

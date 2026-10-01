@@ -429,7 +429,11 @@ mod reconciler_seeded {
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
         let configs = [ServiceConfig {
             name: name.clone(),
@@ -459,7 +463,11 @@ mod reconciler_seeded {
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
         let configs = [ServiceConfig {
             name: name.clone(),
@@ -497,7 +505,11 @@ mod reconciler_seeded {
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
         let configs = [ServiceConfig {
             name: name.clone(),
@@ -538,7 +550,11 @@ mod reconciler_seeded {
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
         let configs = vec![
             ServiceConfig {
@@ -576,7 +592,11 @@ mod reconciler_seeded {
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
         let configs = [ServiceConfig {
             name: name.clone(),
@@ -603,7 +623,11 @@ mod reconciler_seeded {
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
         let configs = [ServiceConfig {
             name: name.clone(),

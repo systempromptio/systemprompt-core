@@ -25,7 +25,7 @@ impl From<NotificationError> for ApiHttpError {
         match err {
             NotificationError::Agent(e) => Self::from(e),
             NotificationError::Repository(e) => Self::from(e),
-            NotificationError::Serde(e) => Self::internal_error(e.to_string()),
+            NotificationError::Serde(e) => Self::internal("Invalid notification payload", &e),
             e @ NotificationError::MissingField(_) => Self::bad_request(e.to_string()),
         }
     }

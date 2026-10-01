@@ -43,7 +43,6 @@ pub use shutdown::ShutdownRequest;
 
 use crate::builder::AppContextBuilder;
 use crate::error::RuntimeResult;
-use crate::registry::ModuleApiRegistry;
 
 /// Database pool and the data-access services layered on it.
 ///
@@ -78,7 +77,6 @@ pub struct ConfigPlane {
 #[derive(Clone)]
 pub struct Plugins {
     pub extension_registry: Arc<ExtensionRegistry>,
-    pub api_registry: Arc<ModuleApiRegistry>,
     pub mcp_registry: RegistryService,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub marketplace_cache: Arc<MarketplaceCache>,
@@ -173,10 +171,6 @@ impl AppContext {
 
     pub const fn db_pool(&self) -> &DbPool {
         &self.data.database
-    }
-
-    pub fn api_registry(&self) -> &ModuleApiRegistry {
-        &self.plugins.api_registry
     }
 
     pub fn extension_registry(&self) -> &ExtensionRegistry {

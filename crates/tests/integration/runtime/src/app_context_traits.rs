@@ -79,7 +79,6 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
     let ctx = build_ctx().await;
     let _ = ctx.config();
     let _ = ctx.db_pool();
-    let _ = ctx.api_registry();
     let _ = ctx.extension_registry();
     let _ = ctx.app_paths();
     let _ = ctx.app_paths_arc();
@@ -103,16 +102,6 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
 async fn app_context_builder_accessor() {
     let _b = systemprompt_runtime::AppContext::builder();
 }
-
-#[tokio::test]
-async fn module_api_registry_get_routes_unknown_returns_none() -> Result<()> {
-    let ctx = build_ctx().await;
-    let reg = ctx.api_registry();
-    let r = reg.get_routes("nonexistent-x", ctx.as_ref());
-    assert!(r.is_none());
-    Ok(())
-}
-
 
 #[tokio::test]
 async fn database_context_from_urls_read_only() -> Result<()> {

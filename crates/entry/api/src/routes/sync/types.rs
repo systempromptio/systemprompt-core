@@ -9,7 +9,7 @@ use systemprompt_models::api::ApiError;
 pub(super) type ApiResult<T> = Result<T, ApiError>;
 
 pub(super) fn to_api_error(e: impl std::fmt::Display) -> ApiError {
-    ApiError::internal_error(e.to_string())
+    crate::error::internal_api_error("File sync operation failed", &e)
 }
 
 #[derive(Debug, Deserialize)]

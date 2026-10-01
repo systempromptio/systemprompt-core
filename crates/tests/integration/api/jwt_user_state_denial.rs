@@ -30,9 +30,7 @@ async fn app() -> Result<(Router, DbPool)> {
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
     Ok((
-        gateway_router(&ctx)
-            .expect("gateway journal opens")
-            .expect("gateway router available"),
+        gateway_router(&ctx).expect("gateway router builds"),
         pool,
     ))
 }

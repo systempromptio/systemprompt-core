@@ -172,7 +172,7 @@ async fn harness_with_database(
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
-    let app = systemprompt_api::routes::proxy::mcp::router(&ctx);
+    let app = systemprompt_api::routes::proxy::mcp::router(&ctx)?;
     Ok(Harness {
         app,
         pool,

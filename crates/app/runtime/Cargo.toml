@@ -29,8 +29,6 @@ chrono = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-inventory = { workspace = true }
-axum = { workspace = true }
 maxminddb = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }

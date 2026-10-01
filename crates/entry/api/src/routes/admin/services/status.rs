@@ -14,7 +14,7 @@ use crate::error::ApiHttpError;
 
 pub(super) async fn status() -> Result<Json<ServicesStatusResponse>, ApiHttpError> {
     let profile = ProfileBootstrap::get()
-        .map_err(|e| ApiHttpError::internal_error(format!("profile not ready: {e}")))?;
+        .map_err(|e| ApiHttpError::internal("Profile not ready", &e))?;
     let state = BundleCache::new(cache_root(profile)).read_state();
 
     Ok(Json(build_status(

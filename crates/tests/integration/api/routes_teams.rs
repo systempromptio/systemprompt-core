@@ -30,7 +30,7 @@ const ISSUER: &str = "https://api.botframework.com";
 const CONVERSATION_ID: &str = "conv-test-1";
 
 fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
-    systemprompt_api::routes::teams::teams_router().with_state((**ctx).clone())
+    systemprompt_api::routes::teams::teams_router(ctx).expect("teams router builds")
 }
 
 fn activity_json(tenant: &str, service_url: &str) -> String {
@@ -270,6 +270,42 @@ async fn an_unresolvable_app_password_is_service_unavailable_not_acked() -> anyh
     assert!(
         verified,
         "the 503 must come from the secrets arm behind bearer verification, not before it"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn activities_through_one_router_fetch_the_signing_keys_once() -> anyhow::Result<()> {
+    let connector = MockServer::start().await;
+    let b = init_services_bootstrap(&messaging_config_yaml_with_teams_endpoints(Some((
+        &format!("{}/openid", connector.uri()),
+        &format!("{}/token", connector.uri()),
+    ))));
+    install_test_signing_key();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
+
+    let signing = systemprompt_test_fixtures::next_test_key();
+    mount_connector_jwks(&connector, &signing).await;
+
+    let app = router(&ctx);
+    let body = activity_json(TEST_TEAMS_UNRESOLVABLE_TENANT_ID, &connector.uri());
+    for _ in 0..2 {
+        let token = mint_for_app(&signing, &connector.uri(), TEST_TEAMS_UNRESOLVABLE_APP_ID);
+        let resp = app
+            .clone()
+            .oneshot(post_messages(&body, Some(&token)))
+            .await?;
+        assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    let openid_fetches = connector
+        .received_requests()
+        .await
+        .map_or(0, |reqs| reqs.iter().filter(|r| r.url.path() == "/openid").count());
+    assert_eq!(
+        openid_fetches, 1,
+        "the verifier and its key cache must outlive a single activity"
     );
     Ok(())
 }

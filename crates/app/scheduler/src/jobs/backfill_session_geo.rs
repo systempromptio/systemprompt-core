@@ -6,11 +6,11 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
-use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
 use crate::error::SchedulerError;
+use crate::services::scheduling::job_app_context;
 
 const DEFAULT_BATCH_SIZE: i64 = 1000;
 
@@ -38,10 +38,7 @@ impl Job for BackfillSessionGeoJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let app_context = Arc::clone(
-            ctx.app_context::<Arc<AppContext>>()
-                .ok_or_else(|| SchedulerError::missing_context("AppContext"))?,
-        );
+        let app_context = Arc::clone(job_app_context(ctx)?);
 
         let batch_size = ctx
             .get_parameter_parsed::<i64>("batch_size")?

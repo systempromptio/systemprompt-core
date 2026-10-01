@@ -58,10 +58,9 @@ pub async fn update_context(
                 },
                 Err(e) => {
                     tracing::error!(error = %e, "Failed to retrieve updated context");
-                    api_error_response(ApiError::internal_error(format!(
-                        "Context updated but failed to retrieve: {}",
-                        e
-                    )))
+                    api_error_response(ApiError::internal_error(
+                        "Context updated but failed to retrieve",
+                    ))
                 },
             }
         },

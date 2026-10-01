@@ -8,9 +8,9 @@ use crate::interactive::{Prompter, confirm_optional};
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, ServiceCategory, ShutdownRequest, validate_system};
+use systemprompt_runtime::{AppContext, ShutdownRequest, validate_system};
 use systemprompt_scheduler::ProcessCleanup;
-use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};
+use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::{get_api_addr, get_api_port};
 
@@ -39,8 +39,6 @@ pub async fn execute_with_events(
     }
 
     ensure_port_free(prompter, port, kill_port_process, config, events).await?;
-
-    register_modules(events);
 
     let shutdown = ShutdownRequest::default();
     let early = bind_early(foreground, events, shutdown.clone()).await?;
@@ -240,38 +238,4 @@ async fn handle_port_conflict(
         port,
         pid
     ))
-}
-
-fn register_modules(events: Option<&StartupEventSender>) {
-    let api_registrations: Vec<_> =
-        inventory::iter::<systemprompt_runtime::ModuleApiRegistration>().collect();
-
-    if let Some(tx) = events {
-        let modules: Vec<_> = api_registrations
-            .iter()
-            .map(|r| ModuleInfo {
-                name: r.module_name.to_owned(),
-                category: format!("{:?}", r.category),
-            })
-            .collect();
-        tx.modules_loaded(modules.len(), modules);
-    } else {
-        CliService::phase_info(
-            &format!("Loading {} route modules", api_registrations.len()),
-            None,
-        );
-
-        for registration in &api_registrations {
-            let category_name = match registration.category {
-                ServiceCategory::Core => "Core",
-                ServiceCategory::Agent => "Agent",
-                ServiceCategory::Mcp => "Mcp",
-                ServiceCategory::Meta => "Meta",
-            };
-            CliService::phase_success(
-                registration.module_name,
-                Some(&format!("{} routes", category_name)),
-            );
-        }
-    }
 }

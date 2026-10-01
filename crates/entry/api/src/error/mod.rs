@@ -13,13 +13,24 @@
 //! `into_response` delegates to `ApiError`, which logs exactly once by status
 //! class.
 //!
+//! A 5xx never carries the underlying error's text: [`ApiHttpError::internal`]
+//! and [`internal_api_error`] log the cause with structured fields and put only
+//! the caller-supplied static context on the wire.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod conversions;
 
+use std::fmt::Display;
+
 use axum::response::{IntoResponse, Response};
 use systemprompt_models::api::ApiError;
+
+pub fn internal_api_error(context: &'static str, error: &dyn Display) -> ApiError {
+    tracing::error!(error = %error, context, "Internal error");
+    ApiError::internal_error(context)
+}
 
 #[derive(Debug)]
 pub struct ApiHttpError(ApiError);
@@ -43,6 +54,10 @@ impl ApiHttpError {
 
     pub fn internal_error(message: impl Into<String>) -> Self {
         Self(ApiError::internal_error(message))
+    }
+
+    pub fn internal(context: &'static str, error: &dyn Display) -> Self {
+        Self(internal_api_error(context, error))
     }
 
     pub fn into_inner(self) -> ApiError {

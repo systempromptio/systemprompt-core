@@ -40,7 +40,7 @@ pub async fn list_content_by_source_handler(
             );
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": e.to_string()})),
+                Json(serde_json::json!({"error": "Content lookup failed"})),
             )
                 .into_response()
         },
@@ -101,7 +101,7 @@ pub async fn get_content_handler(
             );
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": e.to_string()})),
+                Json(serde_json::json!({"error": "Content lookup failed"})),
             )
                 .into_response()
         },
@@ -137,7 +137,7 @@ pub async fn get_content_markdown_handler(
             );
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": e.to_string()})),
+                Json(serde_json::json!({"error": "Content lookup failed"})),
             )
                 .into_response()
         },

@@ -5,7 +5,9 @@
 //! and emits an RFC 6749 §5.2 wire shape `{"error": "...", "error_description":
 //! "..."}`. The authorize-flow variant (§4.1.2.1) carries a redirect target so
 //! the response renders as a 302 to the client's `redirect_uri` with the same
-//! error fields encoded as query parameters.
+//! error fields encoded as query parameters. A 5xx description is logged but
+//! never sent: the wire carries a fixed message, so internal error text cannot
+//! reach a client or a third-party redirect URI.
 //!
 //! `From` impls (in the `conversions` submodule) bridge the underlying domain
 //! errors (`OauthError`, `AuthProviderError`, `SecretsBootstrapError`) so
@@ -188,6 +190,8 @@ impl OAuthHttpError {
     }
 }
 
+const SERVER_ERROR_DESCRIPTION: &str = "The authorization server encountered an internal error";
+
 #[derive(Debug, Serialize)]
 struct OAuthErrorBody<'a> {
     error: &'a str,
@@ -198,13 +202,19 @@ impl IntoResponse for OAuthHttpError {
     fn into_response(self) -> Response {
         self.log();
 
+        let description = if self.status.is_server_error() {
+            SERVER_ERROR_DESCRIPTION
+        } else {
+            self.description.as_str()
+        };
+
         if let Some(redirect) = &self.redirect {
             let separator = if redirect.uri.contains('?') { '&' } else { '?' };
             let mut target = format!(
                 "{}{separator}error={}&error_description={}",
                 redirect.uri,
                 urlencoding::encode(self.code.as_str()),
-                urlencoding::encode(&self.description),
+                urlencoding::encode(description),
             );
             if let Some(state) = &redirect.state {
                 target.push_str("&state=");
@@ -215,7 +225,7 @@ impl IntoResponse for OAuthHttpError {
 
         let body = OAuthErrorBody {
             error: self.code.as_str(),
-            error_description: &self.description,
+            error_description: description,
         };
         let mut response = (self.status, Json(body)).into_response();
 
