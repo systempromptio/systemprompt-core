@@ -45,9 +45,10 @@ fn write_empty_managed_mcp_servers(
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 async fn refresh_tool_catalog(
     ctx: &crate::host_sync::HostSyncCtx<'_>,
-) -> Result<(), crate::host_sync::ApplyError> {
+) -> Result<crate::host_sync::HostSyncReport, crate::host_sync::ApplyError> {
+    let mut report = crate::host_sync::HostSyncReport::ok();
     if ctx.mcp_registry.is_empty() {
-        return Ok(());
+        return Ok(report);
     }
     let results = crate::proxy::mcp_probe::probe_all(ctx.loopback, ctx.mcp_registry).await;
     let slugs: Vec<String> = ctx.mcp_registry.keys().cloned().collect();
@@ -77,7 +78,7 @@ async fn refresh_tool_catalog(
                 error = %e,
                 "mcp tool catalog not refreshed; wildcard tool policies are withheld"
             );
-            ctx.warnings.push(
+            report.warn(
                 crate::host_sync::HostWarningKind::ToolCatalog,
                 "claude-desktop",
                 format!(
@@ -87,7 +88,7 @@ async fn refresh_tool_catalog(
             );
         },
     }
-    Ok(())
+    Ok(report)
 }
 
 #[cfg(target_os = "windows")]
@@ -130,9 +131,9 @@ fn classify_refresh_error(e: super::MdmError) -> crate::host_sync::ApplyError {
             detail,
         };
     }
-    crate::host_sync::ApplyError::Io {
-        context: format!("mdm refresh: {e}"),
-        source: std::io::Error::other(e),
+    crate::host_sync::ApplyError::Step {
+        context: "mdm refresh",
+        source: Box::new(e),
     }
 }
 
@@ -149,8 +150,8 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
     async fn apply(
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
-    ) -> Result<(), crate::host_sync::ApplyError> {
-        refresh_tool_catalog(ctx).await?;
+    ) -> Result<crate::host_sync::HostSyncReport, crate::host_sync::ApplyError> {
+        let mut report = refresh_tool_catalog(ctx).await?;
         let inputs = super::MdmPayloadInputs {
             policy_store: ctx.policy_store,
             loopback: ctx.loopback,
@@ -159,9 +160,9 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         };
         #[cfg(target_os = "windows")]
         {
-            let config = crate::config::load().map_err(|e| crate::host_sync::ApplyError::Io {
-                context: "load the bridge config for the desktop policy's organization".to_owned(),
-                source: std::io::Error::other(e),
+            let config = crate::config::load().map_err(|e| crate::host_sync::ApplyError::Step {
+                context: "load the bridge config for the desktop policy's organization",
+                source: Box::new(e),
             })?;
             let facts = crate::install::policy_writer::RequestFacts {
                 org_uuid: config
@@ -176,10 +177,10 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                         written = %line,
                         "managed policy enforced on sync through the elevated writer"
                     );
-                    return Ok(());
+                    return Ok(report);
                 },
                 Ok(None) => {},
-                Err(e) => ctx.warnings.push(
+                Err(e) => report.warn(
                     crate::host_sync::HostWarningKind::PolicyWriter,
                     "claude-desktop",
                     format!(
@@ -196,7 +197,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                     written = %line,
                     "managed policy enforced on sync"
                 );
-                Ok(())
+                Ok(report)
             },
             Err(e) => Err(classify_refresh_error(e)),
         }
@@ -221,9 +222,9 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                 );
                 Ok(())
             },
-            Err(e) => Err(crate::host_sync::ApplyError::Io {
-                context: format!("mdm clear: {e}"),
-                source: std::io::Error::other(e),
+            Err(e) => Err(crate::host_sync::ApplyError::Step {
+                context: "mdm clear",
+                source: Box::new(e),
             }),
         }
     }

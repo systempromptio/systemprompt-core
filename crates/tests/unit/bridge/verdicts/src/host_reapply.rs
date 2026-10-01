@@ -6,7 +6,15 @@
 //! stays stale while every tool insists it was fixed, so the outcome is decided
 //! by re-probing the host — and the rendering has to keep the two apart.
 
-use systemprompt_bridge::integration::reapply::{Outcome, Report, render};
+use systemprompt_bridge::integration::HostAppError;
+use systemprompt_bridge::integration::reapply::{Outcome, ProfileFailure, Report, render};
+
+fn failure(message: &str) -> std::sync::Arc<ProfileFailure> {
+    std::sync::Arc::new(ProfileFailure::Host(HostAppError::Io(
+        std::io::Error::other(message.to_owned()),
+    )))
+}
+
 
 const fn report(display_name: &'static str, outcome: Outcome) -> Report {
     Report {
@@ -40,7 +48,7 @@ fn the_four_outcomes_are_distinguishable() {
         report("A", Outcome::Reapplied),
         report("B", Outcome::Pending),
         report("C", Outcome::Declined),
-        report("D", Outcome::Failed("boom".to_owned())),
+        report("D", Outcome::Failed(failure("boom"))),
     ]);
     assert!(out.contains("[ok"), "{out}");
     assert!(out.contains("[pending"), "{out}");

@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{ConfigStore, PolicyDocument, PolicyHive, PolicyTarget};
+use super::{ConfigStore, ConfigStoreError, PolicyDocument, PolicyHive, PolicyTarget};
 
 const PROBE_KEYS: &[&str] = &["inferenceGatewayBaseUrl", "managedMcpServers"];
 
@@ -62,11 +62,19 @@ impl HiveReport {
     }
 }
 
-pub fn hive_report(store: &dyn ConfigStore, elevated: bool) -> Result<HiveReport, String> {
+#[derive(Debug, thiserror::Error)]
+#[error("{}: {source}", .hive.label())]
+pub struct HiveReadError {
+    pub hive: PolicyHive,
+    #[source]
+    pub source: ConfigStoreError,
+}
+
+pub fn hive_report(store: &dyn ConfigStore, elevated: bool) -> Result<HiveReport, HiveReadError> {
     let read = |hive: PolicyHive| {
         store
             .read_policy_document(hive, PolicyTarget::Claude, PROBE_KEYS)
-            .map_err(|e| format!("{}: {e}", hive.label()))
+            .map_err(|source| HiveReadError { hive, source })
     };
     let machine = read(PolicyHive::Machine)?;
     let user = read(PolicyHive::User)?;

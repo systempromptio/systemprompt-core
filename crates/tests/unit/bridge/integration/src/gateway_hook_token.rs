@@ -1,8 +1,7 @@
 //! Round-trips `mint_plugin_hook_token` against a wiremock gateway to lock
-//! in the new `HookTokenRejected` error shape: any non-2xx must surface the
-//! gateway's response body so `bridge sync` PARTIAL lines are
-//! self-diagnosing instead of swallowing the error JSON behind a bare
-//! status code.
+//! in the `Rejected` error shape: any non-2xx must surface the gateway's
+//! parsed error body so `bridge sync` PARTIAL lines are self-diagnosing
+//! instead of swallowing the error JSON behind a bare status code.
 
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::errors::GatewayError;
@@ -42,14 +41,18 @@ async fn hook_token_401_captures_body() {
         .expect_err("401 must surface as an error");
 
     match err {
-        GatewayError::HookTokenRejected { status, body: got } => {
+        GatewayError::Rejected {
+            status, rejection, ..
+        } => {
             assert_eq!(status.as_u16(), 401);
-            assert!(
-                got.contains("invalid_client"),
-                "body must be propagated for operator-visible diagnosis, got: {got}"
+            assert_eq!(rejection.code.as_deref(), Some("invalid_client"));
+            assert_eq!(
+                rejection.message.as_deref(),
+                Some("Client owner is not active"),
+                "body must be propagated for operator-visible diagnosis"
             );
         },
-        other => panic!("expected HookTokenRejected with body, got {other:?}"),
+        other => panic!("expected Rejected with body, got {other:?}"),
     }
 }
 
@@ -81,11 +84,13 @@ async fn hook_token_500_captures_body() {
         .expect_err("500 must surface as an error");
 
     match err {
-        GatewayError::HookTokenRejected { status, body: got } => {
+        GatewayError::Rejected {
+            status, rejection, ..
+        } => {
             assert_eq!(status.as_u16(), 500);
-            assert!(got.contains("server_error"), "body propagated: {got}");
+            assert_eq!(rejection.code.as_deref(), Some("server_error"));
         },
-        other => panic!("expected HookTokenRejected with body, got {other:?}"),
+        other => panic!("expected Rejected with body, got {other:?}"),
     }
 }
 

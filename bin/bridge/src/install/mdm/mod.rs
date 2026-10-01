@@ -114,8 +114,7 @@ pub fn bridge_policy_values(
     };
     let record =
         crate::config::trust::TrustRecord::new(gateway, key, crate::config::PinSource::Policy)?;
-    let value = serde_json::to_string(&record)
-        .map_err(|e| crate::config::TrustError::InvalidPolicy(e.to_string()))?;
+    let value = serde_json::to_string(&record).map_err(crate::config::TrustError::RecordEncode)?;
     Ok(vec![(
         crate::config::store::MANIFEST_TRUST_KEY,
         "REG_SZ",

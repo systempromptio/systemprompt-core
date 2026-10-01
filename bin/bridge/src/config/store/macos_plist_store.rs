@@ -62,14 +62,17 @@ fn read_document_at(
     path: &std::path::Path,
     keys: &[&str],
 ) -> Result<PolicyDocument, ConfigStoreError> {
-    if !path.try_exists().map_err(|e| map_io(path, &e))? {
+    if !path.try_exists().map_err(map_io(path))? {
         return Ok(PolicyDocument::new());
     }
     let output = Command::new("/usr/bin/plutil")
         .args(["-convert", "json", "-o", "-"])
         .arg(path)
         .output()
-        .map_err(|e| ConfigStoreError::Backend(format!("plutil: {e}")))?;
+        .map_err(|source| ConfigStoreError::Io {
+            context: "plutil".to_owned(),
+            source,
+        })?;
     if !output.status.success() {
         return Err(ConfigStoreError::Backend(format!(
             "plutil exited with {}: {}",
@@ -77,8 +80,11 @@ fn read_document_at(
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .map_err(|e| ConfigStoreError::Backend(format!("plutil json: {e}")))?;
+    let json: serde_json::Value =
+        serde_json::from_slice(&output.stdout).map_err(|source| ConfigStoreError::Decode {
+            context: "plutil json".to_owned(),
+            source: Box::new(source),
+        })?;
     let mut doc = PolicyDocument::new();
     let obj = json.as_object().ok_or_else(|| {
         ConfigStoreError::Backend(format!("{}: expected plist dictionary", path.display()))
@@ -118,7 +124,7 @@ pub(super) fn write_values(
 pub(super) fn delete_values(hive: PolicyHive, names: &[&str]) -> Result<usize, ConfigStoreError> {
     let path = plist_path(hive)
         .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
-    if !path.try_exists().map_err(|e| map_io(&path, &e))? {
+    if !path.try_exists().map_err(map_io(&path))? {
         return Ok(0);
     }
     let mut doc = read_all(hive)?;
@@ -135,14 +141,17 @@ pub(super) fn delete_values(hive: PolicyHive, names: &[&str]) -> Result<usize, C
 fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
     let path = plist_path(hive)
         .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
-    if !path.try_exists().map_err(|e| map_io(&path, &e))? {
+    if !path.try_exists().map_err(map_io(&path))? {
         return Ok(PolicyDocument::new());
     }
     let output = Command::new("/usr/bin/plutil")
         .args(["-convert", "json", "-o", "-"])
         .arg(&path)
         .output()
-        .map_err(|e| ConfigStoreError::Backend(format!("plutil: {e}")))?;
+        .map_err(|source| ConfigStoreError::Io {
+            context: "plutil".to_owned(),
+            source,
+        })?;
     if !output.status.success() {
         return Err(ConfigStoreError::Backend(format!(
             "plutil {}: {}: {}",
@@ -151,8 +160,11 @@ fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .map_err(|e| ConfigStoreError::Backend(format!("plutil json: {e}")))?;
+    let json: serde_json::Value =
+        serde_json::from_slice(&output.stdout).map_err(|source| ConfigStoreError::Decode {
+            context: "plutil json".to_owned(),
+            source: Box::new(source),
+        })?;
     let mut doc = PolicyDocument::new();
     let obj = json.as_object().ok_or_else(|| {
         ConfigStoreError::Backend(format!("{}: expected plist dictionary", path.display()))
@@ -170,14 +182,13 @@ fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
 
 fn write_document(path: &std::path::Path, doc: &PolicyDocument) -> Result<(), ConfigStoreError> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| map_io(path, &e))?;
+        std::fs::create_dir_all(parent).map_err(map_io(path))?;
     }
-    crate::fsutil::atomic_write_0644(path, render_plist(doc).as_bytes())
-        .map_err(|e| map_io(path, &e))?;
+    crate::fsutil::atomic_write_0644(path, render_plist(doc).as_bytes()).map_err(map_io(path))?;
     let output = Command::new("/usr/bin/killall")
         .arg("cfprefsd")
         .output()
-        .map_err(|e| map_io(path, &e))?;
+        .map_err(map_io(path))?;
     if !output.status.success() && !cfprefsd_was_not_running(&output) {
         return Err(ConfigStoreError::Backend(format!(
             "refresh managed preferences {}: {}: {}",
@@ -196,13 +207,18 @@ fn cfprefsd_was_not_running(output: &std::process::Output) -> bool {
         && String::from_utf8_lossy(&output.stderr).contains("No matching processes")
 }
 
-fn map_io(path: &std::path::Path, e: &std::io::Error) -> ConfigStoreError {
-    if e.kind() == std::io::ErrorKind::PermissionDenied {
-        ConfigStoreError::AccessDenied {
-            hive: "Managed Preferences".to_owned(),
-            subkey: path.display().to_string(),
+fn map_io(path: &std::path::Path) -> impl FnOnce(std::io::Error) -> ConfigStoreError + '_ {
+    move |source| {
+        if source.kind() == std::io::ErrorKind::PermissionDenied {
+            ConfigStoreError::AccessDenied {
+                hive: "Managed Preferences".to_owned(),
+                subkey: path.display().to_string(),
+            }
+        } else {
+            ConfigStoreError::Io {
+                context: path.display().to_string(),
+                source,
+            }
         }
-    } else {
-        ConfigStoreError::Backend(format!("{}: {e}", path.display()))
     }
 }

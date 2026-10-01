@@ -167,7 +167,11 @@ fn an_unbuildable_managed_directory_fails_with_the_elevation_hint() {
             let err = CODEX_CLI_HOST
                 .install_profile(&generated.path)
                 .expect_err("a directory that cannot exist must not report a successful install");
-            assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+            assert!(err.is_permission_denied(), "{err:?}");
+            assert!(
+                !err.is_refusal(),
+                "an OS denial is never a decline: {err:?}"
+            );
             let text = err.to_string();
             assert!(
                 text.contains("Re-run as root"),
@@ -197,7 +201,7 @@ fn a_managed_path_with_no_parent_is_refused_before_anything_is_written() {
             let err = CODEX_CLI_HOST
                 .install_profile(&generated.path)
                 .expect_err("the filesystem root has no parent to install into");
-            assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+            assert!(err.is_permission_denied(), "{err:?}");
             assert!(
                 err.to_string().contains("cannot resolve parent"),
                 "got {err}"

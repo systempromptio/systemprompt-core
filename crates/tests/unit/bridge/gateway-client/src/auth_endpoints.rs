@@ -110,11 +110,13 @@ async fn session_pat_exchange_401_maps_to_http_status() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 401);
             assert_eq!(endpoint, "session-pat");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -172,11 +174,13 @@ async fn pat_exchange_401_maps_to_http_status() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 401);
             assert_eq!(endpoint, "pat");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -237,11 +241,13 @@ async fn provision_oauth_client_500_maps_to_http_status() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 500);
             assert_eq!(endpoint, "oauth-client");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -315,11 +321,16 @@ async fn mint_plugin_hook_token_rejection_carries_status_and_body() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::HookTokenRejected { status, body } => {
+        GatewayError::Rejected {
+            status,
+            endpoint,
+            rejection,
+        } => {
             assert_eq!(status.as_u16(), 403);
-            assert_eq!(body, "scope denied");
+            assert_eq!(endpoint, "hook-token");
+            assert_eq!(rejection.excerpt, "scope denied");
         },
-        other => panic!("expected HookTokenRejected, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 

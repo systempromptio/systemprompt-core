@@ -13,7 +13,7 @@ use crate::gateway::types::{
     AuthResponse, BridgeOAuthClientResponse, DevicePatResponse, HookTokenResponse,
     SessionExchangeRequest, SessionPatRequest,
 };
-use crate::gateway::{GatewayClient, record_span};
+use crate::gateway::{GatewayClient, ensure_success, record_span};
 use crate::ids::{BearerToken, PatToken};
 
 impl GatewayClient {
@@ -65,12 +65,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::PatRequest(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "pat",
-            });
-        }
+        let resp = ensure_success(resp, "pat").await?;
         resp.json::<AuthResponse>()
             .await
             .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
@@ -97,12 +92,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::OAuthClientRequest(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "oauth-client",
-            });
-        }
+        let resp = ensure_success(resp, "oauth-client").await?;
         resp.json::<BridgeOAuthClientResponse>()
             .await
             .map_err(|e| GatewayError::OAuthClientDecode(Box::new(e)))
@@ -137,14 +127,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::HookTokenRequest(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_else(|e| {
-                tracing::warn!(error = %e, "hook token rejection body unreadable");
-                String::new()
-            });
-            return Err(GatewayError::HookTokenRejected { status, body });
-        }
+        let resp = ensure_success(resp, "hook-token").await?;
         resp.json::<HookTokenResponse>()
             .await
             .map_err(|e| GatewayError::HookTokenDecode(Box::new(e)))
@@ -174,12 +157,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint,
-            });
-        }
+        let resp = ensure_success(resp, endpoint).await?;
         resp.json::<R>()
             .await
             .map_err(|e| GatewayError::AuthDecode(Box::new(e)))

@@ -27,9 +27,9 @@ pub mod contract {
 pub use install::{install_profile_into, remove_profile_from};
 
 use crate::integration::host_app::{
-    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
-    HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
-    ProfileRemoval, ProfileState,
+    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
+    HostConfigSchema, HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled,
+    ProfileProbe, ProfileRemoval, ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -93,20 +93,23 @@ impl HostApp for HermesHost {
         }
     }
 
-    fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    fn generate_profile(
+        &self,
+        inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
         install::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path).map(|()| ProfileInstalled::ok())
     }
 
-    fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
-        install::remove_profile()
+    fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {
+        Ok(install::remove_profile()?)
     }
 
-    fn open(&self) -> std::io::Result<()> {
-        crate::integration::app_launch::open_app(&locator())
+    fn open(&self) -> Result<(), HostAppError> {
+        Ok(crate::integration::app_launch::open_app(&locator())?)
     }
 
     fn install_action_label(&self) -> &'static str {

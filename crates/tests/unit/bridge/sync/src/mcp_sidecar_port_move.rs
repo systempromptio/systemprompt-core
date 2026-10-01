@@ -18,8 +18,6 @@ use systemprompt_bridge::integration::mcp_sidecar;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
 
-static HOST_WARNINGS: systemprompt_bridge::host_sync::HostWarnings =
-    systemprompt_bridge::host_sync::HostWarnings::new();
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -94,7 +92,6 @@ fn apply(m: &SignedManifest, home: &Path, loopback: &LoopbackEndpoint) {
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let ctx = HostSyncCtx {
         policy_store: &POLICY_STORE,
-        warnings: &HOST_WARNINGS,
         manifest: m,
         org_plugins_root: home,
         plugin_mcp_servers: &plugin_mcp_servers,

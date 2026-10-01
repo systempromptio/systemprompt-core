@@ -131,14 +131,15 @@ impl SettingsWindow {
             })
             .build_as_child(&WindowRef(&*window))
             .map_err(|e| {
+                let source = WindowError::Wry(e);
                 // Why: windows_subsystem = "windows" provides no console for startup errors.
                 crate::user_alert::alert_user(
                     &format!("{} could not start", crate::brand::brand().app_name),
-                    &format!("The embedded browser failed to initialise: {e}"),
+                    &format!("The embedded browser failed to initialise: {source}"),
                 );
                 GuiError::Window {
                     context: "webview build".into(),
-                    source: WindowError::Wry(e),
+                    source,
                 }
             })?;
 

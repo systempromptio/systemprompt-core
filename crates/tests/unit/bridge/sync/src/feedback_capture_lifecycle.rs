@@ -8,7 +8,7 @@ use systemprompt_bridge::feedback_capture::capture_host;
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest, SkillEntry};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::host_sync::{HostSyncCtx, HostWarnings};
+use systemprompt_bridge::host_sync::HostSyncCtx;
 use systemprompt_bridge::ids::{BearerToken, LoopbackSecret, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_identifiers::{
@@ -23,7 +23,6 @@ use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-static WARNINGS: HostWarnings = HostWarnings::new();
 static POLICY: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -605,7 +604,6 @@ fn context<'a>(
     let mappings = Box::leak(Box::new(BTreeMap::new()));
     HostSyncCtx {
         policy_store: &POLICY,
-        warnings: &WARNINGS,
         manifest,
         org_plugins_root: root,
         plugin_mcp_servers: mappings,

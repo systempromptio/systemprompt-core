@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 
-use super::error::SyncError;
+use super::error::{ManifestShapeCause, SyncError};
 use crate::auth::secret::Secret;
 use crate::config;
 use crate::gateway::errors::GatewayError;
@@ -26,11 +26,15 @@ fn map_gateway_error(
     rejected: &RejectedCredential<'_>,
 ) -> SyncError {
     match err {
-        GatewayError::HttpStatus { status, .. } if matches!(status.as_u16(), 401 | 403) => {
+        GatewayError::Rejected { status, .. } if matches!(status.as_u16(), 401 | 403) => {
             unauthorized(cfg, endpoint, status.as_u16(), rejected)
         },
-        GatewayError::ManifestDecode(e) if e.is_decode() => SyncError::ManifestShape(e.to_string()),
-        e @ GatewayError::ManifestEnvelopeShape { .. } => SyncError::ManifestShape(e.to_string()),
+        GatewayError::ManifestDecode(e) if e.is_decode() => SyncError::ManifestShape(
+            ManifestShapeCause::Gateway(Box::new(GatewayError::ManifestDecode(e))),
+        ),
+        e @ GatewayError::ManifestEnvelopeShape { .. } => {
+            SyncError::ManifestShape(ManifestShapeCause::Gateway(Box::new(e)))
+        },
         other => SyncError::Gateway(other),
     }
 }
@@ -99,8 +103,7 @@ pub(super) fn map_manifest_error(err: ManifestError) -> SyncError {
         ManifestError::BridgeTooOld { local, required } => {
             SyncError::BridgeTooOld { local, required }
         },
-        ManifestError::PayloadParse(e) => SyncError::ManifestShape(e.to_string()),
-        other => SyncError::ManifestShape(other.to_string()),
+        other => SyncError::ManifestShape(ManifestShapeCause::Manifest(other)),
     }
 }
 
@@ -196,7 +199,7 @@ pub(super) async fn fetch_authenticated_manifest(
 const fn is_unauthorized<T>(result: &Result<T, GatewayError>) -> bool {
     matches!(
         result,
-        Err(GatewayError::HttpStatus { status, .. }) if matches!(status.as_u16(), 401 | 403)
+        Err(GatewayError::Rejected { status, .. }) if matches!(status.as_u16(), 401 | 403)
     )
 }
 

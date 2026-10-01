@@ -11,9 +11,7 @@ use super::macos::{MANAGED_PREFS_PATH, PAYLOAD_IDENTIFIER, bridge_prefs_path};
 
 pub(crate) fn remove_profile() -> Result<bool, MdmError> {
     let cli_removed = !super::claude_code_settings::remove_all()?.is_empty();
-    let user = std::env::var("USER").map_err(|e| MdmError::ManagedPrefsUser {
-        detail: e.to_string(),
-    })?;
+    let user = std::env::var("USER").map_err(MdmError::ManagedPrefsUserUnset)?;
     if user.is_empty() || user.contains('/') || user == "." || user == ".." {
         return Err(MdmError::ManagedPrefsUser {
             detail: format!("{user:?}"),

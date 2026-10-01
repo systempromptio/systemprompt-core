@@ -50,9 +50,9 @@ fn configured_models(raw: Option<&str>) -> Result<Vec<String>, MdmError> {
     let Some(raw) = raw.map(str::trim).filter(|m| !m.is_empty()) else {
         return Ok(default_inference_models());
     };
-    serde_json::from_str::<Vec<String>>(raw).map_err(|e| MdmError::InvalidConfig {
+    serde_json::from_str::<Vec<String>>(raw).map_err(|source| MdmError::ConfigJson {
         key: INFERENCE_MODELS_KEY,
-        detail: e.to_string(),
+        source,
     })
 }
 

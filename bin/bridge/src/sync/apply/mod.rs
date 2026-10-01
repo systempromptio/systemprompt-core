@@ -110,10 +110,8 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
     let registry = bridge.mcp_registry();
 
     let plugin_mcp_servers = report.mcp_servers_by_plugin.clone();
-    let warnings = host_sync::HostWarnings::new();
     let ctx = HostSyncCtx {
         policy_store: &bridge.policy_store,
-        warnings: &warnings,
         manifest: &manifest_for_write,
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -141,20 +139,29 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         let outcome = if enabled {
             emitter.apply(&ctx).await
         } else {
-            emitter.clear(&ctx)
+            emitter
+                .clear(&ctx)
+                .map(|()| host_sync::HostSyncReport::ok())
         };
-        if let Err(e) = &outcome {
-            report.host_failures.push(HostFailure {
-                host_id: HostId::new(host_id),
-                emitter: emitter.emitter_id().to_owned(),
-                error: format!("{e:#}"),
-                needs_elevation: matches!(e, ApplyError::ElevationRequired { .. }),
-            });
+        match outcome {
+            Ok(emitted) => {
+                report.host_warnings.extend(emitted.warnings);
+                host_sync::log_outcome(*emitter, enabled, Ok(()));
+            },
+            Err(e) => {
+                host_sync::log_outcome(*emitter, enabled, Err(&e));
+                report.host_failures.push(HostFailure {
+                    host_id: HostId::new(host_id),
+                    emitter: emitter.emitter_id().to_owned(),
+                    error: format!("{e:#}"),
+                    needs_elevation: matches!(e, ApplyError::ElevationRequired { .. }),
+                });
+            },
         }
-        host_sync::log_outcome(*emitter, enabled, outcome);
     }
-    evidence::capture(emitters, &manifest_for_write, &ctx, &warnings, &mut report).await;
-    report.host_warnings.extend(warnings.drain());
+    let evidence_warnings =
+        evidence::capture(emitters, &manifest_for_write, &ctx, &mut report).await;
+    report.host_warnings.extend(evidence_warnings);
 
     Ok(ApplyOutcome::Applied(report))
 }

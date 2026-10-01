@@ -107,19 +107,35 @@ fn read_entry() -> io::Result<Option<CacheEntry>> {
     let bytes = match fs::read(&path) {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => {
+        Err(source) => {
             return Err(io::Error::new(
-                e.kind(),
-                format!("read {}: {e}", path.display()),
+                source.kind(),
+                CacheFileError::Read { path, source },
             ));
         },
     };
-    serde_json::from_slice(&bytes).map(Some).map_err(|e| {
+    serde_json::from_slice(&bytes).map(Some).map_err(|source| {
         io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("parse {}: {e}; sign in again to replace it", path.display()),
+            CacheFileError::Parse { path, source },
         )
     })
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum CacheFileError {
+    #[error("read {}: {source}", path.display())]
+    Read {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+    #[error("parse {}: {source}; sign in again to replace it", path.display())]
+    Parse {
+        path: PathBuf,
+        #[source]
+        source: serde_json::Error,
+    },
 }
 
 #[must_use]

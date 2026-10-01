@@ -54,9 +54,14 @@ pub(crate) fn on_open_log_directory(app: &GuiApp, reply_to: ReplyId) {
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_export_diagnostic_bundle(app: &GuiApp, reply_to: ReplyId) {
     let result = super::diagnostics_bundle::build_bundle(&app.ctx).map_err(|e| {
-        let msg = format!("export diagnostic bundle failed: {e}");
-        app.append_log_error(&msg);
-        BridgeError::new(ErrorScope::Internal, ErrorCode::Internal, msg)
+        let err = BridgeError::from_error_in(
+            ErrorScope::Internal,
+            ErrorCode::Internal,
+            "export diagnostic bundle failed",
+            &e,
+        );
+        app.append_log_error(&err.message);
+        err
     });
     if let Ok(path) = result.as_ref() {
         app.append_log(format!("diagnostic bundle written to {}", path.display()));
@@ -89,9 +94,14 @@ pub(crate) fn on_reset_proxy_secret(app: &GuiApp, reply_to: ReplyId) {
             json!({ "path": path.display().to_string() })
         })
         .map_err(|e| {
-            let msg = format!("reset local proxy secret failed: {e}");
-            app.append_log_error(&msg);
-            BridgeError::new(ErrorScope::Internal, ErrorCode::Internal, msg)
+            let err = BridgeError::from_error_in(
+                ErrorScope::Internal,
+                ErrorCode::Internal,
+                "reset local proxy secret failed",
+                &e,
+            );
+            app.append_log_error(&err.message);
+            err
         });
     let reset_ok = result.is_ok();
     finish(app, result, reply_to);

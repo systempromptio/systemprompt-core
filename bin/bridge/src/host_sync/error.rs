@@ -41,6 +41,12 @@ pub enum ApplyError {
         context: String,
         source: std::io::Error,
     },
+    #[error("{context}: {source}")]
+    Step {
+        context: &'static str,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
     #[error("serialize {what}: {source}")]
     Serialize {
         what: String,
@@ -78,10 +84,4 @@ pub struct ForeignShape {
     pub key: String,
     pub found: &'static str,
     pub expected: &'static str,
-}
-
-impl From<ForeignShape> for std::io::Error {
-    fn from(e: ForeignShape) -> Self {
-        Self::new(std::io::ErrorKind::InvalidData, e)
-    }
 }

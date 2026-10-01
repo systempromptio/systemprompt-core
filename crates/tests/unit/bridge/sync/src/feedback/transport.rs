@@ -114,7 +114,7 @@ async fn enrollment_redirect_is_rejected_without_forwarding_device_credential() 
     let (gateway, server) = mock_server(vec![(302, redirect, "{}".to_owned())]);
     assert!(matches!(
         systemprompt_bridge::feedback::transport::enroll(&gateway, "sp_device_private").await,
-        Err(FeedbackError::Rejected(302))
+        Err(FeedbackError::Rejected { status: 302, .. })
     ));
     server.join().unwrap();
     assert!(matches!(target.accept(),Err(error) if error.kind()==std::io::ErrorKind::WouldBlock));

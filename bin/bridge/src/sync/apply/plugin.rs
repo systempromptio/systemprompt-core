@@ -18,7 +18,7 @@ use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
 use crate::hash::safe_plugin_id;
-use crate::host_sync::{HostWarning, HostWarningKind, HostWarnings};
+use crate::host_sync::{HostWarning, HostWarningKind};
 use crate::ids::{BearerToken, HostId};
 use crate::proxy::LoopbackEndpoint;
 use std::collections::{BTreeMap, HashSet};
@@ -71,7 +71,7 @@ pub(super) async fn apply_plugins(
     let mut malformed = Vec::new();
     let mut mcp_servers_by_plugin = BTreeMap::new();
     let mut receipts = Vec::new();
-    let warnings = HostWarnings::new();
+    let mut warnings = Vec::new();
     let total = manifest.plugins.len();
     for (index, plugin) in manifest.plugins.iter().enumerate() {
         if ctx.cancel.is_cancelled() {
@@ -89,14 +89,14 @@ pub(super) async fn apply_plugins(
         let applied = sync_one_plugin(ctx, plugin, &manifest.hooks).await?;
         receipts.push(applied.hooks_receipt);
         if let NodeInstall::Skipped { reason } = &applied.node_install {
-            warnings.push(
+            warnings.push(HostWarning::raise(
                 HostWarningKind::NodePackages,
                 NODE_WARNING_HOST,
                 format!(
                     "plugin {}: Node packages not installed — {reason}",
                     plugin.id
                 ),
-            );
+            ));
         }
         match applied.change {
             PluginChange::Installed(id) => installed.push(id),
@@ -143,7 +143,7 @@ pub(super) async fn apply_plugins(
         removed,
         malformed,
         host_failures: Vec::new(),
-        host_warnings: warnings.drain(),
+        host_warnings: warnings,
         mcp_servers_by_plugin,
         receipts,
     }))

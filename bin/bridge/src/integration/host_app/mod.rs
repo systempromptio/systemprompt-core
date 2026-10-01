@@ -9,8 +9,10 @@ use serde::Serialize;
 
 use systemprompt_models::services::ApiSurface;
 
+mod error;
 mod probe;
 
+pub use error::HostAppError;
 pub use probe::ProbeEnv;
 
 use crate::ids::HostToken;
@@ -160,19 +162,20 @@ pub trait HostApp: Send + Sync + 'static {
     fn display_name(&self) -> &'static str;
     fn config_schema(&self) -> &'static HostConfigSchema;
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot;
-    fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile>;
-    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled>;
+    fn generate_profile(&self, inputs: &ProfileGenInputs)
+    -> Result<GeneratedProfile, HostAppError>;
+    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError>;
     fn install_action_label(&self) -> &'static str;
 
     // Why: a repair the bridge starts on its own — at launch, after an upgrade
     // changed what a profile must contain — may not raise an operating-system
     // prompt the user did not ask for. A host whose install needs one answers
-    // `ApprovalRefusal::NeedsPrompt` here and is left for the user's own Repair.
-    fn install_profile_unattended(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    // `HostAppError::NeedsPrompt` here and is left for the user's own Repair.
+    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         self.install_profile(path)
     }
 
-    fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
+    fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {
         Ok(ProfileRemoval::ManualStepRequired {
             instruction: format!(
                 "Remove the {} settings from this agent's configuration by hand.",
@@ -181,11 +184,8 @@ pub trait HostApp: Send + Sync + 'static {
         })
     }
 
-    fn open(&self) -> std::io::Result<()> {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Unsupported,
-            "open not implemented",
-        ))
+    fn open(&self) -> Result<(), HostAppError> {
+        Err(HostAppError::OpenUnsupported)
     }
 
     fn can_open(&self) -> bool {

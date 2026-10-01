@@ -157,26 +157,74 @@ pub fn install(plugin_dir: &Path) -> NodeInstall {
             }
             NodeInstall::Installed { tool }
         },
-        Err(reason) => NodeInstall::Skipped { reason },
+        Err(error) => NodeInstall::Skipped {
+            reason: error.to_string(),
+        },
     }
 }
 
-fn stop(child: &mut std::process::Child, why: &str) -> String {
+#[derive(Debug)]
+enum Stop {
+    Stopped,
+    StillRunning(std::io::Error),
+}
+
+impl std::fmt::Display for Stop {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Stopped => f.write_str(" and was stopped"),
+            Self::StillRunning(error) => write!(
+                f,
+                " and could not be stopped ({error}); it may still be running"
+            ),
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+enum NodeRunError {
+    #[error("{tool} could not be started: {source}")]
+    Spawn {
+        tool: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("{tool} started without a readable stderr{stop}")]
+    NoStderr { tool: String, stop: Stop },
+    #[error("{tool} exceeded the {secs}s install deadline{stop}", secs = DEADLINE.as_secs())]
+    Deadline { tool: String, stop: Stop },
+    #[error("{tool} could not be waited on: {source}{stop}")]
+    Wait {
+        tool: String,
+        #[source]
+        source: std::io::Error,
+        stop: Stop,
+    },
+    #[error("{tool} exited with {status}: {tail}")]
+    Exited {
+        tool: String,
+        status: std::process::ExitStatus,
+        tail: String,
+    },
+}
+
+fn stop(child: &mut std::process::Child) -> Stop {
     match child.kill().and_then(|()| child.wait()) {
-        Ok(_exit) => format!("{why} and was stopped"),
-        Err(error) => format!("{why} and could not be stopped ({error}); it may still be running"),
+        Ok(_exit) => Stop::Stopped,
+        Err(error) => Stop::StillRunning(error),
     }
 }
 
-fn run_bounded(command: &mut Command, tool: &str) -> Result<(), String> {
-    let mut child = command
-        .spawn()
-        .map_err(|error| format!("{tool} could not be started: {error}"))?;
+fn run_bounded(command: &mut Command, tool: &str) -> Result<(), NodeRunError> {
+    let mut child = command.spawn().map_err(|source| NodeRunError::Spawn {
+        tool: tool.to_owned(),
+        source,
+    })?;
     let Some(stderr) = child.stderr.take() else {
-        return Err(stop(
-            &mut child,
-            &format!("{tool} started without a readable stderr"),
-        ));
+        return Err(NodeRunError::NoStderr {
+            tool: tool.to_owned(),
+            stop: stop(&mut child),
+        });
     };
     let reader = std::thread::spawn(move || {
         let mut bytes = Vec::new();
@@ -188,20 +236,18 @@ fn run_bounded(command: &mut Command, tool: &str) -> Result<(), String> {
         match child.try_wait() {
             Ok(Some(status)) => break Ok(status),
             Ok(None) if started.elapsed() >= DEADLINE => {
-                break Err(stop(
-                    &mut child,
-                    &format!(
-                        "{tool} exceeded the {}s install deadline",
-                        DEADLINE.as_secs()
-                    ),
-                ));
+                break Err(NodeRunError::Deadline {
+                    tool: tool.to_owned(),
+                    stop: stop(&mut child),
+                });
             },
             Ok(None) => std::thread::sleep(Duration::from_millis(50)),
-            Err(error) => {
-                break Err(stop(
-                    &mut child,
-                    &format!("{tool} could not be waited on: {error}"),
-                ));
+            Err(source) => {
+                break Err(NodeRunError::Wait {
+                    tool: tool.to_owned(),
+                    source,
+                    stop: stop(&mut child),
+                });
             },
         }
     };
@@ -223,5 +269,9 @@ fn run_bounded(command: &mut Command, tool: &str) -> Result<(), String> {
         .into_iter()
         .rev()
         .collect();
-    Err(format!("{tool} exited with {status}: {tail}"))
+    Err(NodeRunError::Exited {
+        tool: tool.to_owned(),
+        status,
+        tail,
+    })
 }

@@ -110,9 +110,7 @@ pub(crate) fn apply(
             }
         })?;
     }
-    let user = std::env::var("USER").map_err(|e| MdmError::ManagedPrefsUser {
-        detail: e.to_string(),
-    })?;
+    let user = std::env::var("USER").map_err(MdmError::ManagedPrefsUserUnset)?;
     if user.is_empty() || user.contains('/') || user == "." || user == ".." {
         return Err(MdmError::ManagedPrefsUser {
             detail: format!("{user:?}"),

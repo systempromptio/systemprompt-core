@@ -47,7 +47,11 @@ pub enum TrustError {
     #[error(
         "managed signing trust is invalid: {0}; configure manifestTrust with gateway, key and source"
     )]
-    InvalidPolicy(String),
+    InvalidPolicy(#[source] serde_json::Error),
+    #[error("signing trust gateway is not a valid URL: {0}")]
+    GatewayInvalid(#[source] crate::ids::IdValidationError),
+    #[error("signing trust record cannot be encoded: {0}")]
+    RecordEncode(#[source] serde_json::Error),
 }
 
 pub fn pinned_pubkey_state() -> Result<PinnedPubkeyState, TrustError> {
@@ -121,13 +125,17 @@ pub fn persist_pinned_pubkey(gateway: &ValidatedUrl, pubkey: &str) -> Result<(),
             || crate::brand::brand().default_gateway_url,
             |item| item.as_str().unwrap_or(""),
         );
-        let configured = GatewayIdentity::parse(configured)
-            .map_err(|e| ConfigWriteError::GatewayChanged(e.to_string()))?;
+        let configured = GatewayIdentity::parse(configured).map_err(|source| {
+            ConfigWriteError::GatewayUnparseable {
+                configured: configured.to_owned(),
+                source: Box::new(source),
+            }
+        })?;
         if configured != record.gateway {
-            return Err(ConfigWriteError::GatewayChanged(format!(
-                "expected {}, configured {}",
-                record.gateway, configured
-            )));
+            return Err(ConfigWriteError::GatewayChanged {
+                expected: record.gateway.to_string(),
+                configured: configured.to_string(),
+            });
         }
         write::set(doc, &["sync", "trust", "gateway"], record.gateway.as_str())?;
         write::set(doc, &["sync", "trust", "key"], record.key.as_str())?;

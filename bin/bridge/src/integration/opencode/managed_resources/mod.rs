@@ -19,7 +19,7 @@
 
 use async_trait::async_trait;
 
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 use crate::integration::managed_skills::{SkillDirPolicy, SkillTarget};
 
 mod config_json;
@@ -46,7 +46,7 @@ impl HostSync for OpenCodeSync {
         "opencode"
     }
 
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         let has_content =
             !ctx.manifest.skills.is_empty() || !ctx.manifest.managed_mcp_servers.is_empty();
         if has_content {
@@ -58,7 +58,7 @@ impl HostSync for OpenCodeSync {
             write_mcp_blocks(ctx.loopback, &[])?;
             remove_hook_plugin()?;
         }
-        Ok(())
+        Ok(HostSyncReport::ok())
     }
 
     fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {

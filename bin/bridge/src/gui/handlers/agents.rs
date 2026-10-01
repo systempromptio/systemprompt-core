@@ -42,7 +42,7 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
             app.append_log_error(format!("[{host_id}] removal failed: {e}"));
             Err(BridgeError::new(
                 ErrorScope::Host,
-                if e.kind() == std::io::ErrorKind::PermissionDenied {
+                if e.is_refusal() || e.is_permission_denied() {
                     ErrorCode::Unauthorized
                 } else {
                     ErrorCode::Internal

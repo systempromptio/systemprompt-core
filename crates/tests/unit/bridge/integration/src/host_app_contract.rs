@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 
 use systemprompt_bridge::gateway::model_view::{effective_surfaces, has_surface_override};
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
-    HostKind, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileRemoval, ProfileState,
+    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
+    HostConfigSchema, HostKind, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileRemoval,
+    ProfileState,
 };
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::services::ApiSurface;
@@ -44,14 +45,18 @@ impl HostApp for BareHost {
         }
     }
 
-    fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    fn generate_profile(
+        &self,
+        _inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
         Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
             "bare host generates nothing",
-        ))
+        )
+        .into())
     }
 
-    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
     }
 
@@ -99,11 +104,11 @@ fn the_default_open_is_an_unsupported_error_rather_than_a_silent_success() {
     let err = BareHost
         .open()
         .expect_err("a host with no window must not report a successful open");
-    assert_eq!(err.kind(), std::io::ErrorKind::Unsupported);
     assert!(
-        err.to_string().contains("open not implemented"),
-        "got {err}"
+        matches!(err, HostAppError::OpenUnsupported),
+        "the default open is a typed unsupported error, got {err:?}"
     );
+    assert!(!err.is_refusal(), "an unsupported open is not a refusal");
 }
 
 #[test]

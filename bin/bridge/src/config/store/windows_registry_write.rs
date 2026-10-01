@@ -208,10 +208,11 @@ fn set_string_value(
 ) -> Result<(), ConfigStoreError> {
     let name_w: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
     let data_w: Vec<u16> = value.encode_utf16().chain(std::iter::once(0)).collect();
-    let byte_len = u32::try_from(size_of_val(data_w.as_slice())).map_err(|e| {
-        ConfigStoreError::Backend(format!(
-            "value for {name} exceeds the registry size limit: {e}"
-        ))
+    let byte_len = u32::try_from(size_of_val(data_w.as_slice())).map_err(|source| {
+        ConfigStoreError::Decode {
+            context: format!("value for {name} exceeds the registry size limit"),
+            source: Box::new(source),
+        }
     })?;
     // SAFETY: `key` is a live open key, `name_w` is NUL-terminated, and `data_w`
     // holds `byte_len` bytes of REG_SZ payload.

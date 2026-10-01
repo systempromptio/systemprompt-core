@@ -6,6 +6,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
+use systemprompt_bridge::install::approval::GatedChangeError;
 use systemprompt_bridge::install::managed_file::{
     ManagedWrite, remove_managed_file, write_managed_file,
 };
@@ -79,7 +80,10 @@ fn a_write_refused_for_permissions_reports_that_root_is_needed_and_names_the_pat
 
     unseal(dir.path());
 
-    assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+    assert!(
+        matches!(&err, GatedChangeError::Io(e) if e.kind() == std::io::ErrorKind::PermissionDenied),
+        "an OS denial is an io failure, never a refusal: {err:?}"
+    );
     let rendered = err.to_string();
     assert!(
         rendered.contains("managed-settings.json"),
@@ -124,7 +128,10 @@ fn a_removal_refused_for_permissions_reports_that_root_is_needed() {
 
     unseal(dir.path());
 
-    assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+    assert!(
+        matches!(&err, GatedChangeError::Io(e) if e.kind() == std::io::ErrorKind::PermissionDenied),
+        "an OS denial is an io failure, never a refusal: {err:?}"
+    );
     assert!(err.to_string().contains("re-run as root"), "got {err}");
     drop(dir);
 }
@@ -136,10 +143,9 @@ fn a_failure_that_elevation_could_not_fix_is_returned_as_itself() {
 
     let err = write_managed_file(&path, b"{}", PROMPT)
         .expect_err("a directory in the way is not a permissions problem");
-    assert_ne!(
-        err.kind(),
-        std::io::ErrorKind::PermissionDenied,
-        "only permission-denied justifies escalating; this must surface as itself: {err}"
+    assert!(
+        matches!(&err, GatedChangeError::Io(e) if e.kind() != std::io::ErrorKind::PermissionDenied),
+        "only permission-denied justifies escalating; this must surface as itself: {err:?}"
     );
     drop(dir);
 }

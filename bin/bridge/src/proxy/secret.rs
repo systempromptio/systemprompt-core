@@ -67,7 +67,7 @@ pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
     let loaded = match load(&path) {
         Ok(loaded) => loaded,
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-            replace_unreadable(&path, &e)?;
+            replace_unreadable(&path, e)?;
             None
         },
         Err(e) => return Err(unreadable(&path, e)),
@@ -93,17 +93,17 @@ pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
 // reset; only a file that cannot be deleted either is left to the operator.
 pub(crate) fn replace_unreadable(
     path: &std::path::Path,
-    cause: &std::io::Error,
+    cause: std::io::Error,
 ) -> std::io::Result<()> {
-    crate::fsutil::remove_verified(path).map_err(|e| {
-        unreadable(
+    if let Err(removal) = crate::fsutil::remove_verified(path) {
+        return Err(unreadable(
             path,
             std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
-                format!("{cause}; it could not be removed either: {e}"),
+                UnremovableFile { cause, removal },
             ),
-        )
-    })?;
+        ));
+    }
     tracing::warn!(
         path = %path.display(),
         error = %cause,
@@ -122,25 +122,23 @@ pub(crate) fn unreadable(path: &std::path::Path, e: std::io::Error) -> std::io::
     }
     std::io::Error::new(
         e.kind(),
-        format!(
-            "{} cannot be read ({e}); this account does not own the file and \
-             cannot repair it. Use \"Reset local proxy secret\" in the app or delete the file \
-             (as an administrator if needed), start the bridge again, then repair each agent",
-            path.display()
-        ),
+        UnreadableFile {
+            path: path.to_path_buf(),
+            source: e,
+        },
     )
 }
 
 pub fn reset() -> std::io::Result<(LoopbackSecret, PathBuf)> {
     let path = secret_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    crate::fsutil::remove_verified(&path).map_err(|e| {
+    crate::fsutil::remove_verified(&path).map_err(|source| {
         std::io::Error::new(
-            e.kind(),
-            format!(
-                "{e}; delete {} as an administrator, then start the bridge again",
-                path.display()
-            ),
+            source.kind(),
+            ResetBlocked {
+                path: path.clone(),
+                source,
+            },
         )
     })?;
     let secret = mint(&path)?;
@@ -202,4 +200,36 @@ pub(crate) fn constant_time_eq(presented: &[u8], expected: &[u8]) -> bool {
         diff |= a ^ b;
     }
     diff == 0
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{cause}; it could not be removed either: {removal}")]
+struct UnremovableFile {
+    #[source]
+    cause: std::io::Error,
+    removal: std::io::Error,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "{} cannot be read ({source}); this account does not own the file and cannot repair it. Use \
+     \"Reset local proxy secret\" in the app or delete the file (as an administrator if needed), \
+     start the bridge again, then repair each agent",
+    path.display()
+)]
+struct UnreadableFile {
+    path: PathBuf,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "{source}; delete {} as an administrator, then start the bridge again",
+    path.display()
+)]
+struct ResetBlocked {
+    path: PathBuf,
+    #[source]
+    source: std::io::Error,
 }

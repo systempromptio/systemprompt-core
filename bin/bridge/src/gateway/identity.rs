@@ -14,7 +14,13 @@ use systemprompt_models::api::cloud::BridgeProfileUsage;
 use crate::gateway::errors::GatewayError;
 use crate::gateway::identity_source::whoami_path;
 use crate::gateway::types::{BridgeProfile, SelfEnrollRequest, SelfEnrollResponse, WhoamiResponse};
-use crate::gateway::{GatewayClient, record_span};
+use crate::gateway::{GatewayClient, ensure_success, record_span};
+
+#[derive(serde::Serialize)]
+struct HostModelFilterRequest<'a> {
+    host_id: &'a str,
+    model_protocols: Option<&'a [String]>,
+}
 
 impl GatewayClient {
     #[tracing::instrument(
@@ -33,12 +39,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::WhoamiFetch(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "whoami",
-            });
-        }
+        let resp = ensure_success(resp, "whoami").await?;
         resp.json::<WhoamiResponse>()
             .await
             .map_err(|e| GatewayError::WhoamiDecode(Box::new(e)))
@@ -56,10 +57,10 @@ impl GatewayClient {
         protocols: Option<&[String]>,
     ) -> Result<(), GatewayError> {
         let url = self.url("/v1/bridge/profile/host-model-filter");
-        let body = serde_json::json!({
-            "host_id": host_id,
-            "model_protocols": protocols,
-        });
+        let body = HostModelFilterRequest {
+            host_id,
+            model_protocols: protocols,
+        };
         let started = Instant::now();
         let resp = self
             .http()
@@ -70,12 +71,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "host-model-filter",
-            });
-        }
+        ensure_success(resp, "host-model-filter").await?;
         Ok(())
     }
 
@@ -94,12 +90,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::ProfileFetch(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "profile",
-            });
-        }
+        let resp = ensure_success(resp, "profile").await?;
         resp.json::<BridgeProfile>()
             .await
             .map_err(|e| GatewayError::ProfileDecode(Box::new(e)))
@@ -124,12 +115,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::ProfileUsageFetch(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "profile_usage",
-            });
-        }
+        let resp = ensure_success(resp, "profile_usage").await?;
         resp.json::<BridgeProfileUsage>()
             .await
             .map_err(|e| GatewayError::ProfileUsageDecode(Box::new(e)))
@@ -156,12 +142,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "device",
-            });
-        }
+        let resp = ensure_success(resp, "device").await?;
         resp.json::<SelfEnrollResponse>()
             .await
             .map_err(|e| GatewayError::DeviceEnrollDecode(Box::new(e)))

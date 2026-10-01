@@ -12,9 +12,11 @@ use std::path::Path;
 
 use super::config;
 use crate::integration::generated_profile;
-use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs, ProfileRemoval};
+use crate::integration::host_app::{
+    GeneratedProfile, HostAppError, ProfileGenInputs, ProfileRemoval,
+};
 
-pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfile, HostAppError> {
     let uuids = generated_profile::profile_uuids();
     let toml_text = render::managed_toml(inputs)?;
 
@@ -53,7 +55,7 @@ fn notify_profile_pending() {
 #[cfg(not(target_os = "macos"))]
 const fn notify_profile_pending() {}
 
-pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
+pub(super) fn install_profile(generated_path: &str) -> Result<(), HostAppError> {
     if cfg!(target_os = "macos") {
         std::process::Command::new("/usr/bin/open")
             .args(["-g", generated_path])
@@ -73,14 +75,14 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     if cfg!(target_os = "windows") {
         std::fs::create_dir_all(parent)?;
         merge::install(generated_path.as_ref(), &target)?;
-        return generated_profile::consume(generated_path);
+        return Ok(generated_profile::consume(generated_path)?);
     }
 
     if std::fs::create_dir_all(parent).is_ok() && writable(parent) {
         merge::install(generated_path.as_ref(), &target)?;
-        generated_profile::consume(generated_path)
+        Ok(generated_profile::consume(generated_path)?)
     } else {
-        Err(std::io::Error::new(
+        Err(HostAppError::Io(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
             format!(
                 "{} is admin-owned. Re-run as root: sudo {} bridge codex install",
@@ -90,7 +92,7 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
                     .as_deref()
                     .map_or_else(|| "systemprompt".into(), |p| p.display().to_string()),
             ),
-        ))
+        )))
     }
 }
 

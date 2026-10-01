@@ -13,6 +13,7 @@ use std::path::Path;
 use serde_yaml::Value;
 
 use crate::host_sync::ForeignShape;
+use crate::integration::host_app::HostAppError;
 
 const OWNED_MODEL_KEYS: &[&str] = &["provider", "default"];
 const MODEL_TABLE: &str = "model";
@@ -26,11 +27,11 @@ fn io_invalid(e: serde_yaml::Error) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, e)
 }
 
-pub(super) fn install(source: &Value, target: &Path) -> std::io::Result<()> {
+pub(super) fn install(source: &Value, target: &Path) -> Result<(), HostAppError> {
     let existing_text = match std::fs::read_to_string(target) {
         Ok(s) => s,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
-        Err(e) => return Err(e),
+        Err(e) => return Err(e.into()),
     };
     let mut merged: Value = if existing_text.trim().is_empty() {
         Value::Mapping(serde_yaml::Mapping::new())
@@ -50,7 +51,7 @@ pub(super) fn install(source: &Value, target: &Path) -> std::io::Result<()> {
     strip_owned(&mut merged);
     deep_merge(&mut merged, source);
 
-    write_private(target, &merged)
+    Ok(write_private(target, &merged)?)
 }
 
 pub(super) fn uninstall(target: &Path) -> std::io::Result<bool> {

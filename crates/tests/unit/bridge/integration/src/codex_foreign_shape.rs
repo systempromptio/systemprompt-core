@@ -58,6 +58,14 @@ fn a_scalar_where_the_bridge_owns_a_table_refuses_the_install_and_keeps_the_file
             .install_profile(&profile.path)
             .expect_err("a foreign shape refuses the merge");
 
+        assert!(
+            matches!(
+                &err,
+                systemprompt_bridge::integration::HostAppError::ForeignShape(shape)
+                    if shape.key == "model_providers"
+            ),
+            "a foreign value is a typed foreign-shape refusal: {err:?}"
+        );
         let message = err.to_string();
         assert!(
             message.contains("model_providers") && message.contains("a table"),

@@ -39,7 +39,7 @@ pub(super) fn meta_dispatch(
         "state.snapshot" => CommandOutcome::Sync(state_snapshot(app)),
         "marketplace.list" => CommandOutcome::Sync(marketplace_listing(app).and_then(|listing| {
             serde_json::to_value(listing).map_err(|e| {
-                BridgeError::new(ErrorScope::Marketplace, ErrorCode::Internal, e.to_string())
+                BridgeError::from_error(ErrorScope::Marketplace, ErrorCode::Internal, &e)
             })
         })),
         "activity.recent" => CommandOutcome::Sync(Ok(json!({
@@ -270,8 +270,14 @@ fn open_external_url(args: Value) -> CommandOutcome {
 // site.
 fn state_snapshot(app: &GuiApp) -> Result<Value, BridgeError> {
     let snap = app.state.snapshot();
-    serde_json::to_value(server_json::state_payload(&snap, &app.ctx.proxy))
-        .map_err(|e| BridgeError::internal(format!("state encode failed: {e}")))
+    serde_json::to_value(server_json::state_payload(&snap, &app.ctx.proxy)).map_err(|e| {
+        BridgeError::from_error_in(
+            ErrorScope::Internal,
+            ErrorCode::Internal,
+            "state encode failed",
+            &e,
+        )
+    })
 }
 
 fn marketplace_listing(
@@ -283,5 +289,5 @@ fn marketplace_listing(
         &app.ctx.mcp_registry(),
         &snap.mcp_auth,
     )
-    .map_err(|e| BridgeError::new(ErrorScope::Marketplace, ErrorCode::Internal, e.to_string()))
+    .map_err(|e| BridgeError::from_error(ErrorScope::Marketplace, ErrorCode::Internal, &e))
 }

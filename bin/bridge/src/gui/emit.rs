@@ -48,8 +48,14 @@ pub(crate) fn finish<T: Serialize>(
     result: Result<T, BridgeError>,
 ) {
     let result = result.and_then(|value| {
-        serde_json::to_value(value)
-            .map_err(|e| BridgeError::internal(format!("reply encode failed: {e}")))
+        serde_json::to_value(value).map_err(|e| {
+            BridgeError::from_error_in(
+                ipc::ErrorScope::Internal,
+                ipc::ErrorCode::Internal,
+                "reply encode failed",
+                &e,
+            )
+        })
     });
     let Some(target) = reply_to else {
         if let Err(err) = result {

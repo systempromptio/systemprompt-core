@@ -116,7 +116,11 @@ async fn post<T: Serialize + Sync, R: DeserializeOwned>(
 
 async fn decode<T: DeserializeOwned>(mut response: reqwest::Response, maximum: usize) -> Result<T> {
     if !response.status().is_success() {
-        return Err(FeedbackError::Rejected(response.status().as_u16()));
+        let (status, rejection) = crate::gateway::GatewayRejection::read(response).await;
+        return Err(FeedbackError::Rejected {
+            status: status.as_u16(),
+            rejection,
+        });
     }
     if response
         .content_length()

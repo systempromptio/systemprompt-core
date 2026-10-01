@@ -105,7 +105,6 @@ fn ctx<'a>(
 ) -> HostSyncCtx<'a> {
     HostSyncCtx {
         policy_store: &POLICY_STORE,
-        warnings: &HOST_WARNINGS,
         manifest,
         org_plugins_root: root,
         plugin_mcp_servers,
@@ -118,8 +117,6 @@ fn ctx<'a>(
 }
 
 
-static HOST_WARNINGS: systemprompt_bridge::host_sync::HostWarnings =
-    systemprompt_bridge::host_sync::HostWarnings::new();
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -180,6 +177,7 @@ fn try_apply(
     let client = stub_client();
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     block_on(HermesSync.apply(&ctx(m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers)))
+        .map(|_| ())
 }
 
 fn skills_dir(home: &Path) -> PathBuf {

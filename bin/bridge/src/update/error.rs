@@ -25,8 +25,11 @@ pub enum UpdateError {
     },
     #[error("download failed: {0}")]
     Download(Box<reqwest::Error>),
-    #[error("gateway rejected the download: status={status}")]
-    DownloadStatus { status: reqwest::StatusCode },
+    #[error("gateway rejected the download: status={status}: {rejection}")]
+    DownloadStatus {
+        status: reqwest::StatusCode,
+        rejection: crate::gateway::GatewayRejection,
+    },
     #[error("checksum mismatch: expected {expected}, got {actual}")]
     ChecksumMismatch { expected: String, actual: String },
     #[error("could not resolve the update download directory")]
@@ -35,6 +38,34 @@ pub enum UpdateError {
     NotWritable { path: PathBuf, hint: String },
     #[error("could not locate the running {what}: {detail}")]
     LocateInstall { what: &'static str, detail: String },
+    #[error("could not locate the running executable: {0}")]
+    LocateExe(#[source] std::io::Error),
+    #[error("{stage} failed: could not run {tool}: {source}")]
+    Tool {
+        stage: &'static str,
+        tool: &'static str,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error(
+        "{failure}; rollback cannot remove {}: {source}; previous app remains at {}",
+        target.display(),
+        backup.display()
+    )]
+    RollbackRemove {
+        failure: Box<UpdateError>,
+        target: PathBuf,
+        backup: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("{failure}; rollback failed: {source}; previous app remains at {}", backup.display())]
+    RollbackRestore {
+        failure: Box<UpdateError>,
+        backup: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("signature verification failed: {0}")]
     Signature(String),
     #[error("unpacking the download failed: {0}")]

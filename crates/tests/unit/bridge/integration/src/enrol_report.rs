@@ -1,7 +1,16 @@
 //! The text `install --host` / `uninstall --host` print, and the failure flag
 //! the caller's exit code is derived from.
 
-use systemprompt_bridge::integration::enrol::{Outcome, Report, Selection, remove_host_profiles};
+use systemprompt_bridge::integration::HostAppError;
+use systemprompt_bridge::integration::enrol::{
+    Outcome, Report, Selection, SelectionError, remove_host_profiles,
+};
+use systemprompt_bridge::integration::reapply::ProfileFailure;
+
+fn failure(message: &str) -> ProfileFailure {
+    ProfileFailure::Host(HostAppError::Io(std::io::Error::other(message.to_owned())))
+}
+
 
 fn report(display_name: &'static str, outcome: Outcome) -> Report {
     Report {
@@ -15,7 +24,7 @@ fn report(display_name: &'static str, outcome: Outcome) -> Report {
 
 #[test]
 fn only_an_outright_failure_is_reported_as_one() {
-    assert!(report("OpenCode", Outcome::Failed("boom".to_owned())).is_failure());
+    assert!(report("OpenCode", Outcome::Failed(failure("boom"))).is_failure());
 
     for outcome in [
         Outcome::Installed,
@@ -55,10 +64,7 @@ fn every_outcome_renders_its_own_status_marker_and_names_the_host() {
             "Manual Host",
             Outcome::ManualStep("remove the profile in System Settings".to_owned()),
         ),
-        report(
-            "Broken Host",
-            Outcome::Failed("permission denied".to_owned()),
-        ),
+        report("Broken Host", Outcome::Failed(failure("permission denied"))),
     ];
     let rendered = systemprompt_bridge::integration::enrol::render(&reports);
 
@@ -100,7 +106,7 @@ fn a_skipped_host_names_the_id_an_administrator_has_to_enable() {
 fn a_failure_message_is_carried_through_verbatim_so_the_cause_is_visible() {
     let rendered = systemprompt_bridge::integration::enrol::render(&[report(
         "Broken Host",
-        Outcome::Failed("Permission denied (os error 13)".to_owned()),
+        Outcome::Failed(failure("Permission denied (os error 13)")),
     )]);
     assert!(rendered.contains("Permission denied (os error 13)"));
 }
@@ -120,8 +126,11 @@ fn removing_an_empty_selection_succeeds_with_nothing_to_report() {
 fn removing_an_unknown_host_fails_the_whole_request_rather_than_reporting_per_host() {
     let err = remove_host_profiles(&Selection::Ids(vec!["not-a-host".to_owned()]))
         .expect_err("an unknown id is rejected");
-    assert!(err.contains("not-a-host"), "got {err}");
-    assert!(err.contains("known ids:"), "got {err}");
+    assert!(
+        matches!(&err, SelectionError::Unknown { id, .. } if id == "not-a-host"),
+        "got {err:?}"
+    );
+    assert!(err.to_string().contains("known ids:"), "got {err}");
 }
 
 #[test]

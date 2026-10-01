@@ -52,7 +52,7 @@ fn enrol(bridge: &BridgeContext) -> Outcome {
             }
             Outcome::Installed
         },
-        Err(e) => Outcome::Failed(e.to_string()),
+        Err(e) => Outcome::Failed(e.into()),
     }
 }
 
@@ -60,6 +60,6 @@ fn remove() -> Outcome {
     match crate::install::mdm::claude_code_settings::remove_managed_settings() {
         Ok(lines) if lines.is_empty() => Outcome::NothingToRemove,
         Ok(_) => Outcome::Removed,
-        Err(e) => Outcome::Failed(e.to_string()),
+        Err(e) => Outcome::Failed(e.into()),
     }
 }

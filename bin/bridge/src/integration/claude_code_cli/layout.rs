@@ -44,3 +44,29 @@ pub(super) fn cache_install_dir(
         .join(plugin_id.as_str())
         .join(VERSION_DIR)
 }
+
+pub(crate) fn feedback_skill_roots(
+    manifest: &crate::gateway::manifest::SignedManifest,
+    skill: &crate::gateway::manifest::SkillEntry,
+) -> Vec<PathBuf> {
+    if !super::claude_cli_installed() {
+        return Vec::new();
+    }
+    let Some(plugins) = crate::config::paths::claude_cli_plugins_dir() else {
+        return Vec::new();
+    };
+    super::marketplace::host_marketplaces(manifest)
+        .iter()
+        .flat_map(|marketplace| {
+            marketplace
+                .plugin_ids
+                .iter()
+                .filter(|id| skill.plugins.contains(id))
+                .map(|plugin| {
+                    cache_install_dir(&plugins, &marketplace.id, plugin)
+                        .join("skills")
+                        .join(skill.id.as_str().replace('_', "-"))
+                })
+        })
+        .collect()
+}

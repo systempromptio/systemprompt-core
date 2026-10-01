@@ -32,7 +32,7 @@ pub mod workspace_sink;
 
 use async_trait::async_trait;
 
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkArtifactsSync;
@@ -47,12 +47,13 @@ impl HostSync for CoworkArtifactsSync {
         "cowork-artifacts"
     }
 
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         workspace_sink::stage_bundle(&ctx.manifest.artifacts)?;
         let Some(dir) = emit::resolve_artifacts_dir().map_err(resolve_err)? else {
-            return Ok(());
+            return Ok(HostSyncReport::ok());
         };
-        emit::write_artifacts(&dir, emit::active_sinks(), &ctx.manifest.artifacts)
+        emit::write_artifacts(&dir, emit::active_sinks(), &ctx.manifest.artifacts)?;
+        Ok(HostSyncReport::ok())
     }
 
     fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {

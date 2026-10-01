@@ -20,7 +20,7 @@ mod windows_registry;
 mod windows_registry_write;
 
 pub use document::{PolicyDocument, PolicyDocumentValue, PolicyHive, PolicyTarget};
-pub use hive_report::{HiveReport, hive_report};
+pub use hive_report::{HiveReadError, HiveReport, hive_report};
 #[cfg(target_os = "windows")]
 pub(crate) use windows_policy::{
     clear_managed_claude_policy, machine_claude_policy_keys, read_registry_string,
@@ -37,6 +37,20 @@ pub enum ConfigStoreError {
     },
     #[error("config store: {0}")]
     Backend(String),
+
+    #[error("config store: {context}")]
+    Io {
+        context: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("config store: {context}")]
+    Decode {
+        context: String,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
 
     #[error("administrator rights required to write {subkey} under {hive}")]
     AccessDenied { hive: String, subkey: String },

@@ -275,9 +275,8 @@ fn reply<T: serde::Serialize>(
         return;
     }
     let result = result.map_err(|err| {
-        let raw = format!("{err:#}");
-        tracing::warn!(error = %raw, operation = what, "update operation failed");
-        BridgeError::new(ErrorScope::Internal, ErrorCode::Internal, raw)
+        tracing::warn!(error = %err, operation = what, "update operation failed");
+        BridgeError::from_error(ErrorScope::Internal, ErrorCode::Internal, &*err)
     });
     emit::finish(app, reply_to, result);
 }

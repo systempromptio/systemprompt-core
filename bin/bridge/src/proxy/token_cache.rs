@@ -111,10 +111,10 @@ impl TokenCache {
             let session_id = session_id.clone();
             let http = http.clone();
             Box::pin(async move {
-                let cfg = config::load().map_err(|e| ForwardError::Auth(e.to_string()))?;
+                let cfg = config::load().map_err(ForwardError::Config)?;
                 auth::read_or_refresh(&cfg, threshold, &session_id, &http)
                     .await
-                    .map_err(|e| chain_error(&e))
+                    .map_err(|e| ForwardError::Chain(Box::new(e)))
             })
         }))
     }
@@ -147,6 +147,9 @@ impl TokenCache {
             .map_err(|_elapsed| ForwardError::AuthTimeout)?
             .inspect_err(|e| match e {
                 ForwardError::AuthRetryable(reason) => self.latch.defer(reason),
+                retryable if retryable.is_retryable_auth() => {
+                    self.latch.defer(&retryable.to_string());
+                },
                 terminal => self.latch.engage(&terminal.to_string()),
             })?;
         if capture_stamp_blocking().await? != stamp {
@@ -251,15 +254,7 @@ impl TokenCache {
 async fn capture_stamp_blocking() -> ForwardResult<CredentialStamp> {
     tokio::task::spawn_blocking(capture_stamp)
         .await
-        .map_err(|e| ForwardError::Auth(format!("credential stamp task: {e}")))?
-}
-
-fn chain_error(e: &auth::ChainError) -> ForwardError {
-    if e.is_terminal() {
-        ForwardError::Auth(e.to_string())
-    } else {
-        ForwardError::AuthRetryable(e.to_string())
-    }
+        .map_err(ForwardError::CredentialTask)?
 }
 
 fn sign_in_required_error() -> ForwardError {

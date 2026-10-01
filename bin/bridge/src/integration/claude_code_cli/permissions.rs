@@ -7,17 +7,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::host_sync::{ApplyError, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSyncCtx, HostSyncReport};
 use crate::install::mdm::claude_code_settings::{permissions, skill_budget};
 
 // Why: the manifest carries the decision for every managed server's tools
 // (allow by default); Claude Code only stops prompting once that decision is
 // in its `permissions` rules, so the rules are re-derived on every sync.
-fn apply_tool_permissions(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+fn apply_tool_permissions(ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
+    let mut report = HostSyncReport::ok();
     let rules = permissions::rules_for(ctx.manifest, ctx.plugin_mcp_servers);
-    let outcome = permissions::apply_permissions(&rules).map_err(|e| ApplyError::Io {
-        context: "claude code tool permissions".to_owned(),
-        source: std::io::Error::other(e.to_string()),
+    let outcome = permissions::apply_permissions(&rules).map_err(|e| ApplyError::Step {
+        context: "claude code tool permissions",
+        source: Box::new(e),
     })?;
     match outcome {
         permissions::PermissionOutcome::Written(lines) => {
@@ -26,7 +27,7 @@ fn apply_tool_permissions(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
             }
         },
         permissions::PermissionOutcome::NoCarrier { rules, standalone } => {
-            ctx.warnings.push(
+            report.warn(
                 crate::host_sync::HostWarningKind::PermissionRules,
                 "claude-code",
                 format!(
@@ -37,14 +38,14 @@ fn apply_tool_permissions(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
             );
         },
     }
-    Ok(())
+    Ok(report)
 }
 
 fn clear_tool_permissions() -> Result<(), ApplyError> {
     permissions::apply_permissions(&permissions::PermissionRules::default())
-        .map_err(|e| ApplyError::Io {
-            context: "clear claude code tool permissions".to_owned(),
-            source: std::io::Error::other(e.to_string()),
+        .map_err(|e| ApplyError::Step {
+            context: "clear claude code tool permissions",
+            source: Box::new(e),
         })
         .map(|_| ())
 }
@@ -53,9 +54,9 @@ fn clear_tool_permissions() -> Result<(), ApplyError> {
 // (8,000 characters by default) and then stops loading those skills on its
 // own, so the budget the marketplaces declare is re-applied on every sync.
 fn apply_skill_listing_budget(budget: Option<u32>) -> Result<(), ApplyError> {
-    let lines = skill_budget::apply_skill_budget(budget).map_err(|e| ApplyError::Io {
-        context: "claude code skill listing budget".to_owned(),
-        source: std::io::Error::other(e.to_string()),
+    let lines = skill_budget::apply_skill_budget(budget).map_err(|e| ApplyError::Step {
+        context: "claude code skill listing budget",
+        source: Box::new(e),
     })?;
     for line in lines {
         tracing::info!(target: "bridge::claude-code-cli", detail = %line, "skill listing budget");
@@ -63,9 +64,10 @@ fn apply_skill_listing_budget(budget: Option<u32>) -> Result<(), ApplyError> {
     Ok(())
 }
 
-pub(super) fn apply_client_settings(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-    apply_tool_permissions(ctx)?;
-    apply_skill_listing_budget(skill_budget::budget_for(ctx.manifest))
+pub(super) fn apply_client_settings(ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
+    let report = apply_tool_permissions(ctx)?;
+    apply_skill_listing_budget(skill_budget::budget_for(ctx.manifest))?;
+    Ok(report)
 }
 
 pub(super) fn clear_client_settings() -> Result<(), ApplyError> {

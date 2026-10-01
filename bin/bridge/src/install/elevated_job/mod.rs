@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use super::approval::{ApprovalRefusal, ElevationFailure, GatedChangeError};
 use super::elevated_protocol::{CompletedStep, ElevatedResult, PROTOCOL_VERSION};
 use crate::winproc::{ElevationOutcome, run_elevated};
 
@@ -123,7 +124,7 @@ pub(crate) struct ElevatedReceipt {
     steps: Vec<CompletedStep>,
 }
 impl ElevatedReceipt {
-    pub(crate) fn require(&self, operation: &str, target: &Path) -> std::io::Result<()> {
+    pub(crate) fn require(&self, operation: &str, target: &Path) -> Result<(), ElevationFailure> {
         let target = target.display().to_string();
         if self
             .steps
@@ -132,7 +133,7 @@ impl ElevatedReceipt {
         {
             Ok(())
         } else {
-            Err(std::io::Error::other(format!(
+            Err(ElevationFailure::Unverified(format!(
                 "elevated receipt lacks {operation} {target}"
             )))
         }
@@ -145,7 +146,7 @@ impl ElevatedReceipt {
 pub(crate) fn elevate_and_run(
     stage_dir: &Path,
     job: &ElevatedJob,
-) -> std::io::Result<ElevatedReceipt> {
+) -> Result<ElevatedReceipt, GatedChangeError> {
     let stage = tempfile::Builder::new()
         .prefix("elevated-job-")
         .tempdir_in(stage_dir)?;
@@ -156,7 +157,7 @@ pub(crate) fn elevate_and_run(
         id,
         job,
     })
-    .map_err(std::io::Error::other)?;
+    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let job_path = stage.path().join("job.json");
     let result_path = stage.path().join("result.json");
     crate::fsutil::atomic_write_0600(&job_path, &body)?;
@@ -169,10 +170,8 @@ pub(crate) fn elevate_and_run(
         ],
     );
     match outcome {
-        ElevationOutcome::Declined => {
-            Err(crate::install::approval::ApprovalRefusal::Declined.into())
-        },
-        ElevationOutcome::Failed(message) => Err(std::io::Error::other(message)),
+        ElevationOutcome::Declined => Err(ApprovalRefusal::Declined.into()),
+        ElevationOutcome::Failed(message) => Err(ElevationFailure::Helper(message).into()),
         ElevationOutcome::Completed { exit_code } => {
             verify_completed(job, id, exit_code, &result_path)
         },
@@ -184,17 +183,13 @@ fn verify_completed(
     id: uuid::Uuid,
     exit_code: u32,
     result_path: &Path,
-) -> std::io::Result<ElevatedReceipt> {
-    let bytes = std::fs::read(result_path).map_err(|e| {
-        std::io::Error::other(format!(
-            "elevated result {} cannot be read: {e}",
-            result_path.display()
-        ))
-    })?;
-    let result: ElevatedResult = serde_json::from_slice(&bytes).map_err(std::io::Error::other)?;
+) -> Result<ElevatedReceipt, GatedChangeError> {
+    let bytes = std::fs::read(result_path)?;
+    let result: ElevatedResult = serde_json::from_slice(&bytes)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let steps = result
         .verify(id, exit_code, &expected_steps(job))
-        .map_err(std::io::Error::other)?;
+        .map_err(ElevationFailure::from)?;
     if let Some(org) = &job.org_plugins {
         crate::windows_acl::verify_modify_tree(&org.path)?;
     }
@@ -204,19 +199,21 @@ fn verify_completed(
     for dir in &job.private_dirs {
         let owner = crate::windows_acl::owner_sid(&dir.path)?;
         if owner != dir.owner_sid {
-            return Err(std::io::Error::other(format!(
+            return Err(ElevationFailure::Unverified(format!(
                 "{} is owned by {owner} after elevated repair, expected {}",
                 dir.path.display(),
                 dir.owner_sid
-            )));
+            ))
+            .into());
         }
     }
     for path in &job.remove_files {
         if path.try_exists()? {
-            return Err(std::io::Error::other(format!(
+            return Err(ElevationFailure::Unverified(format!(
                 "{} still exists after elevated removal",
                 path.display()
-            )));
+            ))
+            .into());
         }
     }
     Ok(ElevatedReceipt { steps })

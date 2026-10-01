@@ -42,9 +42,20 @@ pub fn read_install_record() -> std::io::Result<Option<InstallRecord>> {
     let Some(body) = crate::fsutil::read_optional(&path)? else {
         return Ok(None);
     };
-    serde_json::from_str(&body)
-        .map(Some)
-        .map_err(|e| std::io::Error::other(format!("parse {}: {e}", path.display())))
+    serde_json::from_str(&body).map(Some).map_err(|source| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            InstallRecordParseError { path, source },
+        )
+    })
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("parse {}: {source}", .path.display())]
+pub struct InstallRecordParseError {
+    path: std::path::PathBuf,
+    #[source]
+    source: serde_json::Error,
 }
 
 pub(super) fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<()> {

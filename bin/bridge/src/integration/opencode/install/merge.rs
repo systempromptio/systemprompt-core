@@ -13,18 +13,22 @@ use serde_json::{Map, Value};
 
 use super::super::config::{DEFAULT_MODEL, PROVIDER_ID};
 use super::{elevation_prompt, pretty, read_object};
+use crate::install::approval::GatedChangeError;
 use crate::install::managed_file::{ManagedWrite, remove_managed_file, write_managed_file};
 
 // JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
 // preserved.
-pub(super) fn install(source: &Map<String, Value>, target: &Path) -> std::io::Result<ManagedWrite> {
+pub(super) fn install(
+    source: &Map<String, Value>,
+    target: &Path,
+) -> Result<ManagedWrite, GatedChangeError> {
     let mut merged = read_object(target)?;
     strip_owned(&mut merged);
     deep_merge(&mut merged, source);
     write_managed_file(target, &pretty(&merged)?, &elevation_prompt())
 }
 
-pub(super) fn uninstall(target: &Path) -> std::io::Result<bool> {
+pub(super) fn uninstall(target: &Path) -> Result<bool, GatedChangeError> {
     if !target.exists() {
         return Ok(false);
     }

@@ -8,6 +8,8 @@ mod shared;
 
 #[cfg(target_os = "macos")]
 mod macos;
+#[cfg(target_os = "macos")]
+mod macos_read;
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -44,8 +46,9 @@ pub(crate) fn policy_summary() -> Vec<String> {
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
-    HostProcesses, ProbeEnv, ProfileInstalled, ProfileProbe, ProfileRemoval, ProfileState,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, HostConfigSchema,
+    HostKind, HostProcesses, ProbeEnv, ProfileInstalled, ProfileProbe, ProfileRemoval,
+    ProfileState,
 };
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -108,24 +111,29 @@ impl HostApp for ClaudeDesktopHost {
         }
     }
 
-    fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    fn generate_profile(
+        &self,
+        inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
         os::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         os::install_profile(path)
     }
 
-    fn install_profile_unattended(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         os::install_profile_unattended(path)
     }
 
-    fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
+    fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {
         os::remove_profile()
     }
 
-    fn open(&self) -> std::io::Result<()> {
-        crate::integration::app_launch::open_app(&locator(&claude_app_candidates()))
+    fn open(&self) -> Result<(), HostAppError> {
+        Ok(crate::integration::app_launch::open_app(&locator(
+            &claude_app_candidates(),
+        ))?)
     }
 
     fn install_action_label(&self) -> &'static str {

@@ -65,20 +65,11 @@ async fn push_model_filter(
             context: "credential cache".into(),
             source: e,
         })?
-        .ok_or_else(|| GuiError::Profile {
-            context: "model filter".into(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                "not signed in; cannot update host model filter",
-            ),
-        })?;
+        .ok_or(GuiError::NotAuthenticated)?;
     GatewayClient::new(gateway_base, http)
         .set_host_model_filter(&bearer.token, host_id.as_str(), protocols)
-        .await
-        .map_err(|e| GuiError::Profile {
-            context: "host model filter".into(),
-            source: std::io::Error::other(e.to_string()),
-        })
+        .await?;
+    Ok(())
 }
 
 pub(crate) fn on_model_filter_set_finished(

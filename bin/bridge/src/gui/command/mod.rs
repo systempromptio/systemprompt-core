@@ -66,7 +66,8 @@ pub(crate) fn dispatch(
 
 // JSON: webview IPC args — decoded per command with `parse::<T>`.
 pub(super) fn parse<T: serde::de::DeserializeOwned>(args: Value) -> Result<T, BridgeError> {
-    serde_json::from_value(args).map_err(|e| BridgeError::invalid_args(e.to_string()))
+    serde_json::from_value(args)
+        .map_err(|e| BridgeError::from_error(ErrorScope::Internal, ErrorCode::InvalidArgs, &e))
 }
 
 pub(super) fn send(app: &GuiApp, event: UiEvent) {
