@@ -272,17 +272,12 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just sqlx-audit-caches
         if: ${{ !cancelled() }}
-      # Why: these three gates land with their sweeps (1.5k skip markers,
-      # ~760 JSON annotations, cross-domain table reads) so `next` is never
-      # red between the gate and the fix. They are in `just check-gates`
-      # today; the parity step below accepts a commented step only while it
-      # carries this marker.
-      # - run: just lint-silent-skips  # enabled in the sweep PR
-      #   if: ${{ !cancelled() }}
-      # - run: just lint-json-value  # enabled in the sweep PR
-      #   if: ${{ !cancelled() }}
-      # - run: just lint-table-ownership  # enabled in the sweep PR
-      #   if: ${{ !cancelled() }}
+      - run: just lint-silent-skips
+        if: ${{ !cancelled() }}
+      - run: just lint-json-value
+        if: ${{ !cancelled() }}
+      - run: just lint-table-ownership
+        if: ${{ !cancelled() }}
       - run: just bridge-bindings-check
         if: ${{ !cancelled() }}
       - run: just lint-repo-construction
@@ -306,14 +301,13 @@ jobs:
       # step would stop at the first red gate, which is what the per-step
       # `!cancelled()` guards exist to prevent), so the two lists are asserted
       # equal instead. A gate listed in the recipe must appear here as a step,
-      # active or commented with `# enabled in the sweep PR`; a step here must
-      # be in the recipe.
+      # and a step here must be in the recipe.
       - name: Local and CI gate lists match
         if: ${{ !cancelled() }}
         run: |
           want=$(sed -n 's/^check-gates: //p' justfile | tr ' ' '\n' | sort -u)
           have=$(awk '/^  source-gates:/ { on = 1; next } on && /^  [a-z-]+:$/ { on = 0 } on' .github/workflows/quality.yml \
-                 | grep -oE '^ *(# )?- run: just [a-z0-9-]+( +# enabled in the sweep PR)?$' | awk '{ print $NF == "PR" ? $(NF-6) : $NF }' | sort -u)
+                 | grep -oE '^ *- run: just [a-z0-9-]+$' | awk '{ print $NF }' | sort -u)
           release_only="bridge-bindings-check check-crate-changelogs check-release-tag machete"
           have=$(comm -23 <(echo "$have") <(echo "$release_only" | tr ' ' '\n' | sort))
           if ! diff <(echo "$want") <(echo "$have"); then
