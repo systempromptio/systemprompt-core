@@ -34,8 +34,7 @@ pub(super) fn build_ai_service(
         &services.ai.mcp.resilience,
     ));
     let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
-        SessionRepository::new(database)
-            .map_err(|err| RuntimeError::Internal(format!("session repository: {err}")))?,
+        SessionRepository::new(database),
     ));
     let materializer = Arc::new(systemprompt_agent::services::ContextProviderService::new(
         repositories.a2a.contexts.clone(),

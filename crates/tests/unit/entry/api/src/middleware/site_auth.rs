@@ -43,7 +43,9 @@ mod gate {
     use systemprompt_api::services::middleware::site_auth_gate;
     use systemprompt_extension::SiteAuthConfig;
     use systemprompt_identifiers::UserId;
-    use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, mint_admin_jwt};
+    use systemprompt_test_fixtures::{
+        fixture_config, install_test_signing_key, mint_admin_jwt, FIXTURE_JWT_ISSUER,
+    };
     use tower::ServiceExt;
 
     const CONFIG: SiteAuthConfig = SiteAuthConfig {
@@ -57,7 +59,7 @@ mod gate {
         Router::new()
             .fallback(get(|| async { "handler-reached" }))
             .layer(middleware::from_fn(move |req, next| {
-                site_auth_gate(req, next, config.clone())
+                site_auth_gate(req, next, config.clone(), FIXTURE_JWT_ISSUER)
             }))
     }
 

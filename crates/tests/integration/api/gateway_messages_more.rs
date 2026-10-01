@@ -69,10 +69,9 @@ fn gw_repos(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(db),
         )),
     )
-    .expect("gateway repos")
 }
 
 fn header_map(pairs: &[(&str, &str)]) -> HeaderMap {
@@ -335,7 +334,8 @@ fn jwt_extractor(
         Arc::clone(ctx.user_repository()),
     ));
     let jti = JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
-    Ok(JwtContextExtractor::new(analytics, user_provider, jti))
+    let issuer = ctx.config().jwt_issuer.clone();
+    Ok(JwtContextExtractor::new(analytics, user_provider, jti, issuer))
 }
 
 #[tokio::test]
@@ -516,7 +516,7 @@ async fn audit_routing_row(
     pool: &DbPool,
     id: &AiRequestId,
 ) -> Result<Option<(Option<String>, Option<String>, String)>> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: Option<(Option<String>, Option<String>, String)> =
         sqlx::query_as("SELECT provider, model, status FROM ai_requests WHERE id = $1")
             .bind(id.as_str())
@@ -526,7 +526,7 @@ async fn audit_routing_row(
 }
 
 async fn audit_row_exists(pool: &DbPool, id: &AiRequestId) -> Result<bool> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: Option<(String,)> = sqlx::query_as("SELECT id FROM ai_requests WHERE id = $1")
         .bind(id.as_str())
         .fetch_optional(pg.as_ref())

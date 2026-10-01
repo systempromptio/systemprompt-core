@@ -58,19 +58,19 @@ impl std::fmt::Debug for AnalyticsMiddleware {
 }
 
 impl AnalyticsMiddleware {
-    pub fn new(app_context: &AppContext) -> anyhow::Result<Self> {
+    pub fn new(app_context: &AppContext) -> Self {
         let repositories = app_context.analytics_repositories();
         let sessions = Arc::clone(&repositories.session_store);
         let signals = Arc::new(repositories.session_signals.clone());
-        let analytics_repo = Arc::new(AnalyticsRepository::new(app_context.db_pool())?);
+        let analytics_repo = Arc::new(AnalyticsRepository::new(app_context.db_pool()));
         let route_classifier = Arc::clone(app_context.route_classifier());
 
-        Ok(Self {
+        Self {
             sessions,
             signals,
             analytics_repo,
             route_classifier,
-        })
+        }
     }
 
     pub async fn track_request(

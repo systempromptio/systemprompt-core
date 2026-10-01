@@ -31,11 +31,10 @@ async fn evidence_is_bound_to_a_request_and_a_correction_replaces_every_attribut
         .await
         .unwrap();
     let request = AiRequestRepository::new(&pool)
-        .unwrap()
         .insert(&completed_record(&owner))
         .await
         .unwrap();
-    let repository = AiRequestClientEvidenceRepository::new(&pool).unwrap();
+    let repository = AiRequestClientEvidenceRepository::new(&pool);
 
     repository.upsert(&request, &evidence()).await.unwrap();
     let correction = ClientEvidence::internal();
@@ -54,7 +53,7 @@ async fn evidence_is_bound_to_a_request_and_a_correction_replaces_every_attribut
 #[tokio::test]
 async fn evidence_cannot_be_recorded_for_a_request_outside_the_audit_lifecycle() {
     let pool = bootstrapped_pool().await;
-    let repository = AiRequestClientEvidenceRepository::new(&pool).unwrap();
+    let repository = AiRequestClientEvidenceRepository::new(&pool);
 
     let error = repository
         .upsert(&AiRequestId::generate(), &evidence())

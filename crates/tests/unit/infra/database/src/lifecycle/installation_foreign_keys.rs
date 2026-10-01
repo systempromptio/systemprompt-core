@@ -3,7 +3,7 @@
 //! `CREATE TABLE` is applied after migrations, once per database, and never
 //! turns pre-existing rows into a boot failure.
 
-use systemprompt_database::install_extension_schemas_with_config;
+use systemprompt_test_fixtures::install_extension_schemas_with_config;
 use systemprompt_extension::{Migration, SchemaDefinition};
 
 use super::installation::{
@@ -11,7 +11,7 @@ use super::installation::{
 };
 
 async fn foreign_key_count(db: &systemprompt_database::DbPool, table: &str) -> i64 {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query_scalar(
         "SELECT COUNT(*) FROM pg_constraint WHERE contype = 'f' AND conrelid = to_regclass($1)",
     )
@@ -22,7 +22,7 @@ async fn foreign_key_count(db: &systemprompt_database::DbPool, table: &str) -> i
 }
 
 async fn foreign_key_validated(db: &systemprompt_database::DbPool, table: &str) -> Option<bool> {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query_scalar(
         "SELECT convalidated FROM pg_constraint WHERE contype = 'f' AND conrelid = to_regclass($1)",
     )
@@ -33,7 +33,7 @@ async fn foreign_key_validated(db: &systemprompt_database::DbPool, table: &str) 
 }
 
 async fn run_sql(db: &systemprompt_database::DbPool, sql: String) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     // Why: the fixtures are several statements; a prepared statement takes one.
     sqlx::raw_sql(sqlx::AssertSqlSafe(sql))
         .execute(&*pg)
@@ -42,7 +42,7 @@ async fn run_sql(db: &systemprompt_database::DbPool, sql: String) {
 }
 
 async fn forget_migrations(db: &systemprompt_database::DbPool, ext_id: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
         .bind(ext_id)
         .execute(&*pg)
@@ -196,7 +196,7 @@ async fn orphan_rows_leave_the_key_not_valid_and_install_succeeds() {
 
     assert_eq!(foreign_key_validated(&db, child).await, Some(false));
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let new_orphan = sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO \"{child}\" VALUES ('c2', 'still-no-parent')"
     )))

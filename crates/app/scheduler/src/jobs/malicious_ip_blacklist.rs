@@ -71,8 +71,8 @@ impl Job for MaliciousIpBlacklistJob {
                 .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
         );
 
-        let security_repo = SecurityRepository::new(&db_pool)?;
-        let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(SchedulerError::from)?;
+        let security_repo = SecurityRepository::new(&db_pool);
+        let banned_ip_repo = BannedIpRepository::new(&db_pool);
 
         info!("Starting malicious IP blacklist job");
 

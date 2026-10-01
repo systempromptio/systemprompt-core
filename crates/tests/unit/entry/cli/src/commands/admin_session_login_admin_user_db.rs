@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 
 fn service(pool: &DbPool) -> UserService {
-    UserService::new(Arc::new(UserRepository::new(pool).unwrap()))
+    UserService::new(Arc::new(UserRepository::new(pool)))
 }
 
 fn unique(prefix: &str) -> String {

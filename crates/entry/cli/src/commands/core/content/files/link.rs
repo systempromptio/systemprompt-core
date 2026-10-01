@@ -60,7 +60,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     let file_id = FileId::new(args.file.clone());
     let content_id = ContentId::new(args.content.clone());

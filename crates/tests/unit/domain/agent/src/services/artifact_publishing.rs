@@ -38,8 +38,8 @@ async fn service_with_ledger(
     let _skills = crate::SKILLS_FIXTURE_LOCK.read().await;
     let mut deps = a2a_dependencies(pool);
     deps.tool_executions = tool_execution_ledger(ledger);
-    let repositories = A2ARepositories::new(pool, deps).expect("repositories");
-    let steps = Arc::new(ExecutionStepRepository::new(pool).expect("step repo"));
+    let repositories = A2ARepositories::new(pool, deps);
+    let steps = Arc::new(ExecutionStepRepository::new(pool));
     let skills = Arc::new(
         SkillService::new(not_managed_skills(), steps, recording_webhooks()).expect("skills"),
     );
@@ -139,7 +139,7 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
     let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
 
     let exec_id = format!("exec-{}", uuid::Uuid::new_v4().simple());
-    let sqlx_pool = pool.pool_arc().expect("sqlx pool");
+    let sqlx_pool = pool.pool();
     sqlx::query(
         "INSERT INTO mcp_tool_executions (mcp_execution_id, tool_name, server_name, started_at, \
          input, user_id) VALUES ($1, 'echo', 'test-server', NOW(), '{}', $2)",

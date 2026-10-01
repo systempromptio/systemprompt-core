@@ -144,7 +144,7 @@ mod stored_form {
     async fn the_row_holds_the_hash_of_the_issued_code_and_never_the_code() {
         ensure_test_bootstrap();
         let pool = test_db_pool().await;
-        let repo = OAuthRepository::new(&pool).expect("oauth repo");
+        let repo = OAuthRepository::new(&pool);
 
         let id = format!("bridgehash-{}", Uuid::new_v4().simple());
         let user = UserId::new(&id);

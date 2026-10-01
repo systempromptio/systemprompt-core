@@ -38,15 +38,9 @@ fn sample_params(source_id: SourceId, slug: String) -> CreateContentParams {
 }
 
 #[tokio::test]
-async fn repository_new_succeeds_against_real_pool() {
-    let db = test_db_pool().await;
-    drop(ContentRepository::new(&db).expect("ContentRepository::new should succeed"));
-}
-
-#[tokio::test]
 async fn create_then_get_by_id_round_trips() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug = unique_slug();
     let params = sample_params(source.clone(), slug.clone());
@@ -71,7 +65,7 @@ async fn create_then_get_by_id_round_trips() {
 #[tokio::test]
 async fn get_by_slug_and_locale_finds_existing_row() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug = unique_slug();
     let params = sample_params(source.clone(), slug.clone());
@@ -98,7 +92,7 @@ async fn get_by_slug_and_locale_finds_existing_row() {
 #[tokio::test]
 async fn get_by_id_returns_none_for_unknown_id() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let missing = ContentId::new(uuid::Uuid::new_v4().to_string());
     let result = repo.get_by_id(&missing).await.expect("query unknown id");
     assert!(result.is_none());
@@ -107,7 +101,7 @@ async fn get_by_id_returns_none_for_unknown_id() {
 #[tokio::test]
 async fn list_by_source_returns_inserted_rows() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug_a = unique_slug();
     let slug_b = unique_slug();
@@ -143,7 +137,7 @@ async fn list_by_source_returns_inserted_rows() {
 #[tokio::test]
 async fn list_paginates_with_limit_and_offset() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let first_page = repo.list(5, 0).await.expect("list page");
     assert!(first_page.len() <= 5);
 
@@ -154,7 +148,7 @@ async fn list_paginates_with_limit_and_offset() {
 #[tokio::test]
 async fn category_exists_returns_false_for_unknown_category() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let missing = systemprompt_identifiers::CategoryId::new(uuid::Uuid::new_v4().to_string());
     let exists = repo.category_exists(&missing).await.expect("query");
     assert!(!exists, "fresh-UUID category must not exist");
@@ -163,7 +157,7 @@ async fn category_exists_returns_false_for_unknown_category() {
 #[tokio::test]
 async fn update_changes_title_and_description() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug = unique_slug();
     let created = repo
@@ -195,7 +189,7 @@ async fn update_changes_title_and_description() {
 #[tokio::test]
 async fn delete_by_source_removes_all_rows_for_source() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let _a = repo
         .create(&sample_params(source.clone(), unique_slug()))
@@ -226,7 +220,7 @@ async fn delete_by_source_removes_all_rows_for_source() {
 #[tokio::test]
 async fn find_sources_by_slug_returns_distinct_sources() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let slug = unique_slug();
     let source_a = unique_source_id();
     let source_b = unique_source_id();
@@ -267,7 +261,7 @@ async fn find_sources_by_slug_returns_distinct_sources() {
 #[tokio::test]
 async fn list_slugs_with_locales_by_source_lists_inserted() {
     let db = test_db_pool().await;
-    let repo = ContentRepository::new(&db).expect("repo");
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug = unique_slug();
     let _ = repo

@@ -106,7 +106,7 @@ async fn ingests_enabled_source_into_content_store() {
 
     assert!(result.success, "job should report success: {result:?}");
 
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let stored = repo
         .get_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
         .await
@@ -157,7 +157,7 @@ async fn relative_source_path_resolves_and_per_file_errors_are_logged() {
         "job should succeed despite a per-file error: {result:?}"
     );
 
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let stored = repo
         .get_by_source_and_slug(&source_id, &good_slug, &LocaleCode::english())
         .await
@@ -206,7 +206,7 @@ async fn skill_sources_are_filtered_out() {
         Some("No enabled content sources")
     );
 
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let stored = repo
         .get_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
         .await

@@ -59,7 +59,7 @@ async fn execute_fails_with_closed_pool() {
 async fn rate_limit_prune_drops_windows_older_than_retain_secs_and_keeps_the_rest() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = UserRateLimitBucketRepository::new(&pool).expect("repo");
+    let repo = UserRateLimitBucketRepository::new(&pool);
     let user = UserId::new(format!("rl-prune-job-{}", Uuid::new_v4().simple()));
     let stale = Utc::now() - Duration::days(400);
     let live = Utc::now();
@@ -93,7 +93,7 @@ async fn rate_limit_prune_drops_windows_older_than_retain_secs_and_keeps_the_res
         "the stale window was removed and restarts from zero"
     );
 
-    let pg = pool.write_pool_arc().expect("write pool");
+    let pg = pool.write_pool();
     sqlx::query("DELETE FROM user_rate_limit_buckets WHERE user_id = $1")
         .bind(user.as_str())
         .execute(&*pg)

@@ -49,7 +49,7 @@ fn params_for_user<'a>(
 async fn find_by_fingerprint_returns_active_session_for_user() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = SessionRepository::new(&pool);
 
     let user = UserId::new(format!("user-{}", Uuid::new_v4()));
     seed_user_row(&pool, &user, &format!("{}@t.test", user.as_str()))
@@ -92,7 +92,7 @@ async fn find_by_fingerprint_returns_active_session_for_user() {
 async fn list_active_by_user_returns_only_open_sessions() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = SessionRepository::new(&pool);
 
     let user = UserId::new(format!("user-{}", Uuid::new_v4()));
     seed_user_row(&pool, &user, &format!("{}@t.test", user.as_str()))

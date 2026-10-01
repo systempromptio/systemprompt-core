@@ -14,11 +14,8 @@ async fn catalog_stats_use_primary_with_an_unavailable_replica() {
     let replica =
         sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed").unwrap();
     replica.close().await;
-    let split = Arc::new(Database::from_pools(
-        Arc::new(replica),
-        Some(db.write_pool_arc().unwrap()),
-    ));
-    let repository = ContentRepository::new(&split).unwrap();
+    let split = Arc::new(Database::from_pools(Arc::new(replica), Some(db.write_pool())));
+    let repository = ContentRepository::new(&split);
     assert!(
         repository
             .count_public_pages()

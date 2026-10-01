@@ -29,7 +29,7 @@ async fn seed(db: &systemprompt_database::DbPool) -> Result<Seeded> {
     let artifact = ArtifactId::generate();
     let message = systemprompt_identifiers::MessageId::generate().to_string();
     let trace = systemprompt_identifiers::TraceId::generate();
-    let pool = db.pool_arc()?;
+    let pool = db.pool();
     sqlx::query("INSERT INTO user_contexts(context_id,user_id,session_id,name) VALUES($1,$2,$3,'outage context')")
         .bind(context.as_str()).bind(user.as_str()).bind(session.as_str()).execute(pool.as_ref()).await?;
     sqlx::query("INSERT INTO agent_tasks(task_id,context_id,status,status_timestamp,user_id,agent_name) VALUES($1,$2,'TASK_STATE_WORKING',now(),$3,'outage-agent')")
@@ -148,7 +148,7 @@ async fn agent_read_routes_report_database_outage_and_recover_without_data_loss(
     let seeded = seed(&db).await?;
     let ctx = test_app_context(&db, owned.url());
     assert_live(&ctx, &seeded).await?;
-    let raw = db.pool_arc()?;
+    let raw = db.pool();
     raw.close().await;
     assert_outage(&ctx, &seeded, owned.url()).await?;
     drop(ctx);
@@ -159,7 +159,7 @@ async fn agent_read_routes_report_database_outage_and_recover_without_data_loss(
     assert_live(&recovered_ctx, &seeded).await?;
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM agent_tasks WHERE task_id=$1")
         .bind(seeded.task.as_str())
-        .fetch_one(recovered.pool_arc()?.as_ref())
+        .fetch_one(recovered.pool().as_ref())
         .await?;
     assert_eq!(count, 1);
     drop(recovered_ctx);

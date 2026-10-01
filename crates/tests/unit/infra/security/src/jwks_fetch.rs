@@ -61,6 +61,27 @@ async fn fetch_resolves_matching_kid() {
 }
 
 #[tokio::test]
+async fn fetch_keeps_the_issuer_path() {
+    let server = MockServer::start().await;
+    let jwk = test_jwk("realm-kid");
+    Mock::given(method("GET"))
+        .and(path("/realms/acme/.well-known/jwks.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(Jwks {
+            keys: vec![jwk.clone()],
+        }))
+        .mount(&server)
+        .await;
+
+    let client = JwksClient::new(vec![host_of(&server.uri())]);
+    let issuer = format!("{}/realms/acme/", server.uri());
+    let resolved = client
+        .fetch(&issuer, "realm-kid")
+        .await
+        .expect("an issuer with a path resolves its JWKS under that path");
+    assert_eq!(resolved.kid, "realm-kid");
+}
+
+#[tokio::test]
 async fn fetch_missing_kid_returns_key_not_found() {
     let server = MockServer::start().await;
     mount_jwks(

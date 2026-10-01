@@ -87,7 +87,7 @@ struct KeyRow {
 
 pub(super) async fn execute(cmd: ApiKeyCommands, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let service = ApiKeyService::new(Arc::new(UserRepository::new(&pool)?));
+    let service = ApiKeyService::new(Arc::new(UserRepository::new(&pool)));
     match cmd {
         ApiKeyCommands::Issue(args) => issue(&service, args).await,
         ApiKeyCommands::List(args) => list(&service, &args).await,

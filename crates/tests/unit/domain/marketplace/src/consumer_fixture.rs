@@ -38,7 +38,7 @@ pub async fn fixture_with_extra_files(extra: &[(&str, &[u8])]) -> Fixture {
 async fn fixture_with(metadata: Option<(&str, &str)>, extra: &[(&str, &[u8])]) -> Fixture {
     ensure_test_bootstrap();
     let db = test_db_pool().await;
-    let pool = db.write_pool_arc().expect("write pool").as_ref().clone();
+    let pool = db.write_pool().as_ref().clone();
     let owner = UserId::new(uuid::Uuid::new_v4().to_string());
     let consumer = UserId::new(uuid::Uuid::new_v4().to_string());
     seed_user_row(&db, &owner, &format!("{owner}@consumer-test.invalid"))
@@ -49,7 +49,7 @@ async fn fixture_with(metadata: Option<(&str, &str)>, extra: &[(&str, &[u8])]) -
         .expect("consumer");
     let cert = DeviceCertId::generate();
     sqlx::query!("INSERT INTO user_device_certs(id,user_id,fingerprint,label) VALUES($1,$2,$3,'consumer test')", cert.as_str(), consumer.as_str(), cert.as_str()).execute(&pool).await.expect("enrolled device");
-    let repo = ManagedRepository::new(&db).expect("managed repository");
+    let repo = ManagedRepository::new(&db);
     let source = repo
         .register_source(&owner, "authoring", &SourceSpec::Managed)
         .await

@@ -11,7 +11,7 @@ use systemprompt_test_fixtures::test_db_pool;
 
 async fn split_pool() -> DbPool {
     let live = test_db_pool().await;
-    let write = live.write_pool_arc().expect("write pool");
+    let write = live.write_pool();
     let dead = sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed")
         .expect("lazy pool");
     dead.close().await;
@@ -21,7 +21,7 @@ async fn split_pool() -> DbPool {
 #[tokio::test]
 async fn session_lookups_read_the_primary() {
     let db = split_pool().await;
-    let repo = McpSessionRepository::new(&db).expect("repo");
+    let repo = McpSessionRepository::new(&db);
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
 
     assert!(!repo.exists(&id).await.expect("exists on primary"));

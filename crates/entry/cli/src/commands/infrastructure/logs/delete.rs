@@ -26,7 +26,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<()
         &ctx.cli,
     )?;
 
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?)?;
+    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
 
     let deleted_count = service
         .clear_all_logs()

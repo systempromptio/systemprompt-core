@@ -103,7 +103,7 @@ async fn apply_revert_reapply_round_trip() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("revert_demo_{suffix}"));
@@ -178,7 +178,7 @@ async fn revert_rejects_irreversible_migration() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("noundo_demo_{suffix}"));

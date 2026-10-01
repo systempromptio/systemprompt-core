@@ -53,6 +53,7 @@ clap = { workspace = true }
 # Utilities
 
 # Internal dependencies
+systemprompt-config = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-loader = { workspace = true }

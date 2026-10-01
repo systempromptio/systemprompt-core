@@ -49,7 +49,7 @@ fn render(inbound: Arc<dyn InboundAdapter>) -> TapRender {
 
 fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynContextMaterializer {
     std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-        systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+        systemprompt_agent::repository::ContextRepository::new(db),
     ))
 }
 
@@ -61,7 +61,6 @@ fn gateway_repos(
         gateway_journal(),
         materializer(db),
     )
-    .expect("gateway repositories")
 }
 
 fn usage(input: u32, output: u32) -> CanonicalUsage {
@@ -120,7 +119,7 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
 }
 
 async fn wait_for_terminal_status(db: &DbPool, id: &AiRequestId) -> (String, Option<String>) {
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     for _ in 0..200 {
         let row: Option<(String, Option<String>)> =
             sqlx::query_as("SELECT status, error_message FROM ai_requests WHERE id = $1")
@@ -157,7 +156,7 @@ fn user_window(window_seconds: i32) -> QuotaWindow {
 }
 
 async fn quota_bucket(db: &DbPool, user_id: &UserId) -> Option<(i64, i64, i64)> {
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     sqlx::query_as(
         "SELECT input_tokens, output_tokens, cost_microdollars FROM ai_quota_buckets \
          WHERE subject_kind = 'user' AND subject_id = $1",
@@ -226,7 +225,7 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
     assert_eq!(status, "completed", "error: {error:?}");
     assert!(error.is_none(), "{error:?}");
 
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let (input_tokens, output_tokens, model): (Option<i32>, Option<i32>, Option<String>) =
         sqlx::query_as("SELECT input_tokens, output_tokens, model FROM ai_requests WHERE id = $1")
             .bind(ai_request_id.as_str())
@@ -390,7 +389,7 @@ async fn tap_completion_runs_response_safety_scan() {
     let (status, _) = wait_for_terminal_status(&db, &ai_request_id).await;
     assert_eq!(status, "completed");
 
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let mut finding = None;
     for _ in 0..200 {
         finding = sqlx::query_as::<_, (String, String)>(

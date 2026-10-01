@@ -19,7 +19,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_config, install_test_signing_key, mint_admin_jwt,
-    seed_admin_credential, seed_user_row,
+    seed_admin_credential, seed_user_row, FIXTURE_JWT_ISSUER,
 };
 use tower::ServiceExt;
 
@@ -110,7 +110,7 @@ async fn tracked_request_with_revoked_session_refreshes() -> Result<()> {
     let (db, app) = router().await?;
     let fixture = seed_admin_credential(&db, "session-refresh").await?;
 
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query("UPDATE user_sessions SET revoked_at = NOW() WHERE session_id = $1")
         .bind(fixture.session_id.as_str())
         .execute(p.as_ref())
@@ -134,7 +134,7 @@ async fn tracked_request_with_revoked_session_refreshes() -> Result<()> {
 async fn tracked_request_with_unknown_user_creates_anonymous_session() -> Result<()> {
     let (_db, app) = router().await?;
     let ghost = UserId::new(format!("ghost-{}", uuid::Uuid::new_v4()));
-    let token = mint_admin_jwt(&ghost, "ghost@example.invalid", "test-admin");
+    let token = mint_admin_jwt(&ghost, "ghost@example.invalid", FIXTURE_JWT_ISSUER);
 
     let resp = app
         .oneshot(get_page(&[
@@ -151,7 +151,7 @@ async fn tracked_request_with_valid_user_no_session_row_refreshes() -> Result<()
     let (db, app) = router().await?;
     let user_id = UserId::new(format!("live-user-{}", uuid::Uuid::new_v4()));
     seed_user_row(&db, &user_id, "live@example.invalid").await?;
-    let token = mint_admin_jwt(&user_id, "live@example.invalid", "test-admin");
+    let token = mint_admin_jwt(&user_id, "live@example.invalid", FIXTURE_JWT_ISSUER);
 
     let resp = app
         .oneshot(get_page(&[
@@ -180,7 +180,7 @@ async fn bot_user_agent_yields_anonymous_context() -> Result<()> {
 #[tokio::test]
 async fn a_page_is_served_without_a_session_when_the_database_is_gone() -> Result<()> {
     let (db, app) = router().await?;
-    db.pool_arc()?.close().await;
+    db.pool().close().await;
 
     let ua = format!(
         "Mozilla/5.0 (X11; Linux x86_64) outage/{}",

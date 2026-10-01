@@ -36,7 +36,7 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let user = admin_service.find_user(&args.identifier).await?;

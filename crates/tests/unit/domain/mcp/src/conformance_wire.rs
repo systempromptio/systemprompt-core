@@ -77,7 +77,7 @@ fn ctx() -> RequestContext {
 
 async fn build(client: &ClientProfile, artifact: CliArtifact) -> CallToolResult {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let repo = ArtifactIngest::from_db(&db, None);
     let context = ctx();
     let exec_id = McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple()));
     let artifact_type = artifact.artifact_type_name();

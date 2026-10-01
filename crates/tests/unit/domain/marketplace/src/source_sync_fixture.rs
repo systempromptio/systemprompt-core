@@ -17,7 +17,7 @@ pub(super) async fn stored_provenance(
     owner: &UserId,
     snapshot: &systemprompt_identifiers::SourceSnapshotId,
 ) -> systemprompt_marketplace::managed::SnapshotProvenance {
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let value: serde_json::Value = sqlx::query_scalar(
         "SELECT provenance FROM managed_source_snapshots WHERE owner_id=$1 AND id=$2",
     )
@@ -71,7 +71,7 @@ impl Fixture {
         seed_user_row(&db, &owner, &format!("{owner}@source-sync.invalid"))
             .await
             .unwrap();
-        let repo = ManagedRepository::new(&db).expect("managed repository");
+        let repo = ManagedRepository::new(&db);
         let source = repo
             .register_source(
                 &owner,

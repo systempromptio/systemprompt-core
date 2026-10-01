@@ -64,7 +64,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 )),
                 user_service: Some(Arc::new(UserService::new(Arc::new(UserRepository::new(
                     &pool,
-                )?)))),
+                ))))),
                 a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                     &pool,
                     systemprompt_agent::repository::A2aDependencies {
@@ -75,26 +75,26 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                             systemprompt_test_fixtures::ToolExecutionLedger::Exists,
                         ),
                     },
-                )?),
+                )),
                 content_repositories: Arc::new(
-                    systemprompt_content::repository::ContentRepositories::new(&pool)?,
+                    systemprompt_content::repository::ContentRepositories::new(&pool),
                 ),
                 oauth_repositories: Arc::new(
-                    systemprompt_oauth::repository::OAuthRepositories::new(&pool)?,
+                    systemprompt_oauth::repository::OAuthRepositories::new(&pool),
                 ),
-                user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)?),
+                user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
                 service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
                     &pool,
                     systemprompt_identifiers::InstanceId::new("test-instance"),
-                )?),
-                ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)?),
+                )),
+                ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
                 analytics_repositories,
-                file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)?),
+                file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
                 mcp_session_repository: Arc::new(
-                    systemprompt_mcp::repository::McpSessionRepository::new(&pool)?,
+                    systemprompt_mcp::repository::McpSessionRepository::new(&pool),
                 ),
                 managed_repository: Arc::new(
-                    systemprompt_marketplace::managed::ManagedRepository::new(&pool)?,
+                    systemprompt_marketplace::managed::ManagedRepository::new(&pool),
                 ),
             }
         },

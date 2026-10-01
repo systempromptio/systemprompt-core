@@ -89,7 +89,7 @@ async fn seed_owner() -> anyhow::Result<UserId> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@clients.invalid", user.as_str()))
@@ -110,7 +110,7 @@ async fn seed_dcr_client() -> anyhow::Result<OAuthClientFixture> {
     let (_owner, client) = seed_existing_client().await?;
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("UPDATE oauth_clients SET registration_token_hash = $2 WHERE client_id = $1")
         .bind(client.client_id.as_str())
         .bind(hash_registration_token(REG_TOKEN))

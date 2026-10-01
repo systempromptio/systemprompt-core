@@ -14,8 +14,7 @@ use systemprompt_test_fixtures::test_db_pool;
 async fn context_lifecycle_roundtrip() {
     let pool = test_db_pool().await;
     let (user, session) = seed_user_and_session(&pool).await;
-    let provider =
-        ContextProviderService::new(ContextRepository::new(&pool).expect("context repo"));
+    let provider = ContextProviderService::new(ContextRepository::new(&pool));
 
     let ctx_id = provider
         .create_context(&user, Some(&session), "provider ctx")
@@ -62,8 +61,7 @@ async fn context_lifecycle_roundtrip() {
 async fn unknown_context_lookups_map_to_not_found() {
     let pool = test_db_pool().await;
     let (user, _session) = seed_user_and_session(&pool).await;
-    let provider =
-        ContextProviderService::new(ContextRepository::new(&pool).expect("context repo"));
+    let provider = ContextProviderService::new(ContextRepository::new(&pool));
     let ghost = ContextId::generate();
 
     let get = provider.get_context(&ghost, &user).await;

@@ -33,7 +33,7 @@ pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<Comm
     };
 
     let app = ctx.app_context().await?;
-    let repo = JobRepository::new(app.db_pool())?;
+    let repo = JobRepository::new(app.db_pool());
 
     let db_job: Option<ScheduledJob> = repo.find_job(&args.job_name).await?;
 

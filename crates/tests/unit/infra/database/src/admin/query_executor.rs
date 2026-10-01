@@ -8,7 +8,7 @@ use crate::services::db_helper::test_pool;
 
 async fn test_executor() -> QueryExecutor {
     let db = test_pool().await;
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     QueryExecutor::new(Arc::clone(&pg))
 }
 

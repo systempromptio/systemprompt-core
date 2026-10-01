@@ -32,7 +32,6 @@ serde_yaml = { workspace = true }
 schemars = { workspace = true }
 
 # Utilities
-regex = { workspace = true }
 zeroize = { workspace = true }
 url = { workspace = true }
 base64 = { workspace = true }
@@ -42,7 +41,6 @@ hex = { workspace = true }
 # systemprompt.io dependencies
 systemprompt-identifiers = { workspace = true }
 systemprompt-extension = { workspace = true }
-systemprompt-logging = { workspace = true, features = ["cli"] }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 

@@ -52,7 +52,7 @@ pub(super) async fn record_governance_decision(
         context_id: Some(ctx.context_id.clone()),
         trace_id: ctx.trace_id.as_ref().map(|t| t.as_str().to_owned()),
     };
-    let pool = db.write_pool_arc()?;
+    let pool = db.write_pool();
     record_decision(&pool, &decision_audit).await?;
     Ok(())
 }

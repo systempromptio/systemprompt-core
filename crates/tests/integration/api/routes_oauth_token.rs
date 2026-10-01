@@ -120,7 +120,7 @@ async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(format!("oauth-token-owner-{}", Uuid::new_v4()));
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@oauth.invalid", user.as_str()))
@@ -275,7 +275,7 @@ async fn token_client_credentials_with_inactive_owner_returns_invalid_client() -
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(format!("oauth-token-inactive-{}", Uuid::new_v4()));
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query(
         "INSERT INTO users (id, name, email, status) VALUES ($1, $1, $2, 'inactive') ON CONFLICT \
          (id) DO UPDATE SET status='inactive'",
@@ -525,7 +525,7 @@ async fn seed_client_for_owner(
 ) -> anyhow::Result<OAuthClientFixture> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query(
         "INSERT INTO users (id, name, email, roles) VALUES ($1, $1, $2, '{}'::TEXT[]) ON CONFLICT \
          DO NOTHING",
@@ -537,7 +537,7 @@ async fn seed_client_for_owner(
     let client_id = ClientId::new(format!("test-client-cc-{}", Uuid::new_v4().simple()));
     let secret_hash =
         hash_client_secret(TEST_CLIENT_SECRET).map_err(|e| anyhow::anyhow!("hash secret: {e}"))?;
-    let repo = ClientRepository::new(&pool).map_err(|e| anyhow::anyhow!("client repo: {e}"))?;
+    let repo = ClientRepository::new(&pool);
     repo.create(CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: user.clone(),

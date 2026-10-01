@@ -45,7 +45,7 @@ pub(super) fn configure_routes(
     })?;
 
     let jwt_extractor = build_jwt_extractor(ctx)?;
-    let limits = RateLimitState::from_context(ctx)?;
+    let limits = RateLimitState::from_context(ctx);
 
     let public_middleware = PublicContextMiddleware::new();
     let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
@@ -86,12 +86,7 @@ pub(super) fn configure_routes(
             .with_auth(public_middleware, AuthzPolicy::public()),
     );
 
-    let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool()).map_err(|e| {
-        LoaderError::InitializationFailed {
-            extension: "ip_ban_middleware".to_owned(),
-            message: e.to_string(),
-        }
-    })?;
+    let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool());
     let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());
 
     router = router.layer(axum::middleware::from_fn(move |req, next| {
@@ -128,6 +123,7 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
         analytics,
         user_provider,
         jti_revocation,
+        ctx.config().jwt_issuer.clone(),
     ))
 }
 

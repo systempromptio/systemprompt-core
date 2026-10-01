@@ -35,7 +35,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     match (&args.content, &args.file) {
         (Some(content_id_str), None) => {

@@ -49,8 +49,7 @@ impl Job for PagePrerenderJob {
             .as_ref();
 
         tracing::info!("Job started");
-        let content_repo = ContentRepository::new(&db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let content_repo = ContentRepository::new(&db_pool);
         let results = prerender_pages(db_pool, content_repo, paths)
             .await
             .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;

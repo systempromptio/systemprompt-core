@@ -38,7 +38,7 @@ impl Ctx {
     }
 
     async fn cleanup(&self) {
-        let repo = ContentRepository::new(&self.pool).expect("repo");
+        let repo = ContentRepository::new(&self.pool);
         repo.delete_by_source(&self.source_id)
             .await
             .expect("cleanup");
@@ -83,7 +83,7 @@ async fn ingest_creates_updates_skips_and_detects_unchanged() {
     assert_eq!(report.unchanged_count, 0);
     assert_eq!(report.skipped_count, 0);
 
-    let repo = ContentRepository::new(&ctx.pool).expect("repo");
+    let repo = ContentRepository::new(&ctx.pool);
     let stored = repo
         .get_by_source_and_slug(&ctx.source_id, &slug, &LocaleCode::english())
         .await
@@ -160,7 +160,7 @@ async fn links_frontmatter_is_persisted_on_the_content_row() {
         .await;
     assert_eq!(report.files_processed, 1, "{report:?}");
 
-    let repo = ContentRepository::new(&ctx.pool).expect("repo");
+    let repo = ContentRepository::new(&ctx.pool);
     let stored = repo
         .get_by_source_and_slug(&ctx.source_id, &slug, &LocaleCode::english())
         .await
@@ -211,10 +211,7 @@ impl Ctx {
         &self,
         options: IngestionOptions,
     ) -> systemprompt_content::IngestionReport {
-        let service = IngestionService::new(
-            &self.pool,
-            ContentRepository::new(&self.pool).expect("repo"),
-        );
+        let service = IngestionService::new(&self.pool, ContentRepository::new(&self.pool));
         service
             .ingest_directory(self.dir.path(), &self.source(), options)
             .await

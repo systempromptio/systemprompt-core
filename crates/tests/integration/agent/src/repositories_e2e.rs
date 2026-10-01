@@ -48,7 +48,7 @@ impl E2EFixture {
     async fn new() -> Result<Self> {
         let guard = acquire_serial().await;
         let db = test_db_pool().await;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let pool = db.pool().as_ref().clone();
 
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = UserId::new(format!("e2e_user_{tag}"));
@@ -194,7 +194,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
 async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<()> {
     let fx = E2EFixture::new().await?;
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let messages = MessageRepository::new(&fx.db)?;
+    let messages = MessageRepository::new(&fx.db);
 
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
 
@@ -257,7 +257,7 @@ async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<(
 async fn artifact_repository_create_and_query_paths() -> Result<()> {
     let fx = E2EFixture::new().await?;
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let artifacts = ArtifactRepository::new(&fx.db)?;
+    let artifacts = ArtifactRepository::new(&fx.db);
 
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
 
@@ -357,7 +357,7 @@ async fn execution_step_repository_lifecycle() -> Result<()> {
 #[tokio::test]
 async fn context_repository_crud_and_listing() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let ctx_repo = ContextRepository::new(&fx.db)?;
+    let ctx_repo = ContextRepository::new(&fx.db);
 
     let new_ctx = ctx_repo
         .create_context(&fx.user_id, None, "secondary-ctx", ContextKind::User)
@@ -398,7 +398,7 @@ async fn context_repository_crud_and_listing() -> Result<()> {
 #[tokio::test]
 async fn context_notification_repository_insert_and_broadcast() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let notif = ContextNotificationRepository::new(&fx.db)?;
+    let notif = ContextNotificationRepository::new(&fx.db);
 
     let agent_id = AgentId::new("e2e-agent");
     let id = notif
@@ -453,8 +453,8 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
 async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result<()> {
     let fx = E2EFixture::new().await?;
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let messages = MessageRepository::new(&fx.db)?;
-    let artifacts = ArtifactRepository::new(&fx.db)?;
+    let messages = MessageRepository::new(&fx.db);
+    let artifacts = ArtifactRepository::new(&fx.db);
 
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
 
@@ -521,7 +521,7 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
         .await?;
 
     // Now construct + verify
-    let ctor = TaskConstructor::new(&fx.db)?;
+    let ctor = TaskConstructor::new(&fx.db);
     let single = ctor
         .construct_task_from_task_id(&task_id)
         .await?

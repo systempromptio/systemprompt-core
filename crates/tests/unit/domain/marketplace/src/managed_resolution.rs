@@ -58,7 +58,7 @@ pub(super) async fn fixture_with_key(key: String) -> Fixture {
     seed_user_row(&db, &owner, &format!("{}@managed.invalid", owner.as_str()))
         .await
         .expect("seed managed owner");
-    let repository = ManagedRepository::new(&db).expect("managed repository");
+    let repository = ManagedRepository::new(&db);
     let source = repository
         .register_source(&owner, "authoring", &SourceSpec::Managed)
         .await

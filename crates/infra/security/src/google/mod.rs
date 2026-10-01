@@ -9,11 +9,10 @@
 //! [`crate::credential`] rather than a credential story of its own: it decides
 //! how a Google key is signed and exchanged, and nothing else. Parsing,
 //! caching, scoping and endpoint filling are generic and live there. A key
-//! file names itself by its `type` field (`SERVICE_ACCOUNT_TYPE`);
-//! `ServiceAccountKey::parse` keeps the name every existing caller uses but
-//! the decision is made once, in [`ProviderCredential::parse`]. A token is
-//! cached per stored secret, so two providers sharing one secret share one
-//! token and two secrets never share one entry.
+//! file names itself by its `type` field (`SERVICE_ACCOUNT_TYPE`) and the
+//! decision is made once, in [`crate::credential::ProviderCredential::parse`].
+//! A token is cached per stored secret, so two providers sharing one secret
+//! share one token and two secrets never share one entry.
 //!
 //! Lives in the security crate rather than beside the gateway because
 //! boot-time model discovery needs the same token with none of the gateway's
@@ -29,7 +28,7 @@ use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 
 use crate::credential::cache::clamp_ttl;
-use crate::credential::{CredentialError, ProviderCredential, http};
+use crate::credential::{CredentialError, http};
 
 // Why: Google limits a service-account JWT assertion's lifetime to one hour.
 const ASSERTION_TTL: Duration = Duration::from_secs(3600);
@@ -74,15 +73,6 @@ impl std::fmt::Debug for ServiceAccountKey {
 
 fn default_token_uri() -> String {
     "https://oauth2.googleapis.com/token".to_owned()
-}
-
-impl ServiceAccountKey {
-    pub fn parse(secret: &str) -> Result<Option<Self>, CredentialError> {
-        match ProviderCredential::parse(secret)? {
-            ProviderCredential::GoogleServiceAccount(key) => Ok(Some(*key)),
-            ProviderCredential::ApiKey(_) => Ok(None),
-        }
-    }
 }
 
 #[derive(Debug, Serialize)]

@@ -23,7 +23,7 @@ pub struct CleanupArgs {
 
 pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
 
     if !args.yes {
         return Err(anyhow!(

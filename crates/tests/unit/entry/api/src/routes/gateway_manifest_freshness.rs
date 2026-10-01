@@ -88,6 +88,7 @@ async fn harness(mailbox: &str) -> Harness {
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     ));
     let consumer = seed_bridge_credential(&pool, mailbox)
         .await

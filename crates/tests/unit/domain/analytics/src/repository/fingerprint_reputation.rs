@@ -15,7 +15,7 @@ fn unique_fingerprint() -> String {
 }
 
 async fn cleanup(pool: &DbPool, fingerprint: &str) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query("DELETE FROM user_sessions WHERE fingerprint_hash = $1")
         .bind(fingerprint)
         .execute(p.as_ref())
@@ -90,7 +90,7 @@ async fn flag_and_request_counter_persist() {
          FROM fingerprint_reputation WHERE fingerprint_hash = $1",
     )
     .bind(&fp)
-    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("row");
     assert!(is_flagged);

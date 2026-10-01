@@ -49,10 +49,8 @@ impl Job for ContentPrerenderJob {
             .as_ref();
 
         tracing::info!("Job started");
-        let content_repo = ContentRepository::new(&db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
-        let content_analytics = ContentAnalyticsRepository::new(&db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let content_repo = ContentRepository::new(&db_pool);
+        let content_analytics = ContentAnalyticsRepository::new(&db_pool);
         prerender_content(db_pool, content_repo, content_analytics, paths)
             .await
             .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;

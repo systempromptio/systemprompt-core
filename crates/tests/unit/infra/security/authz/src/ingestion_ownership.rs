@@ -38,7 +38,7 @@ fn options(source: &str, delete_orphans: bool, scope: IngestScope) -> IngestOpti
 }
 
 async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("DELETE FROM access_control_rules WHERE entity_type = $1 AND entity_id = $2")
         .bind(entity_type)
         .bind(entity_id)
@@ -54,7 +54,7 @@ async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
 }
 
 async fn rule_sources(db: &DbPool, entity_id: &str) -> Vec<(String, String, String)> {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query_as::<_, (String, String, String)>(
         "SELECT rule_type, rule_value, source FROM access_control_rules WHERE entity_id = $1 ORDER \
          BY rule_type, rule_value",
@@ -68,8 +68,8 @@ async fn rule_sources(db: &DbPool, entity_id: &str) -> Vec<(String, String, Stri
 #[tokio::test]
 async fn dashboard_rule_survives_an_overriding_ingest() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
-    let repo = AccessControlRepository::new(&db).expect("repository");
+    let svc = AccessControlIngestionService::new(&db);
+    let repo = AccessControlRepository::new(&db);
     let id = unique_id("own-dash");
 
     svc.ingest_config(
@@ -123,8 +123,8 @@ async fn dashboard_rule_survives_an_overriding_ingest() {
 #[tokio::test]
 async fn prune_takes_only_its_own_source_inside_its_own_scope() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
-    let repo = AccessControlRepository::new(&db).expect("repository");
+    let svc = AccessControlIngestionService::new(&db);
+    let repo = AccessControlRepository::new(&db);
     let mine = unique_id("own-mine");
     let theirs = unique_id("own-theirs");
 
@@ -202,7 +202,7 @@ async fn prune_takes_only_its_own_source_inside_its_own_scope() {
 #[tokio::test]
 async fn prune_skips_an_entity_outside_the_ownership_scope() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let svc = AccessControlIngestionService::new(&db);
     let id = unique_id("own-unowned");
 
     svc.ingest_config(
@@ -239,13 +239,13 @@ async fn prune_skips_an_entity_outside_the_ownership_scope() {
 #[tokio::test]
 async fn a_role_nobody_holds_is_reported_and_a_held_one_is_not() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let svc = AccessControlIngestionService::new(&db);
     let id = unique_id("own-subject");
     let held = unique_id("role-held").replace('-', "_");
     let ghost = unique_id("role-ghost").replace('-', "_");
     let user_id = unique_id("subject-user");
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("INSERT INTO users (id, name, email, roles) VALUES ($1, $2, $3, ARRAY[$4])")
         .bind(&user_id)
         .bind("subject fixture")
@@ -305,7 +305,7 @@ async fn a_role_nobody_holds_is_reported_and_a_held_one_is_not() {
 #[tokio::test]
 async fn marketplace_prune_is_scoped_to_the_ingesting_source() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let svc = AccessControlIngestionService::new(&db);
     let id = unique_id("own-mkt");
 
     let market = |role: &str| -> HashMap<MarketplaceId, MarketplaceConfig> {

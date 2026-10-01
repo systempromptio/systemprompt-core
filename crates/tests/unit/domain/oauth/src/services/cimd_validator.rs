@@ -16,8 +16,7 @@ use uuid::Uuid;
 async fn setup() -> (systemprompt_database::DbPool, ClientValidator) {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let validator =
-        ClientValidator::new(OAuthRepository::new(&pool).expect("oauth repo")).expect("validator");
+    let validator = ClientValidator::new(OAuthRepository::new(&pool)).expect("validator");
     (pool, validator)
 }
 
@@ -66,7 +65,7 @@ async fn dcr_client_resolves_when_registered_and_errors_when_absent() {
     .expect("seed owner");
 
     let client_id = ClientId::new(format!("client_{}", Uuid::new_v4().simple()));
-    let repo = ClientRepository::new(&pool).expect("client repo");
+    let repo = ClientRepository::new(&pool);
     repo.create(CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: owner,

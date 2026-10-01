@@ -12,7 +12,7 @@ use uuid::Uuid;
 async fn split_pool() -> DbPool {
     ensure_test_bootstrap();
     let live = test_db_pool().await;
-    let write = live.write_pool_arc().expect("write pool");
+    let write = live.write_pool();
     let dead = sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed")
         .expect("lazy closed pool");
     dead.close().await;
@@ -22,7 +22,7 @@ async fn split_pool() -> DbPool {
 #[tokio::test]
 async fn attestation_lookup_reads_the_primary_but_listing_does_not() {
     let db = split_pool().await;
-    let repo = SessionRepository::new(&db).expect("repo");
+    let repo = SessionRepository::new(&db);
     let nonce = Uuid::new_v4().simple().to_string();
     let session_id = SessionId::new(format!("sess-{nonce}"));
 

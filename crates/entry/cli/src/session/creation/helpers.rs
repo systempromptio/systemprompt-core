@@ -64,7 +64,7 @@ pub async fn get_or_create_admin(
     })?;
     let email = email.as_str();
 
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
 
     if let Some(user) = user_service
         .find_by_email(email)
@@ -133,7 +133,7 @@ pub async fn create_cli_context(
     session_id: &SessionId,
     profile_name: &str,
 ) -> Result<ContextId> {
-    let context_repo = ContextRepository::new(&db_pool)?;
+    let context_repo = ContextRepository::new(&db_pool);
     context_repo
         .get_or_create_cli_context(
             &user.id,
@@ -178,7 +178,7 @@ pub async fn resolve_local_admin(
     db_pool: &DbPool,
     admin_name: &str,
 ) -> Result<systemprompt_users::User> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
 
     let user = user_service
         .find_by_name(admin_name)

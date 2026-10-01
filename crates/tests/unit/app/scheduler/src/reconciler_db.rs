@@ -546,7 +546,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn crashed_enabled_service_is_restarted() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(
@@ -587,7 +587,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn restart_records_failure_when_start_callback_errors() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(
@@ -634,7 +634,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn stopped_orphan_row_is_swept_from_the_db() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(
@@ -715,7 +715,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn orphaned_process_is_terminated_and_row_swept() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(
@@ -748,7 +748,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn disabled_running_service_is_stopped() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(
@@ -805,7 +805,7 @@ mod reconciler_noop_arm {
     #[tokio::test]
     async fn healthy_running_service_needs_no_action() {
         let pool = test_db_pool().await;
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(

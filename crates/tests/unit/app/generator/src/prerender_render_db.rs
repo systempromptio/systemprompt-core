@@ -198,7 +198,7 @@ fn install_templates(boot: &TestBootstrap, item: bool, list: bool) {
 }
 
 async fn seed_post(db: &DbPool, source_id: &SourceId, slug: &str, locale: &str, body: &str) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let params = CreateContentParams::new(
         slug.to_owned(),
         format!("Title of {slug}"),
@@ -212,7 +212,7 @@ async fn seed_post(db: &DbPool, source_id: &SourceId, slug: &str, locale: &str, 
 }
 
 async fn cleanup(db: &DbPool, source_id: &SourceId) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let _ = repo.delete_by_source(source_id).await;
 }
 
@@ -446,12 +446,11 @@ async fn prerender_pages_renders_homepage_when_template_exists() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
 }
 
 fn content_analytics(
     pool: &systemprompt_database::DbPool,
 ) -> systemprompt_analytics::ContentAnalyticsRepository {
     systemprompt_analytics::ContentAnalyticsRepository::new(pool)
-        .expect("content analytics repository")
 }

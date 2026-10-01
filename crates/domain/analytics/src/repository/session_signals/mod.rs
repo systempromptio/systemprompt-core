@@ -44,13 +44,13 @@ impl SessionSignalsRepository {
         owner: DynSessionStore,
         events: DynAnalyticsEventStore,
         content: DynContentCatalogStats,
-    ) -> Result<Self> {
-        Ok(Self {
-            write_pool: db.write_pool_arc()?,
+    ) -> Self {
+        Self {
+            write_pool: db.write_pool(),
             owner,
             events,
             content,
-        })
+        }
     }
 
     pub async fn get_endpoint_sequence(&self, session_id: &SessionId) -> Result<Vec<String>> {

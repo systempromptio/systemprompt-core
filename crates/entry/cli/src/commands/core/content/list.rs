@@ -37,7 +37,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContentRepository::new(pool)?;
+    let repo = ContentRepository::new(pool);
 
     let items = match &args.source {
         Some(source_id) => {

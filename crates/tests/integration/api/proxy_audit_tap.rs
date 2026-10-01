@@ -28,9 +28,8 @@ async fn record_tool_call(
 ) -> Result<axum::response::Response<axum::body::Body>, String> {
     let invocation = parse_tool_call(request_body)
         .ok_or_else(|| "request body is not a tools/call".to_owned())?;
-    let repo = tool_usage(pool).map_err(|e| e.to_string())?;
-    let intents: DynToolCallIntentClaims =
-        Arc::new(AiRequestRepository::new(pool).map_err(|e| e.to_string())?);
+    let repo = tool_usage(pool);
+    let intents: DynToolCallIntentClaims = Arc::new(AiRequestRepository::new(pool));
     let claims = IntentClaimService::new(intents, repo);
     let audit = McpAudit::new(claims, None, context, server_name.to_owned(), invocation);
     tap::record(response, audit).await
@@ -61,7 +60,7 @@ async fn upstream(template: ResponseTemplate) -> reqwest::Response {
 }
 
 async fn wait_for_execution_row(pool: &DbPool, tool: &str) -> Option<(String, Option<String>)> {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     for _ in 0..100 {
         let row: Option<(String, Option<String>)> = sqlx::query_as(
             "SELECT status, error_message FROM mcp_tool_executions WHERE tool_name = $1",

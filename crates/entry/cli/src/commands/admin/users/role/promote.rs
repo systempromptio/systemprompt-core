@@ -19,7 +19,7 @@ pub struct PromoteArgs {
 
 pub(super) async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let admin_service = UserAdminService::new(user_service);
 
     match admin_service.promote_to_admin(&args.identifier).await? {

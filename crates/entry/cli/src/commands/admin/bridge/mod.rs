@@ -29,7 +29,7 @@ pub(super) async fn resolve_user_id(pool: &DbPool, reference: &UserId) -> Result
     }
 
     let admin_service =
-        UserAdminService::new(UserService::new(Arc::new(UserRepository::new(pool)?)));
+        UserAdminService::new(UserService::new(Arc::new(UserRepository::new(pool))));
     admin_service
         .find_user(reference)
         .await?

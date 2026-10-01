@@ -20,8 +20,7 @@ macro_rules! db_service {
                 app_ctx,
                 ExtensionRegistry::new(),
                 systemprompt_models::SchedulerConfig::with_system_admin(),
-            )
-            .expect("job execution service"),
+            ),
             pool,
         )
     }};
@@ -166,7 +165,7 @@ mod execution {
     async fn run_is_recorded_on_the_scheduled_jobs_row() {
         let (service, pool) = db_service!();
 
-        let repo = JobRepository::new(&pool).expect("construct JobRepository");
+        let repo = JobRepository::new(&pool);
         repo.upsert_job("cleanup_inactive_sessions", "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
@@ -203,7 +202,7 @@ mod manual_run_recording_arms {
     async fn failed_manual_run_records_failed_status_and_message() {
         let (service, pool) = db_service!();
 
-        let repo = JobRepository::new(&pool).expect("construct JobRepository");
+        let repo = JobRepository::new(&pool);
         repo.upsert_job(FAILING_JOB, "", true)
             .await
             .expect("seed scheduled_jobs row");
@@ -225,7 +224,7 @@ mod manual_run_recording_arms {
     async fn manual_run_without_scheduled_jobs_row_is_not_recorded() {
         let (service, pool) = db_service!();
 
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         sqlx::query!(
             "DELETE FROM scheduled_jobs WHERE job_name = $1",
             FAILING_JOB
@@ -237,7 +236,7 @@ mod manual_run_recording_arms {
         let report = service.run_job(FAILING_JOB, &HashMap::new()).await;
         assert!(!report.success, "the job itself still runs and fails");
 
-        let repo = JobRepository::new(&pool).expect("construct JobRepository");
+        let repo = JobRepository::new(&pool);
         assert!(
             repo.find_job(FAILING_JOB)
                 .await
@@ -262,8 +261,7 @@ mod dead_pool_recording {
             app_ctx,
             ExtensionRegistry::new(),
             systemprompt_models::SchedulerConfig::with_system_admin(),
-        )
-        .expect("job execution service");
+        );
 
         // The job body and every recording query hit the closed pool; the run
         // still yields a report instead of propagating the DB failure.

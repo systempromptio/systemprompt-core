@@ -13,9 +13,7 @@ async fn setup() -> (UserService, crate::privacy_fixture::PrivacyFixture) {
     let fixture = crate::privacy_fixture::PrivacyFixture::new().await;
     let pool = fixture.pool.clone();
     (
-        UserService::new(Arc::new(
-            UserRepository::new(&pool).expect("user repository"),
-        )),
+        UserService::new(Arc::new(UserRepository::new(&pool))),
         fixture,
     )
 }
@@ -187,9 +185,7 @@ async fn missing_user_maps_to_user_not_found() {
 async fn closed_pool_maps_to_internal_errors() {
     ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let ghost = UserId::new(Uuid::new_v4().to_string());
 
     assert!(matches!(

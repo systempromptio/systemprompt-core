@@ -41,7 +41,7 @@ impl ServicesFixture {
     async fn new() -> Result<Self> {
         let guard = acquire_serial().await;
         let db = test_db_pool().await;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let pool = db.pool().as_ref().clone();
 
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = UserId::new(format!("svc_user_{tag}"));
@@ -128,7 +128,7 @@ impl ServicesFixture {
 #[tokio::test]
 async fn execution_tracking_service_full_lifecycle() -> Result<()> {
     let fx = ServicesFixture::new().await?;
-    let exec_repo = Arc::new(ExecutionStepRepository::new(&fx.db)?);
+    let exec_repo = Arc::new(ExecutionStepRepository::new(&fx.db));
     let svc = ExecutionTrackingService::new(exec_repo);
 
     let task_id = fx.insert_task().await?;
@@ -176,7 +176,7 @@ async fn context_service_load_history_for_empty_context_returns_empty() -> Resul
     let svc = ContextService::new(TaskRepository::new(
         &fx.db,
         crate::common::session_usage(&fx.db)?,
-    )?);
+    ));
     let history = svc.load_conversation_history(&fx.context_id).await?;
     assert!(history.is_empty());
     fx.cleanup().await?;
@@ -186,7 +186,7 @@ async fn context_service_load_history_for_empty_context_returns_empty() -> Resul
 #[tokio::test]
 async fn context_provider_service_lists_user_contexts() -> Result<()> {
     let fx = ServicesFixture::new().await?;
-    let svc = ContextProviderService::new(ContextRepository::new(&fx.db)?);
+    let svc = ContextProviderService::new(ContextRepository::new(&fx.db));
     let listed = svc.list_contexts_with_stats(&fx.user_id).await?;
     assert!(listed.iter().any(|c| c.context_id == fx.context_id));
     fx.cleanup().await?;
@@ -203,7 +203,7 @@ async fn message_service_persists_messages_for_task() -> Result<()> {
     let svc = MessageService::new(TaskRepository::new(
         &fx.db,
         crate::common::session_usage(&fx.db)?,
-    )?);
+    ));
 
     let task_id = fx.insert_task().await?;
     let messages = vec![
@@ -257,7 +257,7 @@ async fn message_service_persist_empty_list_returns_empty() -> Result<()> {
     let svc = MessageService::new(TaskRepository::new(
         &fx.db,
         crate::common::session_usage(&fx.db)?,
-    )?);
+    ));
     let task_id = fx.insert_task().await?;
 
     let seqs = svc
@@ -285,7 +285,7 @@ async fn message_service_creates_tool_execution_message() -> Result<()> {
     let svc = MessageService::new(TaskRepository::new(
         &fx.db,
         crate::common::session_usage(&fx.db)?,
-    )?);
+    ));
     let task_id = fx.insert_task().await?;
 
     use systemprompt_identifiers::AgentName;
@@ -325,11 +325,11 @@ async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> 
     let msg_svc = MessageService::new(TaskRepository::new(
         &fx.db,
         crate::common::session_usage(&fx.db)?,
-    )?);
+    ));
     let context_svc = ContextService::new(TaskRepository::new(
         &fx.db,
         crate::common::session_usage(&fx.db)?,
-    )?);
+    ));
 
     msg_svc
         .persist_messages(PersistMessagesParams {
@@ -415,7 +415,7 @@ async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> 
 async fn context_provider_service_get_context_returns_data() -> Result<()> {
     use systemprompt_traits::ContextProvider;
     let fx = ServicesFixture::new().await?;
-    let svc = ContextProviderService::new(ContextRepository::new(&fx.db)?);
+    let svc = ContextProviderService::new(ContextRepository::new(&fx.db));
     let ctx = svc.get_context(&fx.context_id, &fx.user_id).await?;
     assert_eq!(ctx.context_id, fx.context_id);
     fx.cleanup().await?;
@@ -426,7 +426,7 @@ async fn context_provider_service_get_context_returns_data() -> Result<()> {
 async fn execution_tracking_service_list_steps_for_unknown_task() -> Result<()> {
     use systemprompt_identifiers::TaskId;
     let fx = ServicesFixture::new().await?;
-    let exec_repo = Arc::new(ExecutionStepRepository::new(&fx.db)?);
+    let exec_repo = Arc::new(ExecutionStepRepository::new(&fx.db));
     let svc = ExecutionTrackingService::new(exec_repo);
 
     let steps = svc

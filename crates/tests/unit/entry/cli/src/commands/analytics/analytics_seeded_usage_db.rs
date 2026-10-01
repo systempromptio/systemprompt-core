@@ -69,7 +69,7 @@ async fn seed_tool_server(pool: &DbPool) -> String {
         .bind(status)
         .bind(user_id.as_str())
         .bind(Uuid::new_v4().to_string())
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }
@@ -96,7 +96,7 @@ async fn seed_ai_requests(pool: &DbPool) -> String {
         .bind(tokens)
         .bind(cost)
         .bind(latency)
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }
@@ -124,7 +124,7 @@ async fn seed_engagement(pool: &DbPool) {
         .bind(format!("/cov/{content_id}"))
         .bind(&content_id)
         .bind(depth)
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }
@@ -317,7 +317,7 @@ async fn seed_aged_ai_request(pool: &DbPool, age_days: i32, cost: i64) {
     .bind(user_id.as_str())
     .bind(cost)
     .bind(age_days.to_string())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 }

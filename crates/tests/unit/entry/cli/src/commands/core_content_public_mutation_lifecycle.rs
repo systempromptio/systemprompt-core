@@ -32,7 +32,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     let boot = ensure_test_bootstrap();
     install_test_signing_key();
     let pool = database.test_pool().await;
-    let repository = ContentRepository::new(&pool).expect("content repository");
+    let repository = ContentRepository::new(&pool);
     let source = SourceId::new("owned-source".to_owned());
     let target = repository
         .create(
@@ -179,7 +179,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     );
 
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

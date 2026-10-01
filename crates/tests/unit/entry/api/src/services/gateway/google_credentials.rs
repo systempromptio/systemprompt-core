@@ -4,22 +4,26 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde_json::{Value, json};
 use systemprompt_api::services::gateway::service::credentials::fill_project;
-use systemprompt_api::services::gateway::service::credentials::google::{
-    ServiceAccountKey, access_token,
-};
+use systemprompt_api::services::gateway::service::credentials::google::access_token;
+use systemprompt_security::credential::ProviderCredential;
 use systemprompt_test_fixtures::keys::test_key;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn google_access_token(name: &str, secret: &str) -> anyhow::Result<Option<String>> {
-    match ServiceAccountKey::parse(secret)? {
-        Some(key) => Ok(access_token(name, &key).await.map(Some)?),
-        None => Ok(None),
+    match ProviderCredential::parse(secret)? {
+        ProviderCredential::GoogleServiceAccount(key) => {
+            Ok(access_token(name, &key).await.map(Some)?)
+        },
+        ProviderCredential::ApiKey(_) => Ok(None),
     }
 }
 
 fn google_token_uri(secret: &str) -> anyhow::Result<Option<String>> {
-    Ok(ServiceAccountKey::parse(secret)?.map(|key| key.token_uri))
+    match ProviderCredential::parse(secret)? {
+        ProviderCredential::GoogleServiceAccount(key) => Ok(Some(key.token_uri)),
+        ProviderCredential::ApiKey(_) => Ok(None),
+    }
 }
 
 fn secret(uri: &str) -> String {

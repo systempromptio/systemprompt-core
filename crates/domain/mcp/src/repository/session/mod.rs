@@ -32,11 +32,9 @@ pub struct McpSessionRepository {
 }
 
 impl McpSessionRepository {
-    pub fn new(db: &DbPool) -> McpDomainResult<Self> {
-        let write_pool = db.write_pool_arc().map_err(|e| {
-            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
-        })?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 
     pub async fn create(

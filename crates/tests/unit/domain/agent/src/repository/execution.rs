@@ -256,7 +256,7 @@ async fn get_step_with_corrupt_status_errors() {
     let step_id = step.step_id.clone();
     r.execution_steps.create(&step).await.expect("create");
 
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     sqlx::query("UPDATE task_execution_steps SET status = 'bogus_state' WHERE step_id = $1")
         .bind(step_id.to_string())
         .execute(pg.as_ref())
@@ -284,7 +284,7 @@ async fn get_step_with_corrupt_content_errors() {
     let step_id = step.step_id.clone();
     r.execution_steps.create(&step).await.expect("create");
 
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     sqlx::query("UPDATE task_execution_steps SET content = '[]'::jsonb WHERE step_id = $1")
         .bind(step_id.to_string())
         .execute(pg.as_ref())

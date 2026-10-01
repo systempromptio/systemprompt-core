@@ -5,11 +5,11 @@
 use std::sync::Arc;
 
 use sqlx::{PgPool, query};
-use systemprompt_database::{Database, MigrationService, install_extension_schemas};
+use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -90,7 +90,7 @@ async fn plan_pending_lists_all_then_none_after_apply() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("plan_test_{suffix}"));
@@ -166,7 +166,7 @@ async fn status_reports_applied_pending_and_drift() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("status_test_{suffix}"));
@@ -254,7 +254,7 @@ async fn repair_drift_reconciles_tampered_checksum() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("repair_test_{suffix}"));
@@ -424,7 +424,7 @@ async fn failed_reapply_keeps_tracking_row() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let (db_arc, ext, table, ext_id) = install_tampered_insert_ext(&pool, &suffix).await;
@@ -460,7 +460,7 @@ async fn reconcile_drift_rewrites_checksum_without_executing_sql() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let (db_arc, ext, table, ext_id) = install_tampered_insert_ext(&pool, &suffix).await;

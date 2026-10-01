@@ -81,10 +81,7 @@ pub(super) async fn enforce(
         context_id: Some(request.context_id().clone()),
         trace_id: Some(request.trace_id().to_string()),
     };
-    let pool = ctx.db_pool().write_pool_arc().map_err(|error| {
-        tracing::warn!(%error, service, "External MCP governance failed");
-        denied()
-    })?;
+    let pool = ctx.db_pool().write_pool();
     record_decision(&pool, &record).await.map_err(|error| {
         tracing::warn!(%error, service, "External MCP governance failed");
         denied()

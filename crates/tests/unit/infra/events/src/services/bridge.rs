@@ -33,7 +33,7 @@ static BRIDGE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn fixture_pool() -> sqlx::PgPool {
     let db: DbPool = test_db_pool().await;
-    let arc = db.pool_arc().expect("events database fixture pool");
+    let arc = db.pool();
     let pool = (*arc).clone();
     sqlx::query("SELECT 1 FROM event_outbox LIMIT 0")
         .execute(&pool)
@@ -572,10 +572,7 @@ async fn bridge_reconnects_after_listener_connection_is_terminated() {
 async fn bridge_survives_listener_connect_failure_and_keeps_retrying() {
     let _guard = BRIDGE_LOCK.lock().await;
     let db = closed_db_pool().await;
-    let pool = (*db
-        .pool_arc()
-        .expect("closed fixture pool must expose a pg pool"))
-    .clone();
+    let pool = (*db.pool()).clone();
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool, InstanceId::new("peer")).start();

@@ -20,9 +20,9 @@ pub struct AnalyticsOwnerReassignment {
 }
 
 impl AnalyticsOwnerReassignment {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 }
 

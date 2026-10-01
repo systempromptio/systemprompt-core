@@ -49,7 +49,7 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)));
 
     let users = user_service
         .list_by_filter(

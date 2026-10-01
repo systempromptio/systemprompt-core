@@ -8,11 +8,11 @@
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row};
-use systemprompt_database::{Database, install_extension_schemas};
+use systemprompt_database::Database;
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -113,7 +113,7 @@ async fn fresh_database_stamps_migrations_without_executing_them() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("stamp_fresh_{suffix}"));
@@ -175,7 +175,7 @@ async fn established_database_without_tracking_rows_executes_migrations() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("stamp_legacy_{suffix}"));

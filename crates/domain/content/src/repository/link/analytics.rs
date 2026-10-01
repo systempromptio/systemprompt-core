@@ -7,7 +7,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::ContentError;
 use crate::models::{
     CampaignPerformance, ContentJourneyNode, LinkClick, LinkPerformance, RecordClickParams,
 };
@@ -25,10 +24,10 @@ pub struct LinkAnalyticsRepository {
 }
 
 impl LinkAnalyticsRepository {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        let pool = db.pool_arc().map_err(ContentError::Repository)?;
-        let write_pool = db.write_pool_arc().map_err(ContentError::Repository)?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn get_link_performance(

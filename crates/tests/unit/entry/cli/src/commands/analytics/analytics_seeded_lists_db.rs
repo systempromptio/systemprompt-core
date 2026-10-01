@@ -49,7 +49,6 @@ async fn seed_agent_tasks(pool: &DbPool) -> String {
         .await
         .unwrap();
     let context_id = ContextRepository::new(pool)
-        .unwrap()
         .create_context(
             &user_id,
             Some(&session_id),
@@ -76,7 +75,7 @@ async fn seed_agent_tasks(pool: &DbPool) -> String {
         .bind(status)
         .bind(&agent)
         .bind(user_id.as_str())
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }

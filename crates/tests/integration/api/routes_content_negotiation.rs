@@ -30,7 +30,7 @@ async fn seed_content(db: &DbPool) -> Result<(String, String)> {
     let uniq = uuid::Uuid::new_v4().to_string();
     let source = format!("neg-src-{uniq}");
     let slug = format!("neg-post-{uniq}");
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query(
         "INSERT INTO markdown_content \
          (id, slug, title, description, body, author, published_at, keywords, source_id, \

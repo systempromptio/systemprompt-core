@@ -25,7 +25,7 @@ fn contains(out: &CommandOutput, needle: &str) -> bool {
 
 async fn seed_job_run(pool: &DbPool, status: JobStatus, error: Option<&str>) -> String {
     let name = format!("cov-job-{}", Uuid::new_v4().simple());
-    let repo = JobRepository::new(pool).unwrap();
+    let repo = JobRepository::new(pool);
     repo.upsert_job(&name, "0 * * * *", true).await.unwrap();
     repo.update_job_execution(
         &name,

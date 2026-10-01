@@ -6,11 +6,11 @@
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row};
-use systemprompt_database::{Database, install_extension_schemas};
+use systemprompt_database::Database;
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -71,7 +71,7 @@ async fn a_superseding_migration_moves_the_applied_row_without_executing() {
             .await
             .expect("connect to test postgres"),
     );
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
     let suffix = Uuid::new_v4().simple().to_string()[..12].to_string();
     let table: &'static str = leak_str(format!("supersede_{suffix}"));
     let ext_id: &'static str = leak_str(format!("supersede-{suffix}"));

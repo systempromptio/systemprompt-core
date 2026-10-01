@@ -119,8 +119,8 @@ async fn run_pass(
     services_root: &Path,
     pass: &Pass<'_>,
 ) -> AuthzResult<ReconcileReport> {
-    let repo = AccessControlRepository::new(db)?;
-    let svc = AccessControlIngestionService::new(db)?;
+    let repo = AccessControlRepository::new(db);
+    let svc = AccessControlIngestionService::new(db);
 
     let route_ids = services
         .gateway

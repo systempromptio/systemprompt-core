@@ -62,7 +62,7 @@ pub async fn seed_session(repo: &SessionRepository, session_id: &SessionId, fing
 
 
 pub async fn delete_session(pool: &DbPool, session_id: &SessionId) {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("DELETE FROM analytics_events WHERE session_id = $1")
         .bind(session_id.as_str())
         .execute(p.as_ref())

@@ -146,7 +146,6 @@ pub(super) fn mount_agent(
     router = router.nest(
         ApiPaths::AGENTS_BASE,
         crate::routes::proxy::agents::router(ctx)
-            .map_err(|e| router_init_failed("agents_proxy", &e))?
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?
             .with_auth(a2a_middleware, AuthzPolicy::authenticated()),
     );
@@ -199,11 +198,9 @@ pub(super) fn mount_mcp_and_stream(
     );
 
     let executions = crate::routes::proxy::mcp::executions_router(ctx)
-        .map_err(|e| router_init_failed("mcp_executions", &e))?
         .with_rate_limit(limits, rate_config.mcp_per_second, "mcp")?
         .with_auth(user_middleware.clone(), AuthzPolicy::authenticated());
     let proxy = crate::routes::proxy::mcp::router(ctx)
-        .map_err(|e| router_init_failed("mcp_proxy", &e))?
         .with_rate_limit(limits, rate_config.mcp_per_second, "mcp")?
         .with_auth(mcp_middleware, AuthzPolicy::deferred_to_handler());
     router = router.nest(ApiPaths::MCP_BASE, executions.merge(proxy));

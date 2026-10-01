@@ -75,7 +75,7 @@ struct FormattedDisplayContext<'a> {
 }
 
 pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?.pool_arc()?;
+    let pool = ctx.db_pool().await?.pool();
     execute_with_pool_inner(args, &pool, &ctx.cli).await
 }
 

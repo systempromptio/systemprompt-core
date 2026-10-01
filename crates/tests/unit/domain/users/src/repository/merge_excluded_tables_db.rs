@@ -5,7 +5,7 @@ use systemprompt_users::MERGE_EXCLUDED_SECURITY_TABLES;
 async fn excluded_security_tables_cascade_from_users() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
 
     for table in MERGE_EXCLUDED_SECURITY_TABLES {
         let rule: Option<String> = sqlx::query_scalar(

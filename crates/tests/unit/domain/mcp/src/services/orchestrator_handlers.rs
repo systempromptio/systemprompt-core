@@ -37,8 +37,7 @@ async fn make_dependencies() -> (LifecycleOrchestrator, DatabaseService, Registr
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
         Arc::clone(&app_paths),
         registry.clone(),
     );

@@ -167,7 +167,7 @@ impl McpRegistryProvider for NullRegistry {
 async fn base_state() -> OAuthState {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("oauth repo");
+    let repo = OAuthRepository::new(&pool);
     OAuthState::new(
         repo,
         Arc::new(NullAnalytics),

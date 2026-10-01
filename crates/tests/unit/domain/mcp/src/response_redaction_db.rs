@@ -46,7 +46,7 @@ fn ctx() -> RequestContext {
 #[tokio::test]
 async fn a_redacted_result_reaches_the_wire_without_the_secret() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, Some(scanner())).expect("ingest");
+    let ingest = ArtifactIngest::from_db(&db, Some(scanner()));
     let context = ctx();
     let exec_id = McpExecutionId::generate();
 
@@ -82,7 +82,7 @@ async fn a_redacted_result_reaches_the_wire_without_the_secret() {
 #[tokio::test]
 async fn the_ingest_outcome_carries_the_redacted_body_so_no_read_back_is_needed() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, Some(scanner())).expect("ingest");
+    let ingest = ArtifactIngest::from_db(&db, Some(scanner()));
 
     let outcome = ingest
         .ingest(IngestRequest {
@@ -124,7 +124,7 @@ async fn the_ingest_outcome_carries_the_redacted_body_so_no_read_back_is_needed(
 #[tokio::test]
 async fn an_oversized_body_is_scanned_before_only_its_header_is_stored() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, Some(scanner())).expect("ingest");
+    let ingest = ArtifactIngest::from_db(&db, Some(scanner()));
     let filler = "x".repeat(MAX_PAYLOAD_BYTES + 1024);
 
     let outcome = ingest

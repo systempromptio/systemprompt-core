@@ -50,14 +50,14 @@ pub struct AiRepositories {
 }
 
 impl AiRepositories {
-    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
-        Ok(Self {
-            requests: AiRequestRepository::new(db)?,
-            payloads: AiRequestPayloadRepository::new(db)?,
-            gateway_policies: AiGatewayPolicyRepository::new(db)?,
-            quota_buckets: AiQuotaBucketRepository::new(db)?,
-            safety_findings: AiSafetyFindingRepository::new(db)?,
-            thought_signatures: AiThoughtSignatureRepository::new(db)?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            requests: AiRequestRepository::new(db),
+            payloads: AiRequestPayloadRepository::new(db),
+            gateway_policies: AiGatewayPolicyRepository::new(db),
+            quota_buckets: AiQuotaBucketRepository::new(db),
+            safety_findings: AiSafetyFindingRepository::new(db),
+            thought_signatures: AiThoughtSignatureRepository::new(db),
+        }
     }
 }

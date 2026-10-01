@@ -30,6 +30,7 @@ async fn harness() -> Harness {
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     );
     Harness { ctx, extractor }
 }

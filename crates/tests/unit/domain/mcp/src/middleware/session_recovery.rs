@@ -27,8 +27,7 @@ fn random_id() -> SessionId {
 async fn session_store_round_trip() {
     let db = test_db_pool().await;
     let store = PostgresSessionStore::new(std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db)
-            .expect("mcp session repository"),
+        systemprompt_mcp::repository::McpSessionRepository::new(&db),
     ));
     let id = random_id();
 
@@ -43,8 +42,7 @@ async fn session_store_round_trip() {
 async fn session_store_load_unknown_returns_none() {
     let db = test_db_pool().await;
     let store = PostgresSessionStore::new(std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db)
-            .expect("mcp session repository"),
+        systemprompt_mcp::repository::McpSessionRepository::new(&db),
     ));
     assert!(store.load(&random_id()).await.unwrap().is_none());
 }
@@ -53,8 +51,7 @@ async fn session_store_load_unknown_returns_none() {
 async fn restore_session_recreates_local_worker() {
     let db = test_db_pool().await;
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db)
-            .expect("mcp session repository"),
+        systemprompt_mcp::repository::McpSessionRepository::new(&db),
     ));
     let id = random_id();
 

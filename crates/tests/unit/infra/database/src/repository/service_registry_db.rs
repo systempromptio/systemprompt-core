@@ -15,9 +15,9 @@ fn unique(prefix: &str) -> String {
 
 async fn two_repos() -> (ServiceRepository, ServiceRepository, sqlx::PgPool) {
     let db = test_pool().await;
-    let pg = (*db.write_pool_arc().expect("write pool")).clone();
-    let a = ServiceRepository::new(&db, InstanceId::new(unique("node_a"))).expect("repo a");
-    let b = ServiceRepository::new(&db, InstanceId::new(unique("node_b"))).expect("repo b");
+    let pg = (*db.write_pool()).clone();
+    let a = ServiceRepository::new(&db, InstanceId::new(unique("node_a")));
+    let b = ServiceRepository::new(&db, InstanceId::new(unique("node_b")));
     (a, b, pg)
 }
 

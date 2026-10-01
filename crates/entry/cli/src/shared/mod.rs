@@ -59,7 +59,7 @@ macro_rules! define_pool_command {
             args: $args_ty,
             ctx: &$crate::context::CommandContext,
         ) -> ::anyhow::Result<$ret_ty> {
-            let pool = ctx.db_pool().await?.pool_arc()?;
+            let pool = ctx.db_pool().await?.pool();
             execute_with_pool_inner(args, &pool, &ctx.cli).await
         }
     };
@@ -68,7 +68,7 @@ macro_rules! define_pool_command {
             args: $args_ty,
             ctx: &$crate::context::CommandContext,
         ) -> ::anyhow::Result<$ret_ty> {
-            let pool = ctx.db_pool().await?.pool_arc()?;
+            let pool = ctx.db_pool().await?.pool();
             execute_with_pool_inner(args, &pool).await
         }
     };

@@ -27,10 +27,7 @@ fn claims(
     db: &systemprompt_database::DbPool,
     repo: &Arc<ToolUsageRepository>,
 ) -> IntentClaimService {
-    IntentClaimService::new(
-        Arc::new(AiRequestRepository::new(db).expect("ai repository")),
-        Arc::clone(repo),
-    )
+    IntentClaimService::new(Arc::new(AiRequestRepository::new(db)), Arc::clone(repo))
 }
 
 async fn started_execution(repo: &ToolUsageRepository, session: &str) -> McpExecutionId {
@@ -72,7 +69,7 @@ async fn seed_intents(
     session: &str,
     tools: &[&str],
 ) -> Vec<String> {
-    let raw = db.pool_arc().expect("raw pool");
+    let raw = db.pool();
     let user = UserId::new("11111111-1111-4111-8111-111111111abd");
     seed_user_row(db, &user, "intent-user@tests.invalid")
         .await
@@ -114,7 +111,7 @@ async fn seed_intents(
 #[tokio::test]
 async fn two_executions_of_one_tool_claim_two_different_intents_and_a_third_gets_none() {
     let db = test_db_pool().await;
-    let repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
+    let repo = Arc::new(ToolUsageRepository::new(&db));
     let claims = claims(&db, &repo);
     let session = unique("sess");
     let seeded = seed_intents(&db, &session, &["Read", "Read"]).await;
@@ -146,7 +143,7 @@ async fn two_executions_of_one_tool_claim_two_different_intents_and_a_third_gets
     assert_eq!(third_row.ai_tool_call_id, None);
     assert_eq!(third_row.correlation, Correlation::Exact);
 
-    let raw = db.pool_arc().expect("raw pool");
+    let raw = db.pool();
     let stamped: Vec<String> = sqlx::query_scalar(
         "SELECT mcp_execution_id FROM ai_request_tool_calls WHERE ai_tool_call_id = ANY($1) ORDER BY mcp_execution_id",
     )
@@ -165,7 +162,7 @@ async fn two_executions_of_one_tool_claim_two_different_intents_and_a_third_gets
 #[tokio::test]
 async fn a_tool_name_with_an_underscore_does_not_match_another_tool_by_wildcard() {
     let db = test_db_pool().await;
-    let repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
+    let repo = Arc::new(ToolUsageRepository::new(&db));
     let claims = claims(&db, &repo);
     let session = unique("sess");
     seed_intents(&db, &session, &["axb", "mcp__srv__a_b"]).await;
@@ -177,7 +174,7 @@ async fn a_tool_name_with_an_underscore_does_not_match_another_tool_by_wildcard(
         .await
         .unwrap()
         .expect("the prefixed exact tool name is claimed");
-    let raw = db.pool_arc().expect("raw pool");
+    let raw = db.pool();
     let tool: String = sqlx::query_scalar(
         "SELECT tool_name FROM ai_request_tool_calls WHERE ai_tool_call_id = $1",
     )
@@ -198,7 +195,7 @@ async fn a_tool_name_with_an_underscore_does_not_match_another_tool_by_wildcard(
 #[tokio::test]
 async fn an_explicit_intent_claim_is_first_writer_wins() {
     let db = test_db_pool().await;
-    let repo = Arc::new(ToolUsageRepository::new(&db).expect("repository"));
+    let repo = Arc::new(ToolUsageRepository::new(&db));
     let claims = claims(&db, &repo);
     let session = unique("explicit-claim");
     let seeded = seed_intents(&db, &session, &["Read", "Write"]).await;
@@ -220,7 +217,7 @@ async fn an_explicit_intent_claim_is_first_writer_wins() {
             .expect("competing claim is a no-op")
     );
 
-    let raw = db.pool_arc().expect("raw pool");
+    let raw = db.pool();
     let owner: Option<String> = sqlx::query_scalar(
         "SELECT mcp_execution_id FROM ai_request_tool_calls WHERE ai_tool_call_id = $1",
     )
@@ -242,13 +239,13 @@ async fn an_explicit_intent_claim_is_first_writer_wins() {
 #[tokio::test]
 async fn an_intent_an_execution_already_carries_is_handed_to_it_and_the_next_is_claimed() {
     let db = test_db_pool().await;
-    let repo = Arc::new(ToolUsageRepository::new(&db).expect("repository"));
+    let repo = Arc::new(ToolUsageRepository::new(&db));
     let claims = claims(&db, &repo);
     let session = unique("reconcile");
     let seeded = seed_intents(&db, &session, &["Read", "Read"]).await;
     let older = AiToolCallId::new(&seeded[0]);
     let newer = AiToolCallId::new(&seeded[1]);
-    let raw = db.pool_arc().expect("raw pool");
+    let raw = db.pool();
     sqlx::query(
         "UPDATE ai_request_tool_calls SET created_at = NOW() - interval '5 seconds' \
          WHERE ai_tool_call_id = $1",

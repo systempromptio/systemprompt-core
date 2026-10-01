@@ -32,7 +32,7 @@ fn authenticated(ctx: &AppContext) -> Router {
 
 async fn seed_searchable(db: &DbPool, term: &str) -> Result<()> {
     let uniq = Uuid::new_v4().to_string();
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query(
         "INSERT INTO markdown_content \
          (id, slug, title, description, body, author, published_at, keywords, source_id, \
@@ -232,7 +232,7 @@ async fn search_database_failure_is_a_json_500_and_recovers_after_schema_repair(
     let owned = DisposableDb::with_schema("content_query_failure").await;
     let db = owned.test_pool().await;
     let ctx = test_app_context(&db, owned.url());
-    let raw = db.pool_arc()?;
+    let raw = db.pool();
     sqlx::query("ALTER TABLE markdown_content RENAME TO markdown_content_unavailable")
         .execute(raw.as_ref())
         .await?;
@@ -392,7 +392,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     )
     .with_actor(systemprompt_identifiers::Actor::user(click_user));
     let campaign = format!("campaign-{}", Uuid::new_v4().simple());
-    let source = systemprompt_content::repository::ContentRepository::new(&db)?
+    let source = systemprompt_content::repository::ContentRepository::new(&db)
         .create(&systemprompt_content::models::CreateContentParams {
             slug: format!("outage-source-{}", Uuid::new_v4().simple()),
             locale: systemprompt_identifiers::LocaleCode::english(),
@@ -445,7 +445,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     assert!(redirect.status().is_redirection());
     assert_link_reads_live(&ctx, &link, &campaign, &source).await?;
 
-    let raw = db.pool_arc()?;
+    let raw = db.pool();
     raw.close().await;
     assert_link_reads_outage(&ctx, &link, &campaign, &source, owned.url()).await?;
     drop(ctx);
@@ -457,7 +457,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     assert_link_reads_live(&recovered_ctx, &link, &campaign, &source).await?;
     let row: i64 = sqlx::query_scalar("SELECT count(*) FROM campaign_links WHERE id=$1")
         .bind(&link)
-        .fetch_one(recovered.pool_arc()?.as_ref())
+        .fetch_one(recovered.pool().as_ref())
         .await?;
     assert_eq!(row, 1);
     drop(recovered_ctx);

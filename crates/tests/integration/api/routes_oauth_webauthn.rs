@@ -204,7 +204,7 @@ async fn seed_user_and_client() -> anyhow::Result<(UserId, OAuthClientFixture)> 
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@webauthn.invalid", user.as_str()))
@@ -217,7 +217,7 @@ async fn seed_user_and_client() -> anyhow::Result<(UserId, OAuthClientFixture)> 
 async fn inject_verified_auth(user: &UserId) -> anyhow::Result<String> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
+    let repo = OAuthRepository::new(&pool);
     let (_pool, ctx) = setup_ctx().await?;
     let service = WebAuthnService::new(repo, ctx.user_provider().expect("user"))
         .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
@@ -652,7 +652,7 @@ async fn completed_registration_migrates_anonymous_session_to_the_new_account() 
     );
     let registered = body["user_id"].as_str().expect("registered user id");
 
-    let db = pool.pool_arc()?;
+    let db = pool.pool();
     let session_owner: String =
         sqlx::query_scalar("SELECT user_id FROM user_sessions WHERE session_id = $1")
             .bind(session.as_str())
@@ -730,7 +730,7 @@ async fn registration_cannot_take_over_an_existing_registered_users_session() ->
     let new_user = body["user_id"].as_str().expect("new user id");
     assert_ne!(new_user, existing.as_str());
 
-    let db = pool.pool_arc()?;
+    let db = pool.pool();
     let session_owner: String =
         sqlx::query_scalar("SELECT user_id FROM user_sessions WHERE session_id = $1")
             .bind(session.as_str())

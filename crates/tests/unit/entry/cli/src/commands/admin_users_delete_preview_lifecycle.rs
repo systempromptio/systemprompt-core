@@ -41,9 +41,7 @@ async fn delete_preview_helper() {
     ensure_test_bootstrap();
     install_test_signing_key();
     let pool = database.test_pool().await;
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let target = service
         .create(
             "preview-target",
@@ -65,7 +63,7 @@ async fn delete_preview_helper() {
     let session = create_local_session_row(&pool, &target.id, chrono::Duration::hours(1))
         .await
         .expect("target session");
-    let raw = pool.pool_arc().expect("SQL pool");
+    let raw = pool.pool();
     let users_before: Vec<(String, String, String, Vec<String>)> = sqlx::query_as(
         "SELECT id, name, status, roles FROM users WHERE id IN ($1, $2) ORDER BY id",
     )
@@ -114,7 +112,7 @@ async fn delete_preview_helper() {
         serde_json::json!({"users_before": users_before, "users_after": users_after, "session_owner_before": session_owner_before, "session_owner_after": session_owner_after, "target": target.id.as_str(), "sibling": sibling.id.as_str()})
     );
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

@@ -273,7 +273,7 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
     )
     .await
     .expect("seed profile administrator");
-    let raw_pool = pool.pool_arc().expect("raw dedicated database pool");
+    let raw_pool = pool.pool();
     sqlx::query("UPDATE users SET name = 'testadmin' WHERE id = $1")
         .bind(admin_id.as_str())
         .execute(raw_pool.as_ref())
@@ -404,7 +404,7 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
 async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
     let database = DisposableDb::with_schema("cli_serve_agent_vertical").await;
     let pool = database.test_pool().await;
-    let raw_pool = pool.pool_arc().expect("raw dedicated database pool");
+    let raw_pool = pool.pool();
     let admin_id = systemprompt_identifiers::UserId::new(format!(
         "serve-agent-admin-{}",
         uuid::Uuid::new_v4().simple()

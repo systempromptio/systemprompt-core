@@ -48,7 +48,7 @@ async fn execute_ingests_images_then_skips_on_rerun() {
     assert_eq!(result.items_processed, Some(8));
     assert_eq!(result.items_failed, Some(0));
 
-    let repo = FileRepository::new(&pool).expect("repo");
+    let repo = FileRepository::new(&pool);
     let expected_mimes = [
         ("png", "image/png"),
         ("jpg", "image/jpeg"),

@@ -432,7 +432,7 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
             .is_none()
     );
     drop(app);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
@@ -495,7 +495,7 @@ async fn delete_all_agents_public_helper() {
         })
     );
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

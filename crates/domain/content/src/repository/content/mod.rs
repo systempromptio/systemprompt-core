@@ -11,7 +11,6 @@ mod mutations;
 mod queries;
 mod stats;
 
-use crate::error::ContentError;
 use crate::models::{Content, CreateContentParams, UpdateContentParams};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -25,10 +24,10 @@ pub struct ContentRepository {
 }
 
 impl ContentRepository {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        let pool = db.pool_arc().map_err(ContentError::Repository)?;
-        let write_pool = db.write_pool_arc().map_err(ContentError::Repository)?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn create(&self, params: &CreateContentParams) -> Result<Content, sqlx::Error> {

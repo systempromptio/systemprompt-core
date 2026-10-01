@@ -1,5 +1,3 @@
-use std::sync::Once;
-
 use chrono::{Duration, Utc};
 use http::HeaderMap;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
@@ -7,17 +5,10 @@ use systemprompt_identifiers::{ClientId, SessionId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
-use systemprompt_security::keys::authority;
 use systemprompt_security::{AuthError, AuthValidationService};
 
-static INSTALL: Once = Once::new();
-
 fn ensure_authority() {
-    INSTALL.call_once(|| {
-        let key =
-            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
-        authority::install_for_test(key);
-    });
+    systemprompt_test_fixtures::install_test_signing_key();
 }
 
 fn sample_claims(iss: &str) -> JwtClaims {

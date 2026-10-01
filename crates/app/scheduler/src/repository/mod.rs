@@ -31,11 +31,11 @@ pub struct SchedulerRepository {
 }
 
 impl SchedulerRepository {
-    pub fn new(db: &DbPool) -> SchedulerResult<Self> {
-        Ok(Self {
-            jobs: JobRepository::new(db)?,
-            analytics: AnalyticsRepository::new(db)?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            jobs: JobRepository::new(db),
+            analytics: AnalyticsRepository::new(db),
+        }
     }
 
     pub async fn upsert_job(

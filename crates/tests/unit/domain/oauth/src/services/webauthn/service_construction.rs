@@ -66,7 +66,7 @@ impl UserProvider for NoopUsers {
 async fn service_new_rejects_ip_address_relying_party() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
 
     let err = WebAuthnService::new(repo, Arc::new(NoopUsers))
         .expect_err("webauthn-rs rejects an IP-address RP ID");

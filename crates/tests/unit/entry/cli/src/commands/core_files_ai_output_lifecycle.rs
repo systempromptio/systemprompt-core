@@ -46,7 +46,7 @@ async fn files_ai_output_helper() {
     .expect("seed other image owner");
     let id = uuid::Uuid::new_v4();
     let path = format!("/owned/generated/{id}.png");
-    let raw = pool.pool_arc().expect("raw pool");
+    let raw = pool.pool();
     sqlx::query(
         "INSERT INTO files (id, path, public_url, mime_type, size_bytes, ai_content, user_id, \
          metadata) VALUES ($1, $2, $3, 'image/png', 73, true, $4, $5)",
@@ -127,7 +127,7 @@ async fn files_ai_output_helper() {
 
     drop(context);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

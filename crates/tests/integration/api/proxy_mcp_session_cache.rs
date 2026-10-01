@@ -19,7 +19,7 @@ use super::proxy_support::{
 
 async fn cache() -> TestSessionCache {
     let (pool, _ctx) = setup_ctx().await.expect("test db");
-    TestSessionCache::new(McpProxyIdentityRepository::new(&pool).expect("identity repository"))
+    TestSessionCache::new(McpProxyIdentityRepository::new(&pool))
 }
 
 fn sid(prefix: &str) -> SessionId {

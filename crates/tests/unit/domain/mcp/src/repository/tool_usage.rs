@@ -13,13 +13,13 @@ use systemprompt_traits::ToolExecutionLookup;
 #[tokio::test]
 async fn repository_new_succeeds() {
     let db = test_db_pool().await;
-    drop(ToolUsageRepository::new(&db).expect("ctor"));
+    drop(ToolUsageRepository::new(&db));
 }
 
 #[tokio::test]
 async fn find_by_id_random_returns_none() {
     let db = test_db_pool().await;
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let repo = ToolUsageRepository::new(&db);
     let id = McpExecutionId::new(format!("none-{}", uuid::Uuid::new_v4().simple()));
     let r = repo.find_by_id(&id).await.unwrap();
     assert!(r.is_none());
@@ -28,7 +28,7 @@ async fn find_by_id_random_returns_none() {
 #[tokio::test]
 async fn find_by_ai_call_id_random_returns_none() {
     let db = test_db_pool().await;
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let repo = ToolUsageRepository::new(&db);
     let id = AiToolCallId::new(format!("none-{}", uuid::Uuid::new_v4().simple()));
     let r = repo.find_by_ai_call_id(&id).await.unwrap();
     assert!(r.is_none());
@@ -43,7 +43,7 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
     use systemprompt_models::RequestContext;
 
     let db = test_db_pool().await;
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let repo = ToolUsageRepository::new(&db);
 
     let tool_name = format!("stats-tool-{}", uuid::Uuid::new_v4().simple());
     let server_name = format!("stats-srv-{}", uuid::Uuid::new_v4().simple());
@@ -97,7 +97,7 @@ async fn start_and_complete_execution_roundtrip() {
     use systemprompt_models::RequestContext;
 
     let db = test_db_pool().await;
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let repo = ToolUsageRepository::new(&db);
     let ctx = RequestContext::new(
         SessionId::new("s1"),
         TraceId::new("t1"),
@@ -162,7 +162,7 @@ async fn start_and_complete_execution_roundtrip() {
          FROM mcp_tool_executions WHERE mcp_execution_id = $1",
     )
     .bind(exec_id.as_str())
-    .fetch_one(&*db.write_pool_arc().unwrap())
+    .fetch_one(&*db.write_pool())
     .await
     .unwrap();
     assert_eq!(actor_kind.as_deref(), Some("user"));
@@ -180,7 +180,7 @@ async fn log_execution_sync_writes_row() {
     use systemprompt_models::RequestContext;
 
     let db = test_db_pool().await;
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let repo = ToolUsageRepository::new(&db);
     let ctx = RequestContext::new(
         SessionId::new("s2"),
         TraceId::new("t2"),

@@ -17,7 +17,7 @@ use systemprompt_test_fixtures::test_db_pool;
 
 async fn seed(pool: &DbPool, source: &str) -> Content {
     let slug = format!("promptslug{}", uuid::Uuid::new_v4().simple());
-    let repo = ContentRepository::new(pool).unwrap();
+    let repo = ContentRepository::new(pool);
     let params = CreateContentParams::new(
         slug.clone(),
         format!("Title for {slug}"),
@@ -61,7 +61,7 @@ async fn interactive_edit_prompts_for_the_content_and_applies_the_change() {
 
     let rendered = serde_json::to_string(out.artifact()).unwrap();
     assert!(rendered.contains(seeded.id.as_str()), "{rendered}");
-    let repo = ContentRepository::new(&pool).unwrap();
+    let repo = ContentRepository::new(&pool);
     let stored = repo.get_by_id(&seeded.id).await.unwrap().unwrap();
     assert_eq!(stored.title, "Renamed by prompt");
 }

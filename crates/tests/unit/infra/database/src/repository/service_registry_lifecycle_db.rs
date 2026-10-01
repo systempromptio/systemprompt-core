@@ -28,7 +28,7 @@ async fn db_pool() -> DbPool {
 
 async fn repo() -> (ServiceRepository, DbPool) {
     let db = db_pool().await;
-    let repo = ServiceRepository::new(&db, InstanceId::new(unique("node"))).expect("repository");
+    let repo = ServiceRepository::new(&db, InstanceId::new(unique("node")));
     (repo, db)
 }
 
@@ -183,7 +183,7 @@ async fn dead_instance_reaper_honours_the_retention_boundary() {
         "a row heartbeated just now is inside the retention"
     );
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query(
         "UPDATE services SET heartbeat_at = CURRENT_TIMESTAMP - make_interval(days => 400) WHERE \
          instance_id = $1",

@@ -127,14 +127,12 @@ mod service_management_behaviour_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         let name = unique_name("stop-no-pid");
         seed_running_row(&repo, &name, "mcp", 0, None).await;
@@ -164,14 +162,12 @@ mod service_management_behaviour_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         let name = unique_name("stop-dead-pid");
         seed_running_row(&repo, &name, "mcp", 0, Some(DEAD_PID)).await;
@@ -200,14 +196,12 @@ mod service_management_behaviour_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         // module "worker" has no subprocess identity marker → pid_is_our_service
         // returns false → the stored PID is cleared without signalling. We use
@@ -239,8 +233,7 @@ mod service_management_behaviour_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
 
         let config = config_with_pid("orphan-no-pid-never-seeded", "mcp", 0, None);
@@ -262,14 +255,12 @@ mod service_management_behaviour_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         let name = unique_name("orphan-dead-pid");
         seed_running_row(&repo, &name, "agent", 0, Some(DEAD_PID)).await;
@@ -305,14 +296,12 @@ mod service_management_behaviour_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         let name = unique_name("orphans-stale");
         seed_running_row(&repo, &name, "mcp", 0, Some(DEAD_PID)).await;
@@ -356,7 +345,7 @@ mod service_management_behaviour_db {
         repo.delete_service(&name).await.expect("cleanup");
         drop(svc);
         drop(repo);
-        pool.write_pool_arc().expect("write pool").close().await;
+        pool.write_pool().close().await;
         drop(pool);
         database.drop_now().await;
     }
@@ -429,14 +418,12 @@ mod live_child_stop_paths {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         let name = unique_name("smb-live-graceful");
         let mut child = spawn_marked_sleep(&name);
@@ -466,14 +453,12 @@ mod live_child_stop_paths {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         let name = unique_name("smb-live-force");
         let mut child = spawn_marked_sleep(&name);
@@ -503,14 +488,12 @@ mod live_child_stop_paths {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         let name = unique_name("smb-live-unmarked");
         let mut child = spawn_unmarked_sleep();
@@ -544,14 +527,12 @@ mod live_child_stop_paths {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         let name = unique_name("smb-live-orphan");
         let mut child = spawn_marked_sleep(&name);
@@ -586,14 +567,12 @@ mod live_child_stop_paths {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo");
+        );
 
         let name = unique_name("smb-live-sweep");
         let mut child = spawn_marked_sleep(&name);
@@ -621,7 +600,7 @@ mod live_child_stop_paths {
         repo.delete_service(&name).await.expect("cleanup row");
         drop(svc);
         drop(repo);
-        pool.write_pool_arc().expect("write pool").close().await;
+        pool.write_pool().close().await;
         drop(pool);
         database.drop_now().await;
     }
@@ -691,8 +670,7 @@ mod dead_pool_degradation {
             systemprompt_database::ServiceRepository::new(
                 &closed,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
 
         svc.stop_service(
@@ -710,8 +688,7 @@ mod dead_pool_degradation {
             systemprompt_database::ServiceRepository::new(
                 &closed,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
 
         let acted = svc

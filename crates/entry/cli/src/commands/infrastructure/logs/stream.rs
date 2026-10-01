@@ -44,7 +44,7 @@ pub(super) async fn execute(args: StreamArgs, ctx: &CommandContext) -> Result<()
         return Err(anyhow!("JSON output is not supported in streaming mode"));
     }
 
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?)?;
+    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
 
     let mut last_timestamp: Option<DateTime<Utc>> = None;
 

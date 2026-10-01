@@ -31,7 +31,7 @@ fn ctx(session_id: &str) -> RequestContext {
 }
 
 async fn make_link(pool: &DbPool, target: &str) -> String {
-    LinkGenerationService::new(LinkRepository::new(pool).expect("link repo"))
+    LinkGenerationService::new(LinkRepository::new(pool))
         .generate_link(GenerateLinkParams {
             target_url: target.to_owned(),
             link_type: LinkType::Redirect,
@@ -50,7 +50,7 @@ async fn make_link(pool: &DbPool, target: &str) -> String {
 }
 
 fn content_repos(pool: &systemprompt_database::DbPool) -> std::sync::Arc<ContentRepositories> {
-    std::sync::Arc::new(ContentRepositories::new(pool).expect("content repositories"))
+    std::sync::Arc::new(ContentRepositories::new(pool))
 }
 
 #[tokio::test]

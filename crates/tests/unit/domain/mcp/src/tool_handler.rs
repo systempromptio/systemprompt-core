@@ -19,7 +19,7 @@ use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::DynToolCallIntentClaims;
 
 fn intents(db: &systemprompt_database::DbPool) -> DynToolCallIntentClaims {
-    Arc::new(AiRequestRepository::new(db).unwrap())
+    Arc::new(AiRequestRepository::new(db))
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -140,8 +140,8 @@ fn handler_output_schema_tags_artifact_type() {
 #[tokio::test]
 async fn execute_success_records_and_returns_result() {
     let db = test_db_pool().await;
-    let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
+    let tool_repo = Arc::new(ToolUsageRepository::new(&db));
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
     let exec = McpToolExecutor::new(tool_repo, intents(&db), art_repo, "srv-echo");
 
     let ctx = test_ctx();
@@ -159,8 +159,8 @@ async fn execute_success_records_and_returns_result() {
 #[tokio::test]
 async fn execute_handler_error_propagates() {
     let db = test_db_pool().await;
-    let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
+    let tool_repo = Arc::new(ToolUsageRepository::new(&db));
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
     let exec = McpToolExecutor::new(tool_repo, intents(&db), art_repo, "srv-fail");
 
     let ctx = test_ctx();
@@ -181,8 +181,8 @@ async fn execute_handler_error_propagates() {
 #[tokio::test]
 async fn execute_input_parse_error_returns_invalid_params() {
     let db = test_db_pool().await;
-    let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
+    let tool_repo = Arc::new(ToolUsageRepository::new(&db));
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
     let exec = McpToolExecutor::new(tool_repo, intents(&db), art_repo, "srv-bad");
 
     let ctx = test_ctx();

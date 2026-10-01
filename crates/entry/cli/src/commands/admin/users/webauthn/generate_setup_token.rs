@@ -25,7 +25,7 @@ pub struct Args {
 
 pub(super) async fn execute(args: Args, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
-    let oauth_repo = OAuthRepository::new(app.db_pool())?;
+    let oauth_repo = OAuthRepository::new(app.db_pool());
 
     let users = app
         .user_provider()

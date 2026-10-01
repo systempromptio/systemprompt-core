@@ -6,7 +6,7 @@ use systemprompt_test_fixtures::test_db_pool;
 
 async fn repo() -> (systemprompt_database::DbPool, McpArtifactRepository) {
     let db = test_db_pool().await;
-    let repo = McpArtifactRepository::new(&db).expect("artifact repository");
+    let repo = McpArtifactRepository::new(&db);
     (db, repo)
 }
 

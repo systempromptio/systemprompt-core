@@ -39,8 +39,7 @@ async fn make_orchestrator() -> (LifecycleOrchestrator, McpServerConfig) {
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
         Arc::clone(&app_paths),
         registry,
     );

@@ -65,7 +65,7 @@ async fn seed_tool_execution(
     .bind(owner.user_id.as_str())
     .bind(task_id)
     .bind(Uuid::new_v4().to_string())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 }
@@ -79,7 +79,6 @@ async fn seed_context(pool: &DbPool) -> SeededContext {
         .await
         .unwrap();
     let context_id = ContextRepository::new(pool)
-        .unwrap()
         .create_context(
             &user_id,
             Some(&session_id),
@@ -111,7 +110,7 @@ async fn seed_agent_task(
     .bind(status)
     .bind(agent)
     .bind(owner.user_id.as_str())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 }

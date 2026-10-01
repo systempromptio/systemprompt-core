@@ -91,7 +91,7 @@ async fn seed_browser_flow() -> anyhow::Result<BrowserFlow> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query(
         "INSERT INTO users (id, name, email, roles) VALUES ($1, $1, $2, $3) ON CONFLICT DO NOTHING",
     )
@@ -105,7 +105,7 @@ async fn seed_browser_flow() -> anyhow::Result<BrowserFlow> {
     let client_id = ClientId::new(format!("browser-{}", Uuid::new_v4().simple()));
     let secret_hash =
         hash_client_secret(TEST_CLIENT_SECRET).map_err(|e| anyhow::anyhow!("hash: {e}"))?;
-    let client_repo = ClientRepository::new(&pool).map_err(|e| anyhow::anyhow!("repo: {e}"))?;
+    let client_repo = ClientRepository::new(&pool);
     client_repo
         .create(CreateClientParams {
             client_id: client_id.clone(),
@@ -129,7 +129,7 @@ async fn seed_browser_flow() -> anyhow::Result<BrowserFlow> {
         .await
         .map_err(|e| anyhow::anyhow!("create browser client: {e}"))?;
 
-    let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
+    let repo = OAuthRepository::new(&pool);
     let code = AuthorizationCode::new(format!("cbcode-{}", Uuid::new_v4().simple()));
     let pkce = pkce_pair();
     repo.store_authorization_code(AuthCodeParams {
@@ -150,7 +150,7 @@ async fn seed_browser_flow() -> anyhow::Result<BrowserFlow> {
 async fn seed_state_binding(state_token: &str, client_id: &ClientId) -> anyhow::Result<()> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
+    let repo = OAuthRepository::new(&pool);
     let redirect_uri = callback_redirect_uri();
     repo.store_state_binding(
         StateBindingParams::builder(state_token)

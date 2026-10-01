@@ -324,7 +324,7 @@ async fn profile_create_selects_the_owned_tenant_and_keeps_prompted_provider_sec
     assert!(secrets["gemini"].is_null());
 
     let pool = database.test_pool().await;
-    let raw = pool.pool_arc().expect("raw interactive database pool");
+    let raw = pool.pool();
     let migration_table: Option<String> =
         sqlx::query_scalar("SELECT to_regclass('public.extension_migrations')::text")
             .fetch_one(raw.as_ref())
@@ -335,7 +335,7 @@ async fn profile_create_selects_the_owned_tenant_and_keeps_prompted_provider_sec
         "declined migrations must not alter the database"
     );
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

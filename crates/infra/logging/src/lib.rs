@@ -18,6 +18,8 @@
 //! - [`init_logging`] / [`init_console_logging`] /
 //!   [`init_console_logging_with_level`] — install the global `tracing`
 //!   subscriber (with optional database sink).
+//! - [`shutdown_database_logging`] — flush the database sink's buffered and
+//!   queued entries and stop its writer task; awaited on server shutdown.
 //! - [`LoggingExtension`] — schema/extension registration via the `inventory`
 //!   framework.
 //! - [`LoggingRepository`], [`AnalyticsRepository`] — direct repository access.
@@ -36,7 +38,7 @@ pub mod services;
 pub use attribution::{LogAttributionUnset, install_log_attribution, platform_attribution};
 pub use extension::LoggingExtension;
 
-pub use layer::{DatabaseLayer, enqueue_background};
+pub use layer::{DatabaseLayer, LogWriterHandle, LogWriterShutdownError, enqueue_background};
 pub use models::{LogActor, LogEntry, LogFilter, LogLevel};
 pub use repository::{
     AnalyticsEvent, AnalyticsRepository, LoggingOwnerReassignment, LoggingRepository,
@@ -50,7 +52,7 @@ pub use services::{
     structured_was_emitted,
 };
 
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock, PoisonError};
 
 use layer::ProxyDatabaseLayer;
 use systemprompt_database::DbPool;
@@ -75,6 +77,7 @@ pub fn instance_id() -> Option<&'static InstanceId> {
     INSTANCE_ID.get()
 }
 static DB_PROXY: OnceLock<ProxyDatabaseLayer> = OnceLock::new();
+static DB_WRITER: Mutex<Option<LogWriterHandle>> = Mutex::new(None);
 
 const NOISE_FILTERS: &[&str] = &[
     "tokio_cron_scheduler=warn",
@@ -133,7 +136,20 @@ pub fn init_logging(db_pool: DbPool) {
     ensure_subscriber(None);
 
     let proxy = DB_PROXY.get_or_init(ProxyDatabaseLayer::new);
-    proxy.attach(db_pool);
+    if let Some(writer) = proxy.attach(db_pool) {
+        *DB_WRITER.lock().unwrap_or_else(PoisonError::into_inner) = Some(writer);
+    }
+}
+
+pub async fn shutdown_database_logging() -> Result<(), LogWriterShutdownError> {
+    let writer = DB_WRITER
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .take();
+    let Some(writer) = writer else {
+        return Ok(());
+    };
+    writer.shutdown().await
 }
 
 pub fn init_console_logging() {

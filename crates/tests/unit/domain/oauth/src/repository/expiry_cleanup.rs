@@ -9,7 +9,7 @@ async fn repo_and_pool() -> (OauthCleanupRepository, sqlx::PgPool) {
     let db = test_db_pool().await;
     let pg = db.write_pool();
     (
-        OauthCleanupRepository::new(&db).expect("cleanup repository"),
+        OauthCleanupRepository::new(&db),
         (*pg).clone(),
     )
 }
@@ -217,7 +217,7 @@ async fn delete_expired_id_jag_replays_removes_expired_rows() {
 async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
     let database = DisposableDb::with_schema("oauth_expiry_sweep").await;
     let db = database.test_pool().await;
-    let repo = OauthCleanupRepository::new(&db).expect("cleanup repository");
+    let repo = OauthCleanupRepository::new(&db);
     let pg = db.write_pool();
     let (user_id, client_id) = seed_user_and_client(&pg).await;
     let expired = Utc::now() - Duration::hours(1);

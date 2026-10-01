@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 
 fn checker(pool: &DbPool) -> JtiRevocationChecker {
-    JtiRevocationChecker::from_repository(OAuthRepository::new(pool).expect("oauth repository"))
+    JtiRevocationChecker::from_repository(OAuthRepository::new(pool))
 }
 
 fn jti() -> String {
@@ -26,7 +26,7 @@ fn jti() -> String {
 }
 
 async fn revoke(pool: &DbPool, jti: &str, minutes_from_now: i64) {
-    let p = pool.pool_arc().expect("write pool");
+    let p = pool.pool();
     sqlx::query(
         "INSERT INTO oauth_jti_revocations (jti, user_id, exp) VALUES ($1, $2, $3) \
          ON CONFLICT (jti) DO UPDATE SET exp = EXCLUDED.exp",
@@ -40,7 +40,7 @@ async fn revoke(pool: &DbPool, jti: &str, minutes_from_now: i64) {
 }
 
 async fn forget(pool: &DbPool, jti: &str) {
-    let p = pool.pool_arc().expect("write pool");
+    let p = pool.pool();
     sqlx::query("DELETE FROM oauth_jti_revocations WHERE jti = $1")
         .bind(jti)
         .execute(&*p)
@@ -165,7 +165,7 @@ async fn a_token_admitted_before_revocation_keeps_working_until_the_cache_ages_o
 async fn a_revocation_store_failure_rejects_the_token_without_disclosing_its_jti() {
     let pool = test_db_pool().await;
     let checker = checker(&pool);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     let private_jti = jti();
 
     let result = checker.ensure_not_revoked(&private_jti).await;

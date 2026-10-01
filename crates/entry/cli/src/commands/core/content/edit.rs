@@ -53,7 +53,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContentRepository::new(pool)?;
+    let repo = ContentRepository::new(pool);
 
     let candidates = if args.identifier.is_none() && config.is_interactive() {
         list_candidates(&repo, args.source.as_deref()).await?

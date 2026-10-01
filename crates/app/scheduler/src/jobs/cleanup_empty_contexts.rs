@@ -44,7 +44,7 @@ impl Job for CleanupEmptyContextsJob {
             .get_parameter_parsed::<i64>("retention_hours")?
             .unwrap_or(DEFAULT_RETENTION_HOURS);
 
-        let repository = SchedulerRepository::new(&db_pool)?;
+        let repository = SchedulerRepository::new(&db_pool);
         let deleted_count = if ctx.enforce() {
             repository.cleanup_empty_contexts(retention_hours).await?
         } else {

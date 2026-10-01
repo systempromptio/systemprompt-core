@@ -18,7 +18,7 @@ pub(super) async fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
 }
 
 pub(super) async fn execute_with_pool(pool: &DbPool, _config: &CliConfig) -> Result<CommandOutput> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)));
 
     let stats = user_service.get_stats().await?;
 

@@ -15,7 +15,7 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 async fn seed_content(pool: &DbPool, source: &SourceId) -> ContentId {
-    let repo = ContentRepository::new(pool).expect("repo");
+    let repo = ContentRepository::new(pool);
     let params = CreateContentParams::new(
         format!("an-src-{}", Uuid::new_v4()),
         "Analytics Source".to_owned(),
@@ -27,7 +27,7 @@ async fn seed_content(pool: &DbPool, source: &SourceId) -> ContentId {
 }
 
 async fn seed_link(pool: &DbPool, campaign: &CampaignId, content_id: Option<ContentId>) -> LinkId {
-    let svc = LinkGenerationService::new(LinkRepository::new(pool).expect("link repo"));
+    let svc = LinkGenerationService::new(LinkRepository::new(pool));
     let link = svc
         .generate_link(GenerateLinkParams {
             target_url: format!("https://example.com/{}", Uuid::new_v4()),
@@ -63,13 +63,12 @@ fn track_params(link_id: &LinkId, session: &SessionId) -> TrackClickParams {
 }
 
 async fn cleanup(pool: &DbPool, link_id: &LinkId, source: Option<&SourceId>) {
-    LinkGenerationService::new(LinkRepository::new(pool).expect("link repo"))
+    LinkGenerationService::new(LinkRepository::new(pool))
         .delete_link(link_id)
         .await
         .expect("delete link");
     if let Some(source) = source {
         ContentRepository::new(pool)
-            .expect("repo")
             .delete_by_source(source)
             .await
             .expect("cleanup content");
@@ -83,8 +82,8 @@ async fn track_click_first_then_repeat_updates_counters() {
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_id = seed_link(&pool, &campaign, None).await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     let session = SessionId::new(format!("sess-{}", Uuid::new_v4()));
@@ -133,8 +132,8 @@ async fn distinct_sessions_each_count_as_unique() {
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_id = seed_link(&pool, &campaign, None).await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     for _ in 0..3 {
@@ -163,8 +162,8 @@ async fn campaign_performance_aggregates_links() {
     let link_a = seed_link(&pool, &campaign, None).await;
     let link_b = seed_link(&pool, &campaign, None).await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     svc.track_click(&track_params(
@@ -208,8 +207,8 @@ async fn journey_map_and_source_content_listing() {
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_id = seed_link(&pool, &campaign, Some(content_id.clone())).await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     svc.track_click(&track_params(
@@ -245,8 +244,8 @@ async fn performance_for_missing_link_is_none() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     let missing = LinkId::new(format!("missing-{}", Uuid::new_v4()));

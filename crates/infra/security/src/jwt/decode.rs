@@ -1,15 +1,13 @@
 //! Bearer-token decode for request-context middleware.
 //!
 //! [`extract_user_context`] decodes via
-//! [`super::validate::decode_rs256_claims`]
-//! with [`ValidationPolicy::session_context`] (signature, RS256, `kid`, `exp`,
-//! `nbf` + leeway, first-party `aud`), then re-derives `user_type` from
-//! `scope` so a forged or mis-minted type claim cannot ride past the gate, and
-//! returns the subset of claims the request-context layer consumes
-//! ([`JwtUserContext`]). Issuer pinning is left to the stateful validators
-//! that hold deployment config ([`crate::AuthValidationService`]); this path
-//! instead binds the token to a live session and user row in the database
-//! after decode.
+//! [`super::validate::decode_session_claims`] with
+//! [`ValidationPolicy::session_context`] (signature, RS256, `kid`, `exp`,
+//! `nbf` + leeway, the deployment issuer, first-party `aud`, act-chain depth,
+//! `user_type` re-derived from `scope`) — the same checks the A2A
+//! [`crate::AuthValidationService`] applies — and returns the subset of claims
+//! the request-context layer consumes ([`JwtUserContext`]). The caller then
+//! binds the token to a live session and user row in the database.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +16,7 @@ use std::collections::BTreeMap;
 use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};
 use systemprompt_models::auth::{Permission, UserType};
 
-use super::validate::{ValidationPolicy, decode_rs256_claims};
+use super::validate::{ValidationPolicy, decode_session_claims};
 use crate::error::{AuthError, AuthResult};
 
 #[derive(Debug, Clone)]
@@ -35,18 +33,11 @@ pub struct JwtUserContext {
     pub exp: i64,
 }
 
-pub fn extract_user_context(token: &str) -> AuthResult<JwtUserContext> {
-    let claims = decode_rs256_claims(token, &ValidationPolicy::session_context())?;
+pub fn extract_user_context(token: &str, issuer: &str) -> AuthResult<JwtUserContext> {
+    let claims = decode_session_claims(token, &ValidationPolicy::session_context(issuer))?;
 
     let session_id = claims.session_id.ok_or(AuthError::MissingSessionId)?;
     let role = *claims.scope.first().ok_or(AuthError::MissingScope)?;
-    let derived_type = UserType::from_permissions(&claims.scope);
-    if derived_type != claims.user_type {
-        return Err(AuthError::UserTypeMismatch {
-            claimed: claims.user_type,
-            derived: derived_type,
-        });
-    }
     let act_chain = claims
         .act
         .as_ref()
@@ -57,7 +48,7 @@ pub fn extract_user_context(token: &str) -> AuthResult<JwtUserContext> {
         user_id: UserId::new(claims.sub),
         session_id,
         role,
-        user_type: derived_type,
+        user_type: claims.user_type,
         client_id: claims.client_id,
         act_chain,
         attributes: claims.attributes,

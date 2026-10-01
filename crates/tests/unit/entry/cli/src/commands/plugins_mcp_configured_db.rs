@@ -424,10 +424,7 @@ async fn validate_closed_database_helper() {
     let database = DisposableDb::with_schema("cli_mcp_validate_closed_database").await;
     let pool = database.test_pool().await;
     let app = test_app_context(&pool, database.url());
-    pool.pool_arc()
-        .expect("initialized SQLx pool")
-        .close()
-        .await;
+    pool.pool().close().await;
     println!("BEGIN_VALIDATE_CLOSED_DATABASE");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app))
         .await

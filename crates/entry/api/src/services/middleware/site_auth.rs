@@ -21,7 +21,12 @@ const STATIC_ASSET_EXTENSIONS: &[&str] = &[
     ".map", ".webp", ".avif",
 ];
 
-pub async fn site_auth_gate(request: Request, next: Next, config: SiteAuthConfig) -> Response {
+pub async fn site_auth_gate(
+    request: Request,
+    next: Next,
+    config: SiteAuthConfig,
+    issuer: &str,
+) -> Response {
     let path = request.uri().path();
 
     if path == config.login_path || path == format!("{}/", config.login_path) {
@@ -56,7 +61,7 @@ pub async fn site_auth_gate(request: Request, next: Next, config: SiteAuthConfig
         return next.run(request).await;
     }
 
-    match authorize(&request, &config) {
+    match authorize(&request, &config, issuer) {
         AuthOutcome::Authorized => next.run(request).await,
         outcome => {
             let redirect = login_redirect(config.login_path, request.uri());
@@ -77,7 +82,7 @@ enum AuthOutcome {
     Unauthorized,
 }
 
-fn authorize(request: &Request, config: &SiteAuthConfig) -> AuthOutcome {
+fn authorize(request: &Request, config: &SiteAuthConfig, issuer: &str) -> AuthOutcome {
     let path = request.uri().path();
     let Ok(token) = TokenExtractor::browser_only()
         .extract(request.headers())
@@ -94,7 +99,7 @@ fn authorize(request: &Request, config: &SiteAuthConfig) -> AuthOutcome {
     }) else {
         return AuthOutcome::Unauthorized;
     };
-    let Ok(user_ctx) = extract_user_context(&token)
+    let Ok(user_ctx) = extract_user_context(&token, issuer)
         .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed; clearing cookie"))
     else {
         return AuthOutcome::InvalidToken;

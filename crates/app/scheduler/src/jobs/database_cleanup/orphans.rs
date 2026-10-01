@@ -19,10 +19,8 @@ use systemprompt_users::UserRepository;
 use tracing::{info, warn};
 
 pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> ProviderResult<u64> {
-    let logs =
-        LoggingRepository::new(db_pool).map_err(|e| ProviderError::Configuration(e.to_string()))?;
-    let users =
-        UserRepository::new(db_pool).map_err(|e| ProviderError::Configuration(e.to_string()))?;
+    let logs = LoggingRepository::new(db_pool);
+    let users = UserRepository::new(db_pool);
     let internal =
         |e: systemprompt_logging::models::LoggingError| ProviderError::Internal(e.to_string());
     // Why: `logs` and `users` have different owners, so the orphan set is
@@ -53,8 +51,7 @@ pub(super) async fn fail_orphaned_requests(db_pool: &DbPool, enforce: bool) -> P
         info!("enforce disabled: orphaned pending AI requests were not failed");
         return Ok(());
     }
-    let requests = AiRequestRepository::new(db_pool)
-        .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+    let requests = AiRequestRepository::new(db_pool);
     let orphans = requests
         .fail_orphaned_pending(ORPHAN_AGE)
         .await

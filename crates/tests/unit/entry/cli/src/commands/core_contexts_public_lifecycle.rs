@@ -84,7 +84,7 @@ async fn public_context_lifecycle_helper() {
     seed_user_session(&pool, &user, &session_id)
         .await
         .expect("seed CLI session row");
-    let repository = ContextRepository::new(&pool).expect("context repository");
+    let repository = ContextRepository::new(&pool);
     let initial_context = repository
         .create_context(
             &user,
@@ -194,7 +194,7 @@ async fn public_context_lifecycle_helper() {
         "SELECT context_id, name FROM user_contexts WHERE user_id = $1 ORDER BY name",
     )
     .bind(user.as_str())
-    .fetch_all(pool.pool_arc().expect("private SQL pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("read durable contexts");
     let stored = SessionStore::load_or_create(&sessions_dir).expect("reload session store");
@@ -211,7 +211,7 @@ async fn public_context_lifecycle_helper() {
 
     drop(context);
     drop(repository);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

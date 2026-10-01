@@ -23,7 +23,7 @@ async fn bootstrap_lock_release_discards_a_terminated_session_and_a_fresh_guard_
     let guard = BootstrapLockGuard::acquire(&provider)
         .await
         .expect("acquire bootstrap lock on owned session");
-    let pool = db.pool_arc().expect("private read pool");
+    let pool = db.pool();
     let lock_pid: i32 = sqlx::query_scalar(
         "SELECT l.pid FROM pg_locks l \
          JOIN pg_database d ON d.oid=l.database \

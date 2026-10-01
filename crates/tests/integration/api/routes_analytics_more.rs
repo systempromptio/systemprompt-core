@@ -40,7 +40,7 @@ async fn seed_content(db: &DbPool) -> anyhow::Result<(String, String)> {
     let slug = format!("post-{uniq}");
     let source = format!("src-{uniq}");
     let id = format!("mc-{uniq}");
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query(
         "INSERT INTO markdown_content \
          (id, slug, title, description, body, author, published_at, keywords, source_id, \

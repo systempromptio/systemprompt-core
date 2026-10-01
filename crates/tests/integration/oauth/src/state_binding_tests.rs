@@ -13,7 +13,7 @@ fn unique_token() -> String {
 #[tokio::test]
 async fn roundtrip_consumes_once() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let token = unique_token();
     let client_id = ClientId::new("client_state_test");
 
@@ -47,7 +47,7 @@ async fn roundtrip_consumes_once() {
 #[tokio::test]
 async fn expired_row_rejected() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let token = unique_token();
     let client_id = ClientId::new("client_state_test_expired");
 
@@ -72,7 +72,7 @@ async fn expired_row_rejected() {
 #[tokio::test]
 async fn tampered_state_rejected() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let token = unique_token();
     let client_id = ClientId::new("client_state_test_tamper");
 
@@ -96,7 +96,7 @@ async fn tampered_state_rejected() {
 #[tokio::test]
 async fn cleanup_expired_removes_only_expired() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let live = unique_token();
     let dead = unique_token();
     let live_client_id = ClientId::new("cleanup_live");

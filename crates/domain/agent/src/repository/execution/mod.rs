@@ -26,14 +26,10 @@ pub struct ExecutionStepRepository {
 }
 
 impl ExecutionStepRepository {
-    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn get(&self, step_id: &StepId) -> Result<Option<ExecutionStep>, RepositoryError> {

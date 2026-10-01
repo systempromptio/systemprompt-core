@@ -10,7 +10,7 @@ use uuid::Uuid;
 async fn upsert_then_list_enabled() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
+    let repo = BridgeHostPrefsRepository::new(&pool);
     let user_id = unique_user_id("bhp");
     seed_user_row(
         &pool,
@@ -39,7 +39,7 @@ async fn upsert_then_list_enabled() {
 async fn upsert_toggles_enabled_flag() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
+    let repo = BridgeHostPrefsRepository::new(&pool);
     let user_id = unique_user_id("bhp");
     seed_user_row(
         &pool,
@@ -72,7 +72,7 @@ async fn upsert_toggles_enabled_flag() {
 async fn list_enabled_empty_for_unknown_user() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
+    let repo = BridgeHostPrefsRepository::new(&pool);
     let user_id = unique_user_id("bhp-unknown");
     let enabled = repo.list_enabled(&user_id).await.expect("list");
     assert!(enabled.is_empty());
@@ -82,7 +82,7 @@ async fn list_enabled_empty_for_unknown_user() {
 async fn model_protocols_set_load_and_clear() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
+    let repo = BridgeHostPrefsRepository::new(&pool);
     let user_id = unique_user_id("bhp-mp");
     seed_user_row(
         &pool,
@@ -133,7 +133,7 @@ async fn model_protocols_set_load_and_clear() {
 async fn model_protocols_do_not_perturb_enabled_state() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
+    let repo = BridgeHostPrefsRepository::new(&pool);
     let user_id = unique_user_id("bhp-iso");
     seed_user_row(
         &pool,

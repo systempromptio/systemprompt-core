@@ -50,7 +50,7 @@ async fn seed_file(pool: &DbPool, metadata: serde_json::Value) -> (String, Strin
     .bind(&path)
     .bind(&url)
     .bind(metadata)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
     (id.to_string(), path)

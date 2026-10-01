@@ -27,7 +27,7 @@ async fn source_registration_and_resource_binding_reject_conflicting_identity() 
     seed_user_row(&db, &owner, &format!("{owner}@managed.invalid"))
         .await
         .expect("owner");
-    let repository = ManagedRepository::new(&db).expect("repository");
+    let repository = ManagedRepository::new(&db);
 
     let source = repository
         .register_source(&owner, "catalog", &SourceSpec::Managed)
@@ -94,7 +94,7 @@ async fn revision_creation_rejects_invalid_lineage_and_dependency_digest() {
     seed_user_row(&db, &owner, &format!("{owner}@managed.invalid"))
         .await
         .expect("owner");
-    let repository = ManagedRepository::new(&db).expect("repository");
+    let repository = ManagedRepository::new(&db);
     let source = repository
         .register_source(&owner, "authoring", &SourceSpec::Managed)
         .await

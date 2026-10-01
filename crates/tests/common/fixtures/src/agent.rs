@@ -100,5 +100,5 @@ pub fn a2a_dependencies(pool: &DbPool) -> A2aDependencies {
 }
 
 pub fn a2a_repositories(pool: &DbPool) -> A2ARepositories {
-    A2ARepositories::new(pool, a2a_dependencies(pool)).expect("a2a repositories")
+    A2ARepositories::new(pool, a2a_dependencies(pool))
 }

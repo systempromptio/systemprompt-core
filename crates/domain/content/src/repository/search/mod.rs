@@ -7,7 +7,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::ContentError;
 use crate::models::SearchResult;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -20,9 +19,9 @@ pub struct SearchRepository {
 }
 
 impl SearchRepository {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        let pool = db.pool_arc().map_err(ContentError::Repository)?;
-        Ok(Self { pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        Self { pool }
     }
 
     pub async fn search_by_category(

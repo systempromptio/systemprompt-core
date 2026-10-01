@@ -55,7 +55,7 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
 
 async fn applied_migration_count(pool: &DbPool) -> i64 {
     sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM extension_migrations")
-        .fetch_one(pool.pool_arc().unwrap().as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("count applied migrations")
 }
@@ -251,7 +251,7 @@ async fn assign_admin_rejects_a_user_that_does_not_exist() {
 #[tokio::test]
 async fn assign_admin_promotes_a_real_user_and_is_idempotent() {
     let (pool, app) = app().await;
-    let raw = pool.pool_arc().unwrap().as_ref().clone();
+    let raw = pool.pool().as_ref().clone();
 
     let user_id = format!("promote_{}", uuid::Uuid::new_v4().simple());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
@@ -363,7 +363,7 @@ async fn the_size_report_ranks_the_largest_tables() {
     let table_count = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'",
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert!(

@@ -20,10 +20,7 @@ use systemprompt_security::authz::{
 use systemprompt_test_fixtures::{closed_db_pool, fixture_user_id};
 
 async fn pool() -> std::sync::Arc<sqlx::PgPool> {
-    closed_db_pool()
-        .await
-        .write_pool_arc()
-        .expect("closed pool still exposes a write handle")
+    closed_db_pool().await.write_pool()
 }
 
 fn fixture() -> AuthzRequest {

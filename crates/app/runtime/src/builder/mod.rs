@@ -162,7 +162,7 @@ impl AppContextBuilder {
 
         let subsystems = Subsystems {
             ai_service: ai_service::build_ai_service(&database, &repositories, &mcp_registry)?,
-            artifact_ingest: build_artifact_ingest(&database, &governance)?,
+            artifact_ingest: build_artifact_ingest(&database, &governance),
             system_admin,
             authz_hook,
             governance,
@@ -202,15 +202,14 @@ impl AppContextBuilder {
 fn build_artifact_ingest(
     database: &systemprompt_database::DbPool,
     governance: &systemprompt_security::policy::GovernanceEngine,
-) -> RuntimeResult<Arc<systemprompt_mcp::ArtifactIngest>> {
+) -> Arc<systemprompt_mcp::ArtifactIngest> {
     let ingest = systemprompt_mcp::ArtifactIngest::from_db(
         database,
         governance
             .secret_scanner()
             .map(|scanner| Arc::new(scanner.clone())),
-    )
-    .map_err(|e| crate::RuntimeError::Internal(format!("artifact ingest: {e}")))?;
-    Ok(Arc::new(ingest))
+    );
+    Arc::new(ingest)
 }
 
 async fn build_domain_layer(
@@ -227,10 +226,10 @@ async fn build_domain_layer(
         database,
         analytics_repositories,
         systemprompt_identifiers::InstanceId::new(&config.instance_id),
-    )?;
+    );
     let user_service = Arc::new(
         UserService::new(Arc::clone(&repositories.users))
-            .with_owner_reassignments(owner_reassignments(database)?),
+            .with_owner_reassignments(owner_reassignments(database)),
     );
     let system_admin = assembly::resolve_and_install_system_admin(config, &user_service).await?;
     repositories.install_organization_resolver(system_admin.id());

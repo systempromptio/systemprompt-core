@@ -223,7 +223,7 @@ async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()>
 
     // The completion audit is written after the response is handed back, so
     // the row settles a moment later.
-    let pg = pool.pool_arc()?;
+    let pg = pool.pool();
     let mut settled: Option<SettledAuditRow> = None;
     for _ in 0..100 {
         let row: Option<SettledAuditRow> = sqlx::query_as(
@@ -271,7 +271,7 @@ async fn the_tool_calls_are_persisted_against_the_request() -> Result<()> {
         super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
     assert_eq!(status.as_u16(), 200);
 
-    let pg = pool.pool_arc()?;
+    let pg = pool.pool();
     let mut recorded = None;
     for _ in 0..100 {
         let row: Option<(String, i32)> = sqlx::query_as(
@@ -452,7 +452,7 @@ mod streaming {
         // The tap finalises on stream EOF, so the body must be drained first.
         let _ = resp.into_body().collect().await?.to_bytes();
 
-        let pg = pool.pool_arc()?;
+        let pg = pool.pool();
         let mut settled = None;
         for _ in 0..100 {
             let row: Option<(String, bool, Option<i32>, Option<i32>)> = sqlx::query_as(

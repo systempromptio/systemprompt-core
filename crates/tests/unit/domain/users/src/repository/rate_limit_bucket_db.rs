@@ -11,7 +11,7 @@ use uuid::Uuid;
 async fn repo() -> (UserRateLimitBucketRepository, DbPool) {
     ensure_test_bootstrap();
     let db = test_db_pool().await;
-    let repo = UserRateLimitBucketRepository::new(&db).expect("repo");
+    let repo = UserRateLimitBucketRepository::new(&db);
     (repo, db)
 }
 
@@ -19,7 +19,7 @@ async fn repo() -> (UserRateLimitBucketRepository, DbPool) {
 // live rows of every test sharing the database. Tests remove their own rows
 // by user id instead and only ever prune windows that are days old.
 async fn cleanup(db: &DbPool, user: &UserId) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("DELETE FROM user_rate_limit_buckets WHERE user_id = $1")
         .bind(user.as_str())
         .execute(&*pg)

@@ -16,8 +16,6 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
-use crate::error::AgentError;
-
 #[derive(Debug, Clone)]
 pub struct ArtifactRepository {
     pool: Arc<PgPool>,
@@ -25,11 +23,9 @@ pub struct ArtifactRepository {
 }
 
 impl ArtifactRepository {
-    pub fn new(db: &DbPool) -> Result<Self, AgentError> {
-        let pool = db.pool_arc().map_err(|e| AgentError::Init(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| AgentError::Init(e.to_string()))?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 }

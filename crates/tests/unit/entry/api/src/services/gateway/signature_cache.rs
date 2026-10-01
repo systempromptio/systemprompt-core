@@ -31,16 +31,12 @@ struct Harness {
 impl Harness {
     async fn open() -> Self {
         let pool = test_db_pool().await;
-        let repository = Arc::new(AiThoughtSignatureRepository::new(&pool).expect("repository"));
+        let repository = Arc::new(AiThoughtSignatureRepository::new(&pool));
         let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
             .bind(user_id.as_str())
             .bind(format!("{}@signature.test", user_id.as_str()))
-            .execute(
-                pool.write_pool_arc()
-                    .expect("signature cache write pool")
-                    .as_ref(),
-            )
+            .execute(pool.write_pool().as_ref())
             .await
             .expect("seed signature cache user");
         Self {
@@ -59,7 +55,7 @@ impl Harness {
     }
 
     async fn expire_in_db(&self, conversation: &GatewayConversationId, tool_use_id: &str) {
-        let write = self.pool.write_pool_arc().unwrap();
+        let write = self.pool.write_pool();
         sqlx::query(
             "UPDATE ai_gateway_thought_signatures SET expires_at = NOW() - INTERVAL '1 hour' \
              WHERE conversation_id = $1 AND tool_use_id = $2",

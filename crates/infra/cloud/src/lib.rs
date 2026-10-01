@@ -56,6 +56,7 @@ pub mod error;
 pub mod logout;
 pub mod oauth;
 pub mod paths;
+mod private_dir;
 pub mod profile_authoring;
 pub mod secrets_env;
 pub mod tenants;

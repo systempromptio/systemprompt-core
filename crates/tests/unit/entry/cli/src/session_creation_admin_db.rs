@@ -35,7 +35,7 @@ async fn seed(pool: &DbPool, roles: &[&str], status: &str) -> (String, String) {
         .expect("seed user");
 
     if status != "active" {
-        let write = pool.write_pool_arc().expect("write pool");
+        let write = pool.write_pool();
         sqlx::query("UPDATE users SET status = $2 WHERE id = $1")
             .bind(&name)
             .bind(status)

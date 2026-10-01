@@ -14,11 +14,11 @@
 //! | 4 | `secrets.source: env` running locally | file, then environment |
 //! | 5 | `secrets.source: file` | file |
 //!
-//! Vault is fail-closed under every
-//! [`systemprompt_models::profile::SecretsValidationMode`]: a failed fetch
-//! aborts the boot instead of falling back to the environment,
+//! Every source is fail-closed: a secrets file or Vault fetch that fails is
+//! logged once and aborts the boot instead of falling back to the environment,
 //! because a fallback would start the process on whatever stale credentials the
-//! host happens to carry.
+//! host happens to carry. The profile's `secrets.validation` field is not
+//! consulted.
 //!
 //! A Vault token is never written into profile YAML — `${VAULT_TOKEN}`
 //! interpolation in `profile.yaml` is forbidden. The token comes from the
@@ -48,9 +48,7 @@ use super::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
 pub use io::load_secrets_from_path;
-pub use logging::{
-    build_loaded_secrets_message, log_secrets_issue, log_secrets_skip, log_secrets_warn,
-};
+pub use logging::build_loaded_secrets_message;
 pub use provider::{SecretsDocument, SecretsProvider};
 pub use resolve::{ResolvedSource, resolve_source};
 pub use vault::{VaultError, VaultKvProvider};

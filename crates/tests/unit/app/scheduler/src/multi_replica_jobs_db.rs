@@ -37,14 +37,14 @@ async fn thought_signature_cleanup_fails_without_a_db_pool_in_context() {
 async fn thought_signature_cleanup_drops_expired_rows_and_keeps_live_ones() {
     let pool = pool().await;
     let user_id = UserId::new(Uuid::new_v4().to_string());
-    let write = pool.write_pool_arc().expect("write pool");
+    let write = pool.write_pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
         .execute(write.as_ref())
         .await
         .expect("seed owner");
-    let repo = AiThoughtSignatureRepository::new(&pool).expect("repo");
+    let repo = AiThoughtSignatureRepository::new(&pool);
     let conv = GatewayConversationId::try_new(&format!(
         "ctx_{:016x}",
         u64::from(Uuid::new_v4().as_u128() as u32)

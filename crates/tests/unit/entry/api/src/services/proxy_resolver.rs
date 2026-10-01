@@ -26,7 +26,7 @@ fn unique_name(prefix: &str) -> String {
 }
 
 async fn seed_service(pool: &DbPool, name: &str, status: &str) {
-    let inner = pool.pool_arc().expect("write pool");
+    let inner = pool.pool();
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, status, port, pid)
          VALUES ('test-instance', $1, 'mcp_server', $2, 0, $3)
@@ -41,7 +41,7 @@ async fn seed_service(pool: &DbPool, name: &str, status: &str) {
 }
 
 async fn delete_service(pool: &DbPool, name: &str) {
-    let inner = pool.pool_arc().expect("write pool");
+    let inner = pool.pool();
     sqlx::query("DELETE FROM services WHERE name = $1")
         .bind(name)
         .execute(inner.as_ref())
@@ -207,9 +207,7 @@ async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error()
         let pool = pool.clone();
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-            if let Ok(inner) = pool.pool_arc() {
-                inner.close().await;
-            }
+            pool.pool().close().await;
         })
     };
 

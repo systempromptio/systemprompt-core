@@ -30,11 +30,11 @@ pub struct BridgeHostPrefsRepository {
 }
 
 impl BridgeHostPrefsRepository {
-    pub fn new(db: &DbPool) -> OauthResult<Self> {
-        Ok(Self {
-            pool: db.pool_arc()?,
-            write_pool: db.write_pool_arc()?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            pool: db.pool(),
+            write_pool: db.write_pool(),
+        }
     }
 
     pub async fn list_enabled(&self, user_id: &UserId) -> OauthResult<Vec<String>> {

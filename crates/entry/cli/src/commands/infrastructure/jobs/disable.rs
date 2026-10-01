@@ -32,7 +32,7 @@ pub(super) async fn execute(args: DisableArgs, ctx: &CommandContext) -> Result<C
     }
 
     let app = ctx.app_context().await?;
-    let repo = JobRepository::new(app.db_pool())?;
+    let repo = JobRepository::new(app.db_pool());
     repo.set_enabled(&args.job_name, false)
         .await
         .context("Failed to disable job")?;

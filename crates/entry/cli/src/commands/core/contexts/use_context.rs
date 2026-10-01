@@ -39,7 +39,7 @@ pub async fn execute_resolved(
     pool: &DbPool,
     sessions_dir: &Path,
 ) -> Result<CommandOutput> {
-    let repo = ContextRepository::new(pool)?;
+    let repo = ContextRepository::new(pool);
 
     let context_id = resolve_context(&args.context, &session_ctx.session.user_id, &repo).await?;
 

@@ -51,8 +51,8 @@ async fn payload_write_fault_rolls_back_the_entire_completion_settlement() {
     let pool = database.test_pool().await;
     let owner = user();
     let request_id = seed_request(&pool, &owner).await;
-    let repo = AiRequestRepository::new(&pool).expect("AI request repository");
-    let writer = pool.pool_arc().expect("private SQL pool");
+    let repo = AiRequestRepository::new(&pool);
+    let writer = pool.pool();
     sqlx::raw_sql(sqlx::AssertSqlSafe(
         "CREATE FUNCTION reject_settlement_payload() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'fixture payload persistence rejection'; END $$; \
@@ -126,13 +126,13 @@ async fn payload_write_fault_rolls_back_the_entire_completion_settlement() {
 
     drop(writer);
     drop(repo);
-    pool.pool_arc().expect("private SQL pool").close().await;
+    pool.pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
 
 async fn row(pool: &DbPool, id: &AiRequestId) -> (String, Option<i32>, i64, Option<String>) {
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let r = sqlx::query!(
         "SELECT status, tokens_used, cost_microdollars, error_message FROM ai_requests WHERE id = $1",
         id.as_str()
@@ -149,7 +149,7 @@ async fn row(pool: &DbPool, id: &AiRequestId) -> (String, Option<i32>, i64, Opti
 }
 
 async fn finish_reason(pool: &DbPool, id: &AiRequestId) -> Option<String> {
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     sqlx::query_scalar!(
         "SELECT finish_reason FROM ai_requests WHERE id = $1",
         id.as_str()
@@ -160,7 +160,7 @@ async fn finish_reason(pool: &DbPool, id: &AiRequestId) -> Option<String> {
 }
 
 async fn turn_counts(pool: &DbPool, id: &AiRequestId) -> (i64, i64) {
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let messages = sqlx::query_scalar!(
         r#"SELECT count(*) as "n!" FROM ai_request_messages WHERE request_id = $1 AND role = 'assistant'"#,
         id.as_str()
@@ -183,7 +183,7 @@ async fn a_completion_settles_usage_payload_and_turn_in_one_transaction() {
     let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
     let body = json!({"content": "hi"});
     let tools = vec![SettledToolCall {
         id: AiToolCallId::new("toolu_1"),
@@ -213,7 +213,7 @@ async fn replaying_the_same_completion_does_not_duplicate_the_turn() {
     let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
     let body = json!({"content": "hi"});
     let tools = vec![SettledToolCall {
         id: AiToolCallId::new("toolu_1"),
@@ -236,7 +236,7 @@ async fn a_different_terminal_response_is_rejected() {
     let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
     let body = json!({"content": "hi"});
 
     repo.settle(&id, &uid, completion(&body, "sha-a", &[]))
@@ -258,7 +258,7 @@ async fn another_owner_cannot_settle_the_request() {
     let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
 
     let err = repo
         .settle(
@@ -282,7 +282,7 @@ async fn another_owner_cannot_settle_the_request() {
 #[tokio::test]
 async fn a_missing_request_row_is_a_settlement_conflict_not_a_database_error() {
     let pool = bootstrapped_pool().await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
 
     let err = repo
         .settle(
@@ -307,7 +307,7 @@ async fn a_failure_never_overwrites_a_settled_completion() {
     let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
     let body = json!({"content": "hi"});
 
     repo.settle(&id, &uid, completion(&body, "sha-a", &[]))
@@ -335,7 +335,7 @@ async fn a_failure_marks_the_request_failed_with_its_reason() {
     let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
 
     repo.settle(
         &id,
@@ -363,8 +363,8 @@ async fn the_orphan_sweep_fails_only_pending_rows_older_than_the_bound() {
     let stale = seed_request(&pool, &uid).await;
     let fresh = seed_request(&pool, &uid).await;
     let settled = seed_request(&pool, &uid).await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
-    let write = pool.write_pool_arc().expect("write pool");
+    let repo = AiRequestRepository::new(&pool);
+    let write = pool.write_pool();
     sqlx::query!(
         "UPDATE ai_requests SET created_at = NOW() - INTERVAL '3 hours' WHERE id = ANY($1)",
         &[stale.as_str().to_owned(), settled.as_str().to_owned()]
@@ -432,7 +432,7 @@ async fn accounting_failure_preserves_paid_completion_across_identical_and_confl
     let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
-    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let repo = AiRequestRepository::new(&pool);
     let body = json!({"content":"native completed response"});
     repo.settle(
         &id,
@@ -488,7 +488,7 @@ async fn accounting_failure_preserves_paid_completion_across_identical_and_confl
     )
     .await
     .expect("generic failure retry remains harmless");
-    let read = pool.pool_arc().expect("pool");
+    let read = pool.pool();
     let stored=sqlx::query!("SELECT status,input_tokens,output_tokens,cost_microdollars,accounting_error,accounting_failed_at,error_message FROM ai_requests WHERE id=$1",id.as_str()).fetch_one(read.as_ref()).await.expect("stored projection");
     assert_eq!(stored.status, "failed");
     assert_eq!(stored.input_tokens, Some(11));

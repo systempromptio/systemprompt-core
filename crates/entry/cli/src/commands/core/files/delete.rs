@@ -48,7 +48,7 @@ pub async fn execute_with_pool(
 ) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
 
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     let file = service
         .find_by_id(&file_id)

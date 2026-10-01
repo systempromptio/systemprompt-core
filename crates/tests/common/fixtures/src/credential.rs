@@ -31,9 +31,7 @@ pub struct AuthedFixture {
 }
 
 pub async fn seed_user_row(pool: &DbPool, user_id: &UserId, email: &str) -> Result<()> {
-    let p = pool
-        .pool_arc()
-        .map_err(|e| anyhow::anyhow!("read pool: {e}"))?;
+    let p = pool.pool();
     let uid = user_id.as_str();
     sqlx::query!(
         "INSERT INTO users (id, name, email) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
@@ -53,9 +51,7 @@ pub async fn seed_user_row_with_roles(
     email: &str,
     roles: &[String],
 ) -> Result<()> {
-    let p = pool
-        .pool_arc()
-        .map_err(|e| anyhow::anyhow!("read pool: {e}"))?;
+    let p = pool.pool();
     let uid = user_id.as_str();
     sqlx::query!(
         "INSERT INTO users (id, name, email, roles) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
@@ -75,9 +71,7 @@ pub async fn seed_user_session(
     user_id: &UserId,
     session_id: &SessionId,
 ) -> Result<()> {
-    let p = pool
-        .pool_arc()
-        .map_err(|e| anyhow::anyhow!("read pool: {e}"))?;
+    let p = pool.pool();
     sqlx::query!(
         "INSERT INTO user_sessions (session_id, user_id, session_source) VALUES ($1, $2, \
          'bridge') ON CONFLICT (session_id) DO UPDATE SET user_id = EXCLUDED.user_id, revoked_at \
@@ -148,7 +142,7 @@ pub async fn seed_admin_credential(pool: &DbPool, email_base: &str) -> Result<Au
         &user_id,
         &session_id,
         &email,
-        "test-admin",
+        crate::app_context::FIXTURE_JWT_ISSUER,
         UserType::Admin,
         vec![Permission::Admin],
         vec!["admin".to_owned(), "user".to_owned()],
@@ -172,7 +166,7 @@ pub async fn seed_bridge_credential(pool: &DbPool, email_base: &str) -> Result<A
         &user_id,
         &session_id,
         &email,
-        "test-bridge",
+        crate::app_context::FIXTURE_JWT_ISSUER,
         UserType::User,
         vec![Permission::User],
         vec!["user".to_owned()],

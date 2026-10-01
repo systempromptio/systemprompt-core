@@ -95,14 +95,14 @@ impl JobExecutionService {
         ctx: Arc<AppContext>,
         registry: ExtensionRegistry,
         scheduler_config: SchedulerConfig,
-    ) -> SchedulerResult<Self> {
-        let job_repo = JobRepository::new(ctx.db_pool())?;
-        Ok(Self {
+    ) -> Self {
+        let job_repo = JobRepository::new(ctx.db_pool());
+        Self {
             ctx,
             registry,
             scheduler_config,
             job_repo,
-        })
+        }
     }
 
     pub fn resolve_job_names(&self, selection: &JobSelection) -> SchedulerResult<Vec<String>> {

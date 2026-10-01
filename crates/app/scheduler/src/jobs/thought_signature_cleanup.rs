@@ -38,7 +38,6 @@ impl Job for ThoughtSignatureCleanupJob {
         );
 
         let deleted = AiThoughtSignatureRepository::new(&db_pool)
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?
             .cleanup_expired()
             .await
             .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;

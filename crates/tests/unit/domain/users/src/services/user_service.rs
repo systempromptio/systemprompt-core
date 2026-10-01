@@ -13,9 +13,7 @@ struct Ctx {
 async fn setup() -> Ctx {
     let fixture = crate::privacy_fixture::PrivacyFixture::new().await;
     let pool = fixture.pool.clone();
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     Ctx { service, fixture }
 }
 

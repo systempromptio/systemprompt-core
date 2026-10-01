@@ -18,7 +18,7 @@ fn unique_table() -> String {
 
 async fn shared_write_pool() -> Arc<sqlx::PgPool> {
     let db = test_pool().await;
-    db.write_pool_arc().expect("write pool")
+    db.write_pool()
 }
 
 async fn create_fixture_table(pool: &sqlx::PgPool, table: &str) {
@@ -151,7 +151,7 @@ async fn database_info_lists_tables_with_rows_and_sizes_in_isolated_db() {
 
 async fn run_info_assertions(iso_url: &str) -> anyhow::Result<()> {
     let db = Database::new_postgres(iso_url).await?;
-    let pg = db.write_pool_arc()?;
+    let pg = db.write_pool();
     sqlx::query("CREATE TABLE info_probe (id BIGINT PRIMARY KEY)")
         .execute(&*pg)
         .await?;

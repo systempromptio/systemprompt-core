@@ -26,9 +26,9 @@ struct Ctx {
 async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
-    let cleanup = OauthCleanupRepository::new(&pool).expect("cleanup repo");
-    let write = pool.write_pool_arc().expect("write pool");
+    let repo = OAuthRepository::new(&pool);
+    let cleanup = OauthCleanupRepository::new(&pool);
+    let write = pool.write_pool();
     let user_id = unique_user_id(prefix);
     seed_user_row(&pool, &user_id, &format!("{}@wa.invalid", user_id.as_str()))
         .await

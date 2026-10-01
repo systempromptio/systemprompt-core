@@ -32,14 +32,14 @@ pub struct FingerprintRepository {
 }
 
 impl FingerprintRepository {
-    pub fn new(db: &DbPool, sessions: systemprompt_traits::DynSessionStore) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self {
+    pub fn new(db: &DbPool, sessions: systemprompt_traits::DynSessionStore) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self {
             pool,
             write_pool,
             sessions,
-        })
+        }
     }
 }
 

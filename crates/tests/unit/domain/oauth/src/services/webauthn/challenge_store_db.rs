@@ -102,7 +102,7 @@ struct Ctx {
 async fn setup() -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let repo = OAuthRepository::new(&pool);
     let user_id = unique_user_id("wa-store");
     let email = format!("{}@wastore.invalid", user_id.as_str());
     seed_user_row(&pool, &user_id, &email)
@@ -111,9 +111,9 @@ async fn setup() -> Ctx {
     let build = || {
         WebAuthnService::with_config(
             test_config(),
-            OAuthRepository::new(&pool).expect("repo"),
+            OAuthRepository::new(&pool),
             Arc::new(SeededUserProvider {
-                users: UserService::new(Arc::new(UserRepository::new(&pool).expect("user repo"))),
+                users: UserService::new(Arc::new(UserRepository::new(&pool))),
             }),
         )
         .expect("svc")
@@ -571,7 +571,7 @@ async fn concurrent_reservations_converge_on_one_challenge() {
 
     let mut tasks = tokio::task::JoinSet::new();
     for _ in 0..8 {
-        let repo = OAuthRepository::new(&ctx.pool).expect("repo");
+        let repo = OAuthRepository::new(&ctx.pool);
         let user_id = ctx.user_id.clone();
         let token = token.clone();
         let mints = Arc::clone(&mints);

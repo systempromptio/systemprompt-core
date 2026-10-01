@@ -252,7 +252,7 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
 
     let user_id = UserId::new(format!("dcr-defaults-{}", Uuid::new_v4()));
     {
-        let p = pool.pool_arc().expect("read pool");
+        let p = pool.pool();
         sqlx::query(
             "INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING",
         )
@@ -318,7 +318,7 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
 
     let user_id = UserId::new(format!("dcr-apptype-{}", Uuid::new_v4()));
     {
-        let p = pool.pool_arc().expect("read pool");
+        let p = pool.pool();
         sqlx::query(
             "INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING",
         )
@@ -409,7 +409,7 @@ async fn dcr_app() -> anyhow::Result<Router> {
     ensure_config();
     let (pool, ctx) = setup_ctx().await?;
     let user_id = UserId::new(format!("dcr-scope-{}", Uuid::new_v4()));
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user_id.as_str())
         .bind(format!("{}@dcr-fixture.invalid", user_id.as_str()))

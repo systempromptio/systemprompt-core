@@ -24,14 +24,14 @@ fn create_test_file_request(suffix: &str) -> InsertFileRequest {
 async fn test_file_repository_new() {
     let db = test_db_pool().await;
 
-    drop(FileRepository::new(&db).expect("Should create FileRepository successfully"));
+    drop(FileRepository::new(&db));
 }
 
 #[tokio::test]
 async fn test_file_repository_insert_success() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let request = create_test_file_request("insert_success");
 
     let inserted = repo.insert(request.clone()).await.expect("insert file");
@@ -58,7 +58,7 @@ async fn test_file_repository_insert_success() {
 async fn test_file_repository_insert_with_user_id() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let request =
         create_test_file_request("with_user_id").with_user_id(UserId::new("user_test_123"));
 
@@ -83,7 +83,7 @@ async fn test_file_repository_insert_with_user_id() {
 async fn test_file_repository_insert_with_ai_content() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let request = create_test_file_request("ai_content").with_ai_content(true);
 
     let inserted = repo.insert(request.clone()).await.expect("insert file");
@@ -103,7 +103,7 @@ async fn test_file_repository_insert_with_ai_content() {
 async fn test_file_repository_insert_upsert_on_conflict() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
 
     let unique_path = format!("/storage/test/upsert_{}.png", uuid::Uuid::new_v4());
     let file_id1 = FileId::new(uuid::Uuid::new_v4().to_string());
@@ -155,7 +155,7 @@ async fn test_file_repository_insert_upsert_on_conflict() {
 async fn test_file_repository_find_by_id_exists() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let request = create_test_file_request("find_by_id");
 
     repo.insert(request.clone())
@@ -183,7 +183,7 @@ async fn test_file_repository_find_by_id_exists() {
 async fn test_file_repository_find_by_id_not_exists() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let fake_id = FileId::new(uuid::Uuid::new_v4().to_string());
 
     let file = repo
@@ -197,7 +197,7 @@ async fn test_file_repository_find_by_id_not_exists() {
 async fn test_file_repository_find_by_id_invalid_uuid() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let invalid_id = FileId::new("not-a-valid-uuid");
 
     let result = repo.find_by_id(&invalid_id).await;
@@ -208,7 +208,7 @@ async fn test_file_repository_find_by_id_invalid_uuid() {
 async fn test_file_repository_find_by_path_exists() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let unique_path = format!("/storage/test/find_path_{}.png", uuid::Uuid::new_v4());
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
 
@@ -235,7 +235,7 @@ async fn test_file_repository_find_by_path_exists() {
 async fn test_file_repository_find_by_path_not_exists() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
 
     let file = repo
         .find_by_path("/nonexistent/path/file.png")
@@ -248,7 +248,7 @@ async fn test_file_repository_find_by_path_not_exists() {
 async fn test_file_repository_list_by_user() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let user_id = UserId::new(format!("user_list_test_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 
@@ -289,7 +289,7 @@ async fn test_file_repository_list_by_user() {
 async fn test_file_repository_list_by_user_with_pagination() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let user_id = UserId::new(format!("user_page_test_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 
@@ -348,7 +348,7 @@ async fn test_file_repository_list_by_user_with_pagination() {
 async fn test_file_repository_list_all() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
 
     let files = repo
         .list_all(100, 0)
@@ -361,7 +361,7 @@ async fn test_file_repository_list_all() {
 async fn test_file_repository_delete() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let request = create_test_file_request("delete");
 
     repo.insert(request.clone())
@@ -389,7 +389,7 @@ async fn test_file_repository_delete() {
 async fn test_file_repository_update_metadata() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let request = create_test_file_request("update_meta");
 
     repo.insert(request.clone())
@@ -424,7 +424,7 @@ async fn test_file_repository_update_metadata() {
 async fn test_file_repository_insert_file() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let now = Utc::now();
     let file_id = uuid::Uuid::new_v4();
 
@@ -435,7 +435,7 @@ async fn test_file_repository_insert_file() {
         mime_type: "image/png".to_string(),
         size_bytes: Some(2048),
         ai_content: true,
-        metadata: systemprompt_database::Json(FileMetadata::default()),
+        metadata: sqlx::types::Json(FileMetadata::default()),
         user_id: Some(UserId::new("user_insert_file")),
         session_id: None,
         trace_id: None,
@@ -474,7 +474,7 @@ async fn test_file_repository_insert_file() {
 async fn test_file_repository_list_ai_images() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
 
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
     let request = InsertFileRequest::new(
@@ -515,7 +515,7 @@ async fn test_file_repository_list_ai_images() {
 async fn test_file_repository_list_ai_images_by_user() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let user_id = UserId::new(format!("user_ai_{}", uuid::Uuid::new_v4()));
 
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
@@ -558,7 +558,7 @@ async fn test_file_repository_list_ai_images_by_user() {
 async fn test_file_repository_count_ai_images_by_user() {
     let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let user_id = UserId::new(format!("user_count_ai_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 

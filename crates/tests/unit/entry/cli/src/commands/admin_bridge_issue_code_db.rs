@@ -68,7 +68,7 @@ struct Issued {
 }
 
 async fn codes_for(pool: &DbPool, user: &str) -> Vec<Issued> {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query_as::<_, (String, DateTime<Utc>, Option<DateTime<Utc>>)>(
         "SELECT code_hash, expires_at, consumed_at FROM bridge_exchange_codes \
          WHERE user_id = $1 ORDER BY created_at",
@@ -227,7 +227,7 @@ mod enroll_cert {
     }
 
     async fn certs_for(pool: &DbPool, user: &str) -> Vec<Enrolled> {
-        let p = pool.pool_arc().expect("read pool");
+        let p = pool.pool();
         sqlx::query_as::<_, (String, String, Option<DateTime<Utc>>)>(
             "SELECT fingerprint, label, revoked_at FROM user_device_certs \
              WHERE user_id = $1 ORDER BY enrolled_at",

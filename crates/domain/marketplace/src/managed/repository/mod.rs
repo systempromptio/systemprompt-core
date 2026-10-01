@@ -28,10 +28,10 @@ pub struct ManagedRepository {
 impl ManagedRepository {
     pub const PAGE_SIZE: i64 = 50;
 
-    pub fn new(db: &systemprompt_database::DbPool) -> crate::managed::Result<Self> {
-        Ok(Self {
-            pool: db.write_pool_arc()?.as_ref().clone(),
-        })
+    pub fn new(db: &systemprompt_database::DbPool) -> Self {
+        Self {
+            pool: db.write_pool().as_ref().clone(),
+        }
     }
 }
 

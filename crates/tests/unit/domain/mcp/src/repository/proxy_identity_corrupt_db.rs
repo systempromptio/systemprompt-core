@@ -17,7 +17,7 @@ use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
 async fn pool() -> (DbPool, Arc<PgPool>) {
     ensure_test_secrets_bootstrap();
     let db = test_db_pool().await;
-    let write = db.write_pool_arc().expect("write pool");
+    let write = db.write_pool();
     (db, write)
 }
 
@@ -71,7 +71,7 @@ async fn row_count(write: &PgPool, id: &SessionId) -> i64 {
 #[tokio::test]
 async fn find_rejects_a_row_whose_user_type_is_not_a_known_variant() {
     let (db, write) = pool().await;
-    let repo = McpProxyIdentityRepository::new(&db).expect("repo");
+    let repo = McpProxyIdentityRepository::new(&db);
     let id = session("pid-badtype");
     insert_raw(&write, &id, "sovereign", serde_json::json!([]), "1 hour").await;
 
@@ -90,7 +90,7 @@ async fn find_rejects_a_row_whose_user_type_is_not_a_known_variant() {
 #[tokio::test]
 async fn find_rejects_a_row_whose_permissions_are_not_a_permission_list() {
     let (db, write) = pool().await;
-    let repo = McpProxyIdentityRepository::new(&db).expect("repo");
+    let repo = McpProxyIdentityRepository::new(&db);
     let id = session("pid-badperms");
     insert_raw(
         &write,
@@ -112,7 +112,7 @@ async fn find_rejects_a_row_whose_permissions_are_not_a_permission_list() {
 #[tokio::test]
 async fn delete_removes_the_row_even_once_it_has_expired() {
     let (db, write) = pool().await;
-    let repo = McpProxyIdentityRepository::new(&db).expect("repo");
+    let repo = McpProxyIdentityRepository::new(&db);
     let id = session("pid-delexp");
     insert_raw(&write, &id, "admin", serde_json::json!([]), "-1 hour").await;
     assert_eq!(row_count(&write, &id).await, 1);
@@ -129,7 +129,7 @@ async fn delete_removes_the_row_even_once_it_has_expired() {
 #[tokio::test]
 async fn cleanup_expired_physically_removes_expired_rows_and_spares_live_ones() {
     let (db, write) = pool().await;
-    let repo = McpProxyIdentityRepository::new(&db).expect("repo");
+    let repo = McpProxyIdentityRepository::new(&db);
     let live = session("pid-cl-live");
     let stale = session("pid-cl-stale");
     insert_raw(&write, &live, "admin", serde_json::json!([]), "1 hour").await;
@@ -150,7 +150,7 @@ async fn cleanup_expired_physically_removes_expired_rows_and_spares_live_ones() 
 #[tokio::test]
 async fn find_drops_a_row_whose_token_does_not_open() {
     let (db, write) = pool().await;
-    let repo = McpProxyIdentityRepository::new(&db).expect("repo");
+    let repo = McpProxyIdentityRepository::new(&db);
     let id = session("pid-cleartoken");
     insert_raw_token(
         &write,

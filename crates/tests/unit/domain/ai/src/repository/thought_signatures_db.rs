@@ -20,7 +20,7 @@ fn conversation() -> GatewayConversationId {
 }
 
 async fn expire(pool: &DbPool, conversation: &GatewayConversationId, tool_use_id: &str) {
-    let write = pool.write_pool_arc().unwrap();
+    let write = pool.write_pool();
     sqlx::query(
         "UPDATE ai_gateway_thought_signatures SET expires_at = NOW() - INTERVAL '1 hour' \
          WHERE conversation_id = $1 AND tool_use_id = $2",
@@ -39,10 +39,10 @@ async fn upsert_then_find_returns_the_signature() {
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
-        .execute(pool.write_pool_arc().unwrap().as_ref())
+        .execute(pool.write_pool().as_ref())
         .await
         .unwrap();
-    let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
+    let repo = AiThoughtSignatureRepository::new(&pool);
     let conv = conversation();
 
     repo.upsert(&ThoughtSignatureWrite {
@@ -71,10 +71,10 @@ async fn upsert_overwrites_an_existing_signature() {
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
-        .execute(pool.write_pool_arc().unwrap().as_ref())
+        .execute(pool.write_pool().as_ref())
         .await
         .unwrap();
-    let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
+    let repo = AiThoughtSignatureRepository::new(&pool);
     let conv = conversation();
 
     repo.upsert(&ThoughtSignatureWrite {
@@ -112,10 +112,10 @@ async fn find_is_scoped_to_the_conversation() {
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
-        .execute(pool.write_pool_arc().unwrap().as_ref())
+        .execute(pool.write_pool().as_ref())
         .await
         .unwrap();
-    let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
+    let repo = AiThoughtSignatureRepository::new(&pool);
     let conv = conversation();
     let other = conversation();
 
@@ -144,10 +144,10 @@ async fn expired_signature_is_not_found() {
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
-        .execute(pool.write_pool_arc().unwrap().as_ref())
+        .execute(pool.write_pool().as_ref())
         .await
         .unwrap();
-    let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
+    let repo = AiThoughtSignatureRepository::new(&pool);
     let conv = conversation();
 
     repo.upsert(&ThoughtSignatureWrite {
@@ -176,10 +176,10 @@ async fn find_extends_the_expiry() {
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
-        .execute(pool.write_pool_arc().unwrap().as_ref())
+        .execute(pool.write_pool().as_ref())
         .await
         .unwrap();
-    let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
+    let repo = AiThoughtSignatureRepository::new(&pool);
     let conv = conversation();
 
     repo.upsert(&ThoughtSignatureWrite {
@@ -198,7 +198,7 @@ async fn find_extends_the_expiry() {
             .is_some()
     );
 
-    let write = pool.write_pool_arc().unwrap();
+    let write = pool.write_pool();
     let remaining: f64 = sqlx::query_scalar(
         "SELECT EXTRACT(EPOCH FROM (expires_at - NOW()))::FLOAT8 \
          FROM ai_gateway_thought_signatures WHERE conversation_id = $1 AND tool_use_id = $2",
@@ -221,10 +221,10 @@ async fn cleanup_expired_removes_only_expired_rows() {
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
-        .execute(pool.write_pool_arc().unwrap().as_ref())
+        .execute(pool.write_pool().as_ref())
         .await
         .unwrap();
-    let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
+    let repo = AiThoughtSignatureRepository::new(&pool);
     let conv = conversation();
 
     repo.upsert(&ThoughtSignatureWrite {

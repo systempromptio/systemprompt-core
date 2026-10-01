@@ -81,7 +81,7 @@ async fn populated_stop_helper() {
         .expect("stop selected populated service groups");
     println!("END_STOP_ARTIFACT");
 
-    let raw = pool.pool_arc().expect("private SQL pool");
+    let raw = pool.pool();
     let states: Vec<(String, String)> =
         sqlx::query_as("SELECT name, status FROM services WHERE name = ANY($1) ORDER BY name")
             .bind(vec![
@@ -100,7 +100,7 @@ async fn populated_stop_helper() {
     drop(raw);
     drop(ctx);
     drop(repository);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

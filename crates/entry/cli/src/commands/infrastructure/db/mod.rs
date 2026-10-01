@@ -125,9 +125,7 @@ async fn connect_services(
         .db_pool()
         .await
         .context("Failed to connect to database. Check your profile configuration.")?;
-    let write_pool = pool
-        .write_pool_arc()
-        .context("Database must be PostgreSQL")?;
+    let write_pool = pool.write_pool();
     let admin_service = DatabaseAdminService::new(Arc::clone(&write_pool));
     let query_executor = QueryExecutor::new(write_pool);
     Ok((pool, admin_service, query_executor))

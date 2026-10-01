@@ -7,15 +7,14 @@ use crate::services::proxy::ProxyEngine;
 use axum::Router;
 use axum::extract::Path;
 use axum::routing::any;
-use systemprompt_mcp::McpDomainError;
 use systemprompt_runtime::AppContext;
 
-pub fn router(ctx: &AppContext) -> Result<Router, McpDomainError> {
-    let identities = crate::repository::proxy_identities(ctx.db_pool())?;
+pub fn router(ctx: &AppContext) -> Router {
+    let identities = crate::repository::proxy_identities(ctx.db_pool());
     let engine = ProxyEngine::new(identities);
     let engine_with_path = engine.clone();
 
-    Ok(Router::new()
+    Router::new()
         .route(
             "/{service_name}",
             any(move |Path(service_name): Path<String>, state, request| {
@@ -44,5 +43,5 @@ pub fn router(ctx: &AppContext) -> Result<Router, McpDomainError> {
                 },
             ),
         )
-        .with_state(ctx.clone()))
+        .with_state(ctx.clone())
 }

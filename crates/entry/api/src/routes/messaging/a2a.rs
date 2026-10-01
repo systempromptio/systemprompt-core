@@ -147,8 +147,7 @@ pub(super) async fn run_agent(
         path: "",
         kind: ProxyKind::Agent,
     };
-    let identities = crate::repository::proxy_identities(ctx.db_pool())
-        .map_err(|e| MessagingError::Dispatch(e.to_string()))?;
+    let identities = crate::repository::proxy_identities(ctx.db_pool());
     let response = ProxyEngine::new(identities)
         .proxy_request(target, request, ctx.clone())
         .await

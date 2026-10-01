@@ -17,7 +17,7 @@ async fn user_uuid(db: &systemprompt_database::DbPool) -> Uuid {
 #[tokio::test]
 async fn revoked_token_visible_to_is_jti_revoked() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let jti = unique_jti();
     let user = user_uuid(&db).await;
 
@@ -39,7 +39,7 @@ async fn revoked_token_visible_to_is_jti_revoked() {
 #[tokio::test]
 async fn expired_revocation_row_treated_as_not_revoked() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let jti = unique_jti();
     let user = user_uuid(&db).await;
 
@@ -56,7 +56,7 @@ async fn expired_revocation_row_treated_as_not_revoked() {
 #[tokio::test]
 async fn revoke_is_idempotent() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let jti = unique_jti();
     let user = user_uuid(&db).await;
     let exp = Utc::now() + Duration::hours(1);
@@ -70,7 +70,7 @@ async fn revoke_is_idempotent() {
 #[tokio::test]
 async fn cleanup_expired_drops_only_expired_rows() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let live_jti = unique_jti();
     let dead_jti = unique_jti();
     let user = user_uuid(&db).await;
@@ -95,7 +95,7 @@ async fn cleanup_expired_drops_only_expired_rows() {
 #[tokio::test]
 async fn revoke_jtis_for_user_bulk() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let user = user_uuid(&db).await;
     let jtis: Vec<String> = (0..3).map(|_| unique_jti()).collect();
     let exp = Utc::now() + Duration::hours(1);

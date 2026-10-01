@@ -43,7 +43,7 @@ async fn upload_service_new_and_is_enabled() {
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
 
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );
@@ -63,7 +63,7 @@ async fn upload_service_uploads_png_successfully() {
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );
@@ -91,7 +91,7 @@ async fn upload_service_rejects_blocked_mime_type() {
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );
@@ -113,7 +113,7 @@ async fn upload_service_rejects_oversized_base64() {
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );
@@ -131,7 +131,7 @@ async fn upload_service_rejects_unknown_mime_type() {
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );

@@ -33,7 +33,7 @@ fn contains(out: &CommandOutput, needle: &str) -> bool {
 }
 
 async fn seed_content(pool: &DbPool) -> ContentId {
-    let repo = ContentRepository::new(pool).unwrap();
+    let repo = ContentRepository::new(pool);
     let slug = format!("cf-{}", Uuid::new_v4().simple());
     let params = CreateContentParams::new(
         slug.clone(),
@@ -57,7 +57,7 @@ async fn seed_file(pool: &DbPool) -> String {
     .bind(id)
     .bind(&path)
     .bind(&url)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
     id.to_string()
@@ -73,7 +73,7 @@ fn link_args(file: &str, content: &ContentId, role: link::FileRoleArg) -> link::
 }
 
 async fn linked_roles(pool: &DbPool, file: &str) -> Vec<FileRole> {
-    let repo = FileRepository::new(pool).unwrap();
+    let repo = FileRepository::new(pool);
     repo.list_content_by_file(&FileId::new(file.to_owned()))
         .await
         .unwrap()

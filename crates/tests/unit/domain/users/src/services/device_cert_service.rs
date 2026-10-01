@@ -19,10 +19,8 @@ struct Ctx {
 async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let service = DeviceCertService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
-    let repo = UserRepository::new(&pool).expect("repo");
+    let service = DeviceCertService::new(Arc::new(UserRepository::new(&pool)));
+    let repo = UserRepository::new(&pool);
     let user_id = unique_user_id(prefix);
     seed_user_row(
         &pool,

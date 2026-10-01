@@ -42,7 +42,7 @@ pub async fn setup_db() -> DbPool {
 }
 
 pub async fn seed_user(db: &DbPool) -> UserId {
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let unique = Uuid::new_v4().simple().to_string();
     let id = format!("gw-audit-user-{unique}");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")

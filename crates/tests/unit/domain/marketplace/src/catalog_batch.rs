@@ -241,7 +241,7 @@ async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored
     )
     .await
     .expect("seed catalog owner");
-    let repository = ManagedRepository::new(&pool).expect("managed repository");
+    let repository = ManagedRepository::new(&pool);
     let source = repository
         .register_source(&owner, "catalog-authoring", &SourceSpec::Managed)
         .await
@@ -330,7 +330,7 @@ async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored
     let corrupt_digest = digest_for(&published[0].0);
     let healthy_digest = digest_for(&published[1].0);
     assert_ne!(corrupt_digest, healthy_digest);
-    let raw = pool.write_pool_arc().expect("managed write pool");
+    let raw = pool.write_pool();
     sqlx::query(
         "UPDATE managed_publication_selections SET bundle_digest=$1 \
          WHERE owner_id=$2 AND resource_id=$3",
@@ -407,7 +407,7 @@ async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored
 
     drop(repository);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

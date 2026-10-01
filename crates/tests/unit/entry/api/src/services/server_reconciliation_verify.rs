@@ -80,7 +80,7 @@ async fn live_pool() -> DbPool {
 }
 
 async fn seed(pool: &DbPool, name: &str, status: &str) {
-    let inner = pool.pool_arc().expect("write pool");
+    let inner = pool.pool();
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, status, port, pid)
          VALUES ('test-instance', $1, 'mcp', $2, 0, $3)
@@ -95,7 +95,7 @@ async fn seed(pool: &DbPool, name: &str, status: &str) {
 }
 
 async fn drop_row(pool: &DbPool, name: &str) {
-    let inner = pool.pool_arc().expect("write pool");
+    let inner = pool.pool();
     sqlx::query("DELETE FROM services WHERE name = $1")
         .bind(name)
         .execute(inner.as_ref())

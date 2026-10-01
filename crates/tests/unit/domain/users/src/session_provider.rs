@@ -29,7 +29,7 @@ fn unique_session_id() -> SessionId {
 }
 
 async fn cleanup(pool: &DbPool, session_id: &SessionId) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query("DELETE FROM user_sessions WHERE session_id = $1")
         .bind(session_id.as_str())
         .execute(p.as_ref())
@@ -47,7 +47,7 @@ async fn seed_owned(
     fingerprint: &str,
     user_id: Option<&UserId>,
 ) {
-    let repo = SessionRepository::new(pool).expect("repo");
+    let repo = SessionRepository::new(pool);
     let params = CreateSessionParams {
         session_id,
         user_id,
@@ -87,7 +87,7 @@ mod analytics_provider {
             systemprompt_test_fixtures::DisposableDb::with_schema("classified_session_roundtrip")
                 .await;
         let pool = database.test_pool().await;
-        let raw = pool.write_pool_arc().expect("write pool");
+        let raw = pool.write_pool();
         let owner = UserId::new(format!("owner-{}", Uuid::new_v4().simple()));
         systemprompt_test_fixtures::seed_user_row(
             &pool,
@@ -96,7 +96,7 @@ mod analytics_provider {
         )
         .await
         .expect("seed session owner");
-        let repository = SessionRepository::new(&pool).expect("session repository");
+        let repository = SessionRepository::new(&pool);
         let authenticated = unique_session_id();
         let anonymous = unique_session_id();
         let authenticated_expiry = chrono::TimeZone::timestamp_opt(&Utc, 1_900_000_000, 0)
@@ -194,7 +194,7 @@ mod analytics_provider {
     async fn create_and_find_session_by_id_translates_row() {
         ensure_test_bootstrap();
         let pool = test_db_pool().await;
-        let service = SessionRepository::new(&pool).expect("sessions");
+        let service = SessionRepository::new(&pool);
 
         let sid = unique_session_id();
         let fp = format!("fp-{}", Uuid::new_v4());
@@ -239,7 +239,7 @@ mod analytics_provider {
     async fn find_recent_by_fingerprint_returns_only_anonymous_sessions() {
         ensure_test_bootstrap();
         let pool = test_db_pool().await;
-        let service = SessionRepository::new(&pool).expect("sessions");
+        let service = SessionRepository::new(&pool);
 
         let fp = format!("fp-{}", Uuid::new_v4());
         let anonymous_user = UserId::new(format!("anon-{}", Uuid::new_v4().simple()));
@@ -297,7 +297,7 @@ mod analytics_provider {
     async fn revoke_convert_and_user_scoped_ops_succeed() {
         ensure_test_bootstrap();
         let pool = test_db_pool().await;
-        let service = SessionRepository::new(&pool).expect("sessions");
+        let service = SessionRepository::new(&pool);
 
         let sid = unique_session_id();
         seed(&pool, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -330,7 +330,7 @@ mod analytics_provider {
     #[tokio::test]
     async fn every_analytics_error_arm_maps_to_internal() {
         let pool = closed_db_pool().await;
-        let service = SessionRepository::new(&pool).expect("sessions");
+        let service = SessionRepository::new(&pool);
         let sid = unique_session_id();
         let user = UserId::new("u".to_owned());
         let analytics = TraitSessionAnalytics::default();

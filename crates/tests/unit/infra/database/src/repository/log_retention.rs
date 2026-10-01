@@ -17,7 +17,7 @@ async fn repo_and_pool() -> (LoggingRepository, sqlx::PgPool) {
     let db = test_db_pool().await;
     let pg = db.write_pool();
     (
-        LoggingRepository::new(&db).expect("logging repository"),
+        LoggingRepository::new(&db),
         (*pg).clone(),
     )
 }

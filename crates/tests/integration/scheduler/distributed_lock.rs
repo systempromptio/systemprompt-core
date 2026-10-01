@@ -68,7 +68,7 @@ fn probe_config(distributed_lock: bool) -> SchedulerConfig {
 async fn reset_job_row(pool: &DbPool) -> Result<()> {
     sqlx::query("DELETE FROM scheduled_jobs WHERE job_name = $1")
         .bind(TEST_JOB_NAME)
-        .execute(pool.write_pool_arc()?.as_ref())
+        .execute(pool.write_pool().as_ref())
         .await?;
     Ok(())
 }
@@ -77,7 +77,7 @@ async fn read_run_count(pool: &DbPool) -> Result<i32> {
     let count: Option<i32> =
         sqlx::query_scalar("SELECT run_count FROM scheduled_jobs WHERE job_name = $1")
             .bind(TEST_JOB_NAME)
-            .fetch_optional(pool.pool_arc()?.as_ref())
+            .fetch_optional(pool.pool().as_ref())
             .await?;
     Ok(count.unwrap_or(0))
 }
@@ -95,12 +95,12 @@ async fn run_two_replicas(distributed_lock: bool, window: Duration) -> Result<i3
         probe_config(distributed_lock),
         Arc::clone(&pool),
         Arc::clone(&app_context),
-    )?;
+    );
     let replica_b = SchedulerService::new(
         probe_config(distributed_lock),
         Arc::clone(&pool),
         Arc::clone(&app_context),
-    )?;
+    );
 
     replica_a.start().await?;
     replica_b.start().await?;

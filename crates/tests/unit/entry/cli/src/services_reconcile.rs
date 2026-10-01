@@ -227,7 +227,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     );
 
     drop(command);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     let closed = systemprompt_test_fixtures::closed_db_pool().await;
     let no_database_needed = CommandContext::with_database(

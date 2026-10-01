@@ -128,7 +128,7 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
     assert_eq!(response.status(), StatusCode::OK);
     to_bytes(response.into_body(), 1024 * 1024).await?;
 
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let mut artifacts = Vec::new();
     for _ in 0..80 {
         artifacts = sqlx::query_as::<_, (String, String, String, String, bool, bool, serde_json::Value)>(
@@ -211,7 +211,7 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
         systemprompt_test_fixtures::DisposableDb::with_schema("gateway_artifact_safety_scan").await;
     let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, "artifact-scan@example.invalid").await?;
-    let raw = pool.pool_arc().expect("private database pool");
+    let raw = pool.pool();
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id,name,spec,enabled,priority) \
          VALUES ($1,$2,$3,true,100)",
@@ -236,7 +236,7 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
         .await;
     let ingest = fixture_artifact_ingest(&pool)?;
     let resolver = systemprompt_api::services::gateway::policy::PolicyResolver::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool)?,
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
     );
     ingest.register_scanner(Arc::new(
         systemprompt_api::services::gateway::GatewayArtifactScanner::new(resolver),

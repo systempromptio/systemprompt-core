@@ -104,7 +104,7 @@ async fn seed_traffic(pool: &DbPool) -> String {
         .bind(visitor.country)
         .bind(visitor.referrer)
         .bind(visitor.is_bot)
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }

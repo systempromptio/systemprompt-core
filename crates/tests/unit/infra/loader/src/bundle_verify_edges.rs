@@ -132,7 +132,7 @@ fn a_signature_in_an_unimplemented_algorithm_is_refused() {
 }
 
 #[test]
-fn an_unsigned_bundle_is_accepted_when_the_profile_pins_no_keys() {
+fn an_empty_verification_spec_is_refused() {
     let src = tempfile::tempdir().expect("tempdir");
     let out = tempfile::tempdir().expect("tempdir");
     base_tree(src.path());
@@ -144,11 +144,13 @@ fn an_unsigned_bundle_is_accepted_when_the_profile_pins_no_keys() {
         None,
     );
 
-    let verified = verify_bundle(&packed.archive, &BundleVerification::default(), "1.0.0")
-        .expect("an unpinned profile trusts the transport");
+    let err = verify_bundle(&packed.archive, &BundleVerification::default(), "1.0.0")
+        .expect_err("a spec that pins nothing must not verify anything");
 
-    assert_eq!(verified.manifest.version, "1.0.0");
-    assert!(verified.signature.is_none());
+    assert!(
+        err.to_string().contains("pins neither a sha256 digest nor an ed25519 key"),
+        "the refusal names the missing pin: {err}"
+    );
 }
 
 #[test]
@@ -164,7 +166,7 @@ fn a_requires_core_that_is_not_a_semver_range_is_a_policy_error() {
         Some(&SEED),
     );
 
-    let err = verify_bundle(&packed.archive, &BundleVerification::default(), "1.0.0")
+    let err = verify_bundle(&packed.archive, &pinned(), "1.0.0")
         .expect_err("an unparseable range cannot be satisfied");
 
     assert!(

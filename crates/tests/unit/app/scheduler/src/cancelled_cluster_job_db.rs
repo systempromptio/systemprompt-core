@@ -44,7 +44,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
     let database = DisposableDb::with_schema("scheduler_cancelled_cluster_job").await;
     let pool = database.test_pool().await;
     let context = test_app_context(&pool, database.url());
-    let repository = SchedulerRepository::new(&pool).unwrap();
+    let repository = SchedulerRepository::new(&pool);
     repository
         .upsert_job(CANCELLABLE_CLUSTER_JOB, "", true)
         .await
@@ -59,8 +59,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
             },
             Arc::clone(&pool),
             context,
-        )
-        .unwrap(),
+        ),
     );
 
     CANCELLABLE_CLUSTER_JOB_RUNS.store(0, Ordering::SeqCst);
@@ -131,7 +130,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
         "neither the cancelled run nor lock-skipped retries count as runs"
     );
 
-    pool.write_pool_arc().unwrap().close().await;
+    pool.write_pool().close().await;
     drop(repository);
     drop(service);
     drop(pool);

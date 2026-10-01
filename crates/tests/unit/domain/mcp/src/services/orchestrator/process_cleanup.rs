@@ -59,14 +59,12 @@ async fn fixture() -> Fixture {
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("service repository");
+    );
     let database = DatabaseService::new(
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        ),
         app_paths,
         RegistryService::new(fixture_user_id()),
     );

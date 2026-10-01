@@ -9,11 +9,11 @@
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row};
-use systemprompt_database::{Database, install_extension_schemas};
+use systemprompt_database::Database;
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -167,7 +167,7 @@ async fn migration_runs_before_schema_so_legacy_logs_get_new_column() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("logs_test_{suffix}"));
@@ -236,7 +236,7 @@ async fn view_in_schema_can_reference_column_added_by_migration() {
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("events_test_{suffix}"));

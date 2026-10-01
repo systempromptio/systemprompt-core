@@ -33,7 +33,7 @@ fn user_request(model: &str, context: systemprompt_models::RequestContext) -> Ai
 }
 
 async fn count_requests(pool: &DbPool, user_id: &UserId) -> i64 {
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     sqlx::query_scalar!(
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
         user_id.as_str()
@@ -271,7 +271,7 @@ struct StreamAudit {
 // row lands asynchronously; poll with a bounded deadline instead of sleeping a
 // fixed interval.
 async fn wait_for_streamed_row(pool: &DbPool, user_id: &UserId) -> StreamAudit {
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         let row = sqlx::query!(
@@ -372,7 +372,7 @@ async fn dropped_stream_persists_a_failed_audit_row_with_the_usage_seen_so_far()
     assert!(matches!(first, StreamChunk::Text(_)));
     drop(stream);
 
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     let row = loop {
         let row = sqlx::query!(
@@ -541,7 +541,7 @@ async fn build_fails_when_default_provider_not_enabled() {
             tools: std::sync::Arc::new(systemprompt_ai::NoopToolProvider::new()),
             sessions: super::noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     );
     assert!(result.is_err());
 }
@@ -586,7 +586,7 @@ async fn google_search_uses_search_capable_provider_and_surfaces_sources() {
             tools: std::sync::Arc::new(systemprompt_ai::NoopToolProvider::new()),
             sessions: super::noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect("AiService builds");
 
@@ -690,7 +690,7 @@ async fn tools_only_response_synthesizes_and_audits_both_provider_calls() {
         "SELECT status, input_tokens, output_tokens FROM ai_requests WHERE user_id = $1 ORDER BY created_at, id",
     )
     .bind(user.as_str())
-    .fetch_all(pool.pool_arc().expect("AI read pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("durable primary and synthesis audit rows");
     assert_eq!(rows.len(), 2);
@@ -796,7 +796,7 @@ async fn failed_tool_synthesis_returns_diagnostic_fallback_without_fabricated_au
         "SELECT status, input_tokens, output_tokens FROM ai_requests WHERE user_id = $1",
     )
     .bind(user.as_str())
-    .fetch_all(pool.pool_arc().expect("AI read pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("durable audit rows after synthesis failure");
     assert_eq!(
@@ -878,7 +878,7 @@ async fn empty_tool_synthesis_retries_guidance_and_audits_every_completed_provid
         "SELECT status, input_tokens, output_tokens FROM ai_requests WHERE user_id = $1",
     )
     .bind(user.as_str())
-    .fetch_all(pool.pool_arc().expect("AI read pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("durable audit rows after guidance retry");
     assert_eq!(rows.len(), 3);

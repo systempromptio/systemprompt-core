@@ -54,11 +54,11 @@ async fn wait_for_rows(pool: &sqlx::PgPool, trace_id: &str, want: i64) -> i64 {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_visitor_preserves_scalar_field_types_and_strips_ansi_from_messages() {
     let db = test_db_pool().await;
-    let raw = db.pool_arc().unwrap().as_ref().clone();
+    let raw = db.pool().as_ref().clone();
     let trace_id = format!("visitor-scalars-{}", uuid::Uuid::new_v4().simple());
 
     {
-        let layer = DatabaseLayer::new(db.clone());
+        let (layer, _writer) = DatabaseLayer::new(db.clone());
         let subscriber = tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -126,11 +126,11 @@ async fn the_visitor_preserves_scalar_field_types_and_strips_ansi_from_messages(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn redaction_applies_to_debug_rendered_fields_and_never_to_scalars() {
     let db = test_db_pool().await;
-    let raw = db.pool_arc().unwrap().as_ref().clone();
+    let raw = db.pool().as_ref().clone();
     let trace_id = format!("visitor-redact-{}", uuid::Uuid::new_v4().simple());
 
     {
-        let layer = DatabaseLayer::new(db.clone());
+        let (layer, _writer) = DatabaseLayer::new(db.clone());
         let subscriber = tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -189,11 +189,11 @@ async fn redaction_applies_to_debug_rendered_fields_and_never_to_scalars() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn span_attribution_fields_are_captured_when_recorded_via_debug() {
     let db = test_db_pool().await;
-    let raw = db.pool_arc().unwrap().as_ref().clone();
+    let raw = db.pool().as_ref().clone();
     let trace_id = format!("visitor-span-debug-{}", uuid::Uuid::new_v4().simple());
 
     {
-        let layer = DatabaseLayer::new(db.clone());
+        let (layer, _writer) = DatabaseLayer::new(db.clone());
         let subscriber = tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
         let _guard = tracing::subscriber::set_default(subscriber);
 

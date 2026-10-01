@@ -9,7 +9,7 @@ use systemprompt_test_fixtures::test_db_pool;
 #[tokio::test]
 async fn oauth_clients_owner_user_id_fkey_is_installed() -> Result<()> {
     let db = test_db_pool().await;
-    let pool = db.pool_arc()?;
+    let pool = db.pool();
 
     let exists: bool = sqlx::query_scalar(
         r#"SELECT EXISTS (

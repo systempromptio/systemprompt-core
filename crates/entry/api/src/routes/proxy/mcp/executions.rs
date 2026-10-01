@@ -12,7 +12,6 @@ use axum::{Json, Router};
 use serde::Serialize;
 use std::sync::Arc;
 use systemprompt_identifiers::McpExecutionId;
-use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::models::ToolExecution;
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::auth::UserType;
@@ -39,11 +38,11 @@ pub struct ExecutionsState {
     pub repo: Arc<ToolUsageRepository>,
 }
 
-pub fn executions_router(ctx: &AppContext) -> Result<Router, McpDomainError> {
-    let repo = crate::repository::tool_usage(ctx.db_pool())?;
-    Ok(Router::new()
+pub fn executions_router(ctx: &AppContext) -> Router {
+    let repo = crate::repository::tool_usage(ctx.db_pool());
+    Router::new()
         .route("/executions/{id}", get(handle_get_execution))
-        .with_state(ExecutionsState { repo }))
+        .with_state(ExecutionsState { repo })
 }
 
 fn caller_may_read(req_ctx: &RequestContext, execution: &ToolExecution) -> bool {

@@ -30,7 +30,7 @@ fn file_row(tag: &str, ai_content: bool, user: Option<&UserId>) -> File {
 #[tokio::test]
 async fn list_ai_images_includes_inserted_ai_rows() {
     let db = test_db_pool().await;
-    let repo = FileRepository::new(&db).expect("repo");
+    let repo = FileRepository::new(&db);
     let tag = format!("ai-list-{}", uuid::Uuid::new_v4().simple());
     let user = UserId::new(format!("u-{tag}"));
 
@@ -65,7 +65,7 @@ async fn list_ai_images_includes_inserted_ai_rows() {
 #[tokio::test]
 async fn list_all_and_search_by_path_return_tagged_rows() {
     let db = test_db_pool().await;
-    let repo = FileRepository::new(&db).expect("repo");
+    let repo = FileRepository::new(&db);
     let tag = format!("query-{}", uuid::Uuid::new_v4().simple());
 
     let file = file_row(&tag, false, None);
@@ -93,7 +93,7 @@ async fn list_all_and_search_by_path_return_tagged_rows() {
 #[tokio::test]
 async fn update_metadata_persists_new_checksums() {
     let db = test_db_pool().await;
-    let repo = FileRepository::new(&db).expect("repo");
+    let repo = FileRepository::new(&db);
     let tag = format!("meta-{}", uuid::Uuid::new_v4().simple());
 
     let file = file_row(&tag, false, None);
@@ -126,7 +126,7 @@ async fn update_metadata_persists_new_checksums() {
 #[tokio::test]
 async fn get_stats_snapshot_is_internally_consistent() {
     let db = test_db_pool().await;
-    let repo = FileRepository::new(&db).expect("repo");
+    let repo = FileRepository::new(&db);
     let tag = format!("stats-{}", uuid::Uuid::new_v4().simple());
 
     let file = file_row(&tag, true, None);

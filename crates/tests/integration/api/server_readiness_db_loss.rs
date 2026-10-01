@@ -15,7 +15,7 @@ async fn readyz_withdraws_readiness_when_its_owned_database_disappears() -> Resu
     let ctx = test_app_context(&db, owned.url());
     let app = discovery_router(&ctx);
     signal_ready();
-    let raw = db.pool_arc()?;
+    let raw = db.pool();
     raw.close().await;
 
     let response = app

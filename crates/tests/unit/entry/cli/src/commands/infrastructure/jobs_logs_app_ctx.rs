@@ -67,7 +67,7 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
 #[tokio::test]
 async fn disabling_then_enabling_a_registered_job_persists_the_flag_both_ways() {
     let (pool, app) = app().await;
-    let repo = JobRepository::new(&pool).unwrap();
+    let repo = JobRepository::new(&pool);
     // `set_enabled` is a bare UPDATE, so the schedule row has to exist before
     // the CLI toggle has anything to flip.
     repo.upsert_job(KNOWN_JOB, "0 0 * * * *", true)
@@ -137,7 +137,7 @@ async fn jobs_history_renders_in_both_output_modes() {
 #[tokio::test]
 async fn logs_cleanup_honours_its_retention_window() {
     let (pool, app) = app().await;
-    let raw = pool.pool_arc().unwrap().as_ref().clone();
+    let raw = pool.pool().as_ref().clone();
 
     let owner = format!("cleanup_owner_{}", uuid::Uuid::new_v4().simple());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
@@ -204,7 +204,7 @@ async fn logs_delete_clears_every_entry() {
 
     {
         let pool = database.test_pool().await;
-        let raw = pool.pool_arc().unwrap().as_ref().clone();
+        let raw = pool.pool().as_ref().clone();
 
         let owner = "logdel_owner";
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")

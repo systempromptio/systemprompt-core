@@ -165,7 +165,7 @@ async fn seed_link(db: &DbPool) -> anyhow::Result<String> {
     let uniq = uuid::Uuid::new_v4().simple().to_string();
     let short_code = format!("sc{uniq}");
     let id = format!("lnk-{uniq}");
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query(
         "INSERT INTO campaign_links (id, short_code, target_url, link_type) \
          VALUES ($1, $2, $3, $4)",
@@ -263,7 +263,7 @@ async fn query_over_seeded_content_returns_results() -> anyhow::Result<()> {
     let uniq = uuid::Uuid::new_v4().simple().to_string();
     let slug = format!("post-{uniq}");
     let source = format!("src-{uniq}");
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query(
         "INSERT INTO markdown_content \
          (id, slug, title, description, body, author, published_at, keywords, source_id, \

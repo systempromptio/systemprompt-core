@@ -47,7 +47,7 @@ impl GitSourceCapture for RecoveringCapture {
 }
 
 async fn durable_capture_counts(fixture: &Fixture) -> (i64, i64) {
-    let pool = fixture.db.write_pool_arc().expect("source-sync write pool");
+    let pool = fixture.db.write_pool();
     let snapshots = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM managed_source_snapshots WHERE owner_id = $1 AND source_id = $2",
     )

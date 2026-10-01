@@ -28,7 +28,7 @@ async fn access_control_helper() {
     ensure_test_bootstrap();
     install_test_signing_key();
     let pool = database.test_pool().await;
-    let raw = pool.pool_arc().expect("SQL pool");
+    let raw = pool.pool();
     let admin = UserId::new(uuid::Uuid::new_v4().to_string());
     seed_user_row_with_roles(
         &pool,
@@ -77,7 +77,7 @@ async fn access_control_helper() {
     println!("END_LINT");
     println!("LINT_ERROR={}", serde_json::json!(format!("{error:#}")));
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

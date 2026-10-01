@@ -29,8 +29,8 @@ async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_c
     seed_user_row(&pool, &owner, &format!("{}@oauth.invalid", owner.as_str()))
         .await
         .expect("seed OAuth owner");
-    let repository = OAuthRepository::new(&pool).expect("OAuth repository");
-    let clients = ClientRepository::new(&pool).expect("client repository");
+    let repository = OAuthRepository::new(&pool);
+    let clients = ClientRepository::new(&pool);
     let client_id = ClientId::new(format!("atomic-{}", Uuid::new_v4().simple()));
     let original = repository
         .create_client(CreateClientParams {
@@ -52,7 +52,7 @@ async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_c
         .await
         .expect("create original client");
 
-    let raw = pool.write_pool_arc().expect("OAuth write pool");
+    let raw = pool.write_pool();
     sqlx::query(
         "CREATE FUNCTION reject_oauth_contact() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'fixture contact association rejection'; END $$",
@@ -128,7 +128,7 @@ async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_c
     drop(clients);
     drop(repository);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

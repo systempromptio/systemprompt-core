@@ -61,14 +61,9 @@ impl RateLimitState {
         }
     }
 
-    pub fn from_context(ctx: &AppContext) -> Result<Self, LoaderError> {
-        let buckets = crate::repository::user_rate_limit_buckets(ctx.db_pool()).map_err(|e| {
-            LoaderError::InitializationFailed {
-                extension: "rate_limit".to_owned(),
-                message: e.to_string(),
-            }
-        })?;
-        Ok(Self::new(ctx.config(), buckets))
+    pub fn from_context(ctx: &AppContext) -> Self {
+        let buckets = crate::repository::user_rate_limit_buckets(ctx.db_pool());
+        Self::new(ctx.config(), buckets)
     }
 }
 

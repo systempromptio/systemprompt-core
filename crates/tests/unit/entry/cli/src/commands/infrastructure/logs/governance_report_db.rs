@@ -65,9 +65,7 @@ async fn seed_decision(
     tool: &str,
     reason: &str,
 ) {
-    let repo = GovernanceDecisionRepository::from_pool(
-        pool.write_pool_arc().expect("a write pool handle"),
-    );
+    let repo = GovernanceDecisionRepository::from_pool(pool.write_pool());
     let id = Uuid::new_v4().to_string();
     let actor = Actor::user(user.clone());
     let evaluated = serde_json::json!([]);
@@ -107,17 +105,11 @@ async fn seed_finding(pool: &DbPool, user: &UserId, category: &str, blocked: boo
     .model("claude-fixture-1")
     .build();
     let request_id = AiRequestRepository::new(pool)
-        .expect("request repo")
         .insert(&record)
         .await
         .expect("seed an ai request");
 
-    AiSafetyFindingRepository::from_pool(Arc::new(
-        pool.write_pool_arc()
-            .expect("a write pool handle")
-            .as_ref()
-            .clone(),
-    ))
+    AiSafetyFindingRepository::from_pool(Arc::new(pool.write_pool().as_ref().clone()))
     .insert(InsertSafetyFinding {
         ai_request_id: &request_id,
         phase: "input",

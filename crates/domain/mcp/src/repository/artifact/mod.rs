@@ -149,14 +149,10 @@ pub struct McpArtifactRepository {
 }
 
 impl McpArtifactRepository {
-    pub fn new(db: &DbPool) -> McpDomainResult<Self> {
-        let pool = db.pool_arc().map_err(|e| {
-            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
-        })?;
-        let write_pool = db.write_pool_arc().map_err(|e| {
-            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
-        })?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn delete(&self, artifact_id: &ArtifactId) -> McpDomainResult<bool> {

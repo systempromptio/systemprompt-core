@@ -25,15 +25,9 @@ fn sample_params(short_code: String) -> CreateLinkParams {
 }
 
 #[tokio::test]
-async fn repository_new_succeeds() {
-    let db = test_db_pool().await;
-    assert!(LinkRepository::new(&db).is_ok());
-}
-
-#[tokio::test]
 async fn create_then_get_link_by_short_code() {
     let db = test_db_pool().await;
-    let repo = LinkRepository::new(&db).expect("repo");
+    let repo = LinkRepository::new(&db);
     let short_code = unique_short_code();
     let params = sample_params(short_code.clone());
 
@@ -55,7 +49,7 @@ async fn create_then_get_link_by_short_code() {
 #[tokio::test]
 async fn get_link_by_short_code_returns_none_for_unknown() {
     let db = test_db_pool().await;
-    let repo = LinkRepository::new(&db).expect("repo");
+    let repo = LinkRepository::new(&db);
     let res = repo
         .get_link_by_short_code("nope-no-such-code")
         .await
@@ -66,7 +60,7 @@ async fn get_link_by_short_code_returns_none_for_unknown() {
 #[tokio::test]
 async fn get_link_by_id_returns_none_for_unknown_id() {
     let db = test_db_pool().await;
-    let repo = LinkRepository::new(&db).expect("repo");
+    let repo = LinkRepository::new(&db);
     let missing = LinkId::generate();
     let res = repo.get_link_by_id(&missing).await.expect("query");
     assert!(res.is_none());
@@ -75,7 +69,7 @@ async fn get_link_by_id_returns_none_for_unknown_id() {
 #[tokio::test]
 async fn delete_link_returns_true_for_existing_false_for_missing() {
     let db = test_db_pool().await;
-    let repo = LinkRepository::new(&db).expect("repo");
+    let repo = LinkRepository::new(&db);
     let short = unique_short_code();
     let created = repo
         .create_link(&sample_params(short.clone()))
@@ -92,7 +86,7 @@ async fn delete_link_returns_true_for_existing_false_for_missing() {
 #[tokio::test]
 async fn list_links_by_campaign_filters_by_campaign_id() {
     let db = test_db_pool().await;
-    let repo = LinkRepository::new(&db).expect("repo");
+    let repo = LinkRepository::new(&db);
     let campaign = systemprompt_identifiers::CampaignId::new(uuid::Uuid::new_v4().to_string());
     let short = unique_short_code();
     let params = sample_params(short.clone()).with_campaign_id(Some(campaign.clone()));
@@ -117,7 +111,7 @@ async fn list_links_by_source_content_filters_correctly() {
     use systemprompt_identifiers::{LocaleCode, SourceId};
 
     let db = test_db_pool().await;
-    let content_repo = ContentRepository::new(&db).expect("content repo");
+    let content_repo = ContentRepository::new(&db);
     let source_id = SourceId::new(format!("src-{}", uuid::Uuid::new_v4()));
     let slug = format!("link-src-{}", uuid::Uuid::new_v4().simple());
     let content_params = CreateContentParams {
@@ -142,7 +136,7 @@ async fn list_links_by_source_content_filters_correctly() {
         .await
         .expect("create content");
 
-    let repo = LinkRepository::new(&db).expect("repo");
+    let repo = LinkRepository::new(&db);
     let params =
         sample_params(unique_short_code()).with_source_content_id(Some(content.id.clone()));
     let created = repo.create_link(&params).await.expect("create link");
@@ -160,7 +154,7 @@ async fn list_links_by_source_content_filters_correctly() {
 #[tokio::test]
 async fn find_link_by_source_and_target_matches_active_link() {
     let db = test_db_pool().await;
-    let repo = LinkRepository::new(&db).expect("repo");
+    let repo = LinkRepository::new(&db);
     let source_page = format!("/page-{}", uuid::Uuid::new_v4().simple());
     let target = format!("https://example.com/{}", uuid::Uuid::new_v4());
     let params = CreateLinkParams::new(unique_short_code(), target.clone(), "redirect".to_owned())

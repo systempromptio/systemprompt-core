@@ -46,7 +46,7 @@ fn session_for(user_id: &UserId, session_id: SessionId, context_id: ContextId) -
 async fn revalidate_context_keeps_a_context_owned_by_the_user() {
     let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxvalid").await;
-    let repo = ContextRepository::new(&pool).unwrap();
+    let repo = ContextRepository::new(&pool);
     let context_id = repo
         .get_or_create_cli_context(&user_id, &session_id, "CLI Session - ctxdb")
         .await
@@ -74,7 +74,6 @@ async fn revalidate_context_recovers_a_stale_context() {
     assert_eq!(refreshed.context_id, session.context_id);
 
     ContextRepository::new(&pool)
-        .unwrap()
         .validate_context_ownership(&session.context_id, &user_id)
         .await
         .unwrap();
@@ -84,7 +83,7 @@ async fn revalidate_context_recovers_a_stale_context() {
 async fn revalidate_context_adopts_the_existing_cli_context_by_name() {
     let pool = test_db_pool().await;
     let (user_id, session_id) = seeded_identity(&pool, "ctxadopt").await;
-    let repo = ContextRepository::new(&pool).unwrap();
+    let repo = ContextRepository::new(&pool);
     let existing = repo
         .get_or_create_cli_context(&user_id, &session_id, "CLI Session - ctxdb")
         .await

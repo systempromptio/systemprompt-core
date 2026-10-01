@@ -18,8 +18,7 @@ mod service_management_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
 
         let rows = svc
@@ -38,8 +37,7 @@ mod service_management_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
 
         let rows = svc
@@ -57,8 +55,7 @@ mod service_management_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
 
         let rows = svc
@@ -84,8 +81,7 @@ mod service_management_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
 
         let affected = svc
@@ -104,8 +100,7 @@ mod service_management_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
 
         // An UPDATE that matches zero rows is still a successful query; the
@@ -122,8 +117,7 @@ mod service_management_db {
             systemprompt_database::ServiceRepository::new(
                 &pool,
                 systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
+            ),
         );
 
         let first = svc

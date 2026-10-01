@@ -26,11 +26,7 @@ async fn seed_log(pool: &DbPool, module: &str, message: &str) {
         TraceId::generate(),
     );
     let entry = LogEntry::new(LogLevel::Error, module, message, actor);
-    LoggingRepository::new(pool)
-        .unwrap()
-        .log(entry)
-        .await
-        .unwrap();
+    LoggingRepository::new(pool).log(entry).await.unwrap();
 }
 
 fn contains(out: &CommandOutput, needle: &str) -> bool {

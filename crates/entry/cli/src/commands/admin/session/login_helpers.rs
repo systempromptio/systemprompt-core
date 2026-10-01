@@ -40,7 +40,7 @@ pub(super) async fn try_use_existing_session(
     let user_email = session.user_email.to_string();
     let session_token = session.session_token.clone();
 
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
     let exists = user_service
         .session_exists(&session_id)
         .await
@@ -79,7 +79,7 @@ pub async fn fetch_admin_user(
     is_cloud_profile: bool,
     email_override: Option<&str>,
 ) -> Result<User> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
 
     if let Some(user) = user_service
         .find_by_name(admin_name)

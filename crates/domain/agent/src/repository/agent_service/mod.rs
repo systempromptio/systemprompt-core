@@ -14,8 +14,6 @@ use systemprompt_database::{DbPool, ServiceRepository, UpsertServiceProcessInput
 use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::RepositoryError;
 
-use crate::error::AgentError;
-
 pub use status::AgentServiceStatus;
 
 const AGENT_MODULE: &str = "agent";
@@ -39,10 +37,9 @@ pub struct AgentServiceRepository {
 }
 
 impl AgentServiceRepository {
-    pub fn new(db: &DbPool, instance_id: InstanceId) -> Result<Self, AgentError> {
-        let services =
-            ServiceRepository::new(db, instance_id).map_err(|e| AgentError::Init(e.to_string()))?;
-        Ok(Self { services })
+    pub fn new(db: &DbPool, instance_id: InstanceId) -> Self {
+        let services = ServiceRepository::new(db, instance_id);
+        Self { services }
     }
 
     pub async fn register_agent(

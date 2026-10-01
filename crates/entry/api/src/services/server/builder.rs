@@ -58,7 +58,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
 
     router = router.layer(DefaultBodyLimit::max(2 * 1024 * 1024));
 
-    let analytics_middleware = AnalyticsMiddleware::new(ctx)?;
+    let analytics_middleware = AnalyticsMiddleware::new(ctx);
     router = router.layer(axum::middleware::from_fn({
         let middleware = analytics_middleware;
         move |req, next| {

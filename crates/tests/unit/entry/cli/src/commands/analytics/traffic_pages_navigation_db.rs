@@ -69,7 +69,7 @@ async fn seed_sessions(pool: &DbPool, sessions: &[Session]) -> String {
         .bind(session.referrer)
         .bind(session.request_count)
         .bind(session.is_bot)
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }
@@ -98,7 +98,7 @@ async fn seed_link_clicks(pool: &DbPool) -> String {
             .bind(format!("{prefix}/home"))
             .bind(&target)
             .bind(external.to_string())
-            .execute(pool.pool_arc().unwrap().as_ref())
+            .execute(pool.pool().as_ref())
             .await
             .unwrap();
         }

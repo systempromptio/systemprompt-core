@@ -58,7 +58,7 @@ fn claims(config: &Config, jti: &str, scope: &str) -> serde_json::Value {
 }
 
 async fn validate(token: &str, pool: &DbPool, config: &Config) -> anyhow::Result<Vec<String>> {
-    let repo = OAuthRepository::new(pool).expect("oauth repo");
+    let repo = OAuthRepository::new(pool);
     validate_id_jag_subject(token, &ClientId::new(CLIENT), &repo, config)
         .await
         .map(|identity| {
@@ -261,7 +261,7 @@ async fn a_signed_id_jag_with_an_unrepresentable_expiry_is_rejected_without_burn
     );
     let replay_rows: i64 = sqlx::query_scalar("SELECT count(*) FROM id_jag_replay WHERE jti = $1")
         .bind(&jti)
-        .fetch_one(pool.pool_arc().expect("OAuth read pool").as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("read ID-JAG replay state");
     assert_eq!(

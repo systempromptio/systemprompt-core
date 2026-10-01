@@ -121,7 +121,7 @@ fn config_with(rate_limits: RateLimitsConfig) -> Config {
 
 async fn buckets() -> Arc<UserRateLimitBucketRepository> {
     let db = test_db_pool().await;
-    Arc::new(UserRateLimitBucketRepository::new(&db).expect("bucket repository"))
+    Arc::new(UserRateLimitBucketRepository::new(&db))
 }
 
 async fn limits_with(rate_limits: RateLimitsConfig) -> RateLimitState {

@@ -14,7 +14,6 @@ use crate::services::proxy::ProxyEngine;
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::routing::{any, get};
-use systemprompt_mcp::McpDomainError;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::McpRegistryProvider;
 
@@ -59,16 +58,16 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
     get_mcp_server_scopes(registry, server_name).await
 }
 
-pub fn router(ctx: &AppContext) -> Result<Router, McpDomainError> {
-    let repo = crate::repository::tool_usage(ctx.db_pool())?;
-    let identities = crate::repository::proxy_identities(ctx.db_pool())?;
+pub fn router(ctx: &AppContext) -> Router {
+    let repo = crate::repository::tool_usage(ctx.db_pool());
+    let identities = crate::repository::proxy_identities(ctx.db_pool());
     let engine = ProxyEngine::new(identities)
         .with_tool_usage_repo(repo, ctx.tool_call_intents())
         .with_artifact_ingest(ctx.artifact_ingest_arc());
 
     let state = McpState { ctx: ctx.clone() };
 
-    Ok(Router::new()
+    Router::new()
         .route(
             "/{service_name}/mcp/.well-known/oauth-protected-resource",
             get(discovery::handle_mcp_protected_resource),
@@ -96,5 +95,5 @@ pub fn router(ctx: &AppContext) -> Result<Router, McpDomainError> {
                 }
             }),
         )
-        .with_state(state))
+        .with_state(state)
 }

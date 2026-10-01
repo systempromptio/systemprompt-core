@@ -33,8 +33,7 @@ fn lifecycle(pool: &systemprompt_database::DbPool) -> AgentLifecycle {
         AgentServiceRepository::new(
             pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo"),
+        ),
         app_paths(),
     )
     .expect("lifecycle")
@@ -44,8 +43,7 @@ fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repo");
+    );
     AgentDatabaseService::new(repo).expect("db service")
 }
 

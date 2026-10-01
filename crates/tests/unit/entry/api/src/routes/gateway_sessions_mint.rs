@@ -49,9 +49,7 @@ fn request_with(headers: &[(header::HeaderName, &str)]) -> Request {
 }
 
 async fn mint_key(pool: &DbPool, user_id: &UserId) -> String {
-    ApiKeyService::new(Arc::new(
-        UserRepository::new(pool).expect("user repository"),
-    ))
+    ApiKeyService::new(Arc::new(UserRepository::new(pool)))
     .issue(IssueApiKeyParams {
         user_id,
         name: "gateway-mint",
@@ -150,9 +148,7 @@ async fn unknown_api_key_is_unauthorized() {
 #[tokio::test]
 async fn revoked_api_key_no_longer_mints() {
     let h = harness().await;
-    let service = ApiKeyService::new(Arc::new(
-        UserRepository::new(&h.pool).expect("user repository"),
-    ));
+    let service = ApiKeyService::new(Arc::new(UserRepository::new(&h.pool)));
     let minted = service
         .issue(IssueApiKeyParams {
             user_id: &h.user_id,

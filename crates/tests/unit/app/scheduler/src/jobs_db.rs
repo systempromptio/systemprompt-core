@@ -133,7 +133,7 @@ mod malicious_ip_blacklist_db {
     }
 
     async fn seed_scanner_sessions(pool: &systemprompt_database::DbPool, ip: &str, count: i32) {
-        let pg = pool.pool_arc().expect("fixture pool");
+        let pg = pool.pool();
         for i in 0..count {
             sqlx::query(
                 "INSERT INTO user_sessions (session_id, ip_address, is_scanner, started_at, \
@@ -148,7 +148,7 @@ mod malicious_ip_blacklist_db {
     }
 
     async fn cleanup_seed(pool: &systemprompt_database::DbPool, ip: &str) {
-        let pg = pool.pool_arc().expect("fixture pool");
+        let pg = pool.pool();
         sqlx::query("DELETE FROM banned_ips WHERE ip_address = $1")
             .bind(ip)
             .execute(&*pg)
@@ -162,7 +162,7 @@ mod malicious_ip_blacklist_db {
     }
 
     async fn is_ip_banned(pool: &systemprompt_database::DbPool, ip: &str) -> bool {
-        let pg = pool.pool_arc().expect("fixture pool");
+        let pg = pool.pool();
         let count: i64 =
             sqlx::query_scalar("SELECT COUNT(*) FROM banned_ips WHERE ip_address = $1")
                 .bind(ip)

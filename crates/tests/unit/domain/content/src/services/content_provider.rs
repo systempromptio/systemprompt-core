@@ -28,7 +28,7 @@ async fn seed(repo: &ContentRepository, source: &SourceId, slug: &str, title: &s
 }
 
 async fn cleanup(pool: &DbPool, source: &SourceId) {
-    let repo = ContentRepository::new(pool).expect("repo");
+    let repo = ContentRepository::new(pool);
     repo.delete_by_source(source).await.expect("cleanup");
 }
 
@@ -40,15 +40,15 @@ fn unique_source(prefix: &str) -> SourceId {
 async fn get_content_returns_full_item() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let source = unique_source("cp-getid");
     let slug = format!("post-{}", Uuid::new_v4());
 
     let id = seed(&repo, &source, &slug, "Hello World").await;
 
     let provider = DefaultContentProvider::new(
-        ContentRepository::new(&pool).expect("content repo"),
-        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool),
+        SearchRepository::new(&pool),
     );
     let item = provider
         .find_content(&id)
@@ -74,8 +74,8 @@ async fn get_content_missing_returns_none() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let provider = DefaultContentProvider::new(
-        ContentRepository::new(&pool).expect("content repo"),
-        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool),
+        SearchRepository::new(&pool),
     );
 
     let missing = ContentId::new(format!("nope-{}", Uuid::new_v4()));
@@ -87,15 +87,15 @@ async fn get_content_missing_returns_none() {
 async fn get_content_by_slug_round_trips() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let source = unique_source("cp-slug");
     let slug = format!("by-slug-{}", Uuid::new_v4());
 
     let id = seed(&repo, &source, &slug, "Slug Title").await;
 
     let provider = DefaultContentProvider::new(
-        ContentRepository::new(&pool).expect("content repo"),
-        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool),
+        SearchRepository::new(&pool),
     );
     let item = provider
         .find_content_by_slug(&slug)
@@ -112,15 +112,15 @@ async fn get_content_by_slug_round_trips() {
 async fn get_content_by_source_and_slug_round_trips() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let source = unique_source("cp-srcslug");
     let slug = format!("src-slug-{}", Uuid::new_v4());
 
     let id = seed(&repo, &source, &slug, "Source Slug").await;
 
     let provider = DefaultContentProvider::new(
-        ContentRepository::new(&pool).expect("content repo"),
-        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool),
+        SearchRepository::new(&pool),
     );
     let item = provider
         .find_content_by_source_and_slug(&source, &slug)
@@ -137,15 +137,15 @@ async fn get_content_by_source_and_slug_round_trips() {
 async fn list_content_by_source_returns_only_that_source() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let source = unique_source("cp-list");
 
     let id_a = seed(&repo, &source, &format!("a-{}", Uuid::new_v4()), "A").await;
     let id_b = seed(&repo, &source, &format!("b-{}", Uuid::new_v4()), "B").await;
 
     let provider = DefaultContentProvider::new(
-        ContentRepository::new(&pool).expect("content repo"),
-        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool),
+        SearchRepository::new(&pool),
     );
     let summaries = provider
         .list_content(ContentFilter {
@@ -170,7 +170,7 @@ async fn list_content_by_source_returns_only_that_source() {
 async fn list_content_unfiltered_respects_limit() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let source = unique_source("cp-limit");
 
     seed(&repo, &source, &format!("x-{}", Uuid::new_v4()), "X").await;
@@ -178,8 +178,8 @@ async fn list_content_unfiltered_respects_limit() {
     seed(&repo, &source, &format!("z-{}", Uuid::new_v4()), "Z").await;
 
     let provider = DefaultContentProvider::new(
-        ContentRepository::new(&pool).expect("content repo"),
-        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool),
+        SearchRepository::new(&pool),
     );
     let summaries = provider
         .list_content(ContentFilter {
@@ -199,7 +199,7 @@ async fn list_content_unfiltered_respects_limit() {
 async fn search_finds_seeded_keyword() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
     let source = unique_source("cp-search");
     let token = format!("zzqq{}", Uuid::new_v4().simple());
     let slug = format!("search-{}", Uuid::new_v4());
@@ -207,8 +207,8 @@ async fn search_finds_seeded_keyword() {
     seed(&repo, &source, &slug, &format!("Unique {token} Heading")).await;
 
     let provider = DefaultContentProvider::new(
-        ContentRepository::new(&pool).expect("content repo"),
-        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool),
+        SearchRepository::new(&pool),
     );
     let results = provider.search(&token, Some(10)).await.expect("search");
 

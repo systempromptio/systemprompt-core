@@ -30,7 +30,7 @@ pub async fn execute_db_mode_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = LoggingRepository::new(pool)?;
+    let repo = LoggingRepository::new(pool);
 
     let patterns = match &args.server {
         Some(service) => build_service_patterns(service),

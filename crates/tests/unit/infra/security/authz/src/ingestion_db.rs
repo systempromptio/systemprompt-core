@@ -23,7 +23,7 @@ fn unique_id(prefix: &str) -> String {
 }
 
 async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("DELETE FROM access_control_rules WHERE entity_type = $1 AND entity_id = $2")
         .bind(entity_type)
         .bind(entity_id)
@@ -41,7 +41,7 @@ async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
 #[tokio::test]
 async fn ingest_config_inserts_updates_and_skips() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let svc = AccessControlIngestionService::new(&db);
     let id = unique_id("ing-route");
 
     let deny = |access: &str| -> AccessControlConfig {
@@ -102,7 +102,7 @@ async fn ingest_config_inserts_updates_and_skips() {
 #[tokio::test]
 async fn ingest_config_expands_entity_match_glob() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let svc = AccessControlIngestionService::new(&db);
     let id = unique_id("ing-glob");
 
     // Materialise the catalog row via a literal-id rule first, so the glob has
@@ -144,7 +144,7 @@ async fn ingest_config_expands_entity_match_glob() {
 #[tokio::test]
 async fn from_pool_constructs_a_usable_service() {
     let db = test_db_pool().await;
-    let arc = db.write_pool_arc().expect("write pool");
+    let arc = db.write_pool();
     let svc = AccessControlIngestionService::from_pool(arc);
     let id = unique_id("ing-frompool");
     let cfg: AccessControlConfig = serde_yaml::from_str(&format!(
@@ -168,7 +168,7 @@ async fn from_pool_constructs_a_usable_service() {
 #[tokio::test]
 async fn marketplace_with_no_roles_is_skipped_entirely() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let svc = AccessControlIngestionService::new(&db);
     let id = unique_id("mkt");
 
     let cfg: MarketplaceConfig = serde_yaml::from_str(&format!(
@@ -198,7 +198,7 @@ async fn marketplace_with_no_roles_is_skipped_entirely() {
 #[tokio::test]
 async fn marketplace_with_only_attribute_rules_is_ingested() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let svc = AccessControlIngestionService::new(&db);
     let id = unique_id("mkt");
 
     let cfg: MarketplaceConfig = serde_yaml::from_str(&format!(
@@ -225,7 +225,7 @@ async fn marketplace_with_only_attribute_rules_is_ingested() {
 #[tokio::test]
 async fn slack_seed_updates_an_existing_deny_rule() {
     let db = test_db_pool().await;
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let svc = AccessControlIngestionService::new(&db);
     let wsid = unique_id("ws");
 
     // Seed a deny grant on the workspace entity so the later messaging seed has

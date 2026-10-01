@@ -97,7 +97,7 @@ async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
                 tools: Arc::new(NoopToolProvider::new()),
                 sessions: noop_session_provider(),
             },
-            &systemprompt_ai::repository::AiRepositories::new(&pool).expect("AI repositories"),
+            &systemprompt_ai::repository::AiRepositories::new(&pool),
         )
         .expect("service with one-attempt provider builds"),
     );
@@ -133,7 +133,7 @@ async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1 AND status = 'failed'",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("failed audit count")
     .unwrap_or(0);
@@ -186,7 +186,7 @@ async fn trait_rejects_an_unpriced_explicit_model_before_dispatch_or_audit() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("audit row count")
     .unwrap_or(0);
@@ -241,7 +241,7 @@ async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("audit row count")
     .unwrap_or(0);

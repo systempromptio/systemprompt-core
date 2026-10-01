@@ -42,7 +42,7 @@ async fn full_profile(database: &DisposableDb) -> FullBootstrap {
     )
     .await
     .expect("seed configured profile administrator");
-    let raw = pool.pool_arc().expect("raw profile database pool");
+    let raw = pool.pool();
     sqlx::query("UPDATE users SET name = 'testadmin' WHERE id = $1")
         .bind(admin_id.as_str())
         .execute(raw.as_ref())
@@ -141,13 +141,7 @@ fn card_field<'a>(card: &'a Value, heading: &str) -> &'a Value {
 
 async fn seeded_logs_database(prefix: &str) -> (DisposableDb, sqlx::PgPool, String, String) {
     let database = DisposableDb::with_schema(prefix).await;
-    let pool = database
-        .test_pool()
-        .await
-        .pool_arc()
-        .expect("raw PostgreSQL pool")
-        .as_ref()
-        .clone();
+    let pool = database.test_pool().await.pool().as_ref().clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let owner = format!("log_owner_{suffix}");
     let module = format!("coverage.logs.{suffix}");
@@ -455,13 +449,7 @@ async fn logs_summary_reports_exact_isolated_level_and_module_counts() {
 async fn jobs_history_filters_seeded_status_and_job_name() {
     let _scheduler_extension = systemprompt_scheduler::SchedulerExtension;
     let database = DisposableDb::with_schema("cli_jobs_history").await;
-    let pool = database
-        .test_pool()
-        .await
-        .pool_arc()
-        .expect("raw PostgreSQL pool")
-        .as_ref()
-        .clone();
+    let pool = database.test_pool().await.pool().as_ref().clone();
     for (name, status, error) in [
         ("coverage_success", "success", None),
         ("coverage_failure", "failed", Some("owned failure")),

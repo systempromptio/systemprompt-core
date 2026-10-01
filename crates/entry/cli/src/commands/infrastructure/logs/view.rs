@@ -41,7 +41,7 @@ pub struct ViewArgs {
 }
 
 pub(super) async fn execute(args: ViewArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?)?;
+    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
     execute_inner(args, &service, &ctx.cli).await
 }
 

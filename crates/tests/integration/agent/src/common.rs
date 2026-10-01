@@ -37,7 +37,7 @@ impl Fixture {
     pub async fn new() -> Result<Self> {
         let guard = acquire_serial().await;
         let db = test_db_pool().await;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let pool = db.pool().as_ref().clone();
 
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = UserId::new(format!("test_user_{tag}"));
@@ -66,7 +66,7 @@ impl Fixture {
             .execute(&pool)
             .await?;
 
-        let repo = TaskRepository::new(&db, session_usage(&db)?)?;
+        let repo = TaskRepository::new(&db, session_usage(&db)?);
 
         Ok(Self {
             pool,

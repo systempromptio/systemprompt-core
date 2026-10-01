@@ -34,7 +34,7 @@ async fn register_running(
     let repo = ServiceRepository::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
     repo.create_service(CreateServiceInput {
         name,
         module_name: module,
@@ -66,7 +66,7 @@ async fn monitor_lifecycle_start_stop_and_double_start() -> anyhow::Result<()> {
     let mut monitor = ProcessMonitor::new(ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?);
+    ));
     assert!(!monitor.is_running());
 
     monitor.start();
@@ -90,7 +90,7 @@ async fn monitor_drop_aborts_running_loop() -> anyhow::Result<()> {
         ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )?,
+        ),
         Duration::from_secs(60),
     );
     monitor.start();
@@ -109,7 +109,7 @@ async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
     let monitor = ProcessMonitor::new(ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?);
+    ));
     let summary = monitor.health_check_all().await?;
 
     assert!(summary.total_healthy() >= 1, "own PID should be healthy");
@@ -130,7 +130,7 @@ async fn health_check_all_counts_dead_pid_as_crashed() -> anyhow::Result<()> {
     let monitor = ProcessMonitor::new(ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?);
+    ));
     let summary = monitor.health_check_all().await?;
 
     let health = summary.modules.get(&module).copied().unwrap_or_default();
@@ -149,7 +149,7 @@ async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
         ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )?,
+        ),
         Duration::from_millis(50),
     );
     monitor.start();
@@ -157,7 +157,7 @@ async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
     let repo = ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
     let mut status = String::new();
     for _ in 0..40 {
         tokio::time::sleep(Duration::from_millis(50)).await;

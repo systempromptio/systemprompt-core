@@ -32,9 +32,7 @@ pub async fn seed_running_service(
     module_name: &str,
     port: u16,
 ) -> Result<()> {
-    let p = pool
-        .pool_arc()
-        .map_err(|e| anyhow::anyhow!("write pool: {e}"))?;
+    let p = pool.pool();
     let pid = i32::try_from(std::process::id()).map_err(|e| anyhow::anyhow!("pid: {e}"))?;
     let port = i32::from(port);
     sqlx::query!(

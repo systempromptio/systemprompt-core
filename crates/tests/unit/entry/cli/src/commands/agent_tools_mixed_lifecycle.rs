@@ -262,7 +262,7 @@ async fn mixed_agent_tools_helper() {
     .expect("healthy server keeps mixed tool listing successful");
     println!("END_MIXED_TOOLS");
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

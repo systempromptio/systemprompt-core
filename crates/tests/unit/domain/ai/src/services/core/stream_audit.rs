@@ -142,7 +142,7 @@ fn request(context: systemprompt_models::RequestContext) -> AiRequest {
 }
 
 async fn wait_for_audit(pool: &DbPool, user_id: &UserId, status: &str) -> i64 {
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let mut count = 0_i64;
     for _ in 0..100 {
         count = sqlx::query_scalar!(
@@ -199,7 +199,7 @@ async fn a_completed_stream_audits_once_with_the_accumulated_text_and_usage() {
         "SELECT output_tokens FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert_eq!(
@@ -265,7 +265,7 @@ async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usa
          FROM ai_requests WHERE user_id=$1",
     )
     .bind(user.as_str())
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("failed stream audit row");
     assert_eq!(row.0, "failed");
@@ -283,7 +283,7 @@ async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usa
          WHERE r.user_id=$1 AND m.role='assistant'",
     )
     .bind(user.as_str())
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("count assistant messages");
     assert_eq!(
@@ -340,7 +340,7 @@ async fn a_stream_dropped_before_completion_does_not_audit_a_completion() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1 AND status = 'completed'",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap()
     .unwrap_or(0);

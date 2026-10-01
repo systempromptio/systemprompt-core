@@ -129,7 +129,7 @@ async fn first_contact_creates_a_federated_user_reused_on_the_second_call() -> a
     seed_agent_backend(&pool, &backend).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
-    let pg = pool.pool_arc().expect("read pool");
+    let pg = pool.pool();
 
     dispatch_messaging(&ctx, inbound(&user, "first")).await?;
     let first: String = sqlx::query_scalar(

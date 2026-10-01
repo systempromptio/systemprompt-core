@@ -56,7 +56,7 @@ pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<(
     let cutoff_date = Utc::now() - cutoff_duration;
     let cutoff_str = cutoff_date.format("%Y-%m-%d %H:%M:%S UTC").to_string();
 
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?)?;
+    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
 
     if args.dry_run {
         let count = service

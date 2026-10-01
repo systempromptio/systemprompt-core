@@ -275,7 +275,7 @@ async fn seed_trace_request(pool: &sqlx::PgPool, id: &str, trace: &str) {
 async fn traces_export_keeps_request_and_governance_decision_correlated_in_one_protobuf_batch() {
     let db = DisposableDb::with_schema("otlp_export_traces").await;
     let pool = db.test_pool().await;
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     seed_trace_request(raw.as_ref(), "otlp-trace-row", "trace-otlp-correlation").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -315,7 +315,7 @@ async fn traces_export_keeps_request_and_governance_decision_correlated_in_one_p
 async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_watermark() {
     let db = DisposableDb::with_schema("otlp_export_ack").await;
     let pool = db.test_pool().await;
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     seed_log(raw.as_ref(), "otlp-log-ack").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -368,7 +368,7 @@ async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_waterma
 async fn rejected_collector_keeps_the_cursor_then_a_retry_ships_the_identical_batch() {
     let db = DisposableDb::with_schema("otlp_export_retry").await;
     let pool = db.test_pool().await;
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     seed_log(raw.as_ref(), "otlp-log-retry").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -428,7 +428,7 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
     let _subscriber = tracing::subscriber::set_default(subscriber);
     let db = DisposableDb::with_schema("otlp_invalid_header").await;
     let pool = db.test_pool().await;
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     seed_log(raw.as_ref(), "otlp-log-invalid-header").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -504,7 +504,7 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
 async fn a_retryable_503_retries_the_same_protobuf_payload_before_advancing() {
     let db = DisposableDb::with_schema("otlp_export_503").await;
     let pool = db.test_pool().await;
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     seed_log(raw.as_ref(), "otlp-log-503").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -549,7 +549,7 @@ async fn a_retryable_503_retries_the_same_protobuf_payload_before_advancing() {
 async fn an_empty_signal_marks_the_cursor_caught_up_without_posting_to_the_collector() {
     let db = DisposableDb::with_schema("otlp_export_empty").await;
     let pool = db.test_pool().await;
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     let collector = MockServer::start().await;
 
     let report =
@@ -731,7 +731,7 @@ fn retry_policy_backs_off_and_only_retries_transient_failures() {
 async fn state_inventory_reports_each_signal_failure_and_acknowledged_progress() {
     let db = DisposableDb::with_schema("otlp_state_inventory").await;
     let pool = db.test_pool().await;
-    let raw = pool.pool_arc().expect("raw pool");
+    let raw = pool.pool();
     let repository = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone());
 
     repository

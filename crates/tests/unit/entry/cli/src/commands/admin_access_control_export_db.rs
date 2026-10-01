@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 
 async fn seed_role_rule(pool: &DbPool, entity_id: &str, role: &str, justification: Option<&str>) {
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     sqlx::query(
         "INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) \
          VALUES ('agent', $1, false, 'test') ON CONFLICT DO NOTHING",
@@ -58,7 +58,7 @@ async fn snapshot_omits_user_rules() {
     let entity_id = format!("cov-agent-{}", Uuid::new_v4().simple());
     let user_val = format!("cov-user-{}", Uuid::new_v4().simple());
 
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     sqlx::query(
         "INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) \
          VALUES ('agent', $1, false, 'test') ON CONFLICT DO NOTHING",

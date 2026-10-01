@@ -55,6 +55,7 @@ pub struct SessionMiddleware {
     analytics_service: Arc<AnalyticsService>,
     session_creation_service: Arc<SessionCreationService>,
     trusted_proxies: Arc<Vec<IpNet>>,
+    jwt_issuer: Arc<str>,
     ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
     degraded_warn: Arc<systemprompt_logging::LogThrottle>,
 }
@@ -76,6 +77,7 @@ impl SessionMiddleware {
             analytics_service: Arc::clone(ctx.analytics_service()),
             session_creation_service,
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
+            jwt_issuer: Arc::from(ctx.config().jwt_issuer.as_str()),
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
             )),

@@ -43,10 +43,10 @@ impl OauthCleanupCounts {
 }
 
 impl OauthCleanupRepository {
-    pub fn new(db: &DbPool) -> OauthResult<Self> {
-        Ok(Self {
-            write_pool: db.write_pool_arc()?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            write_pool: db.write_pool(),
+        }
     }
 
     pub async fn delete_expired(&self) -> OauthResult<OauthCleanupCounts> {

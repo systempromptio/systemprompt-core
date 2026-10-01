@@ -11,9 +11,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
 
-use super::private_file::{ensure_private_dir, write_private_atomic};
 use super::{CliSession, LOCAL_SESSION_KEY, SessionKey};
 use crate::error::{CloudError, CloudResult};
+use crate::private_dir::write_private_json;
 
 const STORE_VERSION: u32 = 1;
 
@@ -235,8 +235,6 @@ impl SessionStore {
     }
 
     pub fn save(&self, sessions_dir: &Path) -> CloudResult<()> {
-        ensure_private_dir(sessions_dir)?;
-        let content = serde_json::to_string_pretty(self)?;
-        write_private_atomic(&sessions_dir.join("index.json"), &content)
+        write_private_json(&sessions_dir.join("index.json"), self)
     }
 }

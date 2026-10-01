@@ -32,7 +32,7 @@ async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId) {
         .unwrap();
 
     let repos = systemprompt_test_fixtures::a2a_repositories(pool);
-    let ctx_repo = ContextRepository::new(pool).unwrap();
+    let ctx_repo = ContextRepository::new(pool);
     let context_id = ctx_repo
         .create_context(
             &user_id,
@@ -103,7 +103,6 @@ async fn seed_artifact(pool: &DbPool, context_id: &ContextId, task_id: &TaskId) 
             .with_tool_name("cli-tool".to_owned()),
     };
     ArtifactRepository::new(pool)
-        .unwrap()
         .create_artifact(task_id, context_id, &artifact)
         .await
         .unwrap();

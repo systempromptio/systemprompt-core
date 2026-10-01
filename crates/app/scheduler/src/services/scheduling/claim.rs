@@ -93,13 +93,7 @@ pub(super) async fn acquire_cluster_claim(
     db_pool: &DbPool,
     repository: &SchedulerRepository,
 ) -> Claim {
-    let write_pool = match db_pool.write_pool_arc() {
-        Ok(pool) => pool,
-        Err(e) => {
-            error!(job_name = %job_name, error = %e, "Failed to resolve write pool for job lock");
-            return Claim::Skip;
-        },
-    };
+    let write_pool = db_pool.write_pool();
 
     let guard = match try_acquire_job_lock(&write_pool, job_name).await {
         Ok(Some(guard)) => guard,

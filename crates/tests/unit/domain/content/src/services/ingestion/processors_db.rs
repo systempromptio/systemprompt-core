@@ -93,7 +93,7 @@ async fn ingest_runs_injected_frontmatter_processors() {
     let category = CategoryId::new("docs");
     let source = IngestionSource::new(&source_id, "docs", &category);
 
-    let service = IngestionService::new(&pool, ContentRepository::new(&pool).expect("repo"));
+    let service = IngestionService::new(&pool, ContentRepository::new(&pool));
     let report = service
         .ingest_directory(
             dir.path(),
@@ -112,7 +112,6 @@ async fn ingest_runs_injected_frontmatter_processors() {
     );
 
     ContentRepository::new(&pool)
-        .expect("repo")
         .delete_by_source(&source_id)
         .await
         .expect("cleanup");

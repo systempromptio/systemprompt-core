@@ -173,7 +173,7 @@ fn install_config(boot: &TestBootstrap) {
 }
 
 async fn seed_two_locale_post(db: &DbPool) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
 
     repo.delete_by_source(&source_id)
@@ -195,7 +195,7 @@ async fn seed_two_locale_post(db: &DbPool) {
 }
 
 async fn cleanup(db: &DbPool) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
     let _ = repo.delete_by_source(&source_id).await;
 }
@@ -297,7 +297,7 @@ async fn generate_sitemap_excludes_non_public_rows() {
     let boot = ensure_test_bootstrap();
     let db = test_db_pool().await;
 
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
     repo.delete_by_source(&source_id)
         .await
@@ -337,5 +337,5 @@ async fn generate_sitemap_excludes_non_public_rows() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
 }

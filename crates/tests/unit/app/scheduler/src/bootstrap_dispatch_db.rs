@@ -44,8 +44,7 @@ mod bootstrap_dispatch_db {
         // (the inventory catalog size) is still returned and must be non-zero
         // because the crate registers built-in jobs via `submit_job!`.
         let config = config_with_bootstrap(Vec::new(), true);
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         let count = svc
             .run_bootstrap_jobs(None)
@@ -69,15 +68,14 @@ mod bootstrap_dispatch_db {
         // path is deterministic.
         let job_name = crate::test_jobs::WORKING_JOB;
         let config = config_with_bootstrap(vec![job_name.to_owned()], false);
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         // The bootstrap dispatch path only *updates* an existing scheduled_jobs
         // row — `record_run` returns early when the row is absent — mirroring a
         // job already registered by scheduling setup. Seed the row so this test
         // owns it rather than depending on a concurrent test having upserted the
         // same shared, inventory-registered job name.
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         repo.upsert_job(job_name, "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
@@ -114,8 +112,7 @@ mod bootstrap_dispatch_db {
         let app_ctx = test_app_context(&pool, &url);
 
         let config = config_with_bootstrap(vec!["totally_unregistered_job_xyz".to_owned()], true);
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         let err = svc
             .run_bootstrap_jobs(None)
@@ -139,10 +136,8 @@ mod bootstrap_dispatch_db {
         // the lock-acquisition branch of dispatch.rs.
         let job_name = crate::test_jobs::WORKING_JOB;
         let config = config_with_bootstrap(vec![job_name.to_owned()], true);
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
         SchedulerRepository::new(&pool)
-            .expect("repo")
             .upsert_job(job_name, "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
@@ -151,7 +146,7 @@ mod bootstrap_dispatch_db {
             .await
             .expect("run_bootstrap_jobs with distributed_lock must succeed");
 
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         let row = repo
             .find_job(job_name)
             .await
@@ -172,7 +167,7 @@ mod bootstrap_dispatch_db {
         let pool = test_db_pool().await;
         let app_ctx = test_app_context(&pool, &url);
         let job_name = crate::test_jobs::IDLE_JOB;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         repo.upsert_job(job_name, "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
@@ -184,7 +179,6 @@ mod bootstrap_dispatch_db {
 
         let config = config_with_bootstrap(vec![job_name.to_owned()], false);
         SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new")
             .run_bootstrap_jobs(None)
             .await
             .expect("an idle bootstrap run must succeed");
@@ -210,14 +204,13 @@ mod dispatch_outcome_arms {
         let pool = test_db_pool().await;
         let app_ctx = test_app_context(&pool, &url);
 
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         repo.upsert_job(PANIC_JOB, "", true)
             .await
             .expect("seed scheduled_jobs row");
 
         let config = config_with_bootstrap(vec![PANIC_JOB.to_owned()], false);
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         svc.run_bootstrap_jobs(None)
             .await
@@ -247,14 +240,13 @@ mod dispatch_outcome_arms {
         let pool = test_db_pool().await;
         let app_ctx = test_app_context(&pool, &url);
 
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         repo.upsert_job(FAILING_JOB, "", true)
             .await
             .expect("seed scheduled_jobs row");
 
         let config = config_with_bootstrap(vec![FAILING_JOB.to_owned()], false);
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         svc.run_bootstrap_jobs(None)
             .await
@@ -283,7 +275,7 @@ mod dispatch_outcome_arms {
         let pool = test_db_pool().await;
         let app_ctx = test_app_context(&pool, &url);
 
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         sqlx::query!(
             "DELETE FROM scheduled_jobs WHERE job_name = $1",
             FAILING_JOB
@@ -293,8 +285,7 @@ mod dispatch_outcome_arms {
         .expect("clear any pre-existing test-job row");
 
         let config = config_with_bootstrap(vec![FAILING_JOB.to_owned()], false);
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         // Dispatch only UPDATEs the scheduled_jobs row; with no row present the
         // bootstrap completion probe hits its row-missing arm and the pass still
@@ -303,7 +294,7 @@ mod dispatch_outcome_arms {
             .await
             .expect("a missing scheduled_jobs row must not abort bootstrap");
 
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         assert!(
             repo.find_job(FAILING_JOB)
                 .await
@@ -324,7 +315,7 @@ mod distributed_lock_arms {
         let app_ctx = test_app_context(&pool, &url);
 
         let job_name = "cleanup_empty_contexts";
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         repo.upsert_job(job_name, "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
@@ -335,7 +326,7 @@ mod distributed_lock_arms {
             .expect("seeded row")
             .run_count;
 
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let mut peer = pg.acquire().await.expect("peer connection");
         let key: i64 = sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, job_name)
             .fetch_one(peer.as_mut())
@@ -353,8 +344,7 @@ mod distributed_lock_arms {
         );
 
         let config = config_with_bootstrap(vec![job_name.to_owned()], true);
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
         svc.run_bootstrap_jobs(None)
             .await
             .expect("a lock-skipped dispatch must not abort bootstrap");
@@ -383,7 +373,7 @@ mod distributed_lock_arms {
         let app_ctx = test_app_context(&pool, &url);
 
         let job_name = "cleanup_empty_contexts";
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         repo.upsert_job(job_name, "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
@@ -407,8 +397,7 @@ mod distributed_lock_arms {
             .run_count;
 
         let config = config_with_bootstrap(vec![job_name.to_owned()], true);
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
         svc.run_bootstrap_jobs(None)
             .await
             .expect("a tick-deduplicated dispatch must not abort bootstrap");
@@ -445,7 +434,7 @@ mod closed_pool_resilience {
         // failure recording) and the job body itself fail against the closed
         // pool; dispatch logs each error and the bootstrap pass still succeeds.
         let config = config_with_bootstrap(vec!["cleanup_inactive_sessions".to_owned()], false);
-        let svc = SchedulerService::new(config, closed, app_ctx).expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, closed, app_ctx);
 
         let count = svc
             .run_bootstrap_jobs(None)
@@ -464,7 +453,7 @@ mod closed_pool_resilience {
         // With distributed_lock enabled, the advisory-lock acquisition fails on
         // the closed pool and the dispatch is skipped rather than run.
         let config = config_with_bootstrap(vec!["cleanup_inactive_sessions".to_owned()], true);
-        let svc = SchedulerService::new(config, closed, app_ctx).expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, closed, app_ctx);
 
         let count = svc
             .run_bootstrap_jobs(None)
@@ -486,7 +475,7 @@ mod bootstrap_owner_arms {
         let app_ctx = test_app_context(&pool, &url);
 
         let job_name = "cleanup_empty_contexts";
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         repo.upsert_job(job_name, "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
@@ -507,8 +496,7 @@ mod bootstrap_owner_arms {
             bootstrap_jobs: vec![job_name.to_owned()],
             distributed_lock: false,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         svc.run_bootstrap_jobs(None)
             .await
@@ -531,7 +519,7 @@ mod bootstrap_owner_arms {
         let url = test_database_url();
         let pool = test_db_pool().await;
         let app_ctx = test_app_context(&pool, &url);
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
 
         let owner_name = format!("sp_test_owner_{}", std::process::id());
         let owner_id = format!("sp-test-owner-id-{}", std::process::id());
@@ -548,7 +536,7 @@ mod bootstrap_owner_arms {
         .expect("seed active owner user");
 
         let job_name = crate::test_jobs::WORKING_JOB;
-        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let repo = SchedulerRepository::new(&pool);
         repo.upsert_job(job_name, "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
@@ -569,8 +557,7 @@ mod bootstrap_owner_arms {
             bootstrap_jobs: vec![job_name.to_owned()],
             distributed_lock: false,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
-            .expect("SchedulerService::new");
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
         svc.run_bootstrap_jobs(None)
             .await

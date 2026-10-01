@@ -39,26 +39,17 @@ systemprompt-database = "0.62"
 ```
 
 ```rust
-use systemprompt_database::{DatabaseResult, DbPool, with_transaction};
+use systemprompt_database::{DbPool, RepositoryError, with_transaction_retry};
 
-async fn example(pool: &DbPool) -> DatabaseResult<()> {
-    with_transaction(pool, |tx| Box::pin(async move {
-        // Execute queries within transaction
-        Ok(())
-    })).await
-}
-```
-
-```rust
-use systemprompt_database::{DatabaseResult, DbPool, with_transaction};
-
-async fn count_users(pool: &DbPool) -> DatabaseResult<i64> {
-    with_transaction(pool, |tx| Box::pin(async move {
-        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
-            .fetch_one(&mut **tx)
-            .await?;
-        Ok(row.0)
-    }))
+async fn count_users(db: &DbPool) -> Result<i64, RepositoryError> {
+    with_transaction_retry(&db.write_pool(), 3, |tx| {
+        Box::pin(async move {
+            let count = sqlx::query_scalar!("SELECT COUNT(*) FROM users")
+                .fetch_one(&mut **tx)
+                .await?;
+            Ok(count.unwrap_or(0))
+        })
+    })
     .await
 }
 ```
@@ -104,10 +95,8 @@ async fn count_users(pool: &DbPool) -> DatabaseResult<i64> {
 | `Repository` | `repository/base.rs` | Base CRUD repository trait |
 | `PaginatedRepository` | `repository/base.rs` | Pagination extension trait |
 | `DatabaseProvider` | `services/provider.rs` | Core database operations |
-| `DatabaseProviderExt` | `services/provider.rs` | Typed row fetching |
 | `DatabaseTransaction` | `models/transaction.rs` | Transaction operations |
 | `QuerySelector` | `models/query.rs` | Query abstraction |
-| `FromDatabaseRow` | `models/query.rs` | Row-to-type conversion |
 | `DatabaseExt` | `services/database.rs` | Database extraction |
 | `DatabaseCliDisplay` | `services/display.rs` | CLI output formatting |
 
@@ -115,12 +104,8 @@ async fn count_users(pool: &DbPool) -> DatabaseResult<i64> {
 
 | Function | Source | Description |
 |----------|--------|-------------|
-| `with_transaction` | `services/transaction.rs` | Execute closure in transaction |
-| `with_transaction_raw` | `services/transaction.rs` | Transaction with raw `PgPool` |
-| `with_transaction_retry` | `services/transaction.rs` | Transaction with automatic retry |
-| `install_extension_schemas` | `lifecycle/installation/mod.rs` | Install all registered extension schemas |
-| `install_extension_schemas_full` | `lifecycle/installation/mod.rs` | Install schemas and run pending migrations |
-| `install_extension_schemas_with_config` | `lifecycle/installation/mod.rs` | Install schemas honouring a `MigrationConfig` |
+| `with_transaction_retry` | `services/transaction.rs` | Transaction retried on serialization failure |
+| `install_extension_schemas_full` | `lifecycle/installation/mod.rs` | Install schemas and run pending migrations under a `MigrationConfig` |
 | `validate_database_connection` | `lifecycle/validation.rs` | Probe the live connection |
 | `validate_table_exists` | `lifecycle/validation.rs` | Assert a table is present |
 | `validate_column_exists` | `lifecycle/validation.rs` | Assert a column is present |
@@ -141,10 +126,6 @@ The `resilience` module is publicly exported and domain-agnostic. `ResilienceGua
 ### Re-exports
 
 From `systemprompt-traits`: `DbValue`, `ToDbValue`, `FromDbValue`, `JsonRow`, `parse_database_datetime`
-
-From `systemprompt-identifiers`: `UserId`, `TaskId`, `SessionId`, `ContextId`, `TraceId`, `ArtifactId`, `ExecutionStepId`, `SkillId`, `ContentId`, `FileId`, `ClientId`, `TokenId`, `LogId`
-
-From `sqlx`: `PgPool`, `Pool`, `Postgres`, `Transaction`, `Json`
 
 ## Dependencies
 

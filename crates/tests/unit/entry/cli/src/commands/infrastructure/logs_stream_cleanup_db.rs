@@ -43,11 +43,7 @@ async fn seed_log(pool: &DbPool, level: LogLevel, module: &str, message: &str) {
     );
     let mut entry = LogEntry::new(level, module, message, actor);
     entry.metadata = Some(serde_json::json!({ "probe": message }));
-    LoggingRepository::new(pool)
-        .unwrap()
-        .log(entry)
-        .await
-        .unwrap();
+    LoggingRepository::new(pool).log(entry).await.unwrap();
 }
 
 #[tokio::test]
@@ -90,11 +86,7 @@ async fn stream_renders_all_levels_and_plain_entries() {
         TraceId::generate(),
     );
     let plain = LogEntry::new(LogLevel::Info, &module, "no metadata line", actor);
-    LoggingRepository::new(&pool)
-        .unwrap()
-        .log(plain)
-        .await
-        .unwrap();
+    LoggingRepository::new(&pool).log(plain).await.unwrap();
 
     let ctx = app_ctx(&pool);
     logs::execute(

@@ -50,27 +50,6 @@ use super::undeclared::audit_schema_residue;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::DatabaseProvider;
 
-pub async fn install_extension_schemas(
-    registry: &ExtensionRegistry,
-    db: &dyn DatabaseProvider,
-) -> Result<SchemaInstallReport, LoaderError> {
-    install_extension_schemas_with_config(registry, db, &[]).await
-}
-
-pub async fn install_extension_schemas_with_config(
-    registry: &ExtensionRegistry,
-    db: &dyn DatabaseProvider,
-    disabled_extensions: &[String],
-) -> Result<SchemaInstallReport, LoaderError> {
-    install_extension_schemas_full(
-        registry,
-        db,
-        disabled_extensions,
-        MigrationConfig::default(),
-    )
-    .await
-}
-
 pub async fn install_extension_schemas_full(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,

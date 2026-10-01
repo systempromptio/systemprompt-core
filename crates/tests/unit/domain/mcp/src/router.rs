@@ -29,10 +29,7 @@ async fn router_serves_mcp_requests_with_logging_layers() {
 
     let router = create_router(
         NullHandler,
-        std::sync::Arc::new(
-            systemprompt_mcp::repository::McpSessionRepository::new(&db)
-                .expect("mcp session repository"),
-        ),
+        std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         McpHttpConfig::default(),
     );
 
@@ -90,10 +87,7 @@ async fn router_honours_disabled_host_allow_list() {
     };
     let router = create_router(
         NullHandler,
-        std::sync::Arc::new(
-            systemprompt_mcp::repository::McpSessionRepository::new(&db)
-                .expect("mcp session repository"),
-        ),
+        std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         config,
     );
 
@@ -120,10 +114,7 @@ async fn router_rejects_bodies_over_the_request_ceiling() {
 
     let router = create_router(
         NullHandler,
-        std::sync::Arc::new(
-            systemprompt_mcp::repository::McpSessionRepository::new(&db)
-                .expect("mcp session repository"),
-        ),
+        std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         McpHttpConfig::default(),
     );
 
