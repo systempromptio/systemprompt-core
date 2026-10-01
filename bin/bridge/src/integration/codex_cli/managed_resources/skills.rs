@@ -64,5 +64,6 @@ pub(super) fn write_skill(plugin_dir: &Path, skill: &SkillEntry) -> Result<(), A
     let dir = plugin_dir.join("skills").join(skill.id.as_str());
     fs::create_dir_all(&dir).map_err(|e| io_err("create skill dir", &dir, e))?;
     let path = dir.join("SKILL.md");
-    fs::write(&path, skill_markdown(skill)).map_err(|e| io_err("write SKILL.md", &path, e))
+    crate::fsutil::atomic_write_0644(&path, skill_markdown(skill).as_bytes())
+        .map_err(|e| io_err("write SKILL.md", &path, e))
 }

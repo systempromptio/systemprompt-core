@@ -73,7 +73,8 @@ pub(super) fn write_marketplace_json(root: &Path) -> Result<(), ApplyError> {
         source: e,
     })?;
     let path = dir.join("marketplace.json");
-    fs::write(&path, bytes).map_err(|e| io_err("write marketplace.json", &path, e))
+    crate::fsutil::atomic_write_0644(&path, &bytes)
+        .map_err(|e| io_err("write marketplace.json", &path, e))
 }
 
 #[derive(Serialize)]
@@ -109,7 +110,8 @@ pub(super) fn write_plugin_json(plugin_dir: &Path, version: &str) -> Result<(), 
         source: e,
     })?;
     let path = dir.join("plugin.json");
-    fs::write(&path, bytes).map_err(|e| io_err("write plugin.json", &path, e))
+    crate::fsutil::atomic_write_0644(&path, &bytes)
+        .map_err(|e| io_err("write plugin.json", &path, e))
 }
 
 pub(super) fn read_existing_version(plugin_dir: &Path) -> Option<String> {
