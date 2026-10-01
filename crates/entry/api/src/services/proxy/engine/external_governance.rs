@@ -4,12 +4,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::super::audit::parse_tool_call;
+use super::super::audit::{ToolCallFrame, classify_tool_call};
 use super::super::backend::ProxyError;
 use systemprompt_identifiers::{CallId, McpToolName, ServiceName};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::authz::Decision;
+use std::borrow::Cow;
+use systemprompt_security::authz::{Decision, DenyReason};
 use systemprompt_security::policy::governed::McpToolInput;
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
@@ -26,14 +27,16 @@ pub(super) async fn enforce(
     let denied = || ProxyError::Forbidden {
         service: service.to_string(),
     };
-    let Some(value) = tool_call(service, body)? else {
-        return Ok(());
+    let value = match tool_call(service, body)? {
+        GovernedCall::None => return Ok(()),
+        GovernedCall::Valid(value) => value,
+        GovernedCall::InvalidName { raw_name } => {
+            record_invalid_name(ctx, request, service, raw_name.as_deref()).await;
+            return Err(denied());
+        },
     };
     let call_id = CallId::generate();
-    let scope = request
-        .user
-        .as_ref()
-        .map_or(AccessScope::User, |u| AccessScope::from_roles(&u.roles));
+    let scope = access_scope(request);
     let tool = value
         .pointer("/params/name")
         .and_then(serde_json::Value::as_str)
@@ -89,6 +92,63 @@ pub(super) async fn enforce(
     if allowed { Ok(()) } else { Err(denied()) }
 }
 
+fn access_scope(request: &RequestContext) -> AccessScope {
+    request
+        .user
+        .as_ref()
+        .map_or(AccessScope::User, |u| AccessScope::from_roles(&u.roles))
+}
+
+const RAW_NAME_AUDIT_LIMIT: usize = 128;
+
+async fn record_invalid_name(
+    ctx: &AppContext,
+    request: &RequestContext,
+    service: &ServiceName,
+    raw_name: Option<&str>,
+) {
+    let shown: String = raw_name
+        .unwrap_or_default()
+        .chars()
+        .take(RAW_NAME_AUDIT_LIMIT)
+        .collect();
+    let Ok(target) = McpToolName::try_new(format!("mcp__{service}__")) else {
+        tracing::warn!(%service, "External MCP tools/call refused without an audit target");
+        return;
+    };
+    let call_id = CallId::generate();
+    let record = DecisionAudit {
+        id: call_id.to_string(),
+        call_id: call_id.clone(),
+        origin: AuditOrigin::Governed,
+        decision: Decision::Deny {
+            reason: DenyReason::PolicyViolation {
+                policy: INVALID_TOOL_NAME_POLICY.to_owned(),
+                detail: Cow::Owned(format!(
+                    "tools/call names no valid tool (received {shown:?})"
+                )),
+            },
+        },
+        principal: principal(request, access_scope(request)),
+        target: AuditTarget {
+            tool_name: target,
+            plugin_id: None,
+            tool_use_id: None,
+        },
+        chain: Vec::new(),
+        approver: None,
+        act_chain: request.auth.act_chain.clone(),
+        context_id: Some(request.context_id().clone()),
+        trace_id: Some(request.trace_id().clone()),
+    };
+    let pool = ctx.db_pool().write_pool();
+    if let Err(error) = record_decision(&pool, &record).await {
+        tracing::warn!(%error, %service, "Refused external MCP tools/call could not be audited");
+    }
+}
+
+const INVALID_TOOL_NAME_POLICY: &str = "tool_name_validation";
+
 fn principal(request: &RequestContext, scope: AccessScope) -> PrincipalSnapshot {
     PrincipalSnapshot {
         user_id: request.user_id().clone(),
@@ -100,14 +160,20 @@ fn principal(request: &RequestContext, scope: AccessScope) -> PrincipalSnapshot 
     }
 }
 
-// JSON: MCP JSON-RPC request frame — forwarded verbatim to the external MCP
-// server.
-fn tool_call(service: &ServiceName, body: &[u8]) -> Result<Option<serde_json::Value>, ProxyError> {
+enum GovernedCall {
+    None,
+    // JSON: MCP JSON-RPC request frame — forwarded verbatim to the external MCP
+    // server.
+    Valid(serde_json::Value),
+    InvalidName { raw_name: Option<String> },
+}
+
+fn tool_call(service: &ServiceName, body: &[u8]) -> Result<GovernedCall, ProxyError> {
     let denied = || ProxyError::Forbidden {
         service: service.to_string(),
     };
     if body.is_empty() {
-        return Ok(None);
+        return Ok(GovernedCall::None);
     }
     let value: serde_json::Value = serde_json::from_slice(body).map_err(|error| {
         tracing::debug!(%error, %service, "Invalid external MCP request");
@@ -116,11 +182,14 @@ fn tool_call(service: &ServiceName, body: &[u8]) -> Result<Option<serde_json::Va
     if !value.is_object() {
         return Err(denied());
     }
-    if parse_tool_call(body).is_some() {
-        return Ok(Some(value));
+    match classify_tool_call(body) {
+        ToolCallFrame::Call(_) => Ok(GovernedCall::Valid(value)),
+        ToolCallFrame::InvalidName { raw_name } => Ok(GovernedCall::InvalidName { raw_name }),
+        ToolCallFrame::NotToolCall
+            if value.get("method").and_then(serde_json::Value::as_str) == Some("tools/call") =>
+        {
+            Ok(GovernedCall::InvalidName { raw_name: None })
+        },
+        ToolCallFrame::NotToolCall => Ok(GovernedCall::None),
     }
-    if value.get("method").and_then(serde_json::Value::as_str) == Some("tools/call") {
-        return Err(denied());
-    }
-    Ok(None)
 }

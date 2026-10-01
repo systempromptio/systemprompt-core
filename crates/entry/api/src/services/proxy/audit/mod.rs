@@ -35,7 +35,7 @@ use systemprompt_mcp::{
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
 
-pub(crate) use jsonrpc::parse_tool_call;
+pub(crate) use jsonrpc::{ToolCallFrame, classify_tool_call, parse_tool_call};
 pub(crate) use tap::record;
 
 use jsonrpc::{ToolCallInvocation, ToolCallOutcome};

@@ -31,10 +31,22 @@ struct RequestFrame {
 
 #[derive(Deserialize)]
 struct ToolCallParams {
-    name: McpToolName,
+    // JSON: MCP JSON-RPC — the client-supplied tool name, validated below so a
+    // malformed one is classified rather than dropped as "not a tool call".
+    #[serde(default)]
+    name: Option<Value>,
     // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     #[serde(default)]
     arguments: Option<Value>,
+}
+
+/// What a forwarded request frame is, as far as tool-call governance and
+/// audit are concerned.
+#[derive(Debug)]
+pub enum ToolCallFrame {
+    NotToolCall,
+    Call(ToolCallInvocation),
+    InvalidName { raw_name: Option<String> },
 }
 
 #[derive(Debug)]
@@ -47,16 +59,41 @@ pub struct ToolCallInvocation {
 }
 
 pub fn parse_tool_call(body: &[u8]) -> Option<ToolCallInvocation> {
-    let frame: RequestFrame = serde_json::from_slice(body).ok()?;
-    if frame.method != TOOLS_CALL_METHOD {
-        return None;
+    match classify_tool_call(body) {
+        ToolCallFrame::Call(invocation) => Some(invocation),
+        ToolCallFrame::NotToolCall | ToolCallFrame::InvalidName { .. } => None,
     }
-    let params = frame.params?;
-    Some(ToolCallInvocation {
-        id: frame.id.unwrap_or(Value::Null),
-        tool_name: params.name,
-        arguments: params.arguments.unwrap_or(Value::Null),
-    })
+}
+
+pub fn classify_tool_call(body: &[u8]) -> ToolCallFrame {
+    let Ok(frame) = serde_json::from_slice::<RequestFrame>(body) else {
+        return ToolCallFrame::NotToolCall;
+    };
+    if frame.method != TOOLS_CALL_METHOD {
+        return ToolCallFrame::NotToolCall;
+    }
+    let Some(params) = frame.params else {
+        return ToolCallFrame::InvalidName { raw_name: None };
+    };
+    let raw_name = match params.name {
+        Some(Value::String(name)) => name,
+        Some(other) => {
+            return ToolCallFrame::InvalidName {
+                raw_name: Some(other.to_string()),
+            };
+        },
+        None => return ToolCallFrame::InvalidName { raw_name: None },
+    };
+    match McpToolName::try_new(raw_name.as_str()) {
+        Ok(tool_name) => ToolCallFrame::Call(ToolCallInvocation {
+            id: frame.id.unwrap_or(Value::Null),
+            tool_name,
+            arguments: params.arguments.unwrap_or(Value::Null),
+        }),
+        Err(_) => ToolCallFrame::InvalidName {
+            raw_name: Some(raw_name),
+        },
+    }
 }
 
 #[derive(Deserialize)]

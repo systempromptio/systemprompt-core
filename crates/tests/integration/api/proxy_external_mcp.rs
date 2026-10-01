@@ -601,6 +601,36 @@ async fn external_malformed_tool_call_is_not_forwarded() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn external_blank_tool_name_is_refused_and_the_refusal_is_audited() -> anyhow::Result<()> {
+    let h = harness().await?;
+    mount_accessor(&h.server).await;
+    Mock::given(method("POST"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&h.server)
+        .await;
+    let ctx = caller_context("blank-tool-user");
+    let session_id = ctx.session_id().clone();
+    let response = h
+        .app
+        .clone()
+        .oneshot(proxied_post(&h.ext_name, tool_call_body("  "), Some(ctx)))
+        .await?;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let row: Option<(String, String)> = sqlx::query_as(
+        "SELECT tool_name, decision::text FROM governance_decisions WHERE session_id = $1",
+    )
+    .bind(session_id.as_str())
+    .fetch_optional(h.pool.pool().as_ref())
+    .await?;
+    let (tool_name, decision) = row.expect("the refused tools/call leaves a decision row");
+    assert_eq!(tool_name, format!("mcp__{}__", h.ext_name));
+    assert_eq!(decision, "deny");
+    Ok(())
+}
+
+#[tokio::test]
 async fn external_initialized_session_survives_failed_delete_and_rejects_other_user()
 -> anyhow::Result<()> {
     let h = harness().await?;
