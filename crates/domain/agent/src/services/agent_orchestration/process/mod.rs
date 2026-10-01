@@ -15,6 +15,7 @@ mod signals;
 
 use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::Config;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
@@ -24,7 +25,11 @@ pub use signals::{
     terminate_gracefully_verified, terminate_process,
 };
 
-pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> OrchestrationResult<u32> {
+pub fn spawn_detached(
+    paths: &AppPaths,
+    agent_name: &AgentName,
+    port: u16,
+) -> OrchestrationResult<u32> {
     let binary_path = BuildPaths::resolve_self()
         .map_err(|e| OrchestrationError::spawn("Failed to resolve running binary", e))?;
 

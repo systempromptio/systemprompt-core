@@ -3,6 +3,7 @@
 // shape of the spawn command (env_clear plus the sanctioned pass-through set).
 
 use std::fs;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::services::agent_orchestration::process::command::{
     BuildAgentCommandParams, build_agent_command, prepare_agent_log_file, rotate_log_if_needed,
@@ -51,7 +52,7 @@ fn prepare_agent_log_file_creates_directory_and_file() {
     let dir = tempfile::tempdir().expect("tempdir");
     let log_dir = dir.path().join("nested/logs");
 
-    let file = prepare_agent_log_file("cmd_test", &log_dir).expect("log file");
+    let file = prepare_agent_log_file(&AgentName::new("cmd_test"), &log_dir).expect("log file");
     drop(file);
     assert!(log_dir.join("agent-cmd_test.log").exists());
 }
@@ -63,13 +64,14 @@ fn build_agent_command_sets_args_and_scoped_env() {
     let config = systemprompt_test_fixtures::fixture_config(&url);
 
     let dir = tempfile::tempdir().expect("tempdir");
-    let log_file = prepare_agent_log_file("cmd_env", dir.path()).expect("log file");
+    let log_file =
+        prepare_agent_log_file(&AgentName::new("cmd_env"), dir.path()).expect("log file");
 
     let binary_path = bootstrap.bin_path.join("systemprompt");
     let secrets = secrets();
     let command = build_agent_command(BuildAgentCommandParams {
         binary_path: &binary_path,
-        agent_name: "cmd_env",
+        agent_name: &AgentName::new("cmd_env"),
         port: 39470,
         profile_path: "/tmp/profile.yaml",
         secrets: &secrets,

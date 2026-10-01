@@ -65,7 +65,11 @@ basic_id_tests!(authorization_code, AuthorizationCode, "code_abc");
 basic_id_tests!(challenge_id, ChallengeId, "chal_1");
 basic_id_tests!(marketplace_id, MarketplaceId, "mkt_default");
 basic_id_tests!(tenant_id, TenantId, "tenant_acme");
-basic_id_tests!(webhook_endpoint_id, WebhookEndpointId, "whk_1");
+basic_id_tests!(
+    webhook_endpoint_id,
+    WebhookEndpointId,
+    "6f1c2a3e-8b4d-4c5e-9f60-7a8b9c0d1e2f"
+);
 basic_id_tests!(hook_id, HookId, "hook_1");
 basic_id_tests!(plugin_id, PluginId, "plugin_core");
 basic_id_tests!(policy_version, PolicyVersion, "v1");

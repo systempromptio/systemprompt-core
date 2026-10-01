@@ -19,7 +19,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 use systemprompt_database::resilience::Outcome;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{McpServerId, McpToolName};
 use systemprompt_models::wire::error::WireStreamError;
 use systemprompt_traits::{AiProviderError, FileStorageError, RepositoryError};
 
@@ -70,10 +70,13 @@ pub enum AiError {
     MessageSerializationFailed,
 
     #[error("Tool {tool_name} missing required field: {field}")]
-    MissingToolField { tool_name: String, field: String },
+    MissingToolField {
+        tool_name: McpToolName,
+        field: String,
+    },
 
     #[error("Tool description cannot be empty for tool: {tool_name}")]
-    EmptyToolDescription { tool_name: String },
+    EmptyToolDescription { tool_name: McpToolName },
 
     #[error("No tool calls found in provider response")]
     NoToolCalls,

@@ -4,6 +4,7 @@
 // already dead, and crash cleanup when no service record exists.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -18,8 +19,8 @@ use systemprompt_test_fixtures::test_db_pool;
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4().simple())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
 }
 
 fn app_paths() -> Arc<AppPaths> {
@@ -69,7 +70,7 @@ async fn start_agent_unknown_agent_creates_no_service_state() {
         .start_agent(&name, None)
         .await
         .expect_err("an unknown agent cannot start");
-    assert!(err.to_string().contains(&name));
+    assert!(err.to_string().contains(name.as_str()));
     assert!(!db.agent_exists(&name).await.expect("service lookup"));
     assert!(
         db.repository
@@ -159,7 +160,7 @@ async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
         "SELECT status, pid, port FROM services WHERE instance_id = $1 AND name = $2",
     )
     .bind("test-instance")
-    .bind(&name)
+    .bind(name.as_str())
     .fetch_one(pool.pool().as_ref())
     .await
     .expect("raw running service row");

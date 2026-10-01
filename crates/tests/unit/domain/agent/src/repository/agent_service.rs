@@ -1,11 +1,12 @@
 use super::repos;
-use systemprompt_agent::repository::agent_service::AgentServiceStatus;
+use systemprompt_identifiers::AgentName;
+use systemprompt_models::services::ServiceStatus;
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}-{}", Uuid::new_v4())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}-{}", Uuid::new_v4()))
 }
 
 #[tokio::test]
@@ -26,7 +27,7 @@ async fn register_and_get_status_running() {
         .expect("status")
         .expect("row present");
     assert_eq!(status.name, name);
-    assert_eq!(status.status, AgentServiceStatus::Running);
+    assert_eq!(status.status, ServiceStatus::Running);
     assert_eq!(status.pid, Some(4242));
     assert_eq!(status.port, 9100);
 
@@ -52,7 +53,7 @@ async fn register_starting_then_mark_running() {
         .await
         .expect("status")
         .expect("row");
-    assert_eq!(status.status, AgentServiceStatus::Starting);
+    assert_eq!(status.status, ServiceStatus::Starting);
 
     r.agent_services
         .mark_running(&name)
@@ -64,7 +65,7 @@ async fn register_starting_then_mark_running() {
         .await
         .expect("status")
         .expect("row");
-    assert_eq!(status.status, AgentServiceStatus::Running);
+    assert_eq!(status.status, ServiceStatus::Running);
 
     r.agent_services.remove_agent_service(&name).await.ok();
 }
@@ -86,7 +87,7 @@ async fn mark_crashed_clears_pid() {
         .await
         .expect("status")
         .expect("row");
-    assert_eq!(status.status, AgentServiceStatus::Error);
+    assert_eq!(status.status, ServiceStatus::Error);
     assert_eq!(status.pid, None);
 
     r.agent_services.remove_agent_service(&name).await.ok();
@@ -109,7 +110,7 @@ async fn mark_stopped_and_error_clear_pid() {
         .await
         .expect("status")
         .expect("row");
-    assert_eq!(s.status, AgentServiceStatus::Stopped);
+    assert_eq!(s.status, ServiceStatus::Stopped);
     assert_eq!(s.pid, None);
 
     let errored = unique_name("svc-err");
@@ -124,7 +125,7 @@ async fn mark_stopped_and_error_clear_pid() {
         .await
         .expect("status")
         .expect("row");
-    assert_eq!(s.status, AgentServiceStatus::Error);
+    assert_eq!(s.status, ServiceStatus::Error);
 
     r.agent_services.remove_agent_service(&stopped).await.ok();
     r.agent_services.remove_agent_service(&errored).await.ok();
@@ -142,7 +143,7 @@ async fn unrecognised_stored_status_is_invalid_data() {
 
     let raw = pool.pool();
     sqlx::query("UPDATE services SET status = 'degraded' WHERE name = $1")
-        .bind(&name)
+        .bind(name.as_str())
         .execute(raw.as_ref())
         .await
         .expect("garble status");

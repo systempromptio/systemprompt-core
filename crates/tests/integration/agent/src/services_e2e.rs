@@ -8,7 +8,9 @@ use systemprompt_agent::services::context::ContextService;
 use systemprompt_agent::services::context_provider::ContextProviderService;
 use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{Actor, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpToolName, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::PlannedTool;
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_test_fixtures::test_db_pool;
@@ -99,7 +101,7 @@ impl ServicesFixture {
                 user_id: &self.user_id,
                 session_id: &self.session_id,
                 trace_id: &self.trace_id,
-                agent_name: "svc-agent",
+                agent_name: &AgentName::new("svc-agent"),
             })
             .await?;
         Ok(task_id)
@@ -301,7 +303,7 @@ async fn message_service_creates_tool_execution_message() -> Result<()> {
         .create_tool_execution_message(CreateToolExecutionMessageParams {
             task_id: &task_id,
             context_id: &fx.context_id,
-            tool_name: "echo",
+            tool_name: &McpToolName::new("echo"),
             tool_args: &serde_json::json!({"x": 1}),
             request_context: &request_context,
         })

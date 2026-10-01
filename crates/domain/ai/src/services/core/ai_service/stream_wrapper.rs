@@ -11,8 +11,8 @@
 use futures::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use systemprompt_identifiers::AiRequestId;
 use tokio_util::task::TaskTracker;
-use uuid::Uuid;
 
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
@@ -26,7 +26,7 @@ pub(super) struct StreamStorageParams {
     pub storage: RequestStorage,
     pub audit_tasks: TaskTracker,
     pub request: AiRequest,
-    pub request_id: Uuid,
+    pub request_id: AiRequestId,
     pub start: std::time::Instant,
     pub provider: String,
     pub model: String,
@@ -38,7 +38,7 @@ pub(super) struct StreamStorageWrapper {
     storage: RequestStorage,
     audit_tasks: TaskTracker,
     request: AiRequest,
-    request_id: Uuid,
+    request_id: AiRequestId,
     start: std::time::Instant,
     provider: String,
     model: String,
@@ -108,7 +108,7 @@ impl StreamStorageWrapper {
 
     fn build_response(&self) -> AiResponse {
         let mut response = AiResponse::new(
-            self.request_id,
+            self.request_id.clone(),
             self.accumulated.clone(),
             self.provider.clone(),
             self.model.clone(),

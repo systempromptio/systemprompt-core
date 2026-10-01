@@ -15,6 +15,7 @@ use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
 use std::collections::HashSet;
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 use tracing::Instrument;
 
@@ -144,7 +145,7 @@ async fn kill_all_running_servers(
 
     for server in running_servers {
         let port = server.spawn_port()?;
-        kill_single_server(database, &server.name, events).await?;
+        kill_single_server(database, &server.server_id(), events).await?;
         if let Err(e) = port::wait_for_port_release(port).await {
             tracing::warn!(port = port, error = %e, "Port release wait failed, continuing");
         }
@@ -156,26 +157,27 @@ async fn kill_all_running_servers(
 
 async fn kill_single_server(
     database: &DatabaseService,
-    server_name: &str,
+    server_name: &McpServerId,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
-    if let Some(service_info) = database.get_service_by_name(server_name).await? {
+    let service_name = ServiceName::of_mcp_server(server_name);
+    if let Some(service_info) = database.get_service_by_name(&service_name).await? {
         if let Some(pid) = service_info.pid {
             if let Some(tx) = events
                 && let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
-                    name: server_name.to_owned(),
+                    name: server_name.to_string(),
                     reason: "Restarting to ensure fresh state".to_owned(),
                 })
             {
                 tracing::warn!(error = %e, "Failed to send cleanup notification");
             }
             if let Err(e) =
-                ProcessService::terminate_gracefully_verified(pid as u32, server_name).await
+                ProcessService::terminate_gracefully_verified(pid as u32, &service_name).await
             {
                 tracing::warn!(pid = pid, error = %e, "Failed to terminate process");
             }
         }
-        if let Err(e) = database.unregister_service(server_name).await {
+        if let Err(e) = database.unregister_service(&service_name).await {
             tracing::warn!(server = %server_name, error = %e, "Failed to unregister service");
         }
     }

@@ -3,7 +3,7 @@
 use std::time::Duration;
 use systemprompt_ai::error::AiError;
 use systemprompt_database::resilience::Outcome;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{McpServerId, McpToolName};
 use systemprompt_models::errors::AiInferenceError;
 use systemprompt_traits::RepositoryError;
 
@@ -107,7 +107,7 @@ mod ai_error_tests {
     #[test]
     fn missing_tool_field_error() {
         let err = AiError::MissingToolField {
-            tool_name: "search".to_string(),
+            tool_name: McpToolName::new("search"),
             field: "description".to_string(),
         };
         let msg = err.to_string();
@@ -118,7 +118,7 @@ mod ai_error_tests {
     #[test]
     fn empty_tool_description_error() {
         let err = AiError::EmptyToolDescription {
-            tool_name: "calculator".to_string(),
+            tool_name: McpToolName::new("calculator"),
         };
         let msg = err.to_string();
         assert!(msg.contains("calculator"));

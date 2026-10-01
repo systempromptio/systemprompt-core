@@ -194,7 +194,7 @@ async fn terminate_service_child(
         return;
     }
 
-    if !systemprompt_loader::subprocess::live_pid_is_subprocess(pid, name_key, name.as_str()) {
+    if !systemprompt_loader::subprocess::live_pid_is_subprocess(pid, name_key, name) {
         tracing::warn!(
             service = %name,
             pid,

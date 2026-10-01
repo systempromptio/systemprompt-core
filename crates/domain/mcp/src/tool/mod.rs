@@ -37,7 +37,7 @@ use rmcp::model::{CacheScope, CallToolRequestParams, CallToolResult, ListToolsRe
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
-use systemprompt_identifiers::McpExecutionId;
+use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{ClientProfile, Correlation, ExecutionSource};
 use systemprompt_traits::DynToolCallIntentClaims;
@@ -57,7 +57,7 @@ pub struct McpToolExecutor {
     tool_usage_repo: Arc<ToolUsageRepository>,
     intent_claims: IntentClaimService,
     ingest: Arc<ArtifactIngest>,
-    server_name: String,
+    server_name: McpServerId,
 }
 
 impl McpToolExecutor {
@@ -65,13 +65,13 @@ impl McpToolExecutor {
         tool_usage_repo: Arc<ToolUsageRepository>,
         intents: DynToolCallIntentClaims,
         ingest: Arc<ArtifactIngest>,
-        server_name: impl Into<String>,
+        server_name: McpServerId,
     ) -> Self {
         Self {
             intent_claims: IntentClaimService::new(intents, Arc::clone(&tool_usage_repo)),
             tool_usage_repo,
             ingest,
-            server_name: server_name.into(),
+            server_name,
         }
     }
 
@@ -90,14 +90,15 @@ impl McpToolExecutor {
         })?;
 
         let exec_id = McpExecutionId::generate();
+        let tool_name = McpToolName::new(handler.tool_name());
         let execution_request = ToolExecutionRequest {
-            tool_name: handler.tool_name().to_owned(),
+            tool_name: tool_name.clone(),
             server_name: self.server_name.clone(),
             input: input_value,
             started_at,
             context: ctx.clone(),
             request_method: Some("mcp".to_owned()),
-            request_source: Some(self.server_name.clone()),
+            request_source: Some(self.server_name.to_string()),
             ai_tool_call_id: ctx.ai_tool_call_id().cloned(),
             source: ExecutionSource::InProcess,
         };
@@ -113,9 +114,7 @@ impl McpToolExecutor {
                 );
                 McpError::internal_error("Failed to start execution tracking", None)
             })?;
-        let ctx = &self
-            .with_claimed_intent(handler.tool_name(), ctx, &exec_id)
-            .await;
+        let ctx = &self.with_claimed_intent(&tool_name, ctx, &exec_id).await;
 
         tracing::info!(tool = handler.tool_name(), %exec_id, "MCP execution started");
 
@@ -141,7 +140,7 @@ impl McpToolExecutor {
                         None
                     },
                 };
-                let identity = ToolIdentity::new(&self.server_name, handler.tool_name());
+                let identity = ToolIdentity::new(self.server_name.clone(), tool_name.clone());
                 let response = McpResponseBuilder::new(output, identity, ctx, &exec_id, client)
                     .build(summary, &self.ingest, &artifact_type, title)
                     .await;
@@ -151,7 +150,7 @@ impl McpToolExecutor {
         };
 
         let execution_result = Self::build_execution_result(&response, output_value, started_at);
-        self.record_completion(handler.tool_name(), &exec_id, &execution_result)
+        self.record_completion(&tool_name, &exec_id, &execution_result)
             .await;
 
         response
@@ -162,13 +161,13 @@ impl McpToolExecutor {
     // session is claimed atomically and recorded as inferred, never exact.
     async fn with_claimed_intent(
         &self,
-        tool_name: &str,
+        tool_name: &McpToolName,
         ctx: &RequestContext,
         exec_id: &McpExecutionId,
     ) -> RequestContext {
         if let Some(call_id) = ctx.ai_tool_call_id() {
             if let Err(e) = self.intent_claims.claim_exact(call_id, exec_id).await {
-                tracing::warn!(tool = tool_name, %exec_id, error = %e, "Intent not claimed");
+                tracing::warn!(tool = %tool_name, %exec_id, error = %e, "Intent not claimed");
             }
             return ctx.clone();
         }
@@ -184,7 +183,7 @@ impl McpToolExecutor {
         {
             Ok(Some(call_id)) => {
                 tracing::debug!(
-                    tool = tool_name,
+                    tool = %tool_name,
                     %exec_id,
                     session_id = %ctx.session_id(),
                     %call_id,
@@ -194,7 +193,7 @@ impl McpToolExecutor {
             },
             Ok(None) => {
                 tracing::info!(
-                    tool = tool_name,
+                    tool = %tool_name,
                     %exec_id,
                     session_id = %ctx.session_id(),
                     window_seconds = INTENT_CLAIM_WINDOW_SECONDS,
@@ -203,7 +202,7 @@ impl McpToolExecutor {
                 ctx.clone()
             },
             Err(e) => {
-                tracing::warn!(tool = tool_name, %exec_id, error = %e, "Intent claim failed");
+                tracing::warn!(tool = %tool_name, %exec_id, error = %e, "Intent claim failed");
                 ctx.clone()
             },
         }
@@ -232,7 +231,7 @@ impl McpToolExecutor {
 
     async fn record_completion(
         &self,
-        tool_name: &str,
+        tool_name: &McpToolName,
         exec_id: &McpExecutionId,
         result: &ToolExecutionResult,
     ) {
@@ -242,11 +241,11 @@ impl McpToolExecutor {
             .await
         {
             Ok(()) => {
-                tracing::info!(tool = tool_name, %exec_id, "MCP execution completed");
+                tracing::info!(tool = %tool_name, %exec_id, "MCP execution completed");
             },
             Err(e) => {
                 tracing::error!(
-                    tool = tool_name,
+                    tool = %tool_name,
                     %exec_id,
                     error = %e,
                     "Failed to complete execution tracking"

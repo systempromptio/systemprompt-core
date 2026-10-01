@@ -4,6 +4,7 @@
 // the direct-vs-agentic message-creation branch.
 
 use std::sync::Arc;
+use systemprompt_identifiers::McpToolName;
 
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
 use systemprompt_agent::repository::A2ARepositories;
@@ -216,7 +217,7 @@ async fn publish_from_mcp_agentic_skips_messages() {
         artifact: &art,
         task_id: &tid,
         context_id: &ctx,
-        tool_name: "tool-x",
+        tool_name: &McpToolName::new("tool-x"),
         tool_args: &args,
         request_context: &rc,
         call_source: CallSource::Agentic,
@@ -247,7 +248,7 @@ async fn publish_from_mcp_direct_creates_messages() {
         artifact: &art,
         task_id: &tid,
         context_id: &ctx,
-        tool_name: "tool-direct",
+        tool_name: &McpToolName::new("tool-direct"),
         tool_args: &args,
         request_context: &rc,
         call_source: CallSource::Direct,

@@ -25,12 +25,11 @@ use crate::services::agent_orchestration::reconciler::AgentReconciler;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult, monitor};
 use crate::state::AgentState;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::AgentName;
 
 #[derive(Debug, Clone)]
 pub struct AgentInfo {
-    pub id: AgentId,
-    pub name: String,
+    pub name: AgentName,
     pub status: AgentStatus,
     pub port: u16,
 }
@@ -78,7 +77,7 @@ impl AgentOrchestrator {
 
     pub async fn start_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         self.lifecycle.start_agent(agent_name, events).await
@@ -86,35 +85,35 @@ impl AgentOrchestrator {
 
     pub async fn enable_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         self.lifecycle.enable_agent(agent_name, events).await
     }
 
-    pub async fn disable_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn disable_agent(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.lifecycle.disable_agent(agent_name).await
     }
 
     pub async fn restart_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         self.lifecycle.restart_agent(agent_name, events).await
     }
 
-    pub async fn get_status(&self, agent_name: &str) -> OrchestrationResult<AgentStatus> {
+    pub async fn get_status(&self, agent_name: &AgentName) -> OrchestrationResult<AgentStatus> {
         self.db_service.get_status(agent_name).await
     }
 
-    pub async fn list_agents(&self) -> OrchestrationResult<Vec<(String, AgentStatus)>> {
+    pub async fn list_agents(&self) -> OrchestrationResult<Vec<(AgentName, AgentStatus)>> {
         self.db_service.list_all_agents().await
     }
 
     pub async fn health_check(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
     ) -> OrchestrationResult<monitor::HealthCheckResult> {
         self.monitor.comprehensive_health_check(agent_name).await
     }
@@ -122,9 +121,9 @@ impl AgentOrchestrator {
     pub async fn disable_all(&self) -> OrchestrationResult<()> {
         let agents = self.db_service.list_all_agents().await?;
 
-        for (agent_id, _) in agents {
-            if let Err(e) = self.disable_agent(&agent_id).await {
-                tracing::error!(agent_id = %agent_id, error = %e, "Failed to disable agent");
+        for (agent_name, _) in agents {
+            if let Err(e) = self.disable_agent(&agent_name).await {
+                tracing::error!(agent_name = %agent_name, error = %e, "Failed to disable agent");
             }
         }
 
@@ -160,7 +159,7 @@ impl AgentOrchestrator {
 
     pub async fn update_agent_running(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         pid: u32,
         port: u16,
     ) -> OrchestrationResult<()> {
@@ -169,7 +168,7 @@ impl AgentOrchestrator {
             .await
     }
 
-    pub async fn update_agent_stopped(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn update_agent_stopped(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.db_service.update_agent_stopped(agent_name).await
     }
 }

@@ -62,7 +62,7 @@ impl Drop for OwnedServer {
                 if systemprompt_loader::subprocess::live_pid_is_subprocess(
                     pid,
                     "AGENT_NAME",
-                    &agent.name,
+                    &systemprompt_identifiers::ServiceName::new(&agent.name),
                 ) {
                     ProcessCleanup::kill_process(pid);
                     for _ in 0..40 {
@@ -87,7 +87,11 @@ fn agent_pids(name: &str) -> Vec<u32> {
         .split_whitespace()
         .filter_map(|value| value.parse().ok())
         .filter(|pid| {
-            systemprompt_loader::subprocess::live_pid_is_subprocess(*pid, "AGENT_NAME", name)
+            systemprompt_loader::subprocess::live_pid_is_subprocess(
+                *pid,
+                "AGENT_NAME",
+                &systemprompt_identifiers::ServiceName::new(name),
+            )
         })
         .collect()
 }
@@ -518,7 +522,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         systemprompt_loader::subprocess::live_pid_is_subprocess(
             agent_pid,
             "AGENT_NAME",
-            &agent_name
+            &systemprompt_identifiers::ServiceName::new(&agent_name)
         ),
         "database PID must identify the owned agent"
     );
@@ -661,7 +665,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         systemprompt_loader::subprocess::live_pid_is_subprocess(
             replacement_agent_pid,
             "AGENT_NAME",
-            &agent_name
+            &systemprompt_identifiers::ServiceName::new(&agent_name)
         ),
         "replacement database PID must identify the owned agent"
     );
@@ -798,7 +802,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         systemprompt_loader::subprocess::live_pid_is_subprocess(
             restarted_after_stop_pid,
             "AGENT_NAME",
-            &agent_name
+            &systemprompt_identifiers::ServiceName::new(&agent_name)
         ),
         "recovery API must register the new owned agent process"
     );

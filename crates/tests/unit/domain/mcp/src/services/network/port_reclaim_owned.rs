@@ -8,6 +8,7 @@
 
 use std::process::Command;
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::ServiceName;
 
 use systemprompt_mcp::services::network::port::{cleanup_port_processes, is_port_in_use};
 use systemprompt_mcp::services::process::monitor::is_process_running;
@@ -71,7 +72,7 @@ async fn a_port_held_by_one_of_our_own_servers_is_reclaimed_and_the_process_dies
         panic!("could not stand up a marked listener on port {port}");
     };
 
-    let outcome = cleanup_port_processes(port, service).await;
+    let outcome = cleanup_port_processes(port, &ServiceName::new(service)).await;
 
     if outcome.is_err() {
         kill(pid);
@@ -94,7 +95,7 @@ async fn a_port_held_by_one_of_our_own_servers_is_reclaimed_and_the_process_dies
 // every clean boot would report a failure.
 #[tokio::test]
 async fn a_port_nobody_holds_is_a_no_op_rather_than_an_error() {
-    cleanup_port_processes(free_port(), "port_reclaim_fixture")
+    cleanup_port_processes(free_port(), &ServiceName::new("port_reclaim_fixture"))
         .await
         .expect("an unheld port needs no reclaiming and must not error");
 }

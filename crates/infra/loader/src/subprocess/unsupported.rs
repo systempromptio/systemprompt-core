@@ -10,8 +10,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::ServiceName;
+
 #[must_use]
-pub fn live_pid_is_subprocess(pid: u32, _name_key: &str, service_name: &str) -> bool {
+pub fn live_pid_is_subprocess(pid: u32, _name_key: &str, service_name: &ServiceName) -> bool {
     tracing::warn!(
         pid,
         service = %service_name,

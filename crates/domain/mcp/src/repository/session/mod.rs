@@ -12,13 +12,13 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{McpServerId, SessionId, UserId};
 
 #[derive(Debug, Clone)]
 pub struct McpSessionRecord {
     pub session_id: SessionId,
     pub user_id: Option<UserId>,
-    pub mcp_server_id: Option<String>,
+    pub mcp_server_id: Option<McpServerId>,
     pub last_event_id: Option<String>,
     pub status: String,
     pub created_at: DateTime<Utc>,
@@ -41,7 +41,7 @@ impl McpSessionRepository {
         &self,
         session_id: &SessionId,
         user_id: Option<&UserId>,
-        mcp_server_id: Option<&str>,
+        mcp_server_id: Option<&McpServerId>,
     ) -> McpDomainResult<()> {
         sqlx::query!(
             r#"
@@ -51,7 +51,7 @@ impl McpSessionRepository {
             "#,
             session_id.as_str(),
             user_id.map(UserId::as_str),
-            mcp_server_id,
+            mcp_server_id.map(McpServerId::as_str),
         )
         .execute(&*self.write_pool)
         .await?;
@@ -98,7 +98,7 @@ impl McpSessionRepository {
         Ok(row.map(|r| McpSessionRecord {
             session_id: r.session_id,
             user_id: r.user_id,
-            mcp_server_id: r.mcp_server_id,
+            mcp_server_id: r.mcp_server_id.map(McpServerId::new),
             last_event_id: r.last_event_id,
             status: r.status,
             created_at: r.created_at,

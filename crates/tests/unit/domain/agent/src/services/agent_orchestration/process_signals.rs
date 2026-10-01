@@ -8,6 +8,7 @@
 // helpers all take their early-return (already-gone) branches.
 
 use systemprompt_agent::services::agent_orchestration::process;
+use systemprompt_identifiers::AgentName;
 
 // > i32::MAX: never a live, signalable process.
 const DEAD_PID: u32 = 4_000_000_000;
@@ -25,18 +26,24 @@ fn process_exists_false_for_non_signalable_pid() {
 #[test]
 fn kill_process_verified_dead_pid_reports_gone() {
     // Dead PID => treated as already gone (true), no signal sent.
-    assert!(process::kill_process_verified(DEAD_PID, "any-agent"));
+    assert!(process::kill_process_verified(
+        DEAD_PID,
+        &AgentName::new("any-agent")
+    ));
 }
 
 #[test]
 fn kill_process_verified_pid_zero_reports_gone() {
-    assert!(process::kill_process_verified(0, "any-agent"));
+    assert!(process::kill_process_verified(
+        0,
+        &AgentName::new("any-agent")
+    ));
 }
 
 #[tokio::test]
 async fn terminate_gracefully_verified_dead_pid_is_ok() {
     // Process does not exist => returns Ok immediately, no signal sent.
-    process::terminate_gracefully_verified(DEAD_PID, "svc", 1)
+    process::terminate_gracefully_verified(DEAD_PID, &AgentName::new("svc"), 1)
         .await
         .expect("already-gone pid terminates without error");
 }

@@ -6,7 +6,9 @@
 
 use super::{ArtifactCorrelation, CreateMcpArtifact, McpArtifactRepository};
 use crate::error::McpDomainResult;
-use systemprompt_identifiers::{AiToolCallId, ArtifactId, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AiToolCallId, ArtifactId, ContextId, McpToolName, SessionId, TraceId, UserId,
+};
 use systemprompt_models::mcp::ExecutionSource;
 
 impl McpArtifactRepository {
@@ -36,8 +38,8 @@ impl McpArtifactRepository {
             artifact.session_id.as_ref().map(SessionId::as_str),
             artifact.trace_id.as_ref().map(TraceId::as_str),
             artifact.ai_tool_call_id.as_ref().map(AiToolCallId::as_str),
-            &artifact.server_name,
-            artifact.tool_name.as_deref(),
+            artifact.server_name.as_str(),
+            artifact.tool_name.as_ref().map(McpToolName::as_str),
             &artifact.artifact_type,
             artifact.title.as_deref(),
             artifact.source.as_str(),

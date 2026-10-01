@@ -16,7 +16,7 @@ mod task_corruption;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 
 pub(crate) fn repos(pool: &DbPool) -> A2ARepositories {
     systemprompt_test_fixtures::a2a_repositories(pool)
@@ -59,7 +59,7 @@ pub(crate) async fn seed_context_and_task(
             user_id,
             session_id,
             trace_id: &trace_id,
-            agent_name: "test-agent",
+            agent_name: &AgentName::new("test-agent"),
         })
         .await
         .expect("create task");

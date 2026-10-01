@@ -214,7 +214,14 @@ impl ToolProvider for McpToolProvider {
             .clone();
 
         for server_name in assigned_servers {
-            check_server_connection(&self.registry, &server_name, &api_server_url).await;
+            match McpServerId::try_new(server_name) {
+                Ok(server_id) => {
+                    check_server_connection(&self.registry, &server_id, &api_server_url).await;
+                },
+                Err(error) => {
+                    warn!(agent = %agent_name, %error, "Agent lists an invalid MCP server name");
+                },
+            }
         }
 
         Ok(())
@@ -234,7 +241,7 @@ impl ToolProvider for McpToolProvider {
             .map_err(|e| configuration_error("Failed to list managed MCP servers", e))?;
         for server in servers {
             let is_healthy =
-                check_server_health(&server.name, server.port, &config_api_server_url).await;
+                check_server_health(&server.server_id(), server.port, &config_api_server_url).await;
             let breaker = self.guard_for(&server.name);
             if is_healthy {
                 breaker.breaker().record_success();

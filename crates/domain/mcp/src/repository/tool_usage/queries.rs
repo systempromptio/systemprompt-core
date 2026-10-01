@@ -5,7 +5,9 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, SessionId, UserId};
+use systemprompt_identifiers::{
+    AiToolCallId, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, UserId,
+};
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
 use systemprompt_traits::{RepositoryError, ToolExecutionLookup};
 
@@ -18,8 +20,8 @@ use crate::models::ToolExecution;
 #[derive(Debug, Clone, Copy)]
 pub struct ProximityProbe<'a> {
     pub user_id: &'a UserId,
-    pub server_name: &'a str,
-    pub tool_name: &'a str,
+    pub server_name: &'a McpServerId,
+    pub tool_name: &'a McpToolName,
     pub at: DateTime<Utc>,
     pub window_seconds: i64,
 }
@@ -28,7 +30,7 @@ impl ToolUsageRepository {
     pub async fn find_by_fingerprint(
         &self,
         session_id: &SessionId,
-        tool_name: &str,
+        tool_name: &McpToolName,
         payload_sha256: &str,
         window_seconds: i64,
     ) -> McpDomainResult<Option<McpExecutionId>> {
@@ -44,7 +46,7 @@ impl ToolUsageRepository {
             LIMIT 1
             "#,
             session_id.as_str(),
-            tool_name,
+            tool_name.as_str(),
             payload_sha256,
             window_seconds as f64
         )
@@ -83,8 +85,8 @@ impl ToolUsageRepository {
             LIMIT 1
             "#,
             user_id.as_str(),
-            server_name,
-            tool_name,
+            server_name.as_str(),
+            tool_name.as_str(),
             at,
             window_seconds as f64
         )
@@ -121,8 +123,8 @@ impl ToolUsageRepository {
 
         Ok(row.map(|r| ToolExecution {
             mcp_execution_id: McpExecutionId::new(r.mcp_execution_id),
-            tool_name: r.tool_name,
-            server_name: r.server_name,
+            tool_name: McpToolName::new(r.tool_name),
+            server_name: McpServerId::new(r.server_name),
             context_id: r.context_id.and_then(|s| {
                 ContextId::try_new(&s)
                     .map_err(|e| {

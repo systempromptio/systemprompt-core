@@ -17,7 +17,7 @@ mod set_value;
 use std::fs;
 use std::path::PathBuf;
 
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::AgentName;
 use systemprompt_loader::{ConfigWriteError, ConfigWriter};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::services::{
@@ -191,7 +191,7 @@ fn build_agent_config(
     };
     let endpoint = match request.endpoint.take() {
         Some(endpoint) => endpoint,
-        None => ApiPaths::agent_endpoint(&AgentId::new(&request.name)),
+        None => ApiPaths::agent_endpoint(&AgentName::new(&request.name)),
     };
 
     Ok(AgentConfig {

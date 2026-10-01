@@ -19,42 +19,70 @@ fn matches_agent_child_with_marker_and_name() {
         "SYSTEMPROMPT_SUBPROCESS=1",
         "AGENT_NAME=greeter",
     ]);
-    assert!(environ_identifies_child(&env, AGENT_NAME_ENV, "greeter"));
+    assert!(environ_identifies_child(
+        &env,
+        AGENT_NAME_ENV,
+        &systemprompt_identifiers::ServiceName::new("greeter")
+    ));
 }
 
 #[test]
 fn matches_mcp_child_with_marker_and_name() {
     let env = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "MCP_SERVICE_ID=files"]);
-    assert!(environ_identifies_child(&env, MCP_SERVICE_ID_ENV, "files"));
+    assert!(environ_identifies_child(
+        &env,
+        MCP_SERVICE_ID_ENV,
+        &systemprompt_identifiers::ServiceName::new("files")
+    ));
 }
 
 #[test]
 fn rejects_missing_subprocess_marker() {
     let env = environ(&["AGENT_NAME=greeter"]);
-    assert!(!environ_identifies_child(&env, AGENT_NAME_ENV, "greeter"));
+    assert!(!environ_identifies_child(
+        &env,
+        AGENT_NAME_ENV,
+        &systemprompt_identifiers::ServiceName::new("greeter")
+    ));
 }
 
 #[test]
 fn rejects_marker_with_wrong_name() {
     let env = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "AGENT_NAME=other"]);
-    assert!(!environ_identifies_child(&env, AGENT_NAME_ENV, "greeter"));
+    assert!(!environ_identifies_child(
+        &env,
+        AGENT_NAME_ENV,
+        &systemprompt_identifiers::ServiceName::new("greeter")
+    ));
 }
 
 #[test]
 fn rejects_name_as_substring() {
     let env = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "AGENT_NAME=greeter-staging"]);
-    assert!(!environ_identifies_child(&env, AGENT_NAME_ENV, "greeter"));
+    assert!(!environ_identifies_child(
+        &env,
+        AGENT_NAME_ENV,
+        &systemprompt_identifiers::ServiceName::new("greeter")
+    ));
 }
 
 #[test]
 fn rejects_empty_environ() {
-    assert!(!environ_identifies_child(&[], AGENT_NAME_ENV, "greeter"));
+    assert!(!environ_identifies_child(
+        &[],
+        AGENT_NAME_ENV,
+        &systemprompt_identifiers::ServiceName::new("greeter")
+    ));
 }
 
 #[test]
 fn rejects_unrelated_process() {
     let env = environ(&["PATH=/usr/bin", "HOME=/root", "TERM=xterm"]);
-    assert!(!environ_identifies_child(&env, AGENT_NAME_ENV, "greeter"));
+    assert!(!environ_identifies_child(
+        &env,
+        AGENT_NAME_ENV,
+        &systemprompt_identifiers::ServiceName::new("greeter")
+    ));
 }
 
 #[test]
@@ -62,14 +90,18 @@ fn live_pid_without_proc_entry_is_not_our_child() {
     assert!(!live_pid_is_subprocess(
         4_000_000,
         AGENT_NAME_ENV,
-        "greeter"
+        &systemprompt_identifiers::ServiceName::new("greeter")
     ));
 }
 
 #[test]
 fn live_pid_self_is_not_claimed() {
     let me = std::process::id();
-    assert!(!live_pid_is_subprocess(me, AGENT_NAME_ENV, "greeter"));
+    assert!(!live_pid_is_subprocess(
+        me,
+        AGENT_NAME_ENV,
+        &systemprompt_identifiers::ServiceName::new("greeter")
+    ));
 }
 
 mod procargs2 {
@@ -108,7 +140,7 @@ mod procargs2 {
         assert!(environ_identifies_child(
             environ,
             MCP_SERVICE_ID_ENV,
-            "files"
+            &systemprompt_identifiers::ServiceName::new("files")
         ));
     }
 
@@ -131,7 +163,7 @@ mod procargs2 {
         assert!(!environ_identifies_child(
             environ,
             MCP_SERVICE_ID_ENV,
-            "files"
+            &systemprompt_identifiers::ServiceName::new("files")
         ));
     }
 
@@ -295,11 +327,19 @@ mod supervised_spawn {
         let child = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "files");
 
         assert!(
-            live_pid_is_subprocess(child.pid(), MCP_SERVICE_ID_ENV, "files"),
+            live_pid_is_subprocess(
+                child.pid(),
+                MCP_SERVICE_ID_ENV,
+                &systemprompt_identifiers::ServiceName::new("files")
+            ),
             "a child carrying our markers must verify as ours"
         );
         assert!(
-            !live_pid_is_subprocess(child.pid(), MCP_SERVICE_ID_ENV, "other"),
+            !live_pid_is_subprocess(
+                child.pid(),
+                MCP_SERVICE_ID_ENV,
+                &systemprompt_identifiers::ServiceName::new("other")
+            ),
             "a different service name must not claim this child"
         );
     }
@@ -309,7 +349,11 @@ mod supervised_spawn {
         let pid = spawn_supervised(sleeper()).expect("spawn");
 
         assert!(alive(pid));
-        assert!(!live_pid_is_subprocess(pid, MCP_SERVICE_ID_ENV, "files"));
+        assert!(!live_pid_is_subprocess(
+            pid,
+            MCP_SERVICE_ID_ENV,
+            &systemprompt_identifiers::ServiceName::new("files")
+        ));
 
         kill(pid);
     }

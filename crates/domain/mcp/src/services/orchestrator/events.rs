@@ -4,15 +4,16 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ServiceName;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum McpEvent {
     ServiceStartRequested {
-        service_name: String,
+        service_name: ServiceName,
     },
     ServiceStartCompleted {
-        service_name: String,
+        service_name: ServiceName,
         success: bool,
         pid: Option<u32>,
         port: Option<u16>,
@@ -20,20 +21,20 @@ pub enum McpEvent {
         duration_ms: u64,
     },
     ServiceStarted {
-        service_name: String,
+        service_name: ServiceName,
         process_id: Option<u32>,
         port: u16,
     },
     ServiceFailed {
-        service_name: String,
+        service_name: ServiceName,
         error: String,
     },
     ServiceStopped {
-        service_name: String,
+        service_name: ServiceName,
         exit_code: Option<i32>,
     },
     SchemaUpdated {
-        service_name: String,
+        service_name: ServiceName,
         tool_count: usize,
     },
     ReconciliationStarted {
@@ -47,15 +48,15 @@ pub enum McpEvent {
 }
 
 impl McpEvent {
-    pub fn service_name(&self) -> &str {
+    pub const fn service_name(&self) -> Option<&ServiceName> {
         match self {
             Self::ServiceStartRequested { service_name }
             | Self::ServiceStartCompleted { service_name, .. }
             | Self::ServiceStarted { service_name, .. }
             | Self::ServiceFailed { service_name, .. }
             | Self::ServiceStopped { service_name, .. }
-            | Self::SchemaUpdated { service_name, .. } => service_name,
-            Self::ReconciliationStarted { .. } | Self::ReconciliationCompleted { .. } => "",
+            | Self::SchemaUpdated { service_name, .. } => Some(service_name),
+            Self::ReconciliationStarted { .. } | Self::ReconciliationCompleted { .. } => None,
         }
     }
 
@@ -73,7 +74,7 @@ impl McpEvent {
     }
 
     pub const fn start_completed_success(
-        name: String,
+        name: ServiceName,
         pid: u32,
         port: u16,
         duration_ms: u64,
@@ -88,7 +89,11 @@ impl McpEvent {
         }
     }
 
-    pub const fn start_completed_failure(name: String, error: String, duration_ms: u64) -> Self {
+    pub const fn start_completed_failure(
+        name: ServiceName,
+        error: String,
+        duration_ms: u64,
+    ) -> Self {
         Self::ServiceStartCompleted {
             service_name: name,
             success: false,

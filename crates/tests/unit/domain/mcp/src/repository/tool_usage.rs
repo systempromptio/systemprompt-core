@@ -4,7 +4,7 @@
 //! the per-track Postgres database to exercise the read-only branches and the
 //! `list_tool_stats` aggregator.
 
-use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId};
+use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, McpServerId, McpToolName};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::mcp::ExecutionSource;
 use systemprompt_test_fixtures::test_db_pool;
@@ -57,8 +57,8 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
-        tool_name: tool_name.clone(),
-        server_name: server_name.clone(),
+        tool_name: McpToolName::new(tool_name.as_str()),
+        server_name: McpServerId::new(server_name.as_str()),
         input: json!({}),
         started_at,
         context: ctx,
@@ -106,8 +106,8 @@ async fn start_and_complete_execution_roundtrip() {
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
-        tool_name: "tool-x".to_owned(),
-        server_name: "srv-x".to_owned(),
+        tool_name: McpToolName::new("tool-x"),
+        server_name: McpServerId::new("srv-x"),
         input: json!({"a":1}),
         started_at,
         context: ctx,
@@ -187,8 +187,8 @@ async fn log_execution_sync_writes_row() {
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
-        tool_name: "sync-tool".to_owned(),
-        server_name: "sync-srv".to_owned(),
+        tool_name: McpToolName::new("sync-tool"),
+        server_name: McpServerId::new("sync-srv"),
         input: json!({}),
         started_at,
         context: ctx,

@@ -20,7 +20,7 @@ use systemprompt_users::UsersAiSessionProvider;
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {
     #[arg(long, help = "Agent name to run")]
-    pub agent_name: String,
+    pub agent_name: systemprompt_identifiers::AgentName,
 
     #[arg(long, help = "Port to listen on")]
     pub port: u16,

@@ -34,7 +34,7 @@ use rmcp::model::{CallToolResult, ContentBlock};
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use systemprompt_identifiers::McpExecutionId;
+use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::ExecutionMetadata;
 use systemprompt_models::mcp::{ClientProfile, ExecutionSource};
@@ -45,15 +45,15 @@ pub const UI_RESOURCE_URI_META_KEY: &str = "io.systemprompt/ui-resource-uri";
 
 #[derive(Clone, Debug)]
 pub struct ToolIdentity {
-    server_name: String,
-    tool_name: String,
+    server_name: McpServerId,
+    tool_name: McpToolName,
 }
 
 impl ToolIdentity {
-    pub fn new(server_name: impl Into<String>, tool_name: impl Into<String>) -> Self {
+    pub const fn new(server_name: McpServerId, tool_name: McpToolName) -> Self {
         Self {
-            server_name: server_name.into(),
-            tool_name: tool_name.into(),
+            server_name,
+            tool_name,
         }
     }
 }

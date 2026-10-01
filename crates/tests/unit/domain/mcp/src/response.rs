@@ -3,7 +3,8 @@
 //! database — only the pure helpers are covered here.
 
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId,
+    Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
+    UserId,
 };
 use systemprompt_mcp::{ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
@@ -49,7 +50,7 @@ fn builder_new_records_tool_name_in_debug() {
     let text = TextArtifact::new("payload");
     let builder = McpResponseBuilder::new(
         text,
-        ToolIdentity::new("my-server", "my-tool"),
+        ToolIdentity::new(McpServerId::new("my-server"), McpToolName::new("my-tool")),
         &ctx,
         &exec_id,
         &ClientProfile::unknown(),
@@ -66,7 +67,10 @@ fn builder_new_accepts_string_identity() {
     let text = TextArtifact::new("payload");
     let _ = McpResponseBuilder::new(
         text,
-        ToolIdentity::new(String::from("dynamic-server"), String::from("dynamic-tool")),
+        ToolIdentity::new(
+            McpServerId::new(String::from("dynamic-server")),
+            McpToolName::new(String::from("dynamic-tool")),
+        ),
         &ctx,
         &exec_id,
         &ClientProfile::unknown(),

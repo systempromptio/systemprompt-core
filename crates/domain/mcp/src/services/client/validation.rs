@@ -27,7 +27,7 @@ use super::HttpClientWithContext;
 use super::types::{McpConnectionResult, McpProtocolInfo, ValidationResult};
 
 pub async fn validate_connection(
-    service_name: &str,
+    service_name: &ServiceName,
     host: &str,
     port: u16,
 ) -> McpDomainResult<McpConnectionResult> {
@@ -36,7 +36,7 @@ pub async fn validate_connection(
 }
 
 pub async fn validate_connection_with_auth(
-    service_name: &str,
+    service_name: &ServiceName,
     host: &str,
     port: u16,
     requires_oauth: bool,
@@ -49,7 +49,7 @@ pub async fn validate_connection_with_auth(
 }
 
 pub async fn validate_connection_by_url(
-    service_name: &str,
+    service_name: &ServiceName,
     url: &str,
 ) -> McpDomainResult<McpConnectionResult> {
     let connection_start = std::time::Instant::now();
@@ -64,7 +64,7 @@ pub async fn validate_connection_by_url(
 
     match connection_result {
         Ok(Ok((server_info, validation_result))) => Ok(McpConnectionResult {
-            service_name: service_name.to_owned(),
+            service_name: service_name.clone(),
             success: validation_result.success,
             error_message: validation_result.error_message,
             connection_time_ms: connection_time,
@@ -73,7 +73,7 @@ pub async fn validate_connection_by_url(
             validation_type: validation_result.validation_type,
         }),
         Ok(Err(e)) => Ok(McpConnectionResult {
-            service_name: service_name.to_owned(),
+            service_name: service_name.clone(),
             success: false,
             error_message: Some(e.to_string()),
             connection_time_ms: connection_time,
@@ -82,7 +82,7 @@ pub async fn validate_connection_by_url(
             validation_type: "connection_failed".to_owned(),
         }),
         Err(_) => Ok(McpConnectionResult {
-            service_name: service_name.to_owned(),
+            service_name: service_name.clone(),
             success: false,
             error_message: Some("Connection timeout".to_owned()),
             connection_time_ms: connection_time,
@@ -93,7 +93,11 @@ pub async fn validate_connection_by_url(
     }
 }
 
-async fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> McpConnectionResult {
+async fn validate_oauth_service(
+    service_name: &ServiceName,
+    host: &str,
+    port: u16,
+) -> McpConnectionResult {
     let connection_start = std::time::Instant::now();
 
     let port_check = timeout(
@@ -107,12 +111,12 @@ async fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> Mc
 
     match port_check {
         Ok(_) => McpConnectionResult {
-            service_name: service_name.to_owned(),
+            service_name: service_name.clone(),
             success: true,
             error_message: None,
             connection_time_ms: connection_time,
             server_info: Some(McpProtocolInfo {
-                server_name: service_name.to_owned(),
+                implementation_name: service_name.to_string(),
                 version: "unknown".to_owned(),
                 protocol_version: "unknown".to_owned(),
             }),
@@ -120,7 +124,7 @@ async fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> Mc
             validation_type: "auth_required".to_owned(),
         },
         Err(e) => McpConnectionResult {
-            service_name: service_name.to_owned(),
+            service_name: service_name.clone(),
             success: false,
             error_message: Some(format!("Port not responding: {e}")),
             connection_time_ms: connection_time,
@@ -133,19 +137,19 @@ async fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> Mc
 
 async fn connect_and_validate(
     url: &str,
-    service_name: &str,
+    service_name: &ServiceName,
 ) -> McpDomainResult<(McpProtocolInfo, ValidationResult)> {
     let context = RequestContext::new(
         SessionId::new(format!("mcp-validate-{service_name}")),
         TraceId::generate(),
-        ContextId::derived_from_mcp_validation(&ServiceName::new(service_name)),
+        ContextId::derived_from_mcp_validation(service_name),
         AgentName::system(),
         Actor::anonymous(UserId::generate()),
     );
     let config = StreamableHttpClientTransportConfig::with_uri(url);
     let http_client = HttpClientWithContext::new(context).map_err(|e| {
         crate::error::McpDomainError::ConnectionFailed {
-            server: service_name.to_owned(),
+            server: service_name.to_string(),
             source: Box::new(e),
         }
     })?;
@@ -168,10 +172,10 @@ async fn connect_and_validate(
     let implementation = peer_info.server_info.as_ref();
 
     let server_info = McpProtocolInfo {
-        server_name: implementation
+        implementation_name: implementation
             .map(|info| info.name.as_str())
             .filter(|name| !name.is_empty())
-            .unwrap_or(service_name)
+            .unwrap_or(service_name.as_str())
             .to_owned(),
         version: implementation
             .map(|info| info.version.as_str())

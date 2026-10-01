@@ -13,6 +13,7 @@ use axum::routing::{get, post};
 use axum::{Router, middleware};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{AgentConfig, AiProvider};
 use tokio::sync::{RwLock, Semaphore};
@@ -91,19 +92,13 @@ impl Server {
         db_pool: DbPool,
         agent_state: Arc<AgentState>,
         ai_service: Arc<dyn AiProvider>,
-        agent_name: Option<String>,
+        agent_name: &AgentName,
         port: u16,
     ) -> Result<Self, crate::error::AgentError> {
         use crate::services::registry::AgentRegistry;
 
-        let mut config = if let Some(name) = agent_name {
-            let registry = AgentRegistry::new()?;
-            registry.get_agent(&name).await?
-        } else {
-            return Err(crate::error::AgentError::Validation(
-                "Agent name is required".to_owned(),
-            ));
-        };
+        let registry = AgentRegistry::new()?;
+        let mut config = registry.get_agent(agent_name.as_str()).await?;
 
         config.extract_oauth_scopes_from_card();
 

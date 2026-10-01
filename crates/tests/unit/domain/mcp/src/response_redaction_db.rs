@@ -3,6 +3,7 @@
 //! from the ingest outcome itself, and an oversized body is still scanned.
 
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, McpToolName};
 
 use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::json;
@@ -50,7 +51,10 @@ async fn a_redacted_result_reaches_the_wire_without_the_secret() {
 
     let result = McpResponseBuilder::new(
         TextArtifact::new(format!("token {KEY} here")),
-        ToolIdentity::new("systemprompt", "read_secret"),
+        ToolIdentity::new(
+            McpServerId::new("systemprompt"),
+            McpToolName::new("read_secret"),
+        ),
         &context,
         &exec_id,
         &ClientProfile {
@@ -85,8 +89,8 @@ async fn the_ingest_outcome_carries_the_redacted_body_so_no_read_back_is_needed(
     let outcome = ingest
         .ingest(IngestRequest {
             result: CallToolResult::success(vec![ContentBlock::text(format!("token {KEY}"))]),
-            tool_name: "Read".to_owned(),
-            server_name: Some("tests".to_owned()),
+            tool_name: McpToolName::new("Read"),
+            server_name: Some(McpServerId::new("tests")),
             ai_tool_call_id: Some(AiToolCallId::new(format!(
                 "toolu-{}",
                 uuid::Uuid::new_v4().simple()
@@ -130,8 +134,8 @@ async fn an_oversized_body_is_scanned_before_only_its_header_is_stored() {
             result: CallToolResult::success(vec![ContentBlock::text(format!(
                 "{filler} token {KEY}"
             ))]),
-            tool_name: "Read".to_owned(),
-            server_name: Some("tests".to_owned()),
+            tool_name: McpToolName::new("Read"),
+            server_name: Some(McpServerId::new("tests")),
             ai_tool_call_id: Some(AiToolCallId::new(format!(
                 "toolu-{}",
                 uuid::Uuid::new_v4().simple()

@@ -88,8 +88,7 @@ pub use tool::{
 };
 
 pub use systemprompt_models::mcp::{
-    Deployment, DeploymentConfig, ERROR, McpAuthState, McpServerConfig, OAuthRequirement, RUNNING,
-    STARTING, STOPPED, Settings,
+    Deployment, DeploymentConfig, McpAuthState, McpServerConfig, OAuthRequirement, Settings,
 };
 
 pub use services::monitoring::health::HealthStatus;
@@ -101,7 +100,7 @@ pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator, McpRestar
 
 pub use systemprompt_models::mcp::{
     DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,
-    McpRegistry, McpServerState, McpServerStatus,
+    McpRegistry, McpServerState,
 };
 
 pub fn mcp_protocol_version() -> String {

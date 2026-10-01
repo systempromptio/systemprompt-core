@@ -3,6 +3,7 @@
 // selection, runtime-status extensions, oauth-derived security config).
 
 use std::collections::HashMap;
+use systemprompt_identifiers::{AgentName, McpServerId};
 
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_models::{AgentConfig, ServicesConfig};
@@ -69,8 +70,11 @@ async fn get_mcp_servers_returns_included_list() {
     a.metadata.mcp_servers.include = vec!["server_one".to_owned()];
     let registry = registry_with(vec![a]);
 
-    let servers = registry.get_mcp_servers("mcp_agent").await.expect("mcp");
-    assert_eq!(servers, vec!["server_one".to_owned()]);
+    let servers = registry
+        .get_mcp_servers(&AgentName::new("mcp_agent"))
+        .await
+        .expect("mcp");
+    assert_eq!(servers, vec![McpServerId::new("server_one")]);
 }
 
 #[tokio::test]

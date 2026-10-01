@@ -15,7 +15,7 @@ use systemprompt_agent::repository::task::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    AgentId, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
+    AgentId, AgentName, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_models::{ExecutionStep, StepContent};
@@ -103,7 +103,7 @@ impl E2EFixture {
             user_id: &self.user_id,
             session_id: &self.session_id,
             trace_id: &self.trace_id,
-            agent_name: "e2e-agent",
+            agent_name: &AgentName::new("e2e-agent"),
         })
         .await?;
         Ok(task_id)
@@ -164,7 +164,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
 
     repos
         .tasks
-        .track_agent_in_context(&fx.context_id, "e2e-agent")
+        .track_agent_in_context(&fx.context_id, &AgentName::new("e2e-agent"))
         .await?;
 
     let now = Utc::now();
@@ -419,7 +419,7 @@ async fn context_notification_repository_insert_and_broadcast() -> Result<()> {
 async fn agent_service_repository_register_status_cycle() -> Result<()> {
     let fx = E2EFixture::new().await?;
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let name = format!("e2e-svc-{}", fx.tag);
+    let name = systemprompt_identifiers::AgentName::new(format!("e2e-svc-{}", fx.tag));
 
     repos
         .agent_services
@@ -431,7 +431,7 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
     assert!(status.is_some());
     assert_eq!(
         status.unwrap().status,
-        systemprompt_agent::repository::agent_service::AgentServiceStatus::Running
+        systemprompt_models::services::ServiceStatus::Running
     );
 
     let running = repos.agent_services.list_running_agents().await?;

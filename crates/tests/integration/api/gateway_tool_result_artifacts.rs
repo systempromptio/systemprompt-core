@@ -8,7 +8,7 @@ use http::StatusCode;
 use systemprompt_ai::repository::InsertToolCallParams;
 use systemprompt_api::services::gateway::protocol::{CanonicalContent, CanonicalMessage, Role};
 use systemprompt_api::services::gateway::service::GatewayService;
-use systemprompt_identifiers::AiToolCallId;
+use systemprompt_identifiers::{AiToolCallId, McpToolName};
 use systemprompt_models::services::{ApiSurface, WireProtocol};
 use systemprompt_test_fixtures::{fixture_artifact_ingest, seed_admin_credential};
 use uuid::Uuid;
@@ -69,6 +69,7 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
     let known_id = unique("call_known");
     let unknown_id = unique("call_unknown");
     let known_tool = unique("lookup_inventory");
+    let known_tool_name = McpToolName::new(known_tool.clone());
     let known_input = serde_json::json!({"sku": unique("sku"), "limit": 2});
     let known_call_id = AiToolCallId::new(known_id.clone());
     let known_input_json = known_input.to_string();
@@ -77,7 +78,7 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
         .insert_tool_call(InsertToolCallParams {
             request_id: &prior_request_id,
             ai_tool_call_id: &known_call_id,
-            tool_name: &known_tool,
+            tool_name: &known_tool_name,
             tool_input: &known_input_json,
             sequence_number: 0,
         })

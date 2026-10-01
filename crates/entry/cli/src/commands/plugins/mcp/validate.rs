@@ -12,10 +12,12 @@ use super::types::{McpBatchValidateOutput, McpServerInfo, McpValidateOutput, Mcp
 use crate::context::CommandContext;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::client::{McpConnectionResult, validate_connection_with_auth};
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_models::Deployment;
+use systemprompt_models::services::ServiceStatus;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
@@ -131,7 +133,10 @@ async fn validate_single_service(
         );
     };
 
-    let service_info = match database.get_service_by_name(service_name).await {
+    let service_info = match database
+        .get_service_by_name(&ServiceName::new(service_name))
+        .await
+    {
         Ok(info) => info,
         Err(e) => {
             return failure_output(
@@ -149,7 +154,7 @@ async fn validate_single_service(
 
     let is_running = service_info
         .as_ref()
-        .is_some_and(|info| info.status == "running");
+        .is_some_and(|info| info.status == ServiceStatus::Running);
 
     if !is_running {
         return failure_output(
@@ -186,8 +191,9 @@ pub async fn run_connection_validation(
     port: u16,
     timeout_secs: u64,
 ) -> McpValidateOutput {
+    let service = ServiceName::new(service_name);
     let validation_future =
-        validate_connection_with_auth(service_name, "127.0.0.1", port, server.oauth.required);
+        validate_connection_with_auth(&service, "127.0.0.1", port, server.oauth.required);
 
     let validation_result =
         match tokio::time::timeout(Duration::from_secs(timeout_secs), validation_future).await {
@@ -253,7 +259,7 @@ pub fn success_output(
     let message = validation_result.status_description();
 
     let server_info = validation_result.server_info.map(|info| McpServerInfo {
-        name: info.server_name,
+        name: info.implementation_name,
         version: info.version,
         protocol_version: info.protocol_version,
     });

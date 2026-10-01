@@ -12,7 +12,7 @@
 
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::McpExecutionId;
+use systemprompt_identifiers::{McpExecutionId, McpToolName};
 use systemprompt_models::artifacts::types::ArtifactType;
 use systemprompt_models::{ArtifactMetadata, ContextId, TaskId};
 
@@ -21,10 +21,10 @@ pub struct BuildMetadataParams<'a> {
     pub artifact_type: &'a ArtifactType,
     // JSON: MCP tool output schema — arbitrary JSON Schema.
     pub schema: Option<&'a JsonValue>,
-    pub mcp_execution_id: Option<String>,
-    pub context_id: &'a str,
-    pub task_id: &'a str,
-    pub tool_name: &'a str,
+    pub mcp_execution_id: Option<McpExecutionId>,
+    pub context_id: &'a ContextId,
+    pub task_id: &'a TaskId,
+    pub tool_name: &'a McpToolName,
 }
 
 pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadata, ArtifactError> {
@@ -44,17 +44,13 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
         _ => json!(null),
     };
 
-    let context_id_typed =
-        ContextId::try_new(context_id).map_err(ArtifactError::InvalidContextId)?;
-    let task_id_typed = TaskId::new(task_id);
-
     let mut metadata = ArtifactMetadata::new_validated(
         artifact_type.to_string(),
-        context_id_typed,
-        task_id_typed,
+        context_id.clone(),
+        task_id.clone(),
     )?;
 
-    metadata = metadata.with_tool_name(tool_name.to_owned());
+    metadata = metadata.with_tool_name(tool_name.to_string());
 
     if !rendering_hints.is_null() {
         metadata = metadata.with_rendering_hints(rendering_hints);
@@ -65,7 +61,7 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
     }
 
     if let Some(execution_id) = mcp_execution_id {
-        metadata = metadata.with_mcp_execution_id(McpExecutionId::new(execution_id));
+        metadata = metadata.with_mcp_execution_id(execution_id);
     }
 
     Ok(metadata)

@@ -28,6 +28,7 @@ pub use theme::{ArtifactTheme, ArtifactThemeRegistration, active_theme};
 
 use crate::error::McpDomainResult;
 use serde::Serialize;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 use systemprompt_models::mcp::{McpResourceUiMeta, ToolVisibility};
@@ -77,7 +78,7 @@ pub struct UiMetadata {
 }
 
 impl UiMetadata {
-    pub fn for_static_template(server_name: &str) -> Self {
+    pub fn for_static_template(server_name: &McpServerId) -> Self {
         Self {
             resource_uri: format!("ui://{server_name}/artifact-viewer"),
             csp: None,
@@ -86,7 +87,7 @@ impl UiMetadata {
         }
     }
 
-    pub fn for_tool_definition(server_name: &str) -> Self {
+    pub fn for_tool_definition(server_name: &McpServerId) -> Self {
         Self {
             resource_uri: format!("ui://{server_name}/artifact-viewer"),
             csp: None,

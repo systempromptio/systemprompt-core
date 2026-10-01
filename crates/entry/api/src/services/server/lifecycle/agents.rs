@@ -192,7 +192,8 @@ async fn enforce_clean_agent_state(
 ) -> Result<bool> {
     use systemprompt_agent::services::agent_orchestration::{AgentStatus, PortService};
 
-    if let Ok(status) = orchestrator.get_status(agent).await {
+    let agent_name = systemprompt_identifiers::AgentName::new(agent);
+    if let Ok(status) = orchestrator.get_status(&agent_name).await {
         match status {
             AgentStatus::Running { pid, port } => {
                 use systemprompt_agent::services::agent_orchestration::process;
@@ -204,10 +205,10 @@ async fn enforce_clean_agent_state(
                     )
                 };
                 events.agent_cleanup(agent.to_owned(), reason);
-                if let Err(e) = process::terminate_gracefully_verified(pid, agent, 5).await {
+                if let Err(e) = process::terminate_gracefully_verified(pid, &agent_name, 5).await {
                     tracing::warn!(error = %e, agent = %agent, "Failed to terminate agent process gracefully");
                 }
-                if let Err(e) = orchestrator.delete_agent(agent).await {
+                if let Err(e) = orchestrator.delete_agent(&agent_name).await {
                     tracing::warn!(error = %e, agent = %agent, "Failed to delete agent during cleanup");
                 }
             },
@@ -226,7 +227,7 @@ async fn enforce_clean_agent_state(
         return Err(e.into());
     }
 
-    match orchestrator.start_agent(agent, events).await {
+    match orchestrator.start_agent(&agent_name, events).await {
         Ok(_) => Ok(true),
         Err(e) => Err(e.into()),
     }

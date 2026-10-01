@@ -2,7 +2,7 @@
 
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
-use systemprompt_identifiers::{AgentName, McpServerId};
+use systemprompt_identifiers::{AgentName, JwtToken, McpServerId};
 use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 
@@ -10,7 +10,7 @@ mod noop_provider_tests {
     use super::*;
 
     fn create_context() -> ToolContext {
-        ToolContext::new(fixture_actor(), "test-token")
+        ToolContext::new(fixture_actor()).with_auth_token(JwtToken::new("test-token"))
     }
 
     #[tokio::test]

@@ -6,6 +6,7 @@
 use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
 
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::AiProvider;
 
 use super::Server;
@@ -14,14 +15,14 @@ use crate::state::AgentState;
 pub async fn run_standalone(
     agent_state: Arc<AgentState>,
     ai_service: Arc<dyn AiProvider>,
-    agent_name: &str,
+    agent_name: &AgentName,
     port: u16,
 ) -> Result<()> {
     let server = Server::new(
         Arc::clone(agent_state.db_pool()),
         agent_state,
         ai_service,
-        Some(agent_name.to_owned()),
+        agent_name,
         port,
     )
     .await

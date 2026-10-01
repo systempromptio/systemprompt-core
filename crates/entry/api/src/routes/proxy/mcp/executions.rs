@@ -96,9 +96,9 @@ async fn handle_get_execution(
 
     Json(ToolExecutionResponse {
         id: execution.mcp_execution_id,
-        tool_name: execution.tool_name,
-        server_endpoint: ApiPaths::mcp_server_endpoint(&execution.server_name),
-        server_name: execution.server_name,
+        tool_name: String::from(execution.tool_name),
+        server_endpoint: ApiPaths::mcp_server_endpoint(execution.server_name.as_str()),
+        server_name: String::from(execution.server_name),
         input,
         output,
         status: execution.status,

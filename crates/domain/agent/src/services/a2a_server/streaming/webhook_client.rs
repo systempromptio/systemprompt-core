@@ -41,20 +41,20 @@ pub trait WebhookBroadcaster: Send + Sync + std::fmt::Debug {
         &self,
         user_id: &UserId,
         event: AgUiEvent,
-        auth_token: &str,
+        auth_token: Option<&JwtToken>,
     ) -> Result<usize, WebhookError>;
 
     async fn broadcast_a2a(
         &self,
         user_id: &UserId,
         event: A2AEvent,
-        auth_token: &str,
+        auth_token: Option<&JwtToken>,
     ) -> Result<usize, WebhookError>;
 
     async fn broadcast_lifecycle(
         &self,
         event: LifecycleEvent,
-        auth_token: &str,
+        auth_token: Option<&JwtToken>,
     ) -> Result<(), WebhookError>;
 }
 
@@ -100,15 +100,15 @@ impl WebhookBroadcaster for HttpWebhookBroadcaster {
         &self,
         user_id: &UserId,
         event: AgUiEvent,
-        auth_token: &str,
+        auth_token: Option<&JwtToken>,
     ) -> Result<usize, WebhookError> {
         let url = format!("{}/api/v1/webhook/agui", self.api_url);
         let event_type = event.event_type();
-        if auth_token.is_empty() {
+        if auth_token.is_none() {
             tracing::warn!(
                 event_type = ?event_type,
                 user_id = %user_id,
-                "AGUI broadcast with empty auth_token"
+                "AGUI broadcast without a bearer token"
             );
         }
         let payload = AgUiWebhookPayload {
@@ -122,7 +122,7 @@ impl WebhookBroadcaster for HttpWebhookBroadcaster {
         &self,
         user_id: &UserId,
         event: A2AEvent,
-        auth_token: &str,
+        auth_token: Option<&JwtToken>,
     ) -> Result<usize, WebhookError> {
         let url = format!("{}/api/v1/webhook/a2a", self.api_url);
         let payload = A2AWebhookPayload {
@@ -135,7 +135,7 @@ impl WebhookBroadcaster for HttpWebhookBroadcaster {
     async fn broadcast_lifecycle(
         &self,
         event: LifecycleEvent,
-        auth_token: &str,
+        auth_token: Option<&JwtToken>,
     ) -> Result<(), WebhookError> {
         let url = format!("{}/api/v1/webhook/broadcast", self.api_url);
         let response = post(&self.client, &url, auth_token, &event).await?;
@@ -154,15 +154,15 @@ struct WebhookResponse {
 async fn post<T: Serialize + Sync + ?Sized>(
     client: &Client,
     url: &str,
-    auth_token: &str,
+    auth_token: Option<&JwtToken>,
     payload: &T,
 ) -> Result<reqwest::Response, WebhookError> {
-    Ok(client
-        .post(url)
-        .bearer_auth(auth_token)
-        .json(payload)
-        .send()
-        .await?)
+    let request = client.post(url);
+    let request = match auth_token {
+        Some(token) => request.bearer_auth(token.as_str()),
+        None => request,
+    };
+    Ok(request.json(payload).send().await?)
 }
 
 async fn status_error(response: reqwest::Response) -> WebhookError {
@@ -177,7 +177,7 @@ async fn status_error(response: reqwest::Response) -> WebhookError {
 async fn post_and_decode<T: Serialize + Sync + ?Sized>(
     client: &Client,
     url: &str,
-    auth_token: &str,
+    auth_token: Option<&JwtToken>,
     payload: &T,
     kind: &str,
 ) -> Result<usize, WebhookError> {
@@ -200,19 +200,19 @@ async fn post_and_decode<T: Serialize + Sync + ?Sized>(
 pub struct WebhookContext {
     broadcaster: DynWebhookBroadcaster,
     user_id: UserId,
-    auth_token: String,
+    auth_token: Option<JwtToken>,
 }
 
 impl WebhookContext {
-    pub fn new(
+    pub const fn new(
         broadcaster: DynWebhookBroadcaster,
         user_id: UserId,
-        auth_token: impl Into<String>,
+        auth_token: Option<JwtToken>,
     ) -> Self {
         Self {
             broadcaster,
             user_id,
-            auth_token: auth_token.into(),
+            auth_token,
         }
     }
 
@@ -223,7 +223,7 @@ impl WebhookContext {
         Self::new(
             broadcaster,
             context.user_id().clone(),
-            context.auth_token().map_or("", JwtToken::as_str),
+            context.auth_token().cloned(),
         )
     }
 
@@ -231,25 +231,25 @@ impl WebhookContext {
         &self.user_id
     }
 
-    pub fn auth_token(&self) -> &str {
-        &self.auth_token
+    pub const fn auth_token(&self) -> Option<&JwtToken> {
+        self.auth_token.as_ref()
     }
 
     pub async fn broadcast_agui(&self, event: AgUiEvent) -> Result<usize, WebhookError> {
         self.broadcaster
-            .broadcast_agui(&self.user_id, event, &self.auth_token)
+            .broadcast_agui(&self.user_id, event, self.auth_token.as_ref())
             .await
     }
 
     pub async fn broadcast_a2a(&self, event: A2AEvent) -> Result<usize, WebhookError> {
         self.broadcaster
-            .broadcast_a2a(&self.user_id, event, &self.auth_token)
+            .broadcast_a2a(&self.user_id, event, self.auth_token.as_ref())
             .await
     }
 
     pub async fn broadcast_lifecycle(&self, event: LifecycleEvent) -> Result<(), WebhookError> {
         self.broadcaster
-            .broadcast_lifecycle(event, &self.auth_token)
+            .broadcast_lifecycle(event, self.auth_token.as_ref())
             .await
     }
 }

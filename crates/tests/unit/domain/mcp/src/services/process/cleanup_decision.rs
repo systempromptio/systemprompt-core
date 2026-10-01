@@ -5,6 +5,7 @@
 // is ever signalled — we use our own PID (alive, but carries no MCP markers)
 // and definitely-dead synthetic PIDs.
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::process::cleanup::{
     force_kill, terminate_gracefully, terminate_gracefully_verified,
@@ -40,7 +41,7 @@ fn force_kill_dead_pid_is_ok() {
 async fn verified_dead_pid_returns_ok_without_signal() {
     // process_exists(dead) is false, so the function returns before the
     // identity check or any signal.
-    terminate_gracefully_verified(DEAD_PID_HIGH, "any-service")
+    terminate_gracefully_verified(DEAD_PID_HIGH, &ServiceName::new("any-service"))
         .await
         .expect("dead PID is a no-op Ok");
 }
@@ -52,7 +53,7 @@ async fn verified_live_non_child_pid_is_skipped() {
     // is left untouched (Ok). This is the core "never kill a recycled/foreign
     // PID" guarantee — and it proves we did NOT signal ourselves.
     let me = std::process::id();
-    terminate_gracefully_verified(me, "not-our-service")
+    terminate_gracefully_verified(me, &ServiceName::new("not-our-service"))
         .await
         .expect("live non-child PID is skipped, returning Ok");
     // Sanity: we are still running after the call.
@@ -62,7 +63,7 @@ async fn verified_live_non_child_pid_is_skipped() {
 #[tokio::test]
 async fn verified_via_process_service_facade_is_skipped() {
     let me = std::process::id();
-    ProcessService::terminate_gracefully_verified(me, "facade-service")
+    ProcessService::terminate_gracefully_verified(me, &ServiceName::new("facade-service"))
         .await
         .expect("facade routes to the same guarded path");
     assert_eq!(std::process::id(), me);

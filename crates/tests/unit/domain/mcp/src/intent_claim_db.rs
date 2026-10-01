@@ -5,6 +5,7 @@
 //! reconciled to that execution rather than claimed a second time.
 
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, McpToolName};
 
 use chrono::Utc;
 use serde_json::json;
@@ -47,8 +48,8 @@ async fn started_execution_for(
         Actor::user(UserId::new("intent-user")),
     );
     let request = ToolExecutionRequest {
-        tool_name: "Read".to_owned(),
-        server_name: "intent-tests".to_owned(),
+        tool_name: McpToolName::new("Read"),
+        server_name: McpServerId::new("intent-tests"),
         input: json!({}),
         started_at: Utc::now(),
         context: ctx,
@@ -121,8 +122,8 @@ async fn two_executions_of_one_tool_claim_two_different_intents_and_a_third_gets
     let second_exec = started_execution(&repo, session_id.as_str()).await;
     let third_exec = started_execution(&repo, session_id.as_str()).await;
     let (first, second) = tokio::join!(
-        claims.claim_inferred(&session_id, "Read", &first_exec, 120),
-        claims.claim_inferred(&session_id, "Read", &second_exec, 120),
+        claims.claim_inferred(&session_id, &McpToolName::new("Read"), &first_exec, 120),
+        claims.claim_inferred(&session_id, &McpToolName::new("Read"), &second_exec, 120),
     );
     let first = first.unwrap().expect("first claim");
     let second = second.unwrap().expect("second claim");
@@ -131,7 +132,7 @@ async fn two_executions_of_one_tool_claim_two_different_intents_and_a_third_gets
     assert!(seeded.contains(&second.to_string()));
 
     let third = claims
-        .claim_inferred(&session_id, "Read", &third_exec, 120)
+        .claim_inferred(&session_id, &McpToolName::new("Read"), &third_exec, 120)
         .await
         .unwrap();
     assert!(third.is_none(), "every intent is claimed exactly once");
@@ -170,7 +171,7 @@ async fn a_tool_name_with_an_underscore_does_not_match_another_tool_by_wildcard(
 
     let exec = started_execution(&repo, session_id.as_str()).await;
     let claimed = claims
-        .claim_inferred(&session_id, "a_b", &exec, 120)
+        .claim_inferred(&session_id, &McpToolName::new("a_b"), &exec, 120)
         .await
         .unwrap()
         .expect("the prefixed exact tool name is claimed");
@@ -186,7 +187,7 @@ async fn a_tool_name_with_an_underscore_does_not_match_another_tool_by_wildcard(
 
     let other = started_execution(&repo, session_id.as_str()).await;
     let none = claims
-        .claim_inferred(&session_id, "a_b", &other, 120)
+        .claim_inferred(&session_id, &McpToolName::new("a_b"), &other, 120)
         .await
         .unwrap();
     assert!(none.is_none(), "`axb` is not `a_b`");
@@ -258,7 +259,12 @@ async fn an_intent_an_execution_already_carries_is_handed_to_it_and_the_next_is_
     let holder = started_execution_for(&repo, &session, Some(newer.clone())).await;
     let inferred = started_execution(&repo, &session).await;
     let claimed = claims
-        .claim_inferred(&SessionId::new(&session), "Read", &inferred, 120)
+        .claim_inferred(
+            &SessionId::new(&session),
+            &McpToolName::new("Read"),
+            &inferred,
+            120,
+        )
         .await
         .expect("claim")
         .expect("the older intent is still free");

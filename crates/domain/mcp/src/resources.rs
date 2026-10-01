@@ -15,14 +15,14 @@ use crate::services::ui_renderer::{
     CspPolicy, MCP_APP_MIME_TYPE, RenderTarget, UiMetadata, artifact_ui_resource,
     parse_artifact_resource_uri,
 };
-use systemprompt_identifiers::ArtifactId;
+use systemprompt_identifiers::{ArtifactId, McpServerId};
 use systemprompt_models::mcp::McpResourceUiMeta;
 
 const STATIC_TEMPLATE_TTL_MS: u64 = 3_600_000;
 
 #[derive(Debug)]
 pub struct ArtifactViewerConfig<'a> {
-    pub server_name: &'a str,
+    pub server_name: &'a McpServerId,
     pub title: &'a str,
     pub description: &'a str,
     pub template: &'a str,
@@ -55,7 +55,7 @@ pub fn build_resource_template_list_result() -> ListResourceTemplatesResult {
 
 pub fn read_artifact_viewer_resource(
     request: &ReadResourceRequestParams,
-    server_name: &str,
+    server_name: &McpServerId,
     template: &str,
 ) -> Result<ReadResourceResult, McpError> {
     let uri = &request.uri;
@@ -89,7 +89,7 @@ pub fn read_artifact_viewer_resource(
 
 pub async fn read_artifact_resource(
     request: &ReadResourceRequestParams,
-    server_name: &str,
+    server_name: &McpServerId,
     repo: &McpArtifactRepository,
 ) -> Result<ReadResourceResult, McpError> {
     let uri = &request.uri;
@@ -97,14 +97,17 @@ pub async fn read_artifact_resource(
         McpError::invalid_params(format!("Not an artifact resource URI: {uri}"), None)
     })?;
 
-    if uri_server != server_name {
+    if server_name.as_str() != uri_server {
         return Err(McpError::invalid_params(
             format!("Artifact URI names server '{uri_server}', not '{server_name}'"),
             None,
         ));
     }
 
-    let artifact_id = ArtifactId::new(artifact_id);
+    let artifact_id = ArtifactId::try_new(artifact_id).map_err(|error| {
+        tracing::warn!(%error, %uri, "Rejected artifact resource URI");
+        McpError::invalid_params(format!("Not an artifact resource URI: {uri}"), None)
+    })?;
     let record = repo
         .find_by_id(&artifact_id)
         .await

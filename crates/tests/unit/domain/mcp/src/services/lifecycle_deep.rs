@@ -118,7 +118,7 @@ async fn stop_server_cleans_up_stale_db_row() {
 
     let config = make_config(&name, port);
     life.stop_server(&config).await.unwrap();
-    let info = life.database().get_service_by_name(&name).await.unwrap();
+    let info = life.database().get_service_by_name(&name_id).await.unwrap();
     assert!(info.is_none());
 }
 
@@ -272,6 +272,6 @@ async fn stop_server_with_stale_db_pid_goes_through_stale_cleanup() {
     let config = make_config(&name, port);
     life.stop_server(&config).await.unwrap();
 
-    let after = life.database().get_service_by_name(&name).await.unwrap();
+    let after = life.database().get_service_by_name(&name_id).await.unwrap();
     assert!(after.is_none());
 }

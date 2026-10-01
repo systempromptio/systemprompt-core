@@ -75,7 +75,7 @@ pub fn health_label(health: HealthStatus) -> String {
 
 pub fn external_row(status: &McpServiceStatus) -> ServiceStatusRow {
     ServiceStatusRow {
-        name: status.name.clone(),
+        name: status.name.to_string(),
         service_type: "mcp".to_owned(),
         status: "remote".to_owned(),
         pid: None,
@@ -170,7 +170,7 @@ pub(super) async fn execute(
     let mcp_health: HashMap<String, HealthStatus> = mcp_statuses
         .iter()
         .filter(|s| s.server_type == McpServerType::Internal)
-        .map(|s| (s.name.clone(), s.health))
+        .map(|s| (s.name.to_string(), s.health))
         .collect();
     let external: Vec<ServiceStatusRow> = mcp_statuses
         .iter()

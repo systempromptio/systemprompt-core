@@ -21,7 +21,9 @@ use crate::models::a2a::Artifact;
 use rmcp::model::CallToolResult;
 use serde::Deserialize;
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::{ArtifactId, McpExecutionId, SkillId};
+use systemprompt_identifiers::{
+    ArtifactId, ContextId, McpExecutionId, McpToolName, SkillId, TaskId,
+};
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 
 pub use metadata_builder::{BuildMetadataParams, build_metadata};
@@ -33,7 +35,7 @@ pub use type_inference::infer_type;
 pub struct ParsedMetadata {
     pub skill_id: Option<SkillId>,
     pub skill_name: Option<String>,
-    pub execution_id: Option<String>,
+    pub execution_id: Option<McpExecutionId>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,7 +54,7 @@ struct WireExecutionMeta {
     mcp_execution_id: McpExecutionId,
     skill_id: Option<SkillId>,
     skill_name: Option<String>,
-    execution_id: Option<String>,
+    execution_id: Option<McpExecutionId>,
 }
 
 pub fn parse_wire_result(
@@ -101,7 +103,10 @@ pub fn parse_wire_result(
 // releases, so it must come from a stable digest, never `DefaultHasher`.
 // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
 // spec.
-pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>) -> String {
+pub fn calculate_fingerprint(
+    tool_name: &McpToolName,
+    tool_arguments: Option<&JsonValue>,
+) -> String {
     use sha2::{Digest, Sha256};
 
     let args_str = tool_arguments.map(ToString::to_string).unwrap_or_default();
@@ -112,11 +117,11 @@ pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>
 }
 
 struct TransformParsedParams<'a> {
-    tool_name: &'a str,
+    tool_name: &'a McpToolName,
     parsed: ParsedToolResponse,
     output_schema: Option<&'a JsonValue>,
-    context_id: &'a str,
-    task_id: &'a str,
+    context_id: &'a ContextId,
+    task_id: &'a TaskId,
     // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     tool_arguments: Option<&'a JsonValue>,
 }
@@ -134,8 +139,8 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
     let fingerprint = calculate_fingerprint(tool_name, tool_arguments);
     let parts = build_parts(&parsed.artifact)?;
 
-    let mcp_execution_id = Some(parsed.mcp_execution_id.to_string())
-        .filter(|s| !s.is_empty())
+    let mcp_execution_id = Some(parsed.mcp_execution_id.clone())
+        .filter(|id| !id.as_str().is_empty())
         .or_else(|| parsed.metadata.execution_id.clone());
 
     let mut metadata = build_metadata(BuildMetadataParams {
@@ -155,7 +160,7 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
 
     Ok(Artifact {
         id: parsed.artifact_id,
-        title: Some(tool_name.to_owned()),
+        title: Some(tool_name.to_string()),
         description: None,
         parts,
         metadata,
@@ -165,11 +170,11 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
 
 #[derive(Debug)]
 pub struct TransformParams<'a> {
-    pub tool_name: &'a str,
+    pub tool_name: &'a McpToolName,
     pub tool_result: &'a CallToolResult,
     pub output_schema: Option<&'a JsonValue>,
-    pub context_id: &'a str,
-    pub task_id: &'a str,
+    pub context_id: &'a ContextId,
+    pub task_id: &'a TaskId,
     // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     pub tool_arguments: Option<&'a JsonValue>,
 }

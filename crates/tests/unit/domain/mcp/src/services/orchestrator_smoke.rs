@@ -80,7 +80,10 @@ async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
 async fn orchestrator_get_service_info_missing_returns_none() {
     let o = make_orchestrator().await;
     let r = o
-        .get_service_info(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
+        .get_service_info(&ServiceName::new(format!(
+            "missing-{}",
+            uuid::Uuid::new_v4().simple()
+        )))
         .await
         .unwrap();
     assert!(r.is_none());

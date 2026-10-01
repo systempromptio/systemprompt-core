@@ -53,15 +53,18 @@ impl DatabaseService {
         &self,
         config: &McpServerConfig,
         pid: u32,
-    ) -> McpDomainResult<String> {
+    ) -> McpDomainResult<ServiceName> {
         state::register_service(&self.service_repo, &self.app_paths, config, pid).await
     }
 
-    pub async fn unregister_service(&self, service_name: &str) -> McpDomainResult<()> {
+    pub async fn unregister_service(&self, service_name: &ServiceName) -> McpDomainResult<()> {
         state::unregister_service(&self.service_repo, service_name).await
     }
 
-    pub async fn get_service_by_name(&self, name: &str) -> McpDomainResult<Option<ServiceInfo>> {
+    pub async fn get_service_by_name(
+        &self,
+        name: &ServiceName,
+    ) -> McpDomainResult<Option<ServiceInfo>> {
         state::get_service_by_name(&self.service_repo, name).await
     }
 
@@ -71,18 +74,18 @@ impl DatabaseService {
 
     pub async fn update_service_status(
         &self,
-        name: &str,
+        name: &ServiceName,
         status: ServiceStatus,
     ) -> McpDomainResult<()> {
         self.service_repo
-            .update_service_status(&ServiceName::new(name), status)
+            .update_service_status(name, status)
             .await
             .map_err(Into::into)
     }
 
-    pub async fn clear_service_pid(&self, name: &str) -> McpDomainResult<()> {
+    pub async fn clear_service_pid(&self, name: &ServiceName) -> McpDomainResult<()> {
         self.service_repo
-            .clear_service_pid(&ServiceName::new(name))
+            .clear_service_pid(name)
             .await
             .map_err(Into::into)
     }
@@ -110,15 +113,15 @@ impl DatabaseService {
         &self,
         config: &McpServerConfig,
         pid: u32,
-    ) -> McpDomainResult<String> {
+    ) -> McpDomainResult<ServiceName> {
         state::register_existing_process(&self.service_repo, &self.app_paths, config, pid).await
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ServiceInfo {
-    pub name: String,
-    pub status: String,
+    pub name: ServiceName,
+    pub status: ServiceStatus,
     pub pid: Option<i32>,
     pub port: u16,
     pub binary_mtime: Option<i64>,

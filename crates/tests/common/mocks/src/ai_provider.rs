@@ -3,7 +3,7 @@ use futures::stream;
 use std::collections::{HashMap, VecDeque};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, AiRequestId};
 use systemprompt_models::ai::provider_trait::GenerateResponseParams;
 use systemprompt_models::ai::tools::{CallToolResult, ToolCall};
 use systemprompt_models::ai::{
@@ -12,7 +12,6 @@ use systemprompt_models::ai::{
 };
 use systemprompt_models::errors::{AiInferenceError, AiInferenceResult as Result};
 use systemprompt_models::execution::context::RequestContext;
-use uuid::Uuid;
 
 type ResponseQueue<T> = Arc<Mutex<VecDeque<Result<T>>>>;
 type SingleTurnQueue = ResponseQueue<(AiResponse, Vec<ToolCall>)>;
@@ -132,7 +131,7 @@ impl MockAiProvider {
 
     fn stub_response(&self) -> AiResponse {
         AiResponse::new(
-            Uuid::new_v4(),
+            AiRequestId::generate(),
             "mock response".to_string(),
             self.default_provider.clone(),
             self.default_model.clone(),

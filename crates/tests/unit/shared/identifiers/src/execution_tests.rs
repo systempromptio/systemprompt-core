@@ -18,11 +18,17 @@ fn execution_step_id_generate_unique() {
 
 #[test]
 fn execution_step_id_serde_transparent() {
-    let id = ExecutionStepId::new("step-1");
+    let id = ExecutionStepId::generate();
     let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"step-1\"");
+    assert_eq!(json, format!("\"{}\"", id.as_str()));
     let deserialized: ExecutionStepId = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized, id);
+}
+
+#[test]
+fn execution_step_id_rejects_a_non_uuid_on_deserialize() {
+    assert!(serde_json::from_str::<ExecutionStepId>("\"step-1\"").is_err());
+    assert!(ExecutionStepId::try_new("step-1").is_err());
 }
 
 #[test]

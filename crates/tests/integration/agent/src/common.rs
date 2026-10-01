@@ -1,7 +1,9 @@
 use anyhow::Result;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, InstanceId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AgentName, ContextId, InstanceId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::DynSessionUsageCounters;
@@ -103,7 +105,7 @@ impl Fixture {
                 user_id: &self.user_id,
                 session_id: &self.session_id,
                 trace_id: &self.trace_id,
-                agent_name: "test-agent",
+                agent_name: &AgentName::new("test-agent"),
             })
             .await?;
         Ok(task_id)

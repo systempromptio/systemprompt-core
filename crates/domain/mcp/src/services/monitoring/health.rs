@@ -16,6 +16,7 @@ use crate::models::ValidationResultType;
 use crate::services::client::McpConnectionResult;
 use crate::services::spawn_target::SpawnTarget;
 use std::time::Duration;
+use systemprompt_identifiers::ServiceName;
 use tokio::time::timeout;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,7 +57,7 @@ pub struct HealthCheckResult {
 
 #[derive(Debug, Clone)]
 pub struct HealthCheckDetails {
-    pub service_name: String,
+    pub service_name: ServiceName,
     pub tools_available: Option<usize>,
     pub requires_auth: bool,
     pub validation_type: String,
@@ -84,7 +85,7 @@ impl HealthCheckResult {
         };
 
         let details = HealthCheckDetails {
-            service_name: config.name.clone(),
+            service_name: config.service_name(),
             tools_available: result.tools_count,
             requires_auth: config.oauth.required,
             validation_type: validation_type.to_string(),
@@ -106,7 +107,7 @@ impl HealthCheckResult {
             connection_result: None,
             latency_ms: 0,
             details: HealthCheckDetails {
-                service_name: config.name.clone(),
+                service_name: config.service_name(),
                 tools_available: None,
                 requires_auth: config.oauth.required,
                 validation_type: "external_accessor_backed".to_owned(),
@@ -122,7 +123,7 @@ impl HealthCheckResult {
             connection_result: None,
             latency_ms: 0,
             details: HealthCheckDetails {
-                service_name: config.name.clone(),
+                service_name: config.service_name(),
                 tools_available: None,
                 requires_auth: config.oauth.required,
                 validation_type: ValidationResultType::Error.to_string(),
@@ -151,7 +152,7 @@ pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<H
             timeout(
                 Duration::from_secs(30),
                 validate_connection_with_auth(
-                    &config.name,
+                    &config.service_name(),
                     &config.host,
                     config.spawn_port()?,
                     config.oauth.required,
@@ -162,7 +163,7 @@ pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<H
         McpServerType::External => {
             timeout(
                 Duration::from_secs(30),
-                validate_connection_by_url(&config.name, &config.remote_endpoint),
+                validate_connection_by_url(&config.service_name(), &config.remote_endpoint),
             )
             .await
         },

@@ -11,6 +11,7 @@
 use crate::error::McpDomainResult;
 use std::process::Command;
 use std::time::Duration;
+use systemprompt_identifiers::ServiceName;
 
 use super::utils::process_exists;
 
@@ -122,7 +123,10 @@ pub fn force_kill(pid: u32) -> McpDomainResult<()> {
 const GRACEFUL_EXIT_WAIT: Duration = Duration::from_millis(500);
 const FORCED_EXIT_WAIT: Duration = Duration::from_secs(5);
 
-pub async fn terminate_gracefully_verified(pid: u32, service_name: &str) -> McpDomainResult<()> {
+pub async fn terminate_gracefully_verified(
+    pid: u32,
+    service_name: &ServiceName,
+) -> McpDomainResult<()> {
     if !process_exists(pid) {
         return Ok(());
     }

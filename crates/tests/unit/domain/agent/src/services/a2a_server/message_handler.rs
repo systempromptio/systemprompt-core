@@ -5,6 +5,7 @@
 // failure path.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::services::a2a_server::ActiveTasks;
@@ -54,7 +55,7 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
         .handle_message_with_runtime(HandleMessageParams {
             message: msg,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -110,7 +111,7 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
         .handle_message_with_runtime(HandleMessageParams {
             message: msg,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -142,7 +143,7 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
         .handle_message_with_runtime(HandleMessageParams {
             message: msg,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -194,7 +195,7 @@ async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
             .handle_message_with_runtime(HandleMessageParams {
                 message,
                 agent_runtime: &runtime,
-                agent_name: "nonstream-agent",
+                agent_name: &AgentName::new("nonstream-agent"),
                 context: &request,
                 active_tasks: &active_for_run,
             })
@@ -250,7 +251,7 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
         .handle_message_with_runtime(HandleMessageParams {
             message: msg,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -306,7 +307,7 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
         .handle_message_with_runtime(HandleMessageParams {
             message,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -395,7 +396,7 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
         .handle_message_with_runtime(HandleMessageParams {
             message: user_message(&context_id, Some(task_id.clone()), "start this task"),
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -467,7 +468,7 @@ async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
         .handle_message_with_runtime(HandleMessageParams {
             message: user_message(&context_id, Some(task_id.clone()), "read this context"),
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })

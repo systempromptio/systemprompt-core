@@ -16,8 +16,7 @@ use systemprompt_ai::services::providers::{
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
 use systemprompt_ai::services::tooled::{ResponseSynthesizer, SynthesisParams};
-use systemprompt_identifiers::AiToolCallId;
-use uuid::Uuid;
+use systemprompt_identifiers::{AiRequestId, AiToolCallId};
 
 #[derive(Debug, Clone, Copy)]
 enum Outcome {
@@ -43,12 +42,12 @@ impl StubProvider {
 
     fn response(text: &str) -> AiResponse {
         let mut resp = AiResponse::new(
-            uuid::Uuid::new_v4(),
+            AiRequestId::generate(),
             String::new(),
             String::new(),
             String::new(),
         );
-        resp.request_id = Uuid::new_v4();
+        resp.request_id = AiRequestId::generate();
         resp.content = text.to_owned();
         resp.provider = "stub".to_owned();
         resp.model = "stub-model".to_owned();

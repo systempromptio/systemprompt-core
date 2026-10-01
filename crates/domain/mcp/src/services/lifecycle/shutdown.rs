@@ -24,7 +24,7 @@ pub async fn stop_server(
 
     manager
         .database()
-        .update_service_status(&config.name, ServiceStatus::Stopping)
+        .update_service_status(&config.service_name(), ServiceStatus::Stopping)
         .await?;
 
     perform_graceful_shutdown(manager, config, pid).await?;
@@ -39,7 +39,10 @@ async fn find_running_process(
     manager: &LifecycleOrchestrator,
     config: &McpServerConfig,
 ) -> McpDomainResult<Option<u32>> {
-    if let Some(db_service) = manager.database().get_service_by_name(&config.name).await?
+    if let Some(db_service) = manager
+        .database()
+        .get_service_by_name(&config.service_name())
+        .await?
         && let Some(db_pid) = db_service.pid
         && ProcessService::is_running(db_pid as u32)
     {
@@ -56,7 +59,7 @@ async fn perform_graceful_shutdown(
 ) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, pid = pid, "Performing graceful shutdown");
 
-    ProcessService::terminate_gracefully_verified(pid, &config.name).await?;
+    ProcessService::terminate_gracefully_verified(pid, &config.service_name()).await?;
 
     manager
         .network()
@@ -72,9 +75,12 @@ async fn finalize_shutdown(
 ) -> McpDomainResult<()> {
     manager
         .database()
-        .update_service_status(&config.name, ServiceStatus::Stopped)
+        .update_service_status(&config.service_name(), ServiceStatus::Stopped)
         .await?;
-    manager.database().clear_service_pid(&config.name).await?;
+    manager
+        .database()
+        .clear_service_pid(&config.service_name())
+        .await?;
 
     Ok(())
 }
@@ -85,7 +91,11 @@ async fn cleanup_stale_state(
 ) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, "Cleaning up stale database entries");
 
-    if let Some(service) = manager.database().get_service_by_name(&config.name).await? {
+    if let Some(service) = manager
+        .database()
+        .get_service_by_name(&config.service_name())
+        .await?
+    {
         manager.database().unregister_service(&service.name).await?;
         tracing::debug!(service = %config.name, "Cleaned up stale entry");
     }

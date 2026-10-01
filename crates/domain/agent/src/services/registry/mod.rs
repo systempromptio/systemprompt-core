@@ -10,6 +10,7 @@ pub mod skills;
 
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
 use systemprompt_models::{AgentConfig, ServicesConfig};
 
@@ -161,9 +162,15 @@ impl AgentRegistry {
         })
     }
 
-    pub async fn get_mcp_servers(&self, agent_name: &str) -> AgentResult<Vec<String>> {
-        let agent = self.get_agent(agent_name).await?;
-        Ok(agent.metadata.mcp_servers.include)
+    pub async fn get_mcp_servers(&self, agent_name: &AgentName) -> AgentResult<Vec<McpServerId>> {
+        let agent = self.get_agent(agent_name.as_str()).await?;
+        Ok(agent
+            .metadata
+            .mcp_servers
+            .include
+            .into_iter()
+            .map(McpServerId::new)
+            .collect())
     }
 
     pub async fn find_next_available_port(&self) -> AgentResult<u16> {

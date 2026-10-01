@@ -10,8 +10,8 @@
 use std::time::Instant;
 
 use serde_json::Value;
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse, ResponseFormat};
-use uuid::Uuid;
 
 use crate::error::Result;
 use crate::models::ai::AiResponse;
@@ -47,7 +47,7 @@ pub(super) async fn generate(
     params: GenerationParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let canonical = CanonicalBuild::new(
         BridgeProvider::OpenAi,
         params.messages,
@@ -72,7 +72,7 @@ pub(super) async fn generate_with_tools(
     params: ToolGenerationParams<'_>,
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let canonical = CanonicalBuild::new(
         BridgeProvider::OpenAi,
         params.base.messages,
@@ -95,7 +95,7 @@ pub(super) async fn generate_structured(
     params: StructuredGenerationParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let canonical = CanonicalBuild::new(
         BridgeProvider::OpenAi,
         params.base.messages,
@@ -121,7 +121,7 @@ pub(super) async fn generate_with_schema(
     params: SchemaGenerationParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let response_format = ResponseFormat::JsonSchema {
         name: STRUCTURED_OUTPUT_TOOL.to_owned(),
         schema: params.response_schema,

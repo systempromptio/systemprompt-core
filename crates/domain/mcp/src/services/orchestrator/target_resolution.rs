@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
+use systemprompt_identifiers::ServiceName;
 
 use super::McpOrchestrator;
 use crate::McpServerConfig;
@@ -11,20 +12,16 @@ use crate::McpServerConfig;
 impl McpOrchestrator {
     pub(super) async fn list_target_servers(
         &self,
-        service_name: Option<String>,
+        service_name: Option<ServiceName>,
         enabled_only: bool,
     ) -> McpDomainResult<Vec<McpServerConfig>> {
         match service_name {
-            Some(name) if name == "all" => {
-                if enabled_only {
-                    self.registry().get_managed_servers()
-                } else {
-                    self.database().get_running_servers().await
-                }
-            },
             Some(name) => {
                 let servers = self.registry().get_managed_servers()?;
-                Ok(servers.into_iter().filter(|s| s.name == name).collect())
+                Ok(servers
+                    .into_iter()
+                    .filter(|s| name.as_str() == s.name)
+                    .collect())
             },
             None => {
                 if enabled_only {

@@ -5,7 +5,7 @@
 //! on these without overriding them, so the defaults are public contract.
 
 use std::collections::HashMap;
-use systemprompt_identifiers::{AgentName, McpServerId};
+use systemprompt_identifiers::{AgentName, JwtToken, McpServerId, McpToolName};
 
 use async_trait::async_trait;
 use serde_json::Value;
@@ -142,15 +142,15 @@ impl ToolProvider for TwoToolProvider {
 
 #[tokio::test]
 async fn default_find_tool_selects_by_name_from_list_tools() {
-    let ctx = ToolContext::new(
-        systemprompt_identifiers::Actor::system(systemprompt_identifiers::UserId::new("system")),
-        "token",
-    );
+    let ctx = ToolContext::new(systemprompt_identifiers::Actor::system(
+        systemprompt_identifiers::UserId::new("system"),
+    ))
+    .with_auth_token(JwtToken::new("token"));
 
     let found = TwoToolProvider
         .find_tool(
             &AgentName::try_new("agent").expect("valid AgentName"),
-            "beta",
+            &McpToolName::new("beta"),
             &ctx,
         )
         .await
@@ -160,7 +160,7 @@ async fn default_find_tool_selects_by_name_from_list_tools() {
     let missing = TwoToolProvider
         .find_tool(
             &AgentName::try_new("agent").expect("valid AgentName"),
-            "gamma",
+            &McpToolName::new("gamma"),
             &ctx,
         )
         .await

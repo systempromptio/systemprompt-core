@@ -27,7 +27,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use systemprompt_identifiers::{AiToolCallId, McpExecutionId};
+use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpServerId};
 use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_mcp::{
     ArtifactIngest, INTENT_CLAIM_WINDOW_SECONDS, IngestRequest, IntentClaimService, from_wire_value,
@@ -90,7 +90,7 @@ impl McpAudit {
 
         let request = ToolExecutionRequest {
             tool_name: self.invocation.tool_name,
-            server_name: self.server_name.clone(),
+            server_name: McpServerId::new(self.server_name.as_str()),
             input: self.invocation.arguments,
             started_at: self.started_at,
             context: self.context,

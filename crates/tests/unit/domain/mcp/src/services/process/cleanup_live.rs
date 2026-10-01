@@ -1,6 +1,7 @@
 use std::net::TcpListener;
 use std::process::{Child, Command};
 use std::time::Duration;
+use systemprompt_identifiers::ServiceName;
 
 use systemprompt_mcp::services::process::cleanup::{
     cleanup_port_processes, force_kill, terminate_gracefully, terminate_gracefully_verified,
@@ -49,7 +50,7 @@ async fn verified_termination_kills_marked_subprocess() {
         systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "cleanup-live-test");
     let pid = marked.pid();
 
-    terminate_gracefully_verified(pid, "cleanup-live-test")
+    terminate_gracefully_verified(pid, &ServiceName::new("cleanup-live-test"))
         .await
         .expect("verified termination ok");
 
@@ -63,7 +64,7 @@ async fn verified_termination_skips_child_with_wrong_service_marker() {
         systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "some-other-service");
     let pid = marked.pid();
 
-    terminate_gracefully_verified(pid, "cleanup-live-test")
+    terminate_gracefully_verified(pid, &ServiceName::new("cleanup-live-test"))
         .await
         .expect("skip is ok");
 

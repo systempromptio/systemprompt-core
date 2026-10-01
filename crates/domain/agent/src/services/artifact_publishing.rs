@@ -17,7 +17,7 @@ use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
 use crate::repository::A2ARepositories;
 use crate::repository::content::ArtifactRepository;
 use crate::services::{MessageService, SkillService};
-use systemprompt_identifiers::{ContextId, MessageId, TaskId, UserId};
+use systemprompt_identifiers::{ContextId, McpToolName, MessageId, TaskId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::execution::CallSource;
 use systemprompt_traits::DynToolExecutionLookup;
@@ -27,7 +27,7 @@ pub struct PublishFromMcpParams<'a> {
     pub artifact: &'a Artifact,
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
-    pub tool_name: &'a str,
+    pub tool_name: &'a McpToolName,
     // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     pub tool_args: &'a serde_json::Value,
     pub request_context: &'a RequestContext,

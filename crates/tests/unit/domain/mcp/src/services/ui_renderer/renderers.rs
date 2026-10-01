@@ -1,3 +1,4 @@
+use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::services::ui_renderer::templates::{
     ChartRenderer, DashboardRenderer, FormRenderer, ImageRenderer, ListRenderer, TableRenderer,
     TextRenderer,
@@ -94,7 +95,7 @@ fn ui_resource_mime_type() {
 
 #[test]
 fn ui_metadata_for_static_template() {
-    let meta = UiMetadata::for_static_template("test-server");
+    let meta = UiMetadata::for_static_template(&McpServerId::new("test-server"));
     assert_eq!(meta.resource_uri, "ui://test-server/artifact-viewer");
     assert!(meta.prefers_border);
     assert!(meta.csp.is_none());
@@ -102,14 +103,15 @@ fn ui_metadata_for_static_template() {
 
 #[test]
 fn ui_metadata_for_tool_definition() {
-    let meta = UiMetadata::for_tool_definition("my-server");
+    let meta = UiMetadata::for_tool_definition(&McpServerId::new("my-server"));
     assert_eq!(meta.resource_uri, "ui://my-server/artifact-viewer");
     assert!(meta.prefers_border);
 }
 
 #[test]
 fn ui_metadata_with_csp() {
-    let meta = UiMetadata::for_static_template("s").with_csp(CspPolicy::strict());
+    let meta =
+        UiMetadata::for_static_template(&McpServerId::new("s")).with_csp(CspPolicy::strict());
     assert_eq!(
         meta.csp.as_ref().map(|c| c.to_header_value()),
         Some(CspPolicy::strict().to_header_value())
@@ -118,26 +120,27 @@ fn ui_metadata_with_csp() {
 
 #[test]
 fn ui_metadata_with_prefers_border_false() {
-    let meta = UiMetadata::for_static_template("s").with_prefers_border(false);
+    let meta = UiMetadata::for_static_template(&McpServerId::new("s")).with_prefers_border(false);
     assert!(!meta.prefers_border);
 }
 
 #[test]
 fn ui_metadata_model_only() {
-    let meta = UiMetadata::for_static_template("s").model_only();
+    let meta = UiMetadata::for_static_template(&McpServerId::new("s")).model_only();
     assert_eq!(meta.visibility.len(), 1);
 }
 
 #[test]
 fn ui_metadata_to_json_contains_resource_uri() {
-    let meta = UiMetadata::for_static_template("s");
+    let meta = UiMetadata::for_static_template(&McpServerId::new("s"));
     let json = serde_json::to_value(meta.tool_ui_meta()).expect("serialize ui meta");
     assert_eq!(json["resourceUri"], "ui://s/artifact-viewer");
 }
 
 #[test]
 fn ui_metadata_to_json_includes_csp_when_set() {
-    let meta = UiMetadata::for_static_template("s").with_csp(CspPolicy::strict());
+    let meta =
+        UiMetadata::for_static_template(&McpServerId::new("s")).with_csp(CspPolicy::strict());
     let json = serde_json::to_value(meta.tool_ui_meta()).expect("serialize ui meta");
     let csp = json.get("csp").expect("csp present when set");
     assert_eq!(
@@ -152,14 +155,14 @@ fn ui_metadata_to_json_includes_csp_when_set() {
 
 #[test]
 fn ui_metadata_to_json_no_csp_when_unset() {
-    let meta = UiMetadata::for_static_template("s");
+    let meta = UiMetadata::for_static_template(&McpServerId::new("s"));
     let json = serde_json::to_value(meta.tool_ui_meta()).expect("serialize ui meta");
     assert!(json.get("csp").is_none());
 }
 
 #[test]
 fn ui_metadata_to_tool_meta_wraps_in_ui_key() {
-    let meta = UiMetadata::for_static_template("s");
+    let meta = UiMetadata::for_static_template(&McpServerId::new("s"));
     let tool_meta = meta.to_tool_meta();
     assert!(tool_meta.contains_key("ui"));
 }

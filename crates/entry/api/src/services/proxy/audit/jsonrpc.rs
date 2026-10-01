@@ -14,6 +14,7 @@
 
 use serde::Deserialize;
 use serde_json::{Value, json};
+use systemprompt_identifiers::McpToolName;
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 
 const TOOLS_CALL_METHOD: &str = "tools/call";
@@ -30,7 +31,7 @@ struct RequestFrame {
 
 #[derive(Deserialize)]
 struct ToolCallParams {
-    name: String,
+    name: McpToolName,
     // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     #[serde(default)]
     arguments: Option<Value>,
@@ -40,7 +41,7 @@ struct ToolCallParams {
 pub struct ToolCallInvocation {
     // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
     pub id: Value,
-    pub tool_name: String,
+    pub tool_name: McpToolName,
     // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     pub arguments: Value,
 }

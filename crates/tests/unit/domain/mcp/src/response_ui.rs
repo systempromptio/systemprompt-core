@@ -5,7 +5,8 @@
 
 use rmcp::model::{CallToolResult, ResourceContents};
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId,
+    Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
+    UserId,
 };
 use systemprompt_mcp::{ArtifactIngest, ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
@@ -38,7 +39,10 @@ async fn build(artifact: CliArtifact, repo: &ArtifactIngest) -> CallToolResult {
 
     McpResponseBuilder::new(
         artifact,
-        ToolIdentity::new("systemprompt", "cli_execute"),
+        ToolIdentity::new(
+            McpServerId::new("systemprompt"),
+            McpToolName::new("cli_execute"),
+        ),
         &context,
         &exec_id,
         &ui_client(),
@@ -181,7 +185,10 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
 
     let error = McpResponseBuilder::new(
         table(),
-        ToolIdentity::new("recovery-server", "recovery-tool"),
+        ToolIdentity::new(
+            McpServerId::new("recovery-server"),
+            McpToolName::new("recovery-tool"),
+        ),
         &context,
         &exec_id,
         &ui_client(),
@@ -215,7 +222,10 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
 
     McpResponseBuilder::new(
         table(),
-        ToolIdentity::new("recovery-server", "recovery-tool"),
+        ToolIdentity::new(
+            McpServerId::new("recovery-server"),
+            McpToolName::new("recovery-tool"),
+        ),
         &context,
         &exec_id,
         &ui_client(),
@@ -247,7 +257,10 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
     assert_eq!(stored_response.artifact.columns.len(), 1);
     assert_eq!(stored_response.artifact.columns[0].name, "marker");
     assert_eq!(stored.server_name, "recovery-server");
-    assert_eq!(stored.tool_name.as_deref(), Some("recovery-tool"));
+    assert_eq!(
+        stored.tool_name.as_ref().map(McpToolName::as_str),
+        Some("recovery-tool")
+    );
 
     recovered_db.write_pool().close().await;
     drop(recovered_repo);

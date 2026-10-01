@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-identifiers = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }

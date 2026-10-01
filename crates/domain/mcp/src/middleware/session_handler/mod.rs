@@ -106,7 +106,7 @@ impl DatabaseSessionHandler {
             .create(
                 &systemprompt_identifiers::SessionId::new(session_id.as_ref()),
                 None,
-                self.server_id.as_ref().map(McpServerId::as_str),
+                self.server_id.as_ref(),
             )
             .await
         {

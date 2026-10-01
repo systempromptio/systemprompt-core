@@ -12,7 +12,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
-use systemprompt_identifiers::McpExecutionId;
+use systemprompt_identifiers::{McpExecutionId, McpServerId};
 use systemprompt_models::RequestContext;
 
 use crate::schema::McpOutputSchema;
@@ -48,7 +48,7 @@ pub trait McpToolHandler: Send + Sync {
         false
     }
 
-    fn tool_definition(&self, server_name: &str) -> Tool {
+    fn tool_definition(&self, server_name: &McpServerId) -> Tool {
         let input_obj = object_input_schema(&self.input_schema());
         let output_obj = self
             .output_schema()

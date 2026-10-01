@@ -12,7 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{McpServerId, SessionId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -219,7 +219,7 @@ async fn cache_identity_from_response(
                 "Stored session identity for MCP session"
             );
             if let Err(e) = identities
-                .attribute_session(&session_id, service_name, &row.user_id)
+                .attribute_session(&session_id, &McpServerId::new(service_name), &row.user_id)
                 .await
             {
                 tracing::warn!(

@@ -7,6 +7,7 @@
 // deterministically.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -22,8 +23,8 @@ use systemprompt_test_fixtures::test_db_pool;
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4().simple())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
 }
 
 fn app_paths() -> Arc<AppPaths> {
@@ -92,7 +93,8 @@ async fn list_agents_includes_registered() {
     // call returns a well-formed list.
     let all = orchestrator.list_agents().await.expect("list");
     assert!(
-        all.iter().all(|(agent_name, _)| !agent_name.is_empty()),
+        all.iter()
+            .all(|(agent_name, _)| !agent_name.as_str().is_empty()),
         "every listed agent must carry a non-empty name"
     );
 

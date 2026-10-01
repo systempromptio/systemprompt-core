@@ -47,9 +47,7 @@ impl StreamProcessor {
 
         let ai_service = Arc::clone(&self.ai_service);
         let agent_runtime = agent_runtime.clone();
-        let agent_name_string = agent_name.to_owned();
-        let agent_name_typed = AgentName::try_new(agent_name)
-            .map_err(|e| AgentServiceError::validation("agent_name", e))?;
+        let agent_name = agent_name.clone();
         let (user_text, user_parts) = extract_message_content(a2a_message);
 
         let context_id = &a2a_message.context_id;
@@ -70,8 +68,7 @@ impl StreamProcessor {
             .with_context_id(context_id.clone());
         let pipeline = RunStreamPipelineParams {
             agent_runtime,
-            agent_name_string,
-            agent_name_typed,
+            agent_name,
             ai_service,
             skill_service: Arc::clone(&self.skill_service),
             execution_step_repo: Arc::clone(&self.execution_step_repo),
@@ -106,8 +103,7 @@ impl StreamProcessor {
 
 struct RunStreamPipelineParams {
     agent_runtime: AgentRuntimeInfo,
-    agent_name_string: String,
-    agent_name_typed: AgentName,
+    agent_name: AgentName,
     ai_service: Arc<dyn systemprompt_models::AiProvider>,
     skill_service: Arc<crate::services::SkillService>,
     execution_step_repo: Arc<crate::repository::execution::ExecutionStepRepository>,
@@ -134,8 +130,7 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
 async fn run_pipeline(params: RunStreamPipelineParams) -> Result<(String, Vec<Artifact>)> {
     let RunStreamPipelineParams {
         agent_runtime,
-        agent_name_string,
-        agent_name_typed,
+        agent_name,
         ai_service,
         skill_service,
         execution_step_repo,
@@ -149,7 +144,7 @@ async fn run_pipeline(params: RunStreamPipelineParams) -> Result<(String, Vec<Ar
     } = params;
 
     tracing::info!(
-        agent_name = %agent_name_string,
+        agent_name = %agent_name,
         history_count = conversation_history.len(),
         "Processing streaming message for agent"
     );
@@ -171,7 +166,7 @@ async fn run_pipeline(params: RunStreamPipelineParams) -> Result<(String, Vec<Ar
         ai_service: Arc::clone(&ai_service),
         skill_service: Arc::clone(&skill_service),
         agent_runtime: agent_runtime.clone(),
-        agent_name: agent_name_typed,
+        agent_name,
         task_id: task_id.clone(),
         context_id: context_id.clone(),
         tx: tx.clone(),

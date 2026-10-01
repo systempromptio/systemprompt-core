@@ -5,6 +5,7 @@
 // errored and logs the startup diagnosis for each stored status.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
@@ -19,8 +20,8 @@ use systemprompt_test_fixtures::test_db_pool;
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4().simple())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
 }
 
 fn app_paths() -> Arc<AppPaths> {
@@ -94,7 +95,7 @@ async fn verify_startup_succeeds_against_live_listener() {
         }
     });
 
-    lc.verify_startup("lc_verify_ok", port)
+    lc.verify_startup(&AgentName::new("lc_verify_ok"), port)
         .await
         .expect("listener answers the readiness probe");
     accept_loop.abort();
@@ -119,7 +120,7 @@ async fn verify_startup_times_out_without_clearing_the_pid() {
         .verify_startup(&name, port)
         .await
         .expect_err("nothing listens on the probed port");
-    assert!(err.to_string().contains(&name));
+    assert!(err.to_string().contains(name.as_str()));
 
     let row = db
         .repository
@@ -143,7 +144,8 @@ async fn log_startup_failure_covers_stored_statuses() {
     let lc = lifecycle(&pool);
     let db = db_service(&pool);
 
-    lc.log_startup_failure("lc_log_missing", 39462).await;
+    lc.log_startup_failure(&AgentName::new("lc_log_missing"), 39462)
+        .await;
 
     let running = unique_name("lc_log_running");
     db.register_agent(&running, std::process::id(), 39463)

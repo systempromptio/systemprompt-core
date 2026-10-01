@@ -5,6 +5,7 @@
 
 use std::future::Future;
 use std::sync::Arc;
+use systemprompt_identifiers::McpServerId;
 
 use rmcp::model::{ListToolsResult, PaginatedRequestParams, Tool};
 use rmcp::service::RequestContext;
@@ -73,22 +74,27 @@ impl ServerHandler for RbacProbe {
             parts.extensions.insert(sys_ctx());
             context.extensions.insert(parts);
 
-            let outcome =
-                match enforce_rbac_from_registry(&context, &probe.server, &probe.hook).await {
-                    Ok(AuthResult::Anonymous(ctx)) => {
-                        format!("anonymous:{}", ctx.session_id().as_str())
-                    },
-                    Ok(AuthResult::Authenticated(auth)) => format!(
-                        "authenticated:user={}:token-len={}",
-                        auth.context
-                            .user
-                            .as_ref()
-                            .map(|u| u.email.clone())
-                            .unwrap_or_default(),
-                        auth.token().len()
-                    ),
-                    Err(err) => format!("err:{}", err.message),
-                };
+            let outcome = match enforce_rbac_from_registry(
+                &context,
+                &McpServerId::new(probe.server.as_str()),
+                &probe.hook,
+            )
+            .await
+            {
+                Ok(AuthResult::Anonymous(ctx)) => {
+                    format!("anonymous:{}", ctx.session_id().as_str())
+                },
+                Ok(AuthResult::Authenticated(auth)) => format!(
+                    "authenticated:user={}:token-len={}",
+                    auth.context
+                        .user
+                        .as_ref()
+                        .map(|u| u.email.clone())
+                        .unwrap_or_default(),
+                    auth.auth_token().map_or(0, |t| t.as_str().len())
+                ),
+                Err(err) => format!("err:{}", err.message),
+            };
 
             Ok(ListToolsResult::with_all_items(vec![Tool::new(
                 outcome,

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use systemprompt_identifiers::McpToolName;
 
 use anyhow::Result;
 use systemprompt_agent::models::a2a::{Artifact, Part, TextPart};
@@ -79,7 +80,7 @@ async fn artifact_publishing_publish_from_mcp_agentic_skips_messages() -> Result
         artifact: &artifact,
         task_id: &task_id,
         context_id: &fx.context_id,
-        tool_name: "my_tool",
+        tool_name: &McpToolName::new("my_tool"),
         tool_args: &args,
         request_context: &ctx,
         call_source: CallSource::Agentic,
@@ -112,7 +113,7 @@ async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Resul
         artifact: &artifact,
         task_id: &task_id,
         context_id: &fx.context_id,
-        tool_name: "direct_tool",
+        tool_name: &McpToolName::new("direct_tool"),
         tool_args: &args,
         request_context: &ctx,
         call_source: CallSource::Direct,

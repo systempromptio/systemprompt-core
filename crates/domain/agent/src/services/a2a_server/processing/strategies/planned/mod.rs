@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use crate::services::shared::{AgentServiceError, Result};
 use async_trait::async_trait;
-use systemprompt_identifiers::TaskId;
 use systemprompt_models::AiMessage;
 use systemprompt_models::ai::PlanningResult;
 
@@ -48,7 +47,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
         messages: Vec<AiMessage>,
     ) -> Result<ExecutionResult> {
         let tracking = ExecutionTrackingService::new(Arc::clone(&context.execution_step_repo));
-        let task_id = TaskId::new(context.task_id.as_str());
+        let task_id = context.task_id.clone();
 
         tracing::info!("Starting PLAN → EXECUTE → RESPOND flow");
 

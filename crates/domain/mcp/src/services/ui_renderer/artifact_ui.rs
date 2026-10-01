@@ -14,7 +14,7 @@ use super::{UiRendererRegistry, UiResource};
 use crate::error::{McpDomainError, McpDomainResult};
 use serde_json::Value as JsonValue;
 use std::sync::{Arc, OnceLock};
-use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
+use systemprompt_identifiers::{ArtifactId, ContextId, McpServerId, TaskId};
 use systemprompt_models::a2a::{Artifact, ArtifactMetadata, DataPart, Part};
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ pub fn artifact_ui_resource(target: &RenderTarget<'_>) -> McpDomainResult<UiReso
     default_registry().render(&artifact)
 }
 
-pub fn artifact_resource_uri(server_name: &str, artifact_id: &ArtifactId) -> String {
+pub fn artifact_resource_uri(server_name: &McpServerId, artifact_id: &ArtifactId) -> String {
     format!("ui://{server_name}/artifact/{artifact_id}")
 }
 

@@ -4,6 +4,7 @@
 // `WebhookError` so the caller can record an undelivered broadcast.
 
 use std::sync::Arc;
+use systemprompt_identifiers::{AgentName, JwtToken};
 
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
@@ -63,7 +64,11 @@ fn artifact(ctx: &ContextId, task_id: &TaskId) -> Artifact {
 
 fn http_context(base_url: &str, user: &UserId, token: &str) -> WebhookContext {
     let broadcaster = HttpWebhookBroadcaster::new(base_url).expect("broadcaster");
-    WebhookContext::new(Arc::new(broadcaster), user.clone(), token)
+    WebhookContext::new(
+        Arc::new(broadcaster),
+        user.clone(),
+        Some(JwtToken::new(token)),
+    )
 }
 
 #[tokio::test]
@@ -80,7 +85,7 @@ async fn broadcast_task_created_swallows_transport_failure() {
         task_id: &task_id,
         context_id: &ctx,
         user_message: &msg,
-        agent_name: "bcast-agent",
+        agent_name: &AgentName::new("bcast-agent"),
     })
     .await;
 }
@@ -114,7 +119,11 @@ async fn broadcast_artifact_created_surfaces_a_rejected_status() {
     let rec = Arc::new(RecordingWebhookBroadcaster::with_lifecycle_down());
     let ctx = ContextId::generate();
     let task_id = TaskId::generate();
-    let webhooks = WebhookContext::new(rec.clone(), UserId::new("u-bcast"), "tok");
+    let webhooks = WebhookContext::new(
+        rec.clone(),
+        UserId::new("u-bcast"),
+        Some(JwtToken::new("tok")),
+    );
 
     let err = broadcast_artifact_created(&webhooks, &artifact(&ctx, &task_id), &task_id, &ctx)
         .await
@@ -143,7 +152,7 @@ async fn coverage_task_webhook(status: u16) {
         task_id: &task_id,
         context_id: &ctx,
         user_message: &message,
-        agent_name: "webhook-agent",
+        agent_name: &AgentName::new("webhook-agent"),
     })
     .await;
     broadcast_task_completed(&webhooks, &completed_task(&task_id, &ctx)).await;

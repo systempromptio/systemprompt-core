@@ -21,7 +21,7 @@ use sqlx::PgPool;
 use std::str::FromStr;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{JwtToken, SessionId, UserId};
+use systemprompt_identifiers::{JwtToken, McpServerId, SessionId, UserId};
 use systemprompt_models::auth::{Permission, UserType};
 use systemprompt_traits::RepositoryError;
 
@@ -129,7 +129,7 @@ impl McpProxyIdentityRepository {
     pub async fn attribute_session(
         &self,
         session_id: &SessionId,
-        server_name: &str,
+        server_name: &McpServerId,
         user_id: &UserId,
     ) -> McpDomainResult<()> {
         sqlx::query!(
@@ -138,7 +138,7 @@ impl McpProxyIdentityRepository {
                    user_id = COALESCE(user_id, $3)
                WHERE session_id = $1"#,
             session_id.as_str(),
-            server_name,
+            server_name.as_str(),
             user_id.as_str(),
         )
         .execute(&*self.write_pool)

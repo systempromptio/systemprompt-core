@@ -4,6 +4,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::collections::HashMap;
+use systemprompt_identifiers::McpServerId;
 
 use systemprompt_cli::infrastructure::services::status::{
     build_status_output, external_row, health_label, managed_health_label,
@@ -25,7 +26,7 @@ fn state(name: &str, service_type: ServiceType, runtime: RuntimeStatus) -> Verif
 
 fn mcp_status(name: &str, health: HealthStatus, endpoint: Option<&str>) -> McpServiceStatus {
     McpServiceStatus {
-        name: name.to_string(),
+        name: McpServerId::new(name),
         server_type: McpServerType::External,
         port: None,
         endpoint: endpoint.map(str::to_string),

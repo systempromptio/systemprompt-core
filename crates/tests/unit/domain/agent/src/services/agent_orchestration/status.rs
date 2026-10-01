@@ -2,12 +2,11 @@
 //!
 //! Tests cover:
 //! - AgentStatus variants
-//! - AgentRuntimeConfig
 //! - ValidationReport
 //! - OrchestrationError variants
 
 use systemprompt_agent::services::agent_orchestration::{
-    AgentRuntimeConfig, AgentStatus, OrchestrationError, ValidationReport,
+    AgentStatus, OrchestrationError, ValidationReport,
 };
 
 #[test]
@@ -88,34 +87,6 @@ fn test_agent_status_debug_failed() {
     let debug_str = format!("{:?}", status);
     assert!(debug_str.contains("Failed"));
     assert!(debug_str.contains("Test reason"));
-}
-
-#[test]
-fn test_agent_runtime_config_creation() {
-    let config = AgentRuntimeConfig {
-        id: "config-1".to_string().into(),
-        name: "Test Agent".to_string(),
-        port: 8080,
-    };
-
-    assert_eq!(config.id, "config-1");
-    assert_eq!(config.name, "Test Agent");
-    assert_eq!(config.port, 8080);
-}
-
-#[test]
-fn test_agent_runtime_config_debug() {
-    let config = AgentRuntimeConfig {
-        id: "debug-config".to_string().into(),
-        name: "Debug Agent".to_string(),
-        port: 3000,
-    };
-
-    let debug_str = format!("{:?}", config);
-    assert!(debug_str.contains("AgentRuntimeConfig"));
-    assert!(debug_str.contains("debug-config"));
-    assert!(debug_str.contains("Debug Agent"));
-    assert!(debug_str.contains("3000"));
 }
 
 

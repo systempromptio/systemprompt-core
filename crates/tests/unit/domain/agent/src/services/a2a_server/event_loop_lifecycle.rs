@@ -13,7 +13,7 @@ use systemprompt_agent::services::a2a_server::streaming::{
     EmitRunStartedParams, emit_run_started, handle_stream_creation_error,
 };
 use systemprompt_agent::services::shared::AgentServiceError;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{JwtToken, TaskId};
 use systemprompt_test_mocks::{
     RecordedBroadcast, RecordingWebhookBroadcaster, arc_recording_broadcaster,
 };
@@ -52,7 +52,8 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
-    let webhook_context = WebhookContext::new(broadcaster, user_id.clone(), "tok");
+    let webhook_context =
+        WebhookContext::new(broadcaster, user_id.clone(), Some(JwtToken::new("tok")));
     let (tx, mut rx) = mpsc::channel::<Event>(8);
 
     emit_run_started(EmitRunStartedParams {
@@ -94,7 +95,8 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
-    let webhook_context = WebhookContext::new(broadcaster, user_id.clone(), "tok");
+    let webhook_context =
+        WebhookContext::new(broadcaster, user_id.clone(), Some(JwtToken::new("tok")));
     let (tx, rx) = mpsc::channel::<Event>(1);
     drop(rx);
 
@@ -125,7 +127,8 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
-    let webhook_context = WebhookContext::new(broadcaster, user_id.clone(), "tok");
+    let webhook_context =
+        WebhookContext::new(broadcaster, user_id.clone(), Some(JwtToken::new("tok")));
 
     handle_stream_creation_error(
         &webhook_context,

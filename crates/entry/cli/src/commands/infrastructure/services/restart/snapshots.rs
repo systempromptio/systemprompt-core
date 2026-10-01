@@ -21,13 +21,13 @@ pub(super) async fn agent_snapshots(
 
     let mut snapshots = Vec::with_capacity(all_agents.len());
     for (agent_id, status) in &all_agents {
-        let Ok(agent_config) = agent_registry.get_agent(agent_id).await else {
+        let Ok(agent_config) = agent_registry.get_agent(agent_id.as_str()).await else {
             continue;
         };
 
         snapshots.push(ServiceSnapshot {
             service_type: ServiceType::Agent,
-            id: agent_id.clone(),
+            id: agent_id.to_string(),
             name: agent_config.name,
             enabled: agent_config.enabled,
             healthy: !matches!(status, AgentStatus::Failed { .. }),
@@ -53,7 +53,7 @@ pub(super) async fn mcp_snapshots(
             .service_statuses()
             .await?
             .into_iter()
-            .map(|status| (status.name, status.health))
+            .map(|status| (String::from(status.name), status.health))
             .collect()
     } else {
         HashMap::new()

@@ -62,7 +62,7 @@ fn a_new_task_starts_submitted_and_is_attributed_to_its_agent() {
     let task_id = TaskId::generate();
     let context_id = ContextId::generate();
 
-    let task = new_submitted_task(&task_id, &context_id, "writer");
+    let task = new_submitted_task(&task_id, &context_id, &AgentName::new("writer"));
 
     assert_eq!(task.id, task_id);
     assert_eq!(task.context_id, context_id);
@@ -89,7 +89,7 @@ fn a_new_task_starts_submitted_and_is_attributed_to_its_agent() {
 fn an_agent_message_already_on_the_task_is_used_verbatim() {
     let task_id = TaskId::generate();
     let context_id = ContextId::generate();
-    let mut task = new_submitted_task(&task_id, &context_id, "writer");
+    let mut task = new_submitted_task(&task_id, &context_id, &AgentName::new("writer"));
     let produced = Message {
         role: MessageRole::Agent,
         parts: vec![Part::Text(TextPart {
@@ -123,7 +123,7 @@ fn an_agent_message_already_on_the_task_is_used_verbatim() {
 fn a_synthesised_reply_is_bound_to_its_task_and_context() {
     let task_id = TaskId::generate();
     let context_id = ContextId::generate();
-    let task = new_submitted_task(&task_id, &context_id, "writer");
+    let task = new_submitted_task(&task_id, &context_id, &AgentName::new("writer"));
 
     let resolved = resolve_agent_message(&task, &message_with(None, None), "the answer");
 
@@ -144,7 +144,11 @@ fn a_synthesised_reply_is_bound_to_its_task_and_context() {
 // path leaves an async client unable to tell which request a reply answers.
 #[test]
 fn the_clients_correlation_id_is_carried_into_the_synthesised_reply() {
-    let task = new_submitted_task(&TaskId::generate(), &ContextId::generate(), "writer");
+    let task = new_submitted_task(
+        &TaskId::generate(),
+        &ContextId::generate(),
+        &AgentName::new("writer"),
+    );
     let user = message_with(None, Some(serde_json::json!({"clientMessageId": "cm-42"})));
 
     let resolved = resolve_agent_message(&task, &user, "the answer");
@@ -164,7 +168,11 @@ fn the_clients_correlation_id_is_carried_into_the_synthesised_reply() {
 // onto an agent message.
 #[test]
 fn a_reply_carries_no_metadata_when_the_client_sent_no_correlation_id() {
-    let task = new_submitted_task(&TaskId::generate(), &ContextId::generate(), "writer");
+    let task = new_submitted_task(
+        &TaskId::generate(),
+        &ContextId::generate(),
+        &AgentName::new("writer"),
+    );
     let user = message_with(None, Some(serde_json::json!({"unrelated": "field"})));
 
     let resolved = resolve_agent_message(&task, &user, "the answer");

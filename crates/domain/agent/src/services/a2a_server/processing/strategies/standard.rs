@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use crate::services::shared::Result;
 use async_trait::async_trait;
-use systemprompt_identifiers::TaskId;
 use systemprompt_models::AiMessage;
 
 use super::{ExecutionContext, ExecutionResult, ExecutionStrategy};
@@ -40,7 +39,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
         tracing::info!("Processing without tools");
 
         let tracking = ExecutionTrackingService::new(Arc::clone(&context.execution_step_repo));
-        let task_id = TaskId::new(context.task_id.as_str());
+        let task_id = context.task_id.clone();
 
         let step = tracking.track_understanding(task_id.clone()).await?;
         context

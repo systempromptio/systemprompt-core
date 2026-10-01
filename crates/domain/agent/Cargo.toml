@@ -69,7 +69,6 @@ tracing = { workspace = true }
 
 
 # Utilities
-uuid = { workspace = true }
 chrono = { workspace = true }
 
 # HTTP client

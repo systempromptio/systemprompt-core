@@ -6,6 +6,7 @@
 
 use crate::error::{McpDomainError, McpDomainResult, ServiceStartFailure, ServiceStartFailures};
 use crate::services::spawn_target::SpawnTarget;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_traits::StartupEventSender;
 
 use super::super::process::ProcessService;
@@ -17,7 +18,7 @@ use crate::services::database::stored_pid;
 /// completed or failed with the error it returned.
 #[derive(Debug)]
 pub struct McpRestartOutcome {
-    pub service_name: String,
+    pub service_name: ServiceName,
     pub result: McpDomainResult<()>,
 }
 
@@ -28,13 +29,13 @@ impl McpRestartOutcome {
 }
 
 impl McpOrchestrator {
-    pub async fn start_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
+    pub async fn start_services(&self, service_name: Option<ServiceName>) -> McpDomainResult<()> {
         self.start_services_with_events(service_name, None).await
     }
 
     pub async fn start_services_with_events(
         &self,
-        service_name: Option<String>,
+        service_name: Option<ServiceName>,
         events: Option<&StartupEventSender>,
     ) -> McpDomainResult<()> {
         let servers = self.list_target_servers(service_name, true).await?;
@@ -42,10 +43,11 @@ impl McpOrchestrator {
 
         for server in servers {
             tracing::info!(service = %server.name, "Starting MCP service");
+            let name = server.service_name();
 
             self.event_bus()
                 .publish(McpEvent::ServiceStartRequested {
-                    service_name: server.name.clone(),
+                    service_name: name.clone(),
                 })
                 .await?;
 
@@ -57,7 +59,7 @@ impl McpOrchestrator {
                 Ok(()) => {
                     let service_info = self
                         .database()
-                        .get_service_by_name(&server.name)
+                        .get_service_by_name(&name)
                         .await?
                         .ok_or_else(|| {
                             McpDomainError::Internal(format!(
@@ -67,7 +69,7 @@ impl McpOrchestrator {
                         })?;
                     self.event_bus()
                         .publish(McpEvent::ServiceStarted {
-                            service_name: server.name.clone(),
+                            service_name: name,
                             process_id: stored_pid(service_info.pid),
                             port: server.spawn_port()?,
                         })
@@ -78,7 +80,7 @@ impl McpOrchestrator {
                     failed.push(ServiceStartFailure::new(server.name.clone(), e));
                     self.event_bus()
                         .publish(McpEvent::ServiceFailed {
-                            service_name: server.name,
+                            service_name: name,
                             error: error_msg,
                         })
                         .await?;
@@ -95,7 +97,7 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    pub async fn stop_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
+    pub async fn stop_services(&self, service_name: Option<ServiceName>) -> McpDomainResult<()> {
         let servers = self.list_target_servers(service_name, false).await?;
 
         for server in servers {
@@ -105,7 +107,7 @@ impl McpOrchestrator {
                 Ok(()) => {
                     self.event_bus()
                         .publish(McpEvent::ServiceStopped {
-                            service_name: server.name,
+                            service_name: server.service_name(),
                             exit_code: None,
                         })
                         .await?;
@@ -121,7 +123,7 @@ impl McpOrchestrator {
 
     pub async fn restart_services(
         &self,
-        service_name: Option<String>,
+        service_name: Option<ServiceName>,
     ) -> McpDomainResult<Vec<McpRestartOutcome>> {
         let servers = self.list_target_servers(service_name, false).await?;
         let mut outcomes = Vec::with_capacity(servers.len());
@@ -133,7 +135,7 @@ impl McpOrchestrator {
                 tracing::error!(service = %server.name, error = %e, "MCP service restart failed");
             }
             outcomes.push(McpRestartOutcome {
-                service_name: server.name,
+                service_name: server.service_name(),
                 result,
             });
         }
@@ -143,7 +145,7 @@ impl McpOrchestrator {
 
     pub async fn build_and_restart_services(
         &self,
-        service_name: Option<String>,
+        service_name: Option<ServiceName>,
     ) -> McpDomainResult<usize> {
         let servers = self.list_target_servers(service_name, true).await?;
         let count = servers.len();
@@ -159,7 +161,7 @@ impl McpOrchestrator {
         Ok(count)
     }
 
-    pub async fn build_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
+    pub async fn build_services(&self, service_name: Option<ServiceName>) -> McpDomainResult<()> {
         let servers = self.list_target_servers(service_name, true).await?;
 
         for server in servers {

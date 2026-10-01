@@ -11,6 +11,7 @@
 use super::transformer::TransformedTool;
 use serde_json::Value;
 use std::collections::HashMap;
+use systemprompt_identifiers::McpToolName;
 
 #[derive(Debug)]
 pub struct ToolNameMapper {
@@ -70,8 +71,8 @@ impl ToolNameMapper {
         self.reverse_map.get(original_name)
     }
 
-    pub fn is_variant(&self, tool_name: &str) -> bool {
-        self.forward_map.contains_key(tool_name)
+    pub fn is_variant(&self, tool_name: &McpToolName) -> bool {
+        self.forward_map.contains_key(tool_name.as_str())
     }
 }
 

@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{AgentId, ClientId, TenantId};
+use systemprompt_identifiers::{AgentName, ClientId, TenantId};
 use systemprompt_models::modules::{ApiPaths, ServiceCategory};
 
 #[test]
@@ -77,7 +77,7 @@ fn api_paths_wellknown_agent_card_named() {
 
 #[test]
 fn api_paths_agent_endpoint() {
-    let id = AgentId::new("agent1");
+    let id = AgentName::new("agent1");
     let path = ApiPaths::agent_endpoint(&id);
     assert!(path.contains("agent1"));
 }

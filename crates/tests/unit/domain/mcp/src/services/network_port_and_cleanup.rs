@@ -6,6 +6,7 @@
 use std::net::TcpListener;
 use std::process::Command;
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::ServiceName;
 
 use systemprompt_mcp::services::client::validate_connection_by_url;
 use systemprompt_mcp::services::network::port::is_port_in_use;
@@ -91,7 +92,7 @@ async fn terminate_gracefully_verified_signals_a_child_carrying_the_service_mark
         return;
     };
 
-    let result = terminate_gracefully_verified(pid, &service).await;
+    let result = terminate_gracefully_verified(pid, &ServiceName::new(service.as_str())).await;
     let _ = force_kill(pid);
 
     result.expect("our own process terminates");
@@ -109,7 +110,8 @@ async fn terminate_gracefully_verified_leaves_a_pid_naming_another_service_alone
         return;
     };
 
-    let result = terminate_gracefully_verified(pid, &unique_service("mcpother")).await;
+    let result =
+        terminate_gracefully_verified(pid, &ServiceName::new(unique_service("mcpother"))).await;
     let still_alive = is_process_running(pid);
     let _ = force_kill(pid);
 
@@ -183,9 +185,12 @@ async fn validation_reports_tools_request_failed_when_the_server_rejects_tools_l
         .mount(&server)
         .await;
 
-    let result = validate_connection_by_url("refuser", &format!("{}/mcp", server.uri()))
-        .await
-        .expect("the probe completes");
+    let result = validate_connection_by_url(
+        &ServiceName::new("refuser"),
+        &format!("{}/mcp", server.uri()),
+    )
+    .await
+    .expect("the probe completes");
 
     assert!(!result.success);
     assert_eq!(

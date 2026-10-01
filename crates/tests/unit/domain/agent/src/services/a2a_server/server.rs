@@ -6,6 +6,7 @@
 // directly.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
@@ -45,7 +46,7 @@ async fn create_sse_stream_returns_stream_when_permit_available() {
 
     let result = create_sse_stream(CreateSseStreamParams {
         message: message(&ctx),
-        agent_name: "no_such_agent".to_owned(),
+        agent_name: AgentName::new("no_such_agent"),
         state,
         request_id: RequestId::Number(1),
         context: request,
@@ -72,7 +73,7 @@ async fn create_sse_stream_rejected_when_cap_exhausted() {
 
     let result = create_sse_stream(CreateSseStreamParams {
         message: message(&ctx),
-        agent_name: "no_such_agent".to_owned(),
+        agent_name: AgentName::new("no_such_agent"),
         state,
         request_id: RequestId::Number(2),
         context: request,
@@ -98,31 +99,10 @@ async fn handler_state_debug_and_clone() {
     );
 }
 
-// `Server::new` refuses to build without a named, registered agent. Both
-// guards run before any router or listener exists, so they are the only part
+// `Server::new` refuses to build for an agent absent from the registry. The
+// guard runs before any router or listener exists, so it is the only part
 // of the server construction path reachable without mutating the
 // process-global services config that the registry suite asserts is empty.
-
-#[tokio::test]
-async fn server_new_requires_an_agent_name() {
-    let pool = test_db_pool().await;
-    systemprompt_test_fixtures::ensure_test_bootstrap();
-    let state = super::a2a_helpers::make_agent_state(&pool);
-
-    let err = systemprompt_agent::services::a2a_server::Server::new(
-        Arc::clone(&pool),
-        state,
-        Arc::new(StubAiProvider::new()),
-        None,
-        9310,
-    )
-    .await
-    .expect_err("an unnamed agent cannot be served");
-    assert!(
-        err.to_string().contains("Agent name is required"),
-        "unexpected error: {err}"
-    );
-}
 
 #[tokio::test]
 async fn server_new_rejects_an_agent_absent_from_the_registry() {
@@ -135,7 +115,7 @@ async fn server_new_rejects_an_agent_absent_from_the_registry() {
         Arc::clone(&pool),
         state,
         Arc::new(StubAiProvider::new()),
-        Some("__no_such_agent_for_server".to_owned()),
+        &AgentName::new("__no_such_agent_for_server"),
         9311,
     )
     .await

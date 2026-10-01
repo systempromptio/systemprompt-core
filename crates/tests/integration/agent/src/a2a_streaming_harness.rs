@@ -155,7 +155,7 @@ async fn create_sse_stream_with_exhausted_semaphore_returns_rejected() -> anyhow
     let state = build_state(0).await?;
     let result = create_sse_stream(CreateSseStreamParams {
         message: user_message("hello"),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(1),
         context: fixture_request_context(),
@@ -173,7 +173,7 @@ async fn create_sse_stream_with_available_permit_returns_receiver_stream() -> an
     let state = build_state(1).await?;
     let result = create_sse_stream(CreateSseStreamParams {
         message: user_message("hello"),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(2),
         context: fixture_request_context(),
@@ -201,7 +201,7 @@ async fn semaphore_releases_permit_after_receiver_dropped() -> anyhow::Result<()
 
     let stream = create_sse_stream(CreateSseStreamParams {
         message: user_message("first"),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(10),
         context: fixture_request_context(),
@@ -216,7 +216,7 @@ async fn semaphore_releases_permit_after_receiver_dropped() -> anyhow::Result<()
     // without rejection.
     let second = create_sse_stream(CreateSseStreamParams {
         message: user_message("second"),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(11),
         context: fixture_request_context(),

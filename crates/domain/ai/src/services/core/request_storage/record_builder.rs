@@ -7,9 +7,7 @@ use crate::models::ai::{AiRequest, AiResponse, MessageRole};
 use crate::models::{
     AiRequestRecord, AiRequestRecordBuilder, RequestKind, RequestOrigin, RequestStatus,
 };
-use systemprompt_identifiers::{
-    ActorKind, AiRequestId, AiToolCallId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
-};
+use systemprompt_identifiers::{ActorKind, AiToolCallId, McpToolName};
 use systemprompt_models::RequestContext;
 use systemprompt_models::wire::canonical::CanonicalUsage;
 
@@ -21,7 +19,7 @@ pub(super) struct MessageData {
 
 pub(super) struct ToolCallData {
     pub ai_tool_call_id: AiToolCallId,
-    pub tool_name: String,
+    pub tool_name: McpToolName,
     pub tool_input: String,
     pub sequence: i32,
 }
@@ -47,10 +45,10 @@ const fn request_kind_of(context: &RequestContext) -> RequestKind {
 }
 
 pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
-    let user_id = UserId::new(params.context.user_id().as_str());
+    let user_id = params.context.user_id().clone();
 
     let mut builder = AiRequestRecordBuilder::new(
-        AiRequestId::new(params.response.request_id.to_string()),
+        params.response.request_id.clone(),
         user_id,
         params.context.context_id().clone(),
         RequestOrigin::INTERNAL,
@@ -66,27 +64,27 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
 
     builder = builder.max_tokens(params.request.max_output_tokens());
 
-    let session_id_str = params.context.session_id().as_str();
-    if !session_id_str.is_empty() {
-        builder = builder.session_id(SessionId::new(session_id_str));
+    let session_id = params.context.session_id();
+    if !session_id.as_str().is_empty() {
+        builder = builder.session_id(session_id.clone());
     }
 
     if let Some(task_id) = params.context.task_id() {
-        builder = builder.task_id(TaskId::new(task_id.as_str()));
+        builder = builder.task_id(task_id.clone());
     }
 
-    let trace_id_str = params.context.trace_id().as_str();
-    if trace_id_str.is_empty() {
+    let trace_id = params.context.trace_id();
+    if trace_id.as_str().is_empty() {
         tracing::warn!(
             request_id = %params.response.request_id,
             "RequestContext.trace_id is empty; trace correlation will be incomplete"
         );
     } else {
-        builder = builder.trace_id(TraceId::new(trace_id_str));
+        builder = builder.trace_id(trace_id.clone());
     }
 
     if let Some(mcp_execution_id) = params.context.mcp_execution_id() {
-        builder = builder.mcp_execution_id(McpExecutionId::new(mcp_execution_id.as_str()));
+        builder = builder.mcp_execution_id(mcp_execution_id.clone());
     }
 
     builder = match params.status {
@@ -167,18 +165,33 @@ pub(super) fn extract_tool_calls(response: &AiResponse) -> Vec<ToolCallData> {
         .tool_calls
         .iter()
         .enumerate()
-        .map(|(i, tool_call)| ToolCallData {
-            ai_tool_call_id: tool_call.ai_tool_call_id.clone(),
-            tool_name: tool_call.name.clone(),
-            tool_input: serde_json::to_string(&tool_call.arguments).unwrap_or_else(|e| {
+        .filter_map(|(i, tool_call)| {
+            let tool_name = match McpToolName::try_new(tool_call.name.as_str()) {
+                Ok(name) => name,
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        request_id = %response.request_id,
+                        sequence = i,
+                        "Provider tool call has no usable tool name; not recording it"
+                    );
+                    return None;
+                },
+            };
+            let tool_input = serde_json::to_string(&tool_call.arguments).unwrap_or_else(|e| {
                 tracing::warn!(
                     error = %e,
-                    tool_name = %tool_call.name,
+                    tool_name = %tool_name,
                     "Failed to serialize tool call arguments; storing empty object"
                 );
                 "{}".to_owned()
-            }),
-            sequence: i as i32,
+            });
+            Some(ToolCallData {
+                ai_tool_call_id: tool_call.ai_tool_call_id.clone(),
+                tool_name,
+                tool_input,
+                sequence: i as i32,
+            })
         })
         .collect()
 }

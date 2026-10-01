@@ -6,6 +6,7 @@
 
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_identifiers::AgentName;
 
 use futures::StreamExt;
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
@@ -63,7 +64,7 @@ async fn setup_with_valid_context_persists_task_and_reports_missing_agent() {
 
     let stream = create_sse_stream(CreateSseStreamParams {
         message: message(&ctx, Some(task_id.clone())),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state,
         request_id: RequestId::Number(2),
         context,
@@ -101,7 +102,7 @@ async fn setup_without_task_id_mints_one_and_validates_context() {
 
     let stream = create_sse_stream(CreateSseStreamParams {
         message: message(&ctx, None),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state,
         request_id: RequestId::String("stream-2".to_owned()),
         context,
@@ -132,7 +133,7 @@ async fn setup_with_unknown_context_emits_validation_error_and_persists_nothing(
 
     let stream = create_sse_stream(CreateSseStreamParams {
         message: message(&unknown_ctx, Some(task_id.clone())),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state,
         request_id: RequestId::Number(7),
         context,
@@ -153,67 +154,6 @@ async fn setup_with_unknown_context_emits_validation_error_and_persists_nothing(
     assert!(
         stored.is_none(),
         "no task may be persisted when context validation fails"
-    );
-}
-
-#[tokio::test]
-async fn invalid_service_agent_name_emits_invalid_params_before_task_persistence_or_dispatch() {
-    let pool = test_db_pool().await;
-    systemprompt_test_fixtures::ensure_test_bootstrap();
-    let repos_handle = repos(&pool);
-    let (user, session) = seed_user_and_session(&pool).await;
-    let (ctx, _existing_task) = seed_context_and_task(&repos_handle, &user, &session).await;
-    let before = repos_handle
-        .tasks
-        .list_tasks_by_context(&ctx)
-        .await
-        .expect("tasks before invalid request")
-        .len();
-    let provider = Arc::new(StubAiProvider::new());
-    let state = make_handler_state(&pool, provider.clone(), 4);
-    let context = request_context(&ctx, &session, &user, "valid_context_agent");
-    let task_id = TaskId::generate();
-
-    let stream = create_sse_stream(CreateSseStreamParams {
-        message: message(&ctx, Some(task_id.clone())),
-        agent_name: "".to_owned(),
-        state,
-        request_id: RequestId::String("invalid-agent".to_owned()),
-        context,
-    })
-    .await
-    .map_err(|_| ())
-    .expect("permit available");
-    let events = collect_events(stream).await;
-    assert!(
-        events.iter().any(|event| {
-            event.contains(r#"\"id\":\"invalid-agent\""#)
-                && event.contains(r#"\"code\":-32602"#)
-                && event.contains("Invalid agent name")
-        }),
-        "invalid service identity is returned on the correlated JSON-RPC stream: {events:?}"
-    );
-    assert!(
-        repos_handle
-            .tasks
-            .get_task(&task_id)
-            .await
-            .expect("task lookup")
-            .is_none(),
-        "invalid service identity is rejected before task persistence"
-    );
-    assert_eq!(
-        repos_handle
-            .tasks
-            .list_tasks_by_context(&ctx)
-            .await
-            .expect("tasks after invalid request")
-            .len(),
-        before
-    );
-    assert!(
-        provider.seen_messages().is_empty(),
-        "invalid service identity never reaches the AI provider"
     );
 }
 
@@ -251,7 +191,7 @@ async fn task_insert_failure_streams_internal_error_without_dispatch_or_partial_
 
     let stream = create_sse_stream(CreateSseStreamParams {
         message: message(&ctx, Some(task_id.clone())),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state,
         request_id: RequestId::Number(41),
         context,

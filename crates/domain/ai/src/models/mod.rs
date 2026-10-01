@@ -11,8 +11,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId,
-    SessionId, TaskId, TraceId, UserId,
+    AiRequestId, AiToolCallId, ContextId, GatewayConversationId, McpExecutionId, McpToolName,
+    ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
 pub use systemprompt_models::ai as ai_models;
@@ -29,6 +29,7 @@ pub mod ai_request_record;
 pub mod image_generation;
 pub mod providers;
 pub mod request_kind;
+pub(crate) mod rows;
 
 pub use ai_request_record::{AiRequestRecord, AiRequestRecordBuilder, CacheInfo, TokenInfo};
 pub use request_kind::{RequestKind, RequestStatus};
@@ -90,7 +91,7 @@ pub struct AiRequestMessage {
 pub struct AiRequestToolCall {
     pub id: String,
     pub request_id: AiRequestId,
-    pub tool_name: String,
+    pub tool_name: McpToolName,
     pub tool_input: String,
     pub mcp_execution_id: Option<McpExecutionId>,
     pub sequence_number: i32,

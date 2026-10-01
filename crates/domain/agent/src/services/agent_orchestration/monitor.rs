@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::Result;
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::net::AGENT_MONITOR_TCP_TIMEOUT;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
@@ -35,7 +36,7 @@ impl AgentMonitor {
 
     pub async fn comprehensive_health_check(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
     ) -> OrchestrationResult<HealthCheckResult> {
         let status = self.db_service.get_status(agent_name).await?;
 

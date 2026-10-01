@@ -1,5 +1,5 @@
 use rmcp::model::ReadResourceRequestParams;
-use systemprompt_identifiers::{ArtifactId, ContextId};
+use systemprompt_identifiers::{ArtifactId, ContextId, McpServerId};
 use systemprompt_mcp::read_artifact_resource;
 use systemprompt_mcp::repository::{CreateMcpArtifact, McpArtifactRepository};
 use systemprompt_test_fixtures::test_db_pool;
@@ -21,7 +21,13 @@ async fn stored(
     context_id: Option<ContextId>,
 ) -> CreateMcpArtifact {
     let exec = crate::repository::artifact::seed_execution(db, "res-tests").await;
-    let mut create = CreateMcpArtifact::new(id.clone(), exec, "res-tests", "message", data);
+    let mut create = CreateMcpArtifact::new(
+        id.clone(),
+        exec,
+        McpServerId::new("res-tests"),
+        "message",
+        data,
+    );
     create.context_id = context_id;
     create.title = Some("Stored Message".to_owned());
     create
@@ -31,7 +37,7 @@ async fn stored(
 async fn read_artifact_rejects_non_artifact_uri() {
     let (_db, repo) = repo().await;
     let request = ReadResourceRequestParams::new("ui://srv/artifact-viewer");
-    let err = read_artifact_resource(&request, "srv", &repo)
+    let err = read_artifact_resource(&request, &McpServerId::new("srv"), &repo)
         .await
         .unwrap_err();
     assert!(err.message.contains("Not an artifact resource URI"));
@@ -41,7 +47,7 @@ async fn read_artifact_rejects_non_artifact_uri() {
 async fn read_artifact_rejects_server_mismatch() {
     let (_db, repo) = repo().await;
     let request = ReadResourceRequestParams::new("ui://other/artifact/abc");
-    let err = read_artifact_resource(&request, "srv", &repo)
+    let err = read_artifact_resource(&request, &McpServerId::new("srv"), &repo)
         .await
         .unwrap_err();
     assert!(err.message.contains("names server 'other'"));
@@ -53,7 +59,7 @@ async fn read_artifact_unknown_id_is_invalid_params() {
     let (_db, repo) = repo().await;
     let id = fresh_id();
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
-    let err = read_artifact_resource(&request, "srv", &repo)
+    let err = read_artifact_resource(&request, &McpServerId::new("srv"), &repo)
         .await
         .unwrap_err();
     assert!(err.message.contains("Unknown artifact"));
@@ -68,7 +74,7 @@ async fn read_artifact_without_payload_key_is_internal_error() {
         .expect("save");
 
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
-    let err = read_artifact_resource(&request, "srv", &repo)
+    let err = read_artifact_resource(&request, &McpServerId::new("srv"), &repo)
         .await
         .unwrap_err();
     assert!(err.message.contains("no payload to render"));
@@ -100,7 +106,7 @@ async fn read_artifact_renders_stored_payload_with_ui_meta() {
     .expect("save");
 
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
-    let result = read_artifact_resource(&request, "srv", &repo)
+    let result = read_artifact_resource(&request, &McpServerId::new("srv"), &repo)
         .await
         .expect("render");
 
@@ -125,7 +131,7 @@ async fn read_artifact_without_context_id_still_renders() {
         .expect("save");
 
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
-    let result = read_artifact_resource(&request, "srv", &repo)
+    let result = read_artifact_resource(&request, &McpServerId::new("srv"), &repo)
         .await
         .expect("render");
     let serialized = serde_json::to_string(&result.contents).expect("serializable");

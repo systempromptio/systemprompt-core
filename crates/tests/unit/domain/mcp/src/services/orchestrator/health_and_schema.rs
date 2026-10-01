@@ -1,11 +1,12 @@
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::ServiceInfo;
 use systemprompt_mcp::services::monitoring::health::{
     HealthCheckDetails, HealthCheckResult, HealthStatus,
 };
-use systemprompt_mcp::services::monitoring::status::ServiceStatus;
 use systemprompt_mcp::services::network::port::{
     MAX_PORT_CLEANUP_ATTEMPTS, PORT_BACKOFF_BASE_MS, POST_KILL_DELAY_MS,
 };
+use systemprompt_models::services::ServiceStatus;
 use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
@@ -45,11 +46,10 @@ fn health_status_equality() {
     assert_ne!(HealthStatus::Degraded, HealthStatus::Unknown);
 }
 
-
 #[test]
 fn health_check_details_construction() {
     let details = HealthCheckDetails {
-        service_name: "my-service".to_string(),
+        service_name: ServiceName::new("my-service"),
         tools_available: Some(5),
         requires_auth: true,
         validation_type: "full".to_string(),
@@ -66,7 +66,7 @@ fn health_check_details_construction() {
 #[test]
 fn health_check_details_with_error() {
     let details = HealthCheckDetails {
-        service_name: "failing-svc".to_string(),
+        service_name: ServiceName::new("failing-svc"),
         tools_available: None,
         requires_auth: false,
         validation_type: "port_unavailable".to_string(),
@@ -76,7 +76,6 @@ fn health_check_details_with_error() {
     assert_eq!(details.error_message.as_deref(), Some("Connection refused"));
     assert!(details.server_version.is_none());
 }
-
 
 #[test]
 fn health_check_result_unhealthy_constructor() {
@@ -95,14 +94,14 @@ fn health_check_result_unhealthy_constructor() {
 #[test]
 fn service_info_construction() {
     let info = ServiceInfo {
-        name: "test-svc".to_string(),
-        status: "running".to_string(),
+        name: ServiceName::new("test-svc"),
+        status: ServiceStatus::Running,
         pid: Some(1234),
         port: 8080,
         binary_mtime: Some(1000),
     };
     assert_eq!(info.name, "test-svc");
-    assert_eq!(info.status, "running");
+    assert_eq!(info.status, ServiceStatus::Running);
     assert_eq!(info.pid, Some(1234));
     assert_eq!(info.port, 8080);
     assert_eq!(info.binary_mtime, Some(1000));
@@ -111,8 +110,8 @@ fn service_info_construction() {
 #[test]
 fn service_info_without_pid() {
     let info = ServiceInfo {
-        name: "no-pid-svc".to_string(),
-        status: "stopped".to_string(),
+        name: ServiceName::new("no-pid-svc"),
+        status: ServiceStatus::Stopped,
         pid: None,
         port: 9090,
         binary_mtime: None,
@@ -121,52 +120,18 @@ fn service_info_without_pid() {
     assert!(info.binary_mtime.is_none());
 }
 
-
 #[test]
 fn service_info_debug() {
     let info = ServiceInfo {
-        name: "debug-svc".to_string(),
-        status: "failed".to_string(),
+        name: ServiceName::new("debug-svc"),
+        status: ServiceStatus::Error,
         pid: None,
         port: 4000,
         binary_mtime: None,
     };
     let debug = format!("{:?}", info);
     assert!(debug.contains("debug-svc"));
-    assert!(debug.contains("failed"));
-}
-
-#[test]
-fn service_status_construction() {
-    let status = ServiceStatus {
-        state: "running".to_string(),
-        pid: Some(1234),
-        health: "healthy".to_string(),
-        uptime_seconds: Some(3600),
-        tools_count: Some(10),
-        latency_ms: Some(50),
-        auth_required: true,
-    };
-    assert_eq!(status.state, "running");
-    assert_eq!(status.pid, Some(1234));
-    assert_eq!(status.tools_count, Some(10));
-    assert!(status.auth_required);
-}
-
-#[test]
-fn service_status_stopped() {
-    let status = ServiceStatus {
-        state: "stopped".to_string(),
-        pid: None,
-        health: "unreachable".to_string(),
-        uptime_seconds: None,
-        tools_count: None,
-        latency_ms: None,
-        auth_required: false,
-    };
-    assert!(status.pid.is_none());
-    assert!(status.latency_ms.is_none());
-    assert!(status.tools_count.is_none());
+    assert!(debug.contains("Error"));
 }
 
 #[test]

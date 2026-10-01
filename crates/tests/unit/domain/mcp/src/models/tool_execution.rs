@@ -1,7 +1,7 @@
 //! Unit tests for ToolExecution model
 
 use chrono::Utc;
-use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId};
+use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, McpServerId, McpToolName};
 use systemprompt_mcp::models::ToolExecution;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
 use systemprompt_test_fixtures::fixture_user_id;
@@ -11,8 +11,8 @@ const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 fn create_test_execution() -> ToolExecution {
     ToolExecution {
         mcp_execution_id: McpExecutionId::new("exec-123".to_string()),
-        tool_name: "test-tool".to_string(),
-        server_name: "test-server".to_string(),
+        tool_name: McpToolName::new("test-tool"),
+        server_name: McpServerId::new("test-server"),
         context_id: Some(
             ContextId::try_new(TEST_CONTEXT_ID_A.to_string()).expect("valid ContextId"),
         ),

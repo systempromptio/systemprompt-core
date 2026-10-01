@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{AiError, Result};
-use uuid::Uuid;
+use systemprompt_identifiers::AiRequestId;
 
 use crate::models::RequestStatus;
 use crate::models::ai::{AiMessage, AiRequest, AiResponse, GenerateResponseParams};
@@ -21,7 +21,7 @@ impl AiService {
         request: &AiRequest,
         available_tools: &[McpTool],
     ) -> Result<systemprompt_models::ai::PlanningResult> {
-        let request_id = Uuid::new_v4();
+        let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
         let model = request.model();

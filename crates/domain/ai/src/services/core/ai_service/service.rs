@@ -223,7 +223,7 @@ impl AiService {
     pub(super) async fn store_error(
         &self,
         request: &AiRequest,
-        request_id: uuid::Uuid,
+        request_id: systemprompt_identifiers::AiRequestId,
         latency_ms: u64,
         error_message: String,
     ) {

@@ -20,6 +20,12 @@ fn parse_tool_call_ignores_non_tool_call_methods() {
 }
 
 #[test]
+fn parse_tool_call_rejects_a_blank_tool_name() {
+    let body = br#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"  "}}"#;
+    assert!(parse_tool_call(body).is_none());
+}
+
+#[test]
 fn parse_tool_call_rejects_malformed_body() {
     assert!(parse_tool_call(b"not json").is_none());
 }

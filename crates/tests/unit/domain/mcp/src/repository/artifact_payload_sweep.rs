@@ -3,7 +3,7 @@
 //! artifact still points at stays, and a body seen within the grace window
 //! is left for an in-flight ingest to link.
 
-use systemprompt_identifiers::ArtifactId;
+use systemprompt_identifiers::{ArtifactId, McpServerId};
 use systemprompt_mcp::repository::{
     ArtifactPayloadRepository, CreateMcpArtifact, McpArtifactRepository,
 };
@@ -34,7 +34,7 @@ async fn linked_artifact(
     let mut create = CreateMcpArtifact::new(
         id.clone(),
         exec,
-        "sweep-tests",
+        McpServerId::new("sweep-tests"),
         "tool_result",
         serde_json::json!({}),
     );

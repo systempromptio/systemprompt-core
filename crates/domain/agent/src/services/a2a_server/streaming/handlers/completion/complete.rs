@@ -13,7 +13,7 @@
 use std::sync::Arc;
 
 use axum::response::sse::Event;
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 use systemprompt_traits::BoxedSource;
 use systemprompt_traits::validation::Validate;
@@ -35,9 +35,9 @@ pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
     pub artifacts: Vec<Artifact>,
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
-    pub id: &'a str,
+    pub id: &'a MessageId,
     pub original_message: &'a Message,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub context: &'a RequestContext,
     pub processor: &'a Arc<MessageProcessor>,
 }
@@ -133,8 +133,8 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
     Ok(())
 }
 
-fn validated_metadata(agent_name: &str) -> Result<TaskMetadata, CompletionFailure> {
-    let task_metadata = TaskMetadata::new_validated_agent_message(agent_name.to_owned())
+fn validated_metadata(agent_name: &AgentName) -> Result<TaskMetadata, CompletionFailure> {
+    let task_metadata = TaskMetadata::new_validated_agent_message(agent_name.to_string())
         .map_err(|e| CompletionFailure::caused("METADATA_ERROR", "Task metadata is invalid", e))?;
 
     task_metadata
@@ -147,7 +147,7 @@ fn validated_metadata(agent_name: &str) -> Result<TaskMetadata, CompletionFailur
 struct BuildCompleteTaskParams<'a> {
     task_id: &'a TaskId,
     context_id: &'a ContextId,
-    message_id: &'a str,
+    message_id: &'a MessageId,
     full_text: &'a str,
     original_message: &'a Message,
     artifacts_for_task: Option<Vec<Artifact>>,
@@ -161,7 +161,7 @@ fn build_complete_task(params: BuildCompleteTaskParams<'_>) -> Task {
         parts: vec![Part::Text(TextPart {
             text: params.full_text.to_owned(),
         })],
-        message_id: MessageId::new(params.message_id.to_owned()),
+        message_id: params.message_id.clone(),
         task_id: Some(params.task_id.clone()),
         context_id: params.context_id.clone(),
         metadata: None,

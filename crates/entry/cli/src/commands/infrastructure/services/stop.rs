@@ -8,6 +8,7 @@ use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_logging::CliService;
 use systemprompt_models::services::ServiceModule;
 use systemprompt_runtime::AppContext;
@@ -192,7 +193,9 @@ pub(super) async fn execute_individual_mcp(
     }
 
     let manager = lifecycle::mcp_orchestrator(ctx)?;
-    manager.stop_services(Some(server_name.to_owned())).await?;
+    manager
+        .stop_services(Some(ServiceName::try_new(server_name)?))
+        .await?;
 
     let message = format!("MCP server {} stopped successfully", server_name);
     if !config.is_json_output() {

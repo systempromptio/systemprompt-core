@@ -4418,7 +4418,6 @@ dependencies = [
  "tokio-util",
  "tower-http 0.7.0",
  "tracing",
- "uuid",
 ]
 
 [[package]]

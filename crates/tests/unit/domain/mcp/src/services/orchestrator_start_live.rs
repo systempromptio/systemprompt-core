@@ -50,10 +50,7 @@ struct LiveServer {
 
 impl LiveServer {
     async fn teardown(&self) {
-        let _ = self
-            .orchestrator
-            .stop_services(Some(self.name.clone()))
-            .await;
+        let _ = self.orchestrator.stop_services(Some(self.id.clone())).await;
         let _ = self.repo.delete_service(&self.id).await;
     }
 }
@@ -102,7 +99,7 @@ async fn start_services_registers_a_listening_server_and_publishes_started() {
 
     let result = live
         .orchestrator
-        .start_services(Some(live.name.clone()))
+        .start_services(Some(live.id.clone()))
         .await;
     let row = live.repo.find_service_by_name(&live.id).await;
     live.teardown().await;
@@ -122,7 +119,7 @@ async fn start_services_registers_a_listening_server_and_publishes_started() {
             process_id,
             ..
         } = event
-            && service_name == live.name
+            && service_name == live.id
         {
             saw_started = true;
             assert!(
@@ -155,7 +152,7 @@ async fn reconcile_starts_a_listening_server_and_reports_completion() {
             error,
             ..
         } = event
-            && service_name == live.name
+            && service_name == live.id
         {
             saw_completed = true;
             assert!(success, "the start succeeded");
@@ -219,15 +216,12 @@ async fn stop_services_terminates_a_running_server_and_publishes_stopped() {
     let live = live_server("stoplive").await;
 
     live.orchestrator
-        .start_services(Some(live.name.clone()))
+        .start_services(Some(live.id.clone()))
         .await
         .expect("stub starts");
     let mut rx = live.orchestrator.subscribe_events();
 
-    let result = live
-        .orchestrator
-        .stop_services(Some(live.name.clone()))
-        .await;
+    let result = live.orchestrator.stop_services(Some(live.id.clone())).await;
     let row = live.repo.find_service_by_name(&live.id).await;
     let _ = live.repo.delete_service(&live.id).await;
 
@@ -241,7 +235,7 @@ async fn stop_services_terminates_a_running_server_and_publishes_stopped() {
     let mut saw_stopped = false;
     while let Ok(event) = rx.try_recv() {
         if let McpEvent::ServiceStopped { service_name, .. } = event
-            && service_name == live.name
+            && service_name == live.id
         {
             saw_stopped = true;
         }
@@ -254,7 +248,7 @@ async fn restart_services_replaces_the_running_process_and_reports_it() {
     let live = live_server("restartlive").await;
 
     live.orchestrator
-        .start_services(Some(live.name.clone()))
+        .start_services(Some(live.id.clone()))
         .await
         .expect("stub starts");
     let first_pid = live
@@ -267,7 +261,7 @@ async fn restart_services_replaces_the_running_process_and_reports_it() {
 
     let outcomes = live
         .orchestrator
-        .restart_services(Some(live.name.clone()))
+        .restart_services(Some(live.id.clone()))
         .await;
     let second_pid = live
         .repo
@@ -280,7 +274,7 @@ async fn restart_services_replaces_the_running_process_and_reports_it() {
 
     let outcomes = outcomes.expect("target listing succeeds");
     assert_eq!(outcomes.len(), 1, "one outcome per targeted server");
-    assert_eq!(outcomes[0].service_name, live.name);
+    assert_eq!(outcomes[0].service_name, live.id);
     assert!(
         outcomes[0].is_restarted(),
         "restart failed: {:?}",

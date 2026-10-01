@@ -39,7 +39,7 @@ pub use execution_source::{Correlation, ExecutionSource};
 pub use registry::RegistryConfig;
 pub use registry_trait::{
     DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,
-    McpRegistry, McpServerState, McpServerStatus, McpToolProvider,
+    McpRegistry, McpServerState, McpToolProvider,
 };
-pub use server::{ERROR, McpAuthState, McpServerConfig, RUNNING, STARTING, STOPPED};
+pub use server::{McpAuthState, McpServerConfig};
 pub use tool_result_metadata::McpToolResultMetadata;

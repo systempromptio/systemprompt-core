@@ -7,6 +7,8 @@
 use std::process::Command;
 use std::time::Duration;
 
+use systemprompt_identifiers::ServiceName;
+
 #[expect(
     unsafe_code,
     reason = "std::os::unix::process::CommandExt::pre_exec is an unsafe fn; there is no safe way \
@@ -40,7 +42,7 @@ const IDENTITY_ATTEMPTS: u32 = 20;
 const IDENTITY_RETRY: Duration = Duration::from_millis(5);
 
 #[must_use]
-pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> bool {
+pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &ServiceName) -> bool {
     // Why: inside execve a process's `/proc/<pid>/environ` is briefly empty or
     // unreadable. Reading that as "not ours" made callers skip the signal and
     // report a stop they never made, so a live process whose environment is

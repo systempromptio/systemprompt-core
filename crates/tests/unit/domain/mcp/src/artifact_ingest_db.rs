@@ -4,6 +4,7 @@
 //! secret the scanner matched.
 
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, McpToolName};
 
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject, ResourceContents};
 use serde_json::json;
@@ -59,8 +60,8 @@ fn request(
 ) -> IngestRequest {
     IngestRequest {
         result,
-        tool_name: "Read".to_owned(),
-        server_name: Some("tests".to_owned()),
+        tool_name: McpToolName::new("Read"),
+        server_name: Some(McpServerId::new("tests")),
         ai_tool_call_id: call.cloned(),
         mcp_execution_id: None,
         ctx: ctx(session, user),

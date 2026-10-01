@@ -8,7 +8,7 @@
 //! coverage of the header-validation branches without a live MCP server.
 
 use systemprompt_identifiers::{
-    Actor, AgentName, AiToolCallId, ContextId, McpServerId, SessionId, TraceId,
+    Actor, AgentName, AiToolCallId, ContextId, JwtToken, McpServerId, SessionId, TraceId,
 };
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
@@ -23,7 +23,7 @@ async fn provider() -> McpToolProvider {
 }
 
 fn base_ctx() -> ToolContext {
-    ToolContext::new(Actor::user(fixture_user_id()), "test-token")
+    ToolContext::new(Actor::user(fixture_user_id())).with_auth_token(JwtToken::new("test-token"))
 }
 
 fn full_ctx() -> ToolContext {
@@ -128,7 +128,8 @@ async fn call_tool_with_full_ctx_and_nonexistent_server_errors_gracefully() {
 async fn tool_context_with_session_and_trace_ids_propagated() {
     let p = provider().await;
     let ctx_id = ContextId::generate();
-    let ctx = ToolContext::new(Actor::user(fixture_user_id()), "tok")
+    let ctx = ToolContext::new(Actor::user(fixture_user_id()))
+        .with_auth_token(JwtToken::new("tok"))
         .with_session_id(SessionId::new("my-session"))
         .with_trace_id(TraceId::new("my-trace"))
         .with_header("x-context-id", ctx_id.as_str())
@@ -147,7 +148,8 @@ async fn tool_context_with_ai_tool_call_id_and_task_id() {
     let p = provider().await;
     let ctx_id = ContextId::generate();
     let tool_call_id = AiToolCallId::new("call-abc");
-    let ctx = ToolContext::new(Actor::user(fixture_user_id()), "tok")
+    let ctx = ToolContext::new(Actor::user(fixture_user_id()))
+        .with_auth_token(JwtToken::new("tok"))
         .with_ai_tool_call_id(tool_call_id)
         .with_header("x-context-id", ctx_id.as_str())
         .with_header("x-agent-name", "agent-task")

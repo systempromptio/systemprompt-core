@@ -3,6 +3,7 @@
 // yields 404, and an injected registry-load failure yields 500.
 
 use std::collections::HashMap;
+use systemprompt_identifiers::AgentName;
 
 use axum::http::StatusCode;
 use systemprompt_agent::AgentError;
@@ -33,7 +34,7 @@ async fn known_agent_returns_ok_with_card() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let response = agent_card_response(
         Ok(registry_with("card_seam_agent")),
-        "card_seam_agent",
+        &AgentName::new("card_seam_agent"),
         "http://cards.invalid",
     )
     .await;
@@ -51,7 +52,7 @@ async fn unknown_agent_returns_not_found() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let response = agent_card_response(
         Ok(registry_with("card_seam_agent")),
-        "missing_agent",
+        &AgentName::new("missing_agent"),
         "http://cards.invalid",
     )
     .await;
@@ -74,8 +75,12 @@ async fn card_assembly_failure_returns_internal_error() {
         ..ServicesConfig::default()
     });
 
-    let response =
-        agent_card_response(Ok(registry), "card_seam_alias", "http://cards.invalid").await;
+    let response = agent_card_response(
+        Ok(registry),
+        &AgentName::new("card_seam_alias"),
+        "http://cards.invalid",
+    )
+    .await;
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     let body = body_string(response).await;
@@ -87,7 +92,7 @@ async fn registry_failure_returns_internal_error() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let response = agent_card_response(
         Err(AgentError::Config("injected registry failure".to_owned())),
-        "card_seam_agent",
+        &AgentName::new("card_seam_agent"),
         "http://cards.invalid",
     )
     .await;

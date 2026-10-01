@@ -5,6 +5,7 @@
 // touches the on-disk agent registry.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::services::a2a_server::processing::TaskBuilder;
@@ -74,7 +75,7 @@ async fn process_message_stream_emits_text_and_complete() {
         .process_message_stream(ProcessMessageStreamParams {
             a2a_message: &msg,
             agent_runtime: &runtime,
-            agent_name: "stream-agent",
+            agent_name: &AgentName::new("stream-agent"),
             context: &request,
             task_id: task_id.clone(),
             cancel: CancellationToken::new(),
@@ -135,7 +136,7 @@ async fn persist_completed_task_updates_existing_row() {
             user_message: &user_msg,
             agent_message: &agent_msg,
             context: &request,
-            agent_name: "persist-agent",
+            agent_name: &AgentName::new("persist-agent"),
             artifacts_already_published: false,
         })
         .await;
@@ -172,7 +173,7 @@ async fn cancelling_a_running_stream_emits_exactly_one_cancelled_event() {
         .process_message_stream(ProcessMessageStreamParams {
             a2a_message: &msg,
             agent_runtime: &runtime,
-            agent_name: "cancel-agent",
+            agent_name: &AgentName::new("cancel-agent"),
             context: &request,
             task_id,
             cancel: cancel.clone(),
@@ -224,7 +225,7 @@ async fn process_message_stream_provider_failure_emits_error() {
         .process_message_stream(ProcessMessageStreamParams {
             a2a_message: &msg,
             agent_runtime: &runtime,
-            agent_name: "fail-agent",
+            agent_name: &AgentName::new("fail-agent"),
             context: &request,
             task_id,
             cancel: CancellationToken::new(),
@@ -302,7 +303,7 @@ async fn configured_skills_are_injected_and_missing_optional_skills_do_not_abort
         .process_message_stream(ProcessMessageStreamParams {
             a2a_message: &message,
             agent_runtime: &runtime,
-            agent_name: "skill-stream-agent",
+            agent_name: &AgentName::new("skill-stream-agent"),
             context: &request,
             task_id,
             cancel: CancellationToken::new(),
@@ -365,7 +366,7 @@ async fn partial_provider_stream_preserves_text_then_emits_one_error_without_com
         .process_message_stream(ProcessMessageStreamParams {
             a2a_message: &message,
             agent_runtime: &runtime,
-            agent_name: "partial-failure-agent",
+            agent_name: &AgentName::new("partial-failure-agent"),
             context: &request,
             task_id,
             cancel: CancellationToken::new(),
@@ -451,7 +452,7 @@ async fn planned_stream_synthesizes_tool_results_before_completing_with_the_fina
         .process_message_stream(ProcessMessageStreamParams {
             a2a_message: &message,
             agent_runtime: &runtime,
-            agent_name: "planned-stream-agent",
+            agent_name: &AgentName::new("planned-stream-agent"),
             context: &request,
             task_id,
             cancel: CancellationToken::new(),
@@ -527,7 +528,7 @@ async fn planned_stream_reports_final_resynthesis_failure_without_completing() {
         .process_message_stream(ProcessMessageStreamParams {
             a2a_message: &message,
             agent_runtime: &runtime,
-            agent_name: "planned-stream-agent",
+            agent_name: &AgentName::new("planned-stream-agent"),
             context: &request,
             task_id,
             cancel: CancellationToken::new(),

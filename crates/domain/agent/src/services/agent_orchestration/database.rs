@@ -11,12 +11,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::AgentError;
-use crate::repository::agent_service::{AgentServiceRepository, AgentServiceStatus};
+use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::{
     AgentStatus, OrchestrationError, OrchestrationResult, process,
 };
 use crate::services::registry::AgentRegistry;
-use systemprompt_models::services::AgentConfig;
+use systemprompt_identifiers::AgentName;
+use systemprompt_models::services::{AgentConfig, ServiceStatus};
 use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]
@@ -46,14 +47,19 @@ impl AgentDatabaseService {
         }
     }
 
-    pub async fn register_agent(&self, name: &str, pid: u32, port: u16) -> OrchestrationResult<()> {
+    pub async fn register_agent(
+        &self,
+        name: &AgentName,
+        pid: u32,
+        port: u16,
+    ) -> OrchestrationResult<()> {
         self.repository
             .register_agent(name, pid, port)
             .await
             .map_err(OrchestrationError::from)
     }
 
-    pub async fn get_status(&self, agent_name: &str) -> OrchestrationResult<AgentStatus> {
+    pub async fn get_status(&self, agent_name: &AgentName) -> OrchestrationResult<AgentStatus> {
         let row = self
             .repository
             .get_agent_status(agent_name)
@@ -65,7 +71,7 @@ impl AgentDatabaseService {
         };
 
         match row.status {
-            AgentServiceStatus::Running => {
+            ServiceStatus::Running => {
                 let Some(pid) = row.pid else {
                     self.mark_failed(agent_name).await?;
                     return Ok(failed_status("Running row has no recorded process id"));
@@ -78,20 +84,21 @@ impl AgentDatabaseService {
                     Ok(failed_status("Process died unexpectedly"))
                 }
             },
-            AgentServiceStatus::Starting => Ok(failed_status("Agent is starting")),
-            AgentServiceStatus::Stopped => Ok(failed_status("Agent is stopped")),
-            AgentServiceStatus::Error => Ok(failed_status("Agent process failed")),
+            ServiceStatus::Starting => Ok(failed_status("Agent is starting")),
+            ServiceStatus::Stopping => Ok(failed_status("Agent is stopping")),
+            ServiceStatus::Stopped => Ok(failed_status("Agent is stopped")),
+            ServiceStatus::Error => Ok(failed_status("Agent process failed")),
         }
     }
 
-    pub async fn mark_failed(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn mark_failed(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.repository
             .mark_error(agent_name)
             .await
             .map_err(OrchestrationError::from)
     }
 
-    pub async fn list_running_agents(&self) -> OrchestrationResult<Vec<String>> {
+    pub async fn list_running_agents(&self) -> OrchestrationResult<Vec<AgentName>> {
         let rows = self
             .repository
             .list_running_agents()
@@ -101,41 +108,44 @@ impl AgentDatabaseService {
         Ok(rows.into_iter().map(|row| row.name).collect())
     }
 
-    pub async fn list_all_agents(&self) -> OrchestrationResult<Vec<(String, AgentStatus)>> {
+    pub async fn list_all_agents(&self) -> OrchestrationResult<Vec<(AgentName, AgentStatus)>> {
         let agent_configs = self.registry.list_agents().await?;
 
         let mut agents = Vec::new();
 
         for agent_config in agent_configs {
-            let agent_name = &agent_config.name;
+            let agent_name = AgentName::new(agent_config.name);
 
-            let status = self.get_status(agent_name).await?;
+            let status = self.get_status(&agent_name).await?;
 
-            agents.push((agent_name.clone(), status));
+            agents.push((agent_name, status));
         }
 
         Ok(agents)
     }
 
-    pub async fn agent_exists(&self, agent_name: &str) -> OrchestrationResult<bool> {
-        match self.registry.get_agent(agent_name).await {
+    pub async fn agent_exists(&self, agent_name: &AgentName) -> OrchestrationResult<bool> {
+        match self.registry.get_agent(agent_name.as_str()).await {
             Ok(_) => Ok(true),
             Err(AgentError::NotFound(_)) => Ok(false),
             Err(e) => Err(e.into()),
         }
     }
 
-    pub async fn get_agent_config(&self, agent_name: &str) -> OrchestrationResult<AgentConfig> {
-        match self.registry.get_agent(agent_name).await {
+    pub async fn get_agent_config(
+        &self,
+        agent_name: &AgentName,
+    ) -> OrchestrationResult<AgentConfig> {
+        match self.registry.get_agent(agent_name.as_str()).await {
             Ok(agent_config) => Ok(agent_config),
             Err(AgentError::NotFound(_)) => {
-                Err(OrchestrationError::AgentNotFound(agent_name.to_owned()))
+                Err(OrchestrationError::AgentNotFound(agent_name.to_string()))
             },
             Err(e) => Err(e.into()),
         }
     }
 
-    pub async fn remove_agent_service(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn remove_agent_service(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.repository
             .remove_agent_service(agent_name)
             .await
@@ -144,7 +154,7 @@ impl AgentDatabaseService {
 
     pub async fn update_agent_running(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         pid: u32,
         port: u16,
     ) -> OrchestrationResult<()> {
@@ -154,7 +164,7 @@ impl AgentDatabaseService {
             .map_err(OrchestrationError::from)
     }
 
-    pub async fn update_agent_stopped(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn update_agent_stopped(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.repository
             .mark_stopped(agent_name)
             .await
@@ -163,7 +173,7 @@ impl AgentDatabaseService {
 
     pub async fn register_agent_starting(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         pid: u32,
         port: u16,
     ) -> OrchestrationResult<()> {
@@ -173,7 +183,7 @@ impl AgentDatabaseService {
             .map_err(OrchestrationError::from)
     }
 
-    pub async fn mark_running(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn mark_running(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.repository
             .mark_running(agent_name)
             .await

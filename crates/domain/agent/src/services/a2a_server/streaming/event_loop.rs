@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use axum::response::sse::Event;
-use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{AgentName, AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::{AgUiEventBuilder, CallToolResult, RequestContext, ToolCall};
 use tokio::sync::mpsc::Sender;
 
@@ -34,7 +34,7 @@ pub struct ProcessEventsParams {
     pub context_id: ContextId,
     pub message_id: MessageId,
     pub original_message: Message,
-    pub agent_name: String,
+    pub agent_name: AgentName,
     pub context: RequestContext,
     pub task_repo: TaskRepository,
     pub processor: Arc<MessageProcessor>,
@@ -140,7 +140,7 @@ struct EventLoopCtx<'a> {
     context_id: &'a ContextId,
     message_id: &'a MessageId,
     original_message: &'a Message,
-    agent_name: &'a str,
+    agent_name: &'a AgentName,
     context: &'a RequestContext,
     task_repo: &'a TaskRepository,
     processor: &'a Arc<MessageProcessor>,
@@ -180,7 +180,7 @@ async fn broadcast_tool_result(
 ) {
     let result_value = serde_json::to_value(result).unwrap_or_else(|_| serde_json::Value::Null);
     let result_event = AgUiEventBuilder::tool_call_result(
-        uuid::Uuid::new_v4().to_string(),
+        MessageId::generate(),
         ai_tool_call_id.as_str(),
         result_value,
     );
@@ -208,7 +208,7 @@ async fn finish_completed(ctx: &EventLoopCtx<'_>, full_text: String, artifacts: 
         artifacts,
         task_id: ctx.task_id,
         context_id: ctx.context_id,
-        id: ctx.message_id.as_str(),
+        id: ctx.message_id,
         original_message: ctx.original_message,
         agent_name: ctx.agent_name,
         context: ctx.context,

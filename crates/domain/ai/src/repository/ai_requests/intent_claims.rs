@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{AiToolCallId, McpExecutionId, SessionId};
+use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpToolName, SessionId};
 use systemprompt_traits::{RepositoryError, ToolCallIntentClaims};
 
 use super::AiRequestRepository;
@@ -24,11 +24,11 @@ impl ToolCallIntentClaims for AiRequestRepository {
     async fn claim_newest_unclaimed(
         &self,
         session_id: &SessionId,
-        tool_name: &str,
+        tool_name: &McpToolName,
         execution: &McpExecutionId,
         window_seconds: i64,
     ) -> Result<Option<AiToolCallId>, RepositoryError> {
-        let suffix = format!("%\\_\\_{}", escape_like(tool_name));
+        let suffix = format!("%\\_\\_{}", escape_like(tool_name.as_str()));
         let claimed = sqlx::query_scalar!(
             r#"
             UPDATE ai_request_tool_calls c
@@ -50,7 +50,7 @@ impl ToolCallIntentClaims for AiRequestRepository {
             RETURNING c.ai_tool_call_id AS "ai_tool_call_id!"
             "#,
             session_id.as_str(),
-            tool_name,
+            tool_name.as_str(),
             suffix,
             window_seconds as f64,
             execution.as_str()

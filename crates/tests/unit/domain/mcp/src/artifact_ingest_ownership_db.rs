@@ -4,7 +4,7 @@
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
 use serde_json::json;
 use systemprompt_identifiers::{
-    Actor, AgentName, AiToolCallId, ContextId, SessionId, TraceId, UserId,
+    Actor, AgentName, AiToolCallId, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
 };
 use systemprompt_mcp::{ArtifactIngest, IngestRequest};
 use systemprompt_models::RequestContext;
@@ -45,8 +45,8 @@ fn request(
 ) -> IngestRequest {
     IngestRequest {
         result,
-        tool_name: "Read".to_owned(),
-        server_name: Some("tests".to_owned()),
+        tool_name: McpToolName::new("Read"),
+        server_name: Some(McpServerId::new("tests")),
         ai_tool_call_id: call.cloned(),
         mcp_execution_id: None,
         ctx,

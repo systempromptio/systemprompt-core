@@ -1,4 +1,4 @@
-//! MCP server runtime status constants and path serde.
+//! MCP server configuration, its authentication state, and path serde.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,16 +6,11 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{McpServerId, ServiceName, UserId};
 
 use crate::ai::ToolModelConfig;
 use crate::auth::{AuthenticatedUser, Permission};
 use crate::mcp::deployment::McpServerType;
-
-pub const RUNNING: &str = "running";
-pub const ERROR: &str = "error";
-pub const STOPPED: &str = "stopped";
-pub const STARTING: &str = "starting";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServerConfig {
@@ -71,6 +66,16 @@ where
 }
 
 impl McpServerConfig {
+    #[must_use]
+    pub fn server_id(&self) -> McpServerId {
+        McpServerId::new(self.name.as_str())
+    }
+
+    #[must_use]
+    pub fn service_name(&self) -> ServiceName {
+        ServiceName::new(self.name.as_str())
+    }
+
     pub fn endpoint(&self, api_server_url: &str) -> String {
         format!("{}/api/v1/mcp/{}/mcp", api_server_url, self.name)
     }

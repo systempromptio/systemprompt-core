@@ -16,6 +16,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::ServiceName;
+
 pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";
 pub const AGENT_NAME_ENV: &str = "AGENT_NAME";
 pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
@@ -69,7 +71,11 @@ pub fn signalable_pid(pid: u32) -> Option<i32> {
     i32::try_from(pid).ok()
 }
 #[must_use]
-pub fn environ_identifies_child(environ: &[u8], name_key: &str, service_name: &str) -> bool {
+pub fn environ_identifies_child(
+    environ: &[u8],
+    name_key: &str,
+    service_name: &ServiceName,
+) -> bool {
     let marker = format!("{SUBPROCESS_MARKER_ENV}=1");
     let expected_name = format!("{name_key}={service_name}");
 
