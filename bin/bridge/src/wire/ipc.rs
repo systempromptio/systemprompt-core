@@ -60,6 +60,19 @@ impl BridgeError {
         }
     }
 
+    pub fn from_error(scope: ErrorScope, code: ErrorCode, error: &dyn std::error::Error) -> Self {
+        Self::new(scope, code, error.to_string())
+    }
+
+    pub fn from_error_in(
+        scope: ErrorScope,
+        code: ErrorCode,
+        context: &str,
+        error: &dyn std::error::Error,
+    ) -> Self {
+        Self::new(scope, code, format!("{context}: {error}"))
+    }
+
     // JSON: webview IPC error `detail` — free-form context attached per error site.
     pub fn with_detail(mut self, detail: Value) -> Self {
         self.detail = Some(detail);

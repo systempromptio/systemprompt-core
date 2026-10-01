@@ -65,11 +65,13 @@ async fn health_503_maps_to_http_status() {
 
     let err = client(&server).health().await.unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 503);
             assert_eq!(endpoint, "health");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -115,11 +117,13 @@ async fn fetch_pubkey_404_maps_to_http_status() {
 
     let err = client(&server).fetch_pubkey().await.unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 404);
             assert_eq!(endpoint, "pubkey");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -211,11 +215,13 @@ async fn fetch_manifest_401_maps_to_http_status() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 401);
             assert_eq!(endpoint, "manifest");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -296,11 +302,13 @@ async fn fetch_whoami_403_maps_to_http_status() {
 
     let err = client(&server).fetch_whoami(&bearer()).await.unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 403);
             assert_eq!(endpoint, "whoami");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -353,11 +361,13 @@ async fn fetch_bridge_profile_500_maps_to_http_status() {
 
     let err = client(&server).fetch_bridge_profile().await.unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 500);
             assert_eq!(endpoint, "profile");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -418,11 +428,13 @@ async fn fetch_profile_usage_502_maps_to_http_status() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 502);
             assert_eq!(endpoint, "profile_usage");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -477,11 +489,13 @@ async fn fetch_plugin_file_404_maps_to_http_status() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 404);
             assert_eq!(endpoint, "plugin");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -639,11 +653,13 @@ async fn a_rejected_host_model_filter_maps_to_http_status() {
         .await
         .expect_err("a 422 must surface");
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 422);
             assert_eq!(endpoint, "host-model-filter");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -664,14 +680,20 @@ async fn a_refused_release_lookup_carries_the_gateway_reason() {
         .await
         .unwrap_err();
     match &err {
-        GatewayError::ReleaseRejected { status, body } => {
+        GatewayError::Rejected {
+            status,
+            endpoint,
+            rejection,
+        } => {
             assert_eq!(status.as_u16(), 503);
+            assert_eq!(*endpoint, "bridge-latest");
             assert_eq!(
-                body,
+                rejection.excerpt,
                 "bridge release token secret SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN is not configured"
             );
+            assert_eq!(rejection.code, None);
         },
-        other => panic!("expected ReleaseRejected, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
     assert_eq!(
         err.to_string(),
@@ -693,11 +715,14 @@ async fn a_refused_release_lookup_with_no_body_says_so() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::ReleaseRejected { status, body } => {
+        GatewayError::Rejected {
+            status, rejection, ..
+        } => {
             assert_eq!(status.as_u16(), 502);
-            assert_eq!(body, "no response body");
+            assert!(rejection.excerpt.is_empty());
+            assert_eq!(rejection.to_string(), "no response body");
         },
-        other => panic!("expected ReleaseRejected, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -715,7 +740,9 @@ async fn a_long_release_rejection_body_is_bounded() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::ReleaseRejected { body, .. } => assert_eq!(body.len(), 240),
-        other => panic!("expected ReleaseRejected, got {other:?}"),
+        GatewayError::Rejected { rejection, .. } => {
+            assert_eq!(rejection.excerpt.chars().count(), 240);
+        },
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }

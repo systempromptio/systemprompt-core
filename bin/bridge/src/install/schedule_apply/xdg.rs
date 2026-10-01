@@ -7,6 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::{InstallError, ScheduleRemoval, home, write};
+use crate::install::SchedulerError;
 use crate::schedule::{self, Os};
 
 pub(super) fn register(
@@ -67,7 +68,7 @@ pub(super) fn register(
 }
 
 enum Activation {
-    NoUserManager(String),
+    NoUserManager(SchedulerError),
     Refused(InstallError),
 }
 
@@ -77,82 +78,47 @@ enum Activation {
 // failure, or the timer would be silently missing on a host that has one.
 fn activate(unit: &str, proxy_unit: &str) -> Result<(), Activation> {
     systemctl(&["daemon-reload"]).map_err(|e| {
-        if e.no_user_manager() {
-            Activation::NoUserManager(e.to_string())
+        if no_user_manager(&e) {
+            Activation::NoUserManager(e)
         } else {
-            Activation::Refused(e.into_install_error())
+            Activation::Refused(InstallError::ScheduleCommand(e))
         }
     })?;
     systemctl(&["enable", "--now", &format!("{unit}.timer")])
-        .map_err(|e| Activation::Refused(e.into_install_error()))?;
+        .map_err(|e| Activation::Refused(InstallError::ScheduleCommand(e)))?;
     systemctl(&["enable", "--now", &format!("{proxy_unit}.service")])
-        .map_err(|e| Activation::Refused(e.into_install_error()))
+        .map_err(|e| Activation::Refused(InstallError::ScheduleCommand(e)))
 }
 
-enum SystemctlFailure {
-    Spawn {
-        command: String,
-        source: std::io::Error,
-    },
-    Exited {
-        command: String,
-        code: i32,
-        stderr: String,
-    },
-}
-
-impl SystemctlFailure {
-    fn no_user_manager(&self) -> bool {
-        match self {
-            Self::Spawn { source, .. } => source.kind() == std::io::ErrorKind::NotFound,
-            Self::Exited { stderr, .. } => {
-                stderr.contains("Failed to connect to bus")
-                    || stderr.contains("No such file or directory")
-                    || stderr.contains("not been booted with systemd")
-            },
-        }
-    }
-
-    fn into_install_error(self) -> InstallError {
-        InstallError::ScheduleApply(self.to_string())
+// Why: systemctl reports an absent user manager only through its exit text;
+// there is no exit code that distinguishes it from a refusal.
+fn no_user_manager(failure: &SchedulerError) -> bool {
+    match failure {
+        SchedulerError::Spawn { source, .. } => source.kind() == std::io::ErrorKind::NotFound,
+        SchedulerError::Exited { stderr, .. } => {
+            stderr.contains("Failed to connect to bus")
+                || stderr.contains("No such file or directory")
+                || stderr.contains("not been booted with systemd")
+        },
+        SchedulerError::Read { .. } => false,
     }
 }
 
-impl std::fmt::Display for SystemctlFailure {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Spawn { command, source } => write!(f, "{command}: {source}"),
-            Self::Exited {
-                command,
-                code,
-                stderr,
-            } => {
-                let stderr = stderr.trim();
-                if stderr.is_empty() {
-                    write!(f, "{command} exited with {code}")
-                } else {
-                    write!(f, "{command} exited with {code}: {stderr}")
-                }
-            },
-        }
-    }
-}
-
-fn systemctl(args: &[&str]) -> Result<(), SystemctlFailure> {
+fn systemctl(args: &[&str]) -> Result<(), SchedulerError> {
     let command = format!("systemctl --user {}", args.join(" "));
     let output = std::process::Command::new("systemctl")
         .arg("--user")
         .args(args)
         .stdin(std::process::Stdio::null())
         .output()
-        .map_err(|source| SystemctlFailure::Spawn {
+        .map_err(|source| SchedulerError::Spawn {
             command: command.clone(),
             source,
         })?;
     if output.status.success() {
         return Ok(());
     }
-    Err(SystemctlFailure::Exited {
+    Err(SchedulerError::Exited {
         command,
         code: output.status.code().unwrap_or(-1),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
@@ -190,7 +156,7 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     if let Err(e) = stop_if_present(&timer_path, &format!("{unit}.timer"))
         .and_then(|()| stop_if_present(&proxy_path, &format!("{proxy_unit}.service")))
     {
-        return ScheduleRemoval::Failed(e);
+        return ScheduleRemoval::Failed(e.to_string());
     }
     let removed = remove_if_present(&timer_path)
         .and_then(|()| remove_if_present(&dir.join(format!("{unit}.service"))))
@@ -204,12 +170,13 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     ScheduleRemoval::Removed(format!("{unit} + {proxy_unit}"))
 }
 
-fn stop_if_present(path: &Path, unit: &str) -> Result<(), String> {
-    let present = path
-        .try_exists()
-        .map_err(|e| format!("read {}: {e}", path.display()))?;
+fn stop_if_present(path: &Path, unit: &str) -> Result<(), SchedulerError> {
+    let present = path.try_exists().map_err(|source| SchedulerError::Read {
+        path: path.to_owned(),
+        source,
+    })?;
     if present {
-        systemctl(&["disable", "--now", unit]).map_err(|e| format!("stop {unit}: {e}"))?;
+        systemctl(&["disable", "--now", unit])?;
     }
     Ok(())
 }

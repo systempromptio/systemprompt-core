@@ -6,7 +6,7 @@
 use std::fs;
 
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
-use systemprompt_bridge::integration::enrol::{Outcome, Selection, enrol_hosts};
+use systemprompt_bridge::integration::enrol::{Outcome, Selection, SelectionError, enrol_hosts};
 use systemprompt_bridge::integration::reapply::ModelProtocolOverrides;
 use tempfile::TempDir;
 #[cfg(not(target_os = "macos"))]
@@ -75,8 +75,11 @@ fn an_unknown_host_id_fails_the_whole_request_before_any_host_is_touched() {
                 None,
             ))
             .expect_err("an unknown id is rejected outright");
-        assert!(err.contains("not-a-host"), "got {err}");
-        assert!(err.contains("known ids:"), "got {err}");
+        assert!(
+            matches!(&err, SelectionError::Unknown { id, .. } if id == "not-a-host"),
+            "got {err:?}"
+        );
+        assert!(err.to_string().contains("known ids:"), "got {err}");
     });
 }
 
@@ -224,7 +227,7 @@ fn with_no_gateway_reachable_an_enabled_host_reports_a_failure_that_names_a_caus
         assert_eq!(report.host_id, first);
         match &report.outcome {
             Outcome::Failed(message) => assert!(
-                !message.is_empty(),
+                !message.to_string().is_empty(),
                 "a failure must carry the cause, not an empty string"
             ),
             other => panic!("expected a failure with no gateway configured, got {other:?}"),

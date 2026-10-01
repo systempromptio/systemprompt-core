@@ -45,6 +45,16 @@ pub enum GuiError {
         source: std::io::Error,
     },
 
+    #[error("{context}: {source}")]
+    HostApp {
+        context: &'static str,
+        #[source]
+        source: crate::integration::HostAppError,
+    },
+
+    #[error("profile inputs: {0}")]
+    ProfileInputs(#[from] crate::integration::reapply::ProfileInputsError),
+
     #[error("tray menu: {0}")]
     TrayMenu(#[from] muda::Error),
 

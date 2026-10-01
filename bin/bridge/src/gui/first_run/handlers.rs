@@ -44,7 +44,7 @@ fn enrol_claude_code(app: &GuiApp) {
     if let Outcome::Failed(err) = report.outcome {
         app.append_log_error(format!("[{id}] gateway routing not written: {err}"));
         app.state
-            .set_first_run_host(id, StepStatus::Failed, Some(err));
+            .set_first_run_host(id, StepStatus::Failed, Some(err.to_string()));
     } else {
         app.append_log(format!("[{id}] {}", report.install_action_label));
         app.state.set_first_run_host(id, StepStatus::Done, None);

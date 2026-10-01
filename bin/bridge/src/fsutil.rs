@@ -10,6 +10,27 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
+/// An I/O failure with what the bridge was doing when it happened. It travels
+/// inside an [`io::Error`] of the same kind, so callers still branch on the
+/// kind while the message keeps the cause.
+#[derive(Debug, thiserror::Error)]
+#[error("{context}: {source}")]
+pub struct IoContext {
+    context: String,
+    #[source]
+    source: io::Error,
+}
+
+pub fn io_context(context: impl Into<String>, source: io::Error) -> io::Error {
+    io::Error::new(
+        source.kind(),
+        IoContext {
+            context: context.into(),
+            source,
+        },
+    )
+}
+
 pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     atomic_write_with_mode(path, bytes, 0o600)
 }
@@ -121,8 +142,7 @@ pub fn read_private(path: &Path) -> io::Result<Vec<u8>> {
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
             let reader = crate::windows_acl::current_sid()?;
             crate::windows_acl::repair_private(path, &reader)?;
-            fs::read(path)
-                .map_err(|e| io::Error::new(e.kind(), format!("read after DACL repair: {e}")))
+            fs::read(path).map_err(|e| io_context("read after DACL repair", e))
         },
         other => other,
     }

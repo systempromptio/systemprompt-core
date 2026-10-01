@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv,
-    ProfileGenInputs, ProfileInstalled, ProfileState,
+    AppInstallState, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, HostConfigSchema,
+    ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileState,
 };
 use systemprompt_bridge::integration::{find_host_by_id, host_apps};
 use systemprompt_bridge::{host_sync, register_host_app};
@@ -115,7 +115,10 @@ impl HostApp for DummyHost {
             update_needs_approval: false,
         }
     }
-    fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    fn generate_profile(
+        &self,
+        _inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
         Ok(GeneratedProfile {
             path: String::new(),
             bytes: 0,
@@ -123,7 +126,7 @@ impl HostApp for DummyHost {
             profile_uuid: String::new(),
         })
     }
-    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
     }
     fn install_action_label(&self) -> &'static str {
@@ -170,7 +173,10 @@ impl HostApp for ShadowCodexHost {
             update_needs_approval: false,
         }
     }
-    fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    fn generate_profile(
+        &self,
+        _inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
         Ok(GeneratedProfile {
             path: String::new(),
             bytes: 0,
@@ -178,7 +184,7 @@ impl HostApp for ShadowCodexHost {
             profile_uuid: String::new(),
         })
     }
-    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
     }
     fn install_action_label(&self) -> &'static str {
@@ -275,7 +281,10 @@ impl HostApp for SuppressedHost {
             update_needs_approval: false,
         }
     }
-    fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    fn generate_profile(
+        &self,
+        _inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
         Ok(GeneratedProfile {
             path: String::new(),
             bytes: 0,
@@ -283,7 +292,7 @@ impl HostApp for SuppressedHost {
             profile_uuid: String::new(),
         })
     }
-    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
     }
     fn install_action_label(&self) -> &'static str {

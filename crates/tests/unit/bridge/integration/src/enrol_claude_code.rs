@@ -112,7 +112,7 @@ fn claude_code_enrollment_preserves_bad_settings_then_recovers_after_repair() {
         let failed = enroll_claude_code(&bridge);
         match failed {
             Outcome::Failed(message) => assert!(
-                message.contains("not valid JSON"),
+                message.to_string().contains("not valid JSON"),
                 "the report carries the safe merge failure: {message}"
             ),
             other => panic!("malformed settings must not report enrollment success: {other:?}"),
@@ -185,7 +185,7 @@ fn claude_code_enrollment_settings_directory_failure_preserves_contents_then_rec
 
         let failed = enroll_claude_code(&bridge);
         assert!(
-            matches!(failed, Outcome::Failed(ref message) if message.contains("settings.json")),
+            matches!(failed, Outcome::Failed(ref message) if message.to_string().contains("settings.json")),
             "directory I/O failure is reported against the settings boundary: {failed:?}"
         );
         assert_eq!(fs::read(&occupant).unwrap(), b"retain");
@@ -217,7 +217,7 @@ fn claude_code_removal_settings_directory_failure_is_retryable_without_deleting_
         let failed = remove_host_profiles(&Selection::Ids(vec!["claude-code".to_owned()]))
             .expect("target resolves");
         assert!(
-            matches!(failed.as_slice(), [report] if matches!(report.outcome, Outcome::Failed(ref message) if message.contains("settings.json"))),
+            matches!(failed.as_slice(), [report] if matches!(report.outcome, Outcome::Failed(ref message) if message.to_string().contains("settings.json"))),
             "removal reports the unreadable settings path: {failed:?}"
         );
         assert_eq!(fs::read(&occupant).unwrap(), b"retain");

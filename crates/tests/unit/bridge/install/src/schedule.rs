@@ -55,9 +55,11 @@ fn apply_schedule_writes_both_systemd_units() {
                 assert_eq!(applied.path, timer);
                 assert_eq!(applied.label, "systemprompt-bridge-sync");
             },
-            Err(InstallError::ScheduleApply(msg)) => assert!(
-                msg.contains("systemctl"),
-                "a scheduler failure must name systemctl: {msg}"
+            Err(InstallError::ScheduleCommand(failure)) => assert!(
+                failure
+                    .command()
+                    .is_some_and(|command| command.starts_with("systemctl")),
+                "a scheduler failure must name systemctl: {failure}"
             ),
             Err(other) => panic!("unexpected error: {other}"),
         }

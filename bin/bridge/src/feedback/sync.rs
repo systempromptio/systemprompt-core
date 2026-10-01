@@ -53,7 +53,7 @@ pub async fn deliver(enrollment: &Enrollment, outbox: &Outbox) -> Result<()> {
                     },
                     Err(error) => {
                         let status = match error {
-                            FeedbackError::Rejected(status) => status,
+                            FeedbackError::Rejected { status, .. } => status,
                             _ => 0,
                         };
                         outbox.delivery(&key, Err(status))?;

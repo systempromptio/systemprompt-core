@@ -120,7 +120,11 @@ fn an_unreadable_hive_is_an_error_not_a_guess() {
     let mut store = hives(Some("https://a"), Some("https://a"));
     store.deny_user = true;
     let err = hive_report(&store, false).unwrap_err();
-    assert!(err.contains("HKCU read denied"), "{err}");
+    assert_eq!(err.hive, PolicyHive::User);
+    assert!(
+        matches!(&err.source, ConfigStoreError::Backend(text) if text == "HKCU read denied"),
+        "{err:?}"
+    );
 }
 
 #[test]

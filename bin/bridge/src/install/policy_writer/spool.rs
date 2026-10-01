@@ -160,10 +160,10 @@ pub(crate) fn read_anchor(
     let Some(store::PolicyDocumentValue::Str(raw)) = doc.get(store::MANIFEST_TRUST_KEY) else {
         return Ok(None);
     };
-    let record: crate::config::TrustRecord = serde_json::from_str(raw)
-        .map_err(|e| crate::config::TrustError::InvalidPolicy(e.to_string()))?;
+    let record: crate::config::TrustRecord =
+        serde_json::from_str(raw).map_err(crate::config::TrustError::InvalidPolicy)?;
     let gateway = systemprompt_identifiers::ValidatedUrl::try_new(record.gateway.as_str())
-        .map_err(|e| crate::config::TrustError::InvalidPolicy(format!("gateway: {e}")))?;
+        .map_err(crate::config::TrustError::GatewayInvalid)?;
     Ok(Some(crate::config::TrustRecord::new(
         &gateway,
         record.key.as_str(),

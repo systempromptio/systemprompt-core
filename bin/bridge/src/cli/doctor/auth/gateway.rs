@@ -72,7 +72,9 @@ pub async fn check_whoami(
             "authenticated whoami",
             "GET /v1/bridge/whoami returned identity",
         )),
-        Err(GatewayError::HttpStatus { status, endpoint }) if status.as_u16() == 401 => {
+        Err(GatewayError::Rejected {
+            status, endpoint, ..
+        }) if status.as_u16() == 401 => {
             checks.push(Check::fail(
                 "authenticated whoami",
                 format!(
@@ -167,10 +169,12 @@ pub async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
                 creds.client_id.as_str()
             ),
         ),
-        Err(GatewayError::HookTokenRejected { status, body }) => Check::fail(
+        Err(GatewayError::Rejected {
+            status, rejection, ..
+        }) => Check::fail(
             "hook token mint",
             format!(
-                "gateway rejected hook token: status={status} body={body} — operator action: \
+                "gateway rejected hook token: status={status} body={rejection} — operator action: \
                  confirm the bridge OAuth client grants `hook:govern hook:track` and that \
                  service-tier scopes are not being intersected with owner roles",
             ),

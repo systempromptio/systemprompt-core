@@ -31,7 +31,7 @@ mod route;
 
 use body::prepare_upstream_body;
 pub use body::{CHAT_COMPLETIONS_PATH, stamp_opencode_session};
-pub use error::{ForwardError, ForwardResult, is_client_disconnect};
+pub use error::{ForwardError, ForwardResult, HeaderBuildError, is_client_disconnect};
 use headers::{UpstreamHeaderInputs, build_upstream_headers, copy_response_headers};
 use hook::{authenticate_hook_track, require_hook_credential};
 pub use replay::{Replay, describe, replay_policy, should_replay};
@@ -113,7 +113,10 @@ pub(crate) async fn forward(
                 &plugin_id,
             )
             .await
-            .map_err(|e| ForwardError::Auth(format!("hook token mint for {plugin_id}: {e}")))?;
+            .map_err(|source| ForwardError::HookToken {
+                plugin_id: plugin_id.clone(),
+                source,
+            })?;
             hook_plugin = Some(plugin_id);
             (
                 Route {

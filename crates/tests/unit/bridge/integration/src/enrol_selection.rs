@@ -1,9 +1,9 @@
 //! `install --host <id>` resolution: which ids are accepted, which are refused,
 //! and that a sync-only agent resolves rather than erroring.
 
-use systemprompt_bridge::integration::enrol::{Selection, resolve};
+use systemprompt_bridge::integration::enrol::{Selection, SelectionError, resolve};
 
-fn ids(selection: &Selection) -> Result<Vec<&'static str>, String> {
+fn ids(selection: &Selection) -> Result<Vec<&'static str>, SelectionError> {
     resolve(selection).map(|targets| targets.iter().map(|t| t.id()).collect())
 }
 
@@ -47,9 +47,12 @@ fn an_unknown_id_fails_the_whole_request() {
         "opencodee".to_owned(),
     ]))
     .expect_err("a typo must not be silently skipped");
-    assert!(err.contains("opencodee"), "{err}");
     assert!(
-        err.contains("known ids"),
+        matches!(&err, SelectionError::Unknown { id, .. } if id == "opencodee"),
+        "{err:?}"
+    );
+    assert!(
+        err.to_string().contains("known ids"),
         "the error has to say what is valid: {err}"
     );
 }

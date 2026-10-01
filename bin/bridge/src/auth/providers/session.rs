@@ -57,13 +57,16 @@ impl AuthProvider for SessionProvider {
 }
 
 pub async fn capture_device_link_code(base_url: &ValidatedUrl) -> Result<String, AuthError> {
-    let server = LoopbackServer::bind().await.map_err(|e| {
-        diag(&format!("loopback callback listener unavailable: {e}"));
-        AuthError::Failed {
-            provider: "session",
-            source: AuthFailedSource::Loopback(e),
-        }
-    })?;
+    let server = match LoopbackServer::bind().await {
+        Ok(server) => server,
+        Err(e) => {
+            diag(&format!("loopback callback listener unavailable: {e}"));
+            return Err(AuthError::Failed {
+                provider: "session",
+                source: AuthFailedSource::Loopback(e),
+            });
+        },
+    };
     capture_on(server, base_url).await
 }
 

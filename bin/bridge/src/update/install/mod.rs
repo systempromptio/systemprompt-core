@@ -91,9 +91,6 @@ pub(crate) fn installed_path() -> Result<PathBuf, UpdateError> {
 }
 
 pub(crate) fn running_exe() -> Result<PathBuf, UpdateError> {
-    let exe = std::env::current_exe().map_err(|e| UpdateError::LocateInstall {
-        what: "executable",
-        detail: e.to_string(),
-    })?;
+    let exe = std::env::current_exe().map_err(UpdateError::LocateExe)?;
     Ok(std::fs::canonicalize(&exe).unwrap_or(exe))
 }

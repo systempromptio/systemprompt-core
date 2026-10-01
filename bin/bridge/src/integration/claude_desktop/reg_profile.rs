@@ -54,9 +54,9 @@ pub fn profile_entries(inputs: &ProfileGenInputs) -> Result<Vec<(&'static str, S
     } else {
         Some(
             serde_json::to_string(&with_context_variants(&inputs.models, &inputs.model_limits))
-                .map_err(|e| MdmError::InvalidConfig {
+                .map_err(|source| MdmError::ConfigJson {
                     key: "inferenceModels",
-                    detail: e.to_string(),
+                    source,
                 })?,
         )
     };

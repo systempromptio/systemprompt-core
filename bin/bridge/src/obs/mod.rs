@@ -3,8 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub use error::{LogFileError, LoggingInitError};
 pub use tracing_init::{init, install_panic_hook, log_dir, log_file_path, logging_fault};
 
+mod error;
 mod format;
 
 /// A start-up step that failed without stopping the process.
@@ -38,19 +40,22 @@ impl std::fmt::Display for StartupFault {
 
 pub mod tracing_init {
     use std::path::PathBuf;
-    use std::sync::OnceLock;
+    use std::sync::{Arc, OnceLock};
 
     use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
     use tracing_appender::rolling::{RollingFileAppender, Rotation};
     use tracing_subscriber::EnvFilter;
 
+    use super::error::{LogFileError, LoggingInitError};
     use super::format::{BridgeFormat, TeeWriter};
 
     // Why: the log file is diagnostics, not a dependency. A missing home or
     // an unwritable log directory must not stop `doctor` from running;
     // stderr still gets every WARN and the fault travels with the
     // initialisation outcome so `logging_fault` can report it.
-    static INIT: OnceLock<Result<Option<String>, String>> = OnceLock::new();
+    type InitOutcome = Result<Option<Arc<LogFileError>>, Arc<LoggingInitError>>;
+
+    static INIT: OnceLock<InitOutcome> = OnceLock::new();
     static GUARD: OnceLock<WorkerGuard> = OnceLock::new();
     pub(super) static FILE_WRITER: OnceLock<NonBlocking> = OnceLock::new();
 
@@ -59,13 +64,13 @@ pub mod tracing_init {
             .is_ok_and(|v| v.eq_ignore_ascii_case("json"))
     }
 
-    pub fn init() -> Result<(), String> {
+    pub fn init() -> Result<(), Arc<LoggingInitError>> {
         INIT.get_or_init(|| {
-            let file_fault = install_file_writer().err();
+            let file_fault = install_file_writer().err().map(Arc::new);
             let filter = match EnvFilter::try_from_default_env() {
                 Ok(filter) => filter,
                 Err(e) if std::env::var_os("RUST_LOG").is_some() => {
-                    return Err(format!("RUST_LOG: {e}"));
+                    return Err(Arc::new(LoggingInitError::Filter(e)));
                 },
                 Err(_) => EnvFilter::new("info,systemprompt_bridge::proxy=debug"),
             };
@@ -76,14 +81,14 @@ pub mod tracing_init {
                     .json()
                     .flatten_event(true)
                     .try_init()
-                    .map_err(|e| format!("initialize tracing: {e}"))?;
+                    .map_err(|e| Arc::new(LoggingInitError::Subscriber(e)))?;
             } else {
                 tracing_subscriber::fmt()
                     .with_writer(TeeWriter)
                     .with_env_filter(filter)
                     .event_format(BridgeFormat)
                     .try_init()
-                    .map_err(|e| format!("initialize tracing: {e}"))?;
+                    .map_err(|e| Arc::new(LoggingInitError::Subscriber(e)))?;
             }
             Ok(file_fault)
         })
@@ -91,17 +96,22 @@ pub mod tracing_init {
         .map(|_fault| ())
     }
 
-    fn install_file_writer() -> Result<(), String> {
-        let dir = log_dir().ok_or_else(|| "cannot resolve bridge log directory".to_owned())?;
-        std::fs::create_dir_all(&dir)
-            .map_err(|e| format!("create log directory {}: {e}", dir.display()))?;
+    fn install_file_writer() -> Result<(), LogFileError> {
+        let dir = log_dir().ok_or(LogFileError::NoDirectory)?;
+        std::fs::create_dir_all(&dir).map_err(|source| LogFileError::CreateDir {
+            path: dir.clone(),
+            source,
+        })?;
         let appender = RollingFileAppender::builder()
             .rotation(Rotation::DAILY)
             .filename_prefix("bridge")
             .filename_suffix("log")
             .max_log_files(7)
             .build(&dir)
-            .map_err(|e| format!("open log directory {}: {e}", dir.display()))?;
+            .map_err(|source| LogFileError::Open {
+                path: dir.clone(),
+                source,
+            })?;
         // Why: the log is the evidence for every failed subcommand; dropping
         // lines under back-pressure would lose exactly the burst that matters.
         let (writer, guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
@@ -109,14 +119,14 @@ pub mod tracing_init {
             .finish(appender);
         GUARD
             .set(guard)
-            .map_err(|_guard| "logging worker already installed".to_owned())?;
+            .map_err(|_guard| LogFileError::WorkerInstalled)?;
         FILE_WRITER
             .set(writer)
-            .map_err(|_writer| "logging writer already installed".to_owned())?;
+            .map_err(|_writer| LogFileError::WriterInstalled)?;
         Ok(())
     }
 
-    pub fn logging_fault() -> Option<String> {
+    pub fn logging_fault() -> Option<Arc<LogFileError>> {
         INIT.get().and_then(|init| init.as_ref().ok()?.clone())
     }
 

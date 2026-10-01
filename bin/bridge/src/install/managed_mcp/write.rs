@@ -57,7 +57,7 @@ pub(super) fn clear_elevated(
         &script,
         "Bridge needs administrator privileges to remove the Claude Code enterprise MCP policy.",
     )
-    .map_err(std::io::Error::from)?;
+    .map_err(std::io::Error::other)?;
     verify_removal(mcp_path, settings_path, stripped_settings_body)
 }
 
@@ -90,12 +90,17 @@ pub(super) fn clear_elevated(
     let stage_dir = staging
         .as_ref()
         .map_or_else(std::env::temp_dir, |(dir, _)| dir.path().to_path_buf());
-    let receipt = crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?;
+    let receipt = crate::install::elevated_job::elevate_and_run(&stage_dir, &job)
+        .map_err(std::io::Error::other)?;
     for file in &job.managed_files {
-        receipt.require("install", &file.dest)?;
+        receipt
+            .require("install", &file.dest)
+            .map_err(std::io::Error::other)?;
     }
     for path in &job.remove_files {
-        receipt.require("remove", path)?;
+        receipt
+            .require("remove", path)
+            .map_err(std::io::Error::other)?;
     }
     verify_removal(mcp_path, settings_path, stripped_settings_body)
 }

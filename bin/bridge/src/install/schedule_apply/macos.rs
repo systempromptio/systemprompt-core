@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::{InstallError, ScheduleRemoval, home, write};
+use crate::install::SchedulerError;
 use crate::schedule::{self, Os};
 
 fn gui_domain() -> String {
@@ -31,18 +32,8 @@ pub(super) fn register(
     write(&path, rendered)?;
 
     let domain = gui_domain();
-    bootout(&domain, label).map_err(InstallError::ScheduleApply)?;
-    let status = Command::new("/bin/launchctl")
-        .args(["bootstrap", &domain])
-        .arg(&path)
-        .status()
-        .map_err(|e| InstallError::ScheduleApply(format!("launchctl bootstrap: {e}")))?;
-    if !status.success() {
-        return Err(InstallError::ScheduleApply(format!(
-            "launchctl bootstrap exited with {}",
-            status.code().unwrap_or(-1)
-        )));
-    }
+    bootout(&domain, label)?;
+    bootstrap(&domain, &path)?;
     Ok((
         path.clone(),
         vec![
@@ -57,18 +48,8 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
     let path = agents_dir()?.join(format!("{label}.plist"));
     write(&path, rendered)?;
     let domain = gui_domain();
-    bootout(&domain, label).map_err(InstallError::ScheduleApply)?;
-    let status = Command::new("/bin/launchctl")
-        .args(["bootstrap", &domain])
-        .arg(&path)
-        .status()
-        .map_err(|e| InstallError::ScheduleApply(format!("launchctl bootstrap: {e}")))?;
-    if !status.success() {
-        return Err(InstallError::ScheduleApply(format!(
-            "launchctl bootstrap exited with {}",
-            status.code().unwrap_or(-1)
-        )));
-    }
+    bootout(&domain, label)?;
+    bootstrap(&domain, &path)?;
     Ok(vec![format!("login agent: {label} (loaded in {domain})")])
 }
 
@@ -82,7 +63,7 @@ pub(super) fn remove_autostart() -> ScheduleRemoval {
         return ScheduleRemoval::NotInstalled(label.to_owned());
     }
     if let Err(e) = bootout(&gui_domain(), label) {
-        return ScheduleRemoval::Failed(e);
+        return ScheduleRemoval::Failed(e.to_string());
     }
     match fs::remove_file(&path) {
         Ok(()) => ScheduleRemoval::Removed(label.to_owned()),
@@ -123,7 +104,7 @@ pub(super) fn remove_current() -> ScheduleRemoval {
         return ScheduleRemoval::NotInstalled(label.to_owned());
     }
     if let Err(e) = bootout(&gui_domain(), label) {
-        return ScheduleRemoval::Failed(e);
+        return ScheduleRemoval::Failed(e.to_string());
     }
     match fs::remove_file(&path) {
         Ok(()) => ScheduleRemoval::Removed(label.to_owned()),
@@ -131,19 +112,42 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     }
 }
 
-fn bootout(domain: &str, label: &str) -> Result<(), String> {
-    let target = format!("{domain}/{label}");
+fn bootstrap(domain: &str, path: &Path) -> Result<(), SchedulerError> {
+    let command = "launchctl bootstrap".to_owned();
+    let status = Command::new("/bin/launchctl")
+        .args(["bootstrap", domain])
+        .arg(path)
+        .status()
+        .map_err(|source| SchedulerError::Spawn {
+            command: command.clone(),
+            source,
+        })?;
+    if status.success() {
+        return Ok(());
+    }
+    Err(SchedulerError::Exited {
+        command,
+        code: status.code().unwrap_or(-1),
+        stderr: String::new(),
+    })
+}
+
+fn bootout(domain: &str, label: &str) -> Result<(), SchedulerError> {
+    let command = format!("launchctl bootout {domain}/{label}");
     let output = Command::new("/bin/launchctl")
-        .args(["bootout", &target])
+        .args(["bootout", &format!("{domain}/{label}")])
         .output()
-        .map_err(|e| format!("launchctl bootout {target}: {e}"))?;
+        .map_err(|source| SchedulerError::Spawn {
+            command: command.clone(),
+            source,
+        })?;
     // Why: launchctl reports ESRCH (3) when the service target is not loaded.
     if output.status.success() || output.status.code() == Some(3) {
         return Ok(());
     }
-    Err(format!(
-        "launchctl bootout {target}: {}: {}",
-        output.status,
-        String::from_utf8_lossy(&output.stderr).trim()
-    ))
+    Err(SchedulerError::Exited {
+        command,
+        code: output.status.code().unwrap_or(-1),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    })
 }

@@ -19,7 +19,7 @@ use systemprompt_bridge::integration::HostApp;
 use systemprompt_bridge::integration::hermes::{
     HERMES_HOST, contract, install_profile_into, remove_profile_from,
 };
-use systemprompt_bridge::integration::host_app::{ProfileGenInputs, ProfileRemoval};
+use systemprompt_bridge::integration::host_app::{HostAppError, ProfileGenInputs, ProfileRemoval};
 
 const GATEWAY: &str = "http://127.0.0.1:48217";
 const MODEL: &str = "claude-haiku-4-5";
@@ -240,7 +240,10 @@ fn a_config_yaml_whose_root_is_not_a_mapping_is_refused_and_left_untouched() {
         .expect_err("a foreign root shape is refused, not replaced");
     std::fs::remove_file(&generated.path).ok();
 
-    assert_eq!(err.kind(), std::io::ErrorKind::InvalidData, "{err}");
+    assert!(
+        matches!(err, HostAppError::ForeignShape(ref shape) if shape.key == "<root>"),
+        "a foreign root is a typed foreign-shape refusal: {err:?}"
+    );
     assert_eq!(
         std::fs::read_to_string(&config).expect("read config.yaml"),
         original,

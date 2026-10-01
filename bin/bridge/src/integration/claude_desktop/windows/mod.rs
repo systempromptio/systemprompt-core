@@ -5,9 +5,10 @@
 
 #![cfg(target_os = "windows")]
 
-
+mod org_plugins;
 mod writer;
 
+use self::org_plugins::require_org_plugins_provisioned;
 use self::writer::install_through_writer;
 use super::shared::{
     API_KEY_KEY, DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs,
@@ -16,8 +17,19 @@ use super::shared::{
 use crate::config::store::{
     PolicyWrite, clear_managed_claude_policy, machine_claude_policy_keys, managed_policy_store,
 };
-use crate::integration::host_app::{GeneratedProfile, ProfileInstalled, ProfileRemoval};
+use crate::install::approval::ApprovalRefusal;
+use crate::integration::host_app::{
+    GeneratedProfile, HostAppError, ProfileInstalled, ProfileRemoval,
+};
 use crate::winproc;
+
+#[derive(Debug, thiserror::Error)]
+#[error("policy written to {hive} and read back, but org-plugins is not usable: {source}")]
+struct OrgPluginsUnusable {
+    hive: &'static str,
+    #[source]
+    source: std::io::Error,
+}
 
 pub(super) fn read_domain(domain: &str) -> DomainRead {
     let mut out = DomainRead::default();
@@ -90,7 +102,7 @@ fn is_cli_image(path: Option<&str>) -> bool {
     })
 }
 
-pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfile, HostAppError> {
     let uuids = crate::integration::generated_profile::profile_uuids();
     let body = super::reg_profile::render_reg(winproc::is_elevated(), inputs)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
@@ -105,11 +117,11 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     })
 }
 
-pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
+pub(super) fn install_profile(path: &str) -> Result<ProfileInstalled, HostAppError> {
     install_profile_with(path, Attendance::Attended)
 }
 
-pub(super) fn install_profile_unattended(path: &str) -> std::io::Result<ProfileInstalled> {
+pub(super) fn install_profile_unattended(path: &str) -> Result<ProfileInstalled, HostAppError> {
     install_profile_with(path, Attendance::Unattended)
 }
 
@@ -119,7 +131,10 @@ enum Attendance {
     Unattended,
 }
 
-fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<ProfileInstalled> {
+fn install_profile_with(
+    path: &str,
+    attendance: Attendance,
+) -> Result<ProfileInstalled, HostAppError> {
     let elevated = winproc::is_elevated();
     tracing::info!(path, elevated, "installing Claude Desktop profile");
     let body = std::fs::read_to_string(path)?;
@@ -132,9 +147,9 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
         "parsed staged registry profile"
     );
     if entries.is_empty() {
-        return Err(std::io::Error::other(
-            "staged registry profile contained no policy values",
-        ));
+        return Err(
+            std::io::Error::other("staged registry profile contained no policy values").into(),
+        );
     }
     // Why: an ordinary process writes the per-user policy, which Claude honours
     // while no machine policy exists. A machine policy that already holds other
@@ -161,7 +176,7 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
                     differing = ?differing,
                     "machine policy holds other values; an unattended repair cannot replace it"
                 );
-                return Err(crate::install::approval::ApprovalRefusal::NeedsPrompt {
+                return Err(ApprovalRefusal::NeedsPrompt {
                     reason: "the machine policy holds other values; replacing it needs \
                              administrator approval — use Repair",
                 }
@@ -176,7 +191,7 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
         },
         Err(e) => {
             tracing::error!(error = %e, path, "managed Claude policy write failed");
-            return Err(std::io::Error::other(e.to_string()));
+            return Err(std::io::Error::other(e).into());
         },
     };
     match outcome.outcome() {
@@ -192,11 +207,11 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
     // a verification that cannot run afterwards is a warning, because the
     // directory and its grant are already in place and a failed step would
     // send the operator to re-run work that succeeded.
-    let outcome = require_org_plugins_provisioned(elevated).map_err(|e| {
-        std::io::Error::other(format!(
-            "policy written to {} and read back, but org-plugins is not usable: {e}",
-            crate::config::store::hive_for(elevated).label()
-        ))
+    let outcome = require_org_plugins_provisioned(elevated).map_err(|source| {
+        std::io::Error::other(OrgPluginsUnusable {
+            hive: crate::config::store::hive_for(elevated).label(),
+            source,
+        })
     })?;
     tracing::info!(
         value_count = entries.len(),
@@ -205,7 +220,7 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
     Ok(outcome)
 }
 
-fn install_profile_elevated(path: &str) -> std::io::Result<ProfileInstalled> {
+fn install_profile_elevated(path: &str) -> Result<ProfileInstalled, HostAppError> {
     let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
     let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
     std::fs::create_dir_all(&stage_dir)?;
@@ -227,50 +242,13 @@ fn install_profile_elevated(path: &str) -> std::io::Result<ProfileInstalled> {
     Ok(ProfileInstalled::ok())
 }
 
-fn require_org_plugins_provisioned(elevated: bool) -> std::io::Result<ProfileInstalled> {
-    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
-    if elevated {
-        crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user).map_err(
-            |e| {
-                tracing::error!(error = %e, "org-plugins provisioning failed");
-                std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
-            },
-        )?;
-        // Why: PermissionDenied is the check's verdict (the unelevated user
-        // lacks Modify), not a failure to run it — that must fail the install.
-        Ok(match crate::windows_acl::verify_modify_tree(&org.path) {
-            Ok(()) => ProfileInstalled::ok(),
-            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => return Err(e),
-            Err(e) => {
-                tracing::warn!(
-                    error = %e,
-                    path = %org.path.display(),
-                    "org-plugins provisioned; Modify verification could not run"
-                );
-                ProfileInstalled::with_warning(format!(
-                    "org-plugins provisioned at {} but the Modify check could not run ({e}); \
-                     run `doctor` to confirm the grant",
-                    org.path.display()
-                ))
-            },
-        })
-    } else if org.path.is_dir() {
-        Ok(ProfileInstalled::ok())
-    } else {
-        Err(std::io::Error::other(format!(
-            "{} is not provisioned; run install --apply as Administrator",
-            org.path.display()
-        )))
-    }
-}
-
-pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
+pub(super) fn remove_profile() -> Result<ProfileRemoval, HostAppError> {
     let elevated = winproc::is_elevated();
-    let removed = clear_managed_claude_policy(elevated, KEYS_OF_INTEREST)
-        .map_err(|e| std::io::Error::other(e.to_string()))?;
+    let removed =
+        clear_managed_claude_policy(elevated, KEYS_OF_INTEREST).map_err(std::io::Error::other)?;
     if !elevated {
-        let machine_keys = machine_claude_policy_keys(KEYS_OF_INTEREST)
-            .map_err(|e| std::io::Error::other(e.to_string()))?;
+        let machine_keys =
+            machine_claude_policy_keys(KEYS_OF_INTEREST).map_err(std::io::Error::other)?;
         if !machine_keys.is_empty() {
             return Ok(ProfileRemoval::ManualStepRequired {
                 instruction: format!(

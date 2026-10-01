@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use systemprompt_identifiers::ValidatedUrl;
 
-pub use errors::GatewayError;
+pub use errors::{GatewayError, GatewayRejection};
 pub use fetch::Freshness;
 pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};
 
@@ -83,6 +83,28 @@ impl GatewayClient {
     pub(super) fn url(&self, path: &str) -> String {
         format!("{}{}", self.base_url.as_str().trim_end_matches('/'), path)
     }
+}
+
+pub(crate) async fn ensure_success(
+    resp: reqwest::Response,
+    endpoint: &'static str,
+) -> Result<reqwest::Response, GatewayError> {
+    if resp.status().is_success() {
+        return Ok(resp);
+    }
+    let (status, rejection) = GatewayRejection::read(resp).await;
+    tracing::warn!(
+        endpoint,
+        %status,
+        code = rejection.code.as_deref(),
+        error_key = rejection.error_key.as_deref(),
+        "gateway rejected the request"
+    );
+    Err(GatewayError::Rejected {
+        endpoint,
+        status,
+        rejection,
+    })
 }
 
 pub(super) fn record_span(resp: &reqwest::Response, started: Instant) {

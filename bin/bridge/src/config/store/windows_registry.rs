@@ -231,5 +231,8 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
         .map_or(slice, |end| &slice[..end]);
     String::from_utf16(trimmed)
         .map(Some)
-        .map_err(|e| ConfigStoreError::Backend(format!("registry value {name}: {e}")))
+        .map_err(|source| ConfigStoreError::Decode {
+            context: format!("registry value {name}"),
+            source: Box::new(source),
+        })
 }

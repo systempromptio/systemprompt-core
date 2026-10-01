@@ -7,16 +7,16 @@
 
 use super::{ApplyReport, HostFailure};
 use crate::gateway::manifest::SignedManifest;
-use crate::host_sync::{HostSync, HostSyncCtx, HostWarningKind, HostWarnings};
+use crate::host_sync::{HostSync, HostSyncCtx, HostWarning, HostWarningKind};
 use crate::ids::HostId;
 
 pub(super) async fn capture(
     emitters: &[&'static dyn HostSync],
     manifest: &SignedManifest,
     ctx: &HostSyncCtx<'_>,
-    warnings: &HostWarnings,
     report: &mut ApplyReport,
-) {
+) -> Vec<HostWarning> {
+    let mut warnings = Vec::new();
     let hosts: Vec<&str> = emitters
         .iter()
         .map(|emitter| emitter.host_id())
@@ -44,19 +44,19 @@ pub(super) async fn capture(
         match captured {
             Ok(outcome) => {
                 if let Some(note) = outcome.pending_note() {
-                    warnings.push(
+                    warnings.push(HostWarning::raise(
                         HostWarningKind::EvidenceUnacknowledged,
                         host_id,
                         format!("Installation evidence pending: {note}"),
-                    );
+                    ));
                 }
             },
             Err(error) => {
-                warnings.push(
+                warnings.push(HostWarning::raise(
                     HostWarningKind::EvidenceUnacknowledged,
                     host_id,
                     format!("Installation evidence unacknowledged: {error}"),
-                );
+                ));
                 if matches!(
                     error,
                     crate::feedback::FeedbackError::Readback(_)
@@ -72,4 +72,5 @@ pub(super) async fn capture(
             },
         }
     }
+    warnings
 }

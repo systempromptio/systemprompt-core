@@ -40,8 +40,8 @@ fn remove_hosts(selection: &Selection) -> ExitCode {
                 ExitCode::SUCCESS
             }
         },
-        Err(msg) => {
-            diag(&msg);
+        Err(e) => {
+            diag(&e.to_string());
             ExitCode::from(64)
         },
     }

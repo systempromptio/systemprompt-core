@@ -49,19 +49,10 @@ pub struct HostWarning {
     pub message: String,
 }
 
-/// Warnings a host sync raises without failing. Shared by every emitter of one
-/// run; drained into `SyncSummary.host_warnings` when the run ends.
-#[derive(Debug, Default)]
-pub struct HostWarnings(std::sync::Mutex<Vec<HostWarning>>);
-
-impl HostWarnings {
+impl HostWarning {
     #[must_use]
-    pub const fn new() -> Self {
-        Self(std::sync::Mutex::new(Vec::new()))
-    }
-
-    pub fn push(&self, kind: HostWarningKind, host_id: &str, message: impl Into<String>) {
-        let warning = HostWarning {
+    pub fn raise(kind: HostWarningKind, host_id: &str, message: impl Into<String>) -> Self {
+        let warning = Self {
             kind,
             host_id: HostId::new(host_id),
             message: message.into(),
@@ -73,27 +64,37 @@ impl HostWarnings {
             warning = %warning.message,
             "host sync warning"
         );
-        self.0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(warning);
+        warning
+    }
+}
+
+/// What a host sync that completed reports back: the warnings it raised
+/// without failing. It is the return value of [`HostSync::apply`], so a
+/// degraded sync cannot report success without the caller seeing why.
+#[derive(Debug, Default)]
+pub struct HostSyncReport {
+    pub warnings: Vec<HostWarning>,
+}
+
+impl HostSyncReport {
+    #[must_use]
+    pub fn ok() -> Self {
+        Self::default()
     }
 
-    #[must_use]
-    pub fn drain(&self) -> Vec<HostWarning> {
-        std::mem::take(
-            &mut *self
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-        )
+    pub fn warn(&mut self, kind: HostWarningKind, host_id: &str, message: impl Into<String>) {
+        self.warnings
+            .push(HostWarning::raise(kind, host_id, message));
+    }
+
+    pub fn merge(&mut self, other: Self) {
+        self.warnings.extend(other.warnings);
     }
 }
 
 #[derive(Debug)]
 pub struct HostSyncCtx<'a> {
     pub policy_store: &'a crate::config::store::PolicyStore,
-    pub warnings: &'a HostWarnings,
     pub manifest: &'a SignedManifest,
     pub org_plugins_root: &'a Path,
     pub plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,
@@ -116,7 +117,7 @@ pub trait HostSync: std::any::Any + Send + Sync + 'static {
     fn emitter_id(&self) -> &'static str {
         self.host_id()
     }
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError>;
     fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
 }
 
@@ -172,7 +173,7 @@ pub fn registry() -> &'static [&'static dyn HostSync] {
     REGISTRY.as_slice()
 }
 
-pub fn log_outcome(emitter: &dyn HostSync, enabled: bool, outcome: Result<(), ApplyError>) {
+pub fn log_outcome(emitter: &dyn HostSync, enabled: bool, outcome: Result<(), &ApplyError>) {
     let action = if enabled { "apply" } else { "clear" };
     match outcome {
         Ok(()) => tracing::info!(

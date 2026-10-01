@@ -23,6 +23,22 @@ use crate::proxy::mcp_probe::{McpAuthState, McpServerAuth};
 
 const FILE: &str = "mcp-tools.json";
 
+#[derive(Debug, thiserror::Error)]
+enum CatalogFileError {
+    #[error("{}: {source}", .path.display())]
+    Decode {
+        path: PathBuf,
+        #[source]
+        source: serde_json::Error,
+    },
+    #[error("{}: {source}", .path.display())]
+    Read {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+}
+
 pub type ToolCatalog = BTreeMap<String, Vec<String>>;
 
 fn path() -> Option<PathBuf> {
@@ -34,16 +50,16 @@ pub fn read() -> std::io::Result<ToolCatalog> {
         return Ok(ToolCatalog::new());
     };
     match std::fs::read_to_string(&path) {
-        Ok(body) => serde_json::from_str(&body).map_err(|e| {
+        Ok(body) => serde_json::from_str(&body).map_err(|source| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("{}: {e}", path.display()),
+                CatalogFileError::Decode { path, source },
             )
         }),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(ToolCatalog::new()),
-        Err(e) => Err(std::io::Error::new(
-            e.kind(),
-            format!("{}: {e}", path.display()),
+        Err(source) => Err(std::io::Error::new(
+            source.kind(),
+            CatalogFileError::Read { path, source },
         )),
     }
 }

@@ -27,7 +27,7 @@ pub(crate) mod xml;
 
 pub use apply::install;
 pub use builders::InstallOptionsBuilder;
-pub use error::InstallError;
+pub use error::{InstallError, SchedulerError};
 pub use mdm::{
     MdmError, MdmPayloadInputs, bridge_policy_values, cowork_egress_allowed_hosts,
     default_inference_models, is_uuid_like, parse_egress_allowed_hosts, snippet as mdm_snippet,

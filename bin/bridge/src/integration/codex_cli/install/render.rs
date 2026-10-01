@@ -15,12 +15,12 @@ use super::super::config::{
 };
 use super::super::probe::write_dotted;
 use crate::integration::config_read::ForeignShape;
-use crate::integration::host_app::ProfileGenInputs;
+use crate::integration::host_app::{HostAppError, ProfileGenInputs};
 
 const PROVIDER_ID: &str = "systemprompt";
 const MOBILECONFIG_TMPL: &str = include_str!("../templates/codex_managed.mobileconfig.tmpl");
 
-pub(super) fn managed_toml(inputs: &ProfileGenInputs) -> std::io::Result<String> {
+pub(super) fn managed_toml(inputs: &ProfileGenInputs) -> Result<String, HostAppError> {
     let exe = std::env::current_exe()?;
     let helper_bin = exe.canonicalize().unwrap_or(exe).display().to_string();
     let tenant = inputs.organization_uuid.clone().unwrap_or_default();
@@ -32,7 +32,8 @@ pub(super) fn managed_toml(inputs: &ProfileGenInputs) -> std::io::Result<String>
     write_otel_block(&mut value, gateway)?;
     write_models_block(&mut value, &inputs.models)?;
 
-    toml::to_string(&value).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    toml::to_string(&value)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e).into())
 }
 
 #[expect(

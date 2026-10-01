@@ -13,7 +13,7 @@ pub(super) async fn seed_default_model_from_profile(
         Ok(profile) => profile,
         // Why: a gateway older than the profile endpoint has no default model
         // to seed; the sync itself completed and its checkpoint is written.
-        Err(crate::gateway::GatewayError::HttpStatus {
+        Err(crate::gateway::GatewayError::Rejected {
             status: reqwest::StatusCode::NOT_FOUND,
             ..
         }) => return Ok(()),

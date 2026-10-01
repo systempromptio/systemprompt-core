@@ -41,8 +41,10 @@ impl ConfigStore for MacOsManagedPrefsStore {
         let path = super::macos_plist_store::plist_path(hive).ok_or_else(|| {
             ConfigStoreError::Backend("per-user policy path unresolvable".to_owned())
         })?;
-        path.try_exists()
-            .map_err(|e| ConfigStoreError::Backend(format!("{}: {e}", path.display())))
+        path.try_exists().map_err(|source| ConfigStoreError::Io {
+            context: path.display().to_string(),
+            source,
+        })
     }
     fn read_managed_policy(&self, key: &str) -> Result<Option<String>, ConfigStoreError> {
         synchronize_domain()?;

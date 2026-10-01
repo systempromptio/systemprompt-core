@@ -61,9 +61,8 @@ pub async fn download_verified(
         .await
         .map_err(|e| UpdateError::Download(Box::new(e)))?;
     if !resp.status().is_success() {
-        return Err(UpdateError::DownloadStatus {
-            status: resp.status(),
-        });
+        let (status, rejection) = crate::gateway::GatewayRejection::read(resp).await;
+        return Err(UpdateError::DownloadStatus { status, rejection });
     }
 
     let digest = stream_to_file(resp, &tmp, manifest.size, on_progress).await?;

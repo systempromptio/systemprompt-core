@@ -37,16 +37,15 @@ use systemprompt_identifiers::MarketplaceId;
 pub use bundle::filter_skills_for_host;
 use bundle::{mirror_plugin, remove_dir, remove_stale_children};
 use installed::{strip_installed_plugins, upsert_installed_plugins};
-pub(crate) use layout::marketplace_dir;
 use layout::{cache_dir, cache_install_dir, source_plugin_dir};
+pub(crate) use layout::{feedback_skill_roots, marketplace_dir};
 pub use marketplace::{HostMarketplace, Mirrored, host_marketplaces};
 use marketplace::{
     set_enabled, strip_known_marketplace, upsert_known_marketplace, write_marketplace_json,
 };
 
 use crate::config::paths;
-use crate::gateway::manifest::SignedManifest;
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 use crate::ids::PluginId;
 
 pub const HOST_ID: &str = "claude-code";
@@ -59,7 +58,7 @@ impl HostSync for ClaudeCodeCliSync {
         HOST_ID
     }
 
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         apply_install(ctx)
     }
 
@@ -83,14 +82,15 @@ pub(crate) fn claude_cli_installed() -> bool {
     crate::sysproc::binary_on_path("claude").is_some()
 }
 
-fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
+    let mut report = HostSyncReport::ok();
     let Some(plugins) = paths::claude_cli_plugins_dir() else {
         tracing::warn!(
             target: "bridge::claude-code-cli",
             "skipped: no home directory could be resolved, so ~/.claude/plugins has no location — \
              org plugins will NOT appear in `claude plugin list`"
         );
-        return Ok(());
+        return Ok(report);
     };
     if !claude_cli_installed() {
         tracing::info!(
@@ -99,21 +99,22 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
             "skipped: the standalone Claude Code CLI is not installed (no `claude` on PATH and no \
              ~/.claude); install it and re-run `sync` to receive org plugins"
         );
-        return Ok(());
+        return Ok(report);
     }
 
     let manifest = ctx.manifest;
     let marketplaces = host_marketplaces(manifest);
     if marketplaces.is_empty() {
         if !manifest.plugins.is_empty() {
-            ctx.warnings.push(
+            report.warn(
                 crate::host_sync::HostWarningKind::Manifest,
                 HOST_ID,
                 "the manifest carries plugins but names no marketplace; nothing was mirrored \
                  for the Claude Code CLI — upgrade the gateway",
             );
         }
-        return clear_install();
+        clear_install()?;
+        return Ok(report);
     }
 
     crate::install::managed_mcp::clear_policy().map_err(|source| ApplyError::Io {
@@ -125,7 +126,7 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
     let mut mirrored = Vec::with_capacity(marketplaces.len());
     let mut foreign = ForeignRefs::default();
     for marketplace in &marketplaces {
-        let (done, refs) = mirror_marketplace(ctx, &plugins, marketplace, &current)?;
+        let (done, refs) = mirror_marketplace(ctx, &mut report, &plugins, marketplace, &current)?;
         mirrored.push(done);
         foreign.extend(refs);
     }
@@ -149,7 +150,7 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
             external_marketplaces: foreign.external_names(),
         },
     )?;
-    permissions::apply_client_settings(ctx)?;
+    report.merge(permissions::apply_client_settings(ctx)?);
 
     tracing::info!(
         target: "bridge::claude-code-cli",
@@ -157,11 +158,12 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         plugins = mirrored.iter().map(|m| m.plugin_ids.len()).sum::<usize>(),
         "installed and enabled org plugins for the standalone Claude Code CLI"
     );
-    Ok(())
+    Ok(report)
 }
 
 fn mirror_marketplace(
     ctx: &HostSyncCtx<'_>,
+    report: &mut HostSyncReport,
     plugins: &Path,
     marketplace: &HostMarketplace,
     all_mirrored: &[MarketplaceId],
@@ -177,7 +179,7 @@ fn mirror_marketplace(
     let mut entries = Vec::with_capacity(marketplace.plugin_ids.len());
     for id in &marketplace.plugin_ids {
         let Some(version) = versions.get(id.as_str()) else {
-            ctx.warnings.push(
+            report.warn(
                 crate::host_sync::HostWarningKind::Manifest,
                 HOST_ID,
                 format!(
@@ -271,29 +273,3 @@ pub(crate) fn clear_install() -> Result<(), ApplyError> {
 }
 
 crate::register_host_sync!(ClaudeCodeCliSync);
-
-pub(crate) fn feedback_skill_roots(
-    manifest: &SignedManifest,
-    skill: &crate::gateway::manifest::SkillEntry,
-) -> Vec<PathBuf> {
-    if !claude_cli_installed() {
-        return Vec::new();
-    }
-    let Some(plugins) = paths::claude_cli_plugins_dir() else {
-        return Vec::new();
-    };
-    host_marketplaces(manifest)
-        .iter()
-        .flat_map(|marketplace| {
-            marketplace
-                .plugin_ids
-                .iter()
-                .filter(|id| skill.plugins.contains(id))
-                .map(|plugin| {
-                    cache_install_dir(&plugins, &marketplace.id, plugin)
-                        .join("skills")
-                        .join(skill.id.as_str().replace('_', "-"))
-                })
-        })
-        .collect()
-}

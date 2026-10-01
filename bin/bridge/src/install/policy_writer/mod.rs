@@ -178,6 +178,8 @@ pub enum PolicyWriterError {
     NotRegistered,
     #[error("the policy writer task is registered but {0}")]
     Unavailable(String),
+    #[error("policy written through the elevated writer, but org-plugins is not usable: {0}")]
+    OrgPluginsUnusable(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
     #[error("the policy writer did not answer within {RESULT_TIMEOUT_SECS}s")]
     Timeout,
     #[error("policy writer result: {0}")]
@@ -208,10 +210,8 @@ pub fn verify_against_anchor(
     request: &PolicyWriteRequest,
     anchor: &crate::config::TrustRecord,
 ) -> Result<SignedManifest, PolicyWriterError> {
-    let requested =
-        systemprompt_identifiers::ValidatedUrl::try_new(&request.gateway).map_err(|e| {
-            PolicyWriterError::Anchor(crate::config::TrustError::InvalidPolicy(e.to_string()))
-        })?;
+    let requested = systemprompt_identifiers::ValidatedUrl::try_new(&request.gateway)
+        .map_err(|e| PolicyWriterError::Anchor(crate::config::TrustError::GatewayInvalid(e)))?;
     let requested = crate::config::GatewayIdentity::new(&requested)?;
     if requested != anchor.gateway {
         return Err(PolicyWriterError::GatewayMismatch {

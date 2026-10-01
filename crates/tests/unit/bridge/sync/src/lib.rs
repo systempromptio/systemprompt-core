@@ -17,6 +17,8 @@ mod hermes_managed_resources;
 #[cfg(test)]
 mod hooks_stamp;
 #[cfg(test)]
+mod host_sync_report;
+#[cfg(test)]
 mod mcp_sidecar_port_move;
 #[cfg(test)]
 mod opencode_managed_resources;

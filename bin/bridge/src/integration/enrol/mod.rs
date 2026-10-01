@@ -11,10 +11,9 @@
 pub mod claude_code;
 
 use crate::context::BridgeContext;
-use crate::install::approval::ApprovalRefusal;
 use crate::integration::host_app::{HostApp, ProbeEnv, ProfileRemoval};
 use crate::integration::profile_state::ProfileState;
-use crate::integration::reapply::ModelProtocolOverrides;
+use crate::integration::reapply::{ModelProtocolOverrides, ProfileFailure};
 use crate::integration::registry::{ResolvedHost, resolve_host};
 use crate::integration::sync_only::SyncOnlyAgent;
 
@@ -35,7 +34,7 @@ pub enum Outcome {
     Removed,
     NothingToRemove,
     ManualStep(String),
-    Failed(String),
+    Failed(ProfileFailure),
 }
 
 #[derive(Debug)]
@@ -52,6 +51,15 @@ impl Report {
     pub const fn is_failure(&self) -> bool {
         matches!(self.outcome, Outcome::Failed(_))
     }
+}
+
+/// A `--host` selection that names a host this build cannot act on.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum SelectionError {
+    #[error("--host {id}: this build does not offer the '{id}' host")]
+    Suppressed { id: String },
+    #[error("--host {id}: unknown host id; known ids: {known}")]
+    Unknown { id: String, known: String },
 }
 
 /// What one requested id turned out to be.
@@ -75,7 +83,7 @@ impl Target {
     }
 }
 
-pub fn resolve(selection: &Selection) -> Result<Vec<Target>, String> {
+pub fn resolve(selection: &Selection) -> Result<Vec<Target>, SelectionError> {
     let ids = match selection {
         Selection::All => {
             return Ok(super::host_apps()
@@ -93,15 +101,13 @@ pub fn resolve(selection: &Selection) -> Result<Vec<Target>, String> {
             ResolvedHost::Local(host) => targets.push(Target::Local(host)),
             ResolvedHost::SyncOnly(agent) => targets.push(Target::SyncOnly(agent)),
             ResolvedHost::Suppressed => {
-                return Err(format!(
-                    "--host {id}: this build does not offer the '{id}' host",
-                ));
+                return Err(SelectionError::Suppressed { id: id.clone() });
             },
             ResolvedHost::Unknown => {
-                return Err(format!(
-                    "--host {id}: unknown host id; known ids: {}",
-                    known()
-                ));
+                return Err(SelectionError::Unknown {
+                    id: id.clone(),
+                    known: known(),
+                });
             },
         }
     }
@@ -120,7 +126,7 @@ pub async fn enrol_hosts(
     selection: &Selection,
     overrides: &ModelProtocolOverrides,
     enabled: Option<Vec<String>>,
-) -> Result<Vec<Report>, String> {
+) -> Result<Vec<Report>, SelectionError> {
     let targets = resolve(selection)?;
     let env = ProbeEnv::for_bridge(bridge);
     let not_enabled = |id: &str| {
@@ -175,11 +181,11 @@ async fn enrol_one(
 ) -> (Outcome, Vec<String>) {
     let inputs = match super::reapply::build_profile_inputs(bridge, host, overrides).await {
         Ok(i) => i,
-        Err(e) => return (Outcome::Failed(e.to_string()), Vec::new()),
+        Err(e) => return (Outcome::Failed(e.into()), Vec::new()),
     };
     let generated = match host.generate_profile(&inputs) {
         Ok(g) => g,
-        Err(e) => return (Outcome::Failed(e.to_string()), Vec::new()),
+        Err(e) => return (Outcome::Failed(e.into()), Vec::new()),
     };
     match host.install_profile(&generated.path) {
         Ok(installed) => {
@@ -190,8 +196,8 @@ async fn enrol_one(
             };
             (outcome, installed.warnings)
         },
-        Err(e) if ApprovalRefusal::of(&e).is_some() => (Outcome::Declined, Vec::new()),
-        Err(e) => (Outcome::Failed(e.to_string()), Vec::new()),
+        Err(e) if e.is_refusal() => (Outcome::Declined, Vec::new()),
+        Err(e) => (Outcome::Failed(e.into()), Vec::new()),
     }
 }
 
@@ -248,7 +254,7 @@ pub fn render(reports: &[Report]) -> String {
     out
 }
 
-pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String> {
+pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, SelectionError> {
     let targets = resolve(selection)?;
     Ok(targets
         .into_iter()
@@ -271,8 +277,8 @@ pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String
                     Ok(ProfileRemoval::ManualStepRequired { instruction }) => {
                         Outcome::ManualStep(instruction)
                     },
-                    Err(e) if ApprovalRefusal::of(&e).is_some() => Outcome::Declined,
-                    Err(e) => Outcome::Failed(e.to_string()),
+                    Err(e) if e.is_refusal() => Outcome::Declined,
+                    Err(e) => Outcome::Failed(e.into()),
                 },
                 warnings: Vec::new(),
             },

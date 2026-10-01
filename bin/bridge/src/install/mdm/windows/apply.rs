@@ -53,13 +53,21 @@ pub(in crate::install::mdm) fn apply(
         if elevated {
             {
                 let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
-                    .map_err(|e| MdmError::Windows(e.to_string()))?;
-                crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
-                    .map_err(|e| {
-                        MdmError::Windows(format!("org-plugins provisioning failed: {e}"))
+                    .map_err(|e| MdmError::OrgPlugins {
+                        context: "location",
+                        source: e.into(),
                     })?;
-                crate::windows_acl::verify_modify_tree(&org.path)
-                    .map_err(|e| MdmError::Windows(e.to_string()))?;
+                crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
+                    .map_err(|e| MdmError::OrgPlugins {
+                        context: "provisioning failed",
+                        source: e.into(),
+                    })?;
+                crate::windows_acl::verify_modify_tree(&org.path).map_err(|e| {
+                    MdmError::OrgPlugins {
+                        context: "access check",
+                        source: e.into(),
+                    }
+                })?;
                 summary.push(format!(
                     "provisioned {} with a Modify grant for {}",
                     org.path.display(),
@@ -85,7 +93,7 @@ pub(in crate::install::mdm) fn apply(
                             .to_owned(),
                     );
                 },
-                Err(e) => return Err(MdmError::Windows(format!("policy writer: {e}"))),
+                Err(e) => return Err(MdmError::PolicyWriter(Box::new(e))),
             }
         } else {
             require_org_plugins()?;

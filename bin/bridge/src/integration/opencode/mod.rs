@@ -36,9 +36,9 @@ mod probe;
 pub use managed_resources::OpenCodeSync;
 
 use crate::integration::host_app::{
-    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
-    HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
-    ProfileRemoval, ProfileState,
+    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
+    HostConfigSchema, HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled,
+    ProfileProbe, ProfileRemoval, ProfileState,
 };
 use crate::integration::reapply::Attendance;
 
@@ -107,19 +107,22 @@ impl HostApp for OpenCodeHost {
         }
     }
 
-    fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-        install::write_profile(inputs)
+    fn generate_profile(
+        &self,
+        inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
+        Ok(install::write_profile(inputs)?)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path, Attendance::Attended)
     }
 
-    fn install_profile_unattended(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path, Attendance::Unattended)
     }
 
-    fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
+    fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {
         install::remove_profile()
     }
 

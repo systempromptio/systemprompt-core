@@ -45,8 +45,11 @@ pub enum FeedbackError {
     Header(#[from] http::header::InvalidHeaderValue),
     #[error("feedback contract violation: {0}")]
     Contract(#[from] systemprompt_models::feedback::FeedbackContractError),
-    #[error("feedback request rejected with status {0}")]
-    Rejected(u16),
+    #[error("feedback request rejected with status {status}: {rejection}")]
+    Rejected {
+        status: u16,
+        rejection: crate::gateway::GatewayRejection,
+    },
     #[error("device enrolment failed: {0}")]
     Gateway(#[from] crate::gateway::errors::GatewayError),
 }

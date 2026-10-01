@@ -21,9 +21,10 @@ use std::path::{Path, PathBuf};
 use serde_json::{Map, Value};
 
 use super::config;
+use crate::install::approval::{ApprovalRefusal, GatedChangeError};
 use crate::integration::generated_profile;
 use crate::integration::host_app::{
-    GeneratedProfile, ProfileGenInputs, ProfileInstalled, ProfileRemoval,
+    GeneratedProfile, HostAppError, ProfileGenInputs, ProfileInstalled, ProfileRemoval,
 };
 use crate::integration::reapply::Attendance;
 
@@ -42,7 +43,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
 pub(super) fn install_profile(
     generated_path: &str,
     attendance: Attendance,
-) -> std::io::Result<ProfileInstalled> {
+) -> Result<ProfileInstalled, HostAppError> {
     let source_text = std::fs::read_to_string(generated_path)?;
     let mut source = parse_object(&source_text, generated_path)?;
 
@@ -61,12 +62,12 @@ pub(super) fn install_profile(
     }
     match merge::install(&source, &managed) {
         Ok(_) => Ok(ProfileInstalled::ok()),
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+        Err(e) if managed_tier_refused(&e) => {
             if managed.is_file() {
                 return install_user_tier(&source, &managed);
             }
             let Some(fallback) = config::fallback_config_path(&managed) else {
-                return Err(e);
+                return Err(e.into());
             };
             tracing::warn!(
                 managed = %managed.display(),
@@ -75,9 +76,20 @@ pub(super) fn install_profile(
                 "opencode install: managed tier not writable; writing the provider block to the \
                  user tier instead (weaker: the user can edit it)"
             );
-            merge::install(&source, &fallback).map(|_| ProfileInstalled::ok())
+            Ok(merge::install(&source, &fallback).map(|_| ProfileInstalled::ok())?)
         },
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
+    }
+}
+
+// Why: a managed tier this process cannot write — denied outright, or the
+// administrator prompt declined — still leaves the user tier, which OpenCode
+// reads below it.
+fn managed_tier_refused(error: &GatedChangeError) -> bool {
+    match error {
+        GatedChangeError::Io(e) => e.kind() == std::io::ErrorKind::PermissionDenied,
+        GatedChangeError::Refused(refusal) => *refusal == ApprovalRefusal::Declined,
+        GatedChangeError::Elevation(_) => false,
     }
 }
 
@@ -90,7 +102,7 @@ fn is_read_only(path: &Path) -> bool {
 fn install_user_tier(
     source: &Map<String, Value>,
     managed: &Path,
-) -> std::io::Result<ProfileInstalled> {
+) -> Result<ProfileInstalled, HostAppError> {
     let user = config::user_tier_path(managed).ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
@@ -128,7 +140,7 @@ pub(super) fn admin_tier_models() -> Option<(PathBuf, Vec<String>)> {
     Some((managed, models))
 }
 
-pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
+pub(super) fn remove_profile() -> Result<ProfileRemoval, HostAppError> {
     let target = config::managed_config_path().map_err(std::io::Error::other)?;
     let removed_config = merge::uninstall(&target)?;
     let removed_fallback = match config::user_tier_path(&target) {

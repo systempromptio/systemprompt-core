@@ -17,6 +17,18 @@ use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::finish;
 
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "[{host_id}] the profile was written, but the installed managed MCP server list still \
+     differs from the {expected} server(s) the gateway grants; the write did not reach the \
+     policy {display_name} reads"
+)]
+struct ManagedServersUnverified {
+    host_id: HostId,
+    expected: usize,
+    display_name: &'static str,
+}
+
 pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
     let Some(host) =
         crate::gui::hosts::resolve::resolve_or_reply(app, host_id.as_str(), "repair", reply_to)
@@ -100,7 +112,10 @@ fn needs_elevation_notice(
 // host now reads the server list we meant is a separate fact, and the one
 // the user is waiting on. Read it back before reporting success. A profile
 // the OS holds for approval is not read back — it is not installed yet.
-fn verify_managed_servers(app: &GuiApp, host_id: &HostId) -> Result<Option<usize>, String> {
+fn verify_managed_servers(
+    app: &GuiApp,
+    host_id: &HostId,
+) -> Result<Option<usize>, ManagedServersUnverified> {
     let Some(host) = find_host_by_id(host_id.as_str()) else {
         return Ok(None);
     };
@@ -113,13 +128,11 @@ fn verify_managed_servers(app: &GuiApp, host_id: &HostId) -> Result<Option<usize
     match snapshot.profile_state {
         crate::integration::ProfileState::Stale {
             reason: crate::integration::StaleReason::ManagedServers,
-        } => Err(format!(
-            "[{host_id}] the profile was written, but the installed managed MCP server list still \
-             differs from the {} server(s) the gateway grants; the write did not reach the policy \
-             {} reads",
-            expected.unwrap_or(0),
-            host.display_name()
-        )),
+        } => Err(ManagedServersUnverified {
+            host_id: host_id.clone(),
+            expected: expected.unwrap_or(0),
+            display_name: host.display_name(),
+        }),
         _ => Ok(expected),
     }
 }
@@ -186,9 +199,9 @@ pub(crate) fn on_profile_install_requested(
         let result = match tokio::task::spawn_blocking(move || {
             host.install_profile(&path)
                 .map(|installed| (path_clone, installed.warnings))
-                .map_err(|e| GuiError::Profile {
-                    context: "host install_profile".into(),
-                    source: e,
+                .map_err(|source| GuiError::HostApp {
+                    context: "host install_profile",
+                    source,
                 })
                 .map_err(Arc::new)
         })
@@ -227,7 +240,8 @@ pub(crate) fn on_profile_install_finished(
                 Ok(connectors) => {
                     Ok(json!({ "path": path, "warnings": warnings, "connectors": connectors }))
                 },
-                Err(line) => {
+                Err(unverified) => {
+                    let line = unverified.to_string();
                     app.append_log_error(&line);
                     Err(BridgeError::new(
                         ErrorScope::Host,
@@ -239,8 +253,8 @@ pub(crate) fn on_profile_install_finished(
         },
         Err(e) => {
             let (code, line) = match e.as_ref() {
-                GuiError::Profile { source, .. }
-                    if source.kind() == std::io::ErrorKind::PermissionDenied =>
+                GuiError::HostApp { source, .. }
+                    if source.is_refusal() || source.is_permission_denied() =>
                 {
                     (ErrorCode::Unauthorized, format!("[{host_id}] {source}"))
                 },
@@ -271,21 +285,11 @@ async fn generate_profile_for(
     bridge: &crate::context::BridgeContext,
     overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
-    crate::sync::refresh_registry_for(bridge, host)
-        .await
-        .map_err(|e| GuiError::Profile {
-            context: "refresh managed MCP servers from the gateway".into(),
-            source: std::io::Error::other(e.to_string()),
-        })?;
-    let inputs = crate::integration::reapply::build_profile_inputs(bridge, host, overrides)
-        .await
-        .map_err(|e| GuiError::Profile {
-            context: "profile inputs".into(),
-            source: e,
-        })?;
+    crate::sync::refresh_registry_for(bridge, host).await?;
+    let inputs = crate::integration::reapply::build_profile_inputs(bridge, host, overrides).await?;
     host.generate_profile(&inputs)
-        .map_err(|e| GuiError::Profile {
-            context: "host generate_profile".into(),
-            source: e,
+        .map_err(|source| GuiError::HostApp {
+            context: "host generate_profile",
+            source,
         })
 }

@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::{InstallError, ScheduleRemoval};
+use crate::install::SchedulerError;
 use crate::schedule::{self, Os};
 
 pub(super) fn register(
@@ -22,24 +23,35 @@ pub(super) fn register(
         source: e,
     })?;
 
-    let status =
-        crate::winproc::no_window(&mut Command::new(crate::winproc::system32("schtasks.exe")))
-            .args(["/Create", "/TN", task, "/XML"])
-            .arg(&path)
-            .arg("/F")
-            .status()
-            .map_err(|e| InstallError::ScheduleApply(format!("schtasks /Create: {e}")))?;
+    let created = create_task(task, &path);
     crate::fsutil::remove_leftover_file(&path);
-    if !status.success() {
-        return Err(InstallError::ScheduleApply(format!(
-            "schtasks /Create exited with {}",
-            status.code().unwrap_or(-1)
-        )));
-    }
+    created?;
     Ok((
         path,
         vec![format!("scheduled task: {task} (logon + every 30m)")],
     ))
+}
+
+fn create_task(task: &str, xml: &Path) -> Result<(), SchedulerError> {
+    let command = "schtasks /Create".to_owned();
+    let status =
+        crate::winproc::no_window(&mut Command::new(crate::winproc::system32("schtasks.exe")))
+            .args(["/Create", "/TN", task, "/XML"])
+            .arg(xml)
+            .arg("/F")
+            .status()
+            .map_err(|source| SchedulerError::Spawn {
+                command: command.clone(),
+                source,
+            })?;
+    if status.success() {
+        return Ok(());
+    }
+    Err(SchedulerError::Exited {
+        command,
+        code: status.code().unwrap_or(-1),
+        stderr: String::new(),
+    })
 }
 
 fn to_utf16le_bom(rendered: &str) -> Vec<u8> {
@@ -57,20 +69,9 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
         path: path.display().to_string(),
         source: e,
     })?;
-    let status =
-        crate::winproc::no_window(&mut Command::new(crate::winproc::system32("schtasks.exe")))
-            .args(["/Create", "/TN", task, "/XML"])
-            .arg(&path)
-            .arg("/F")
-            .status()
-            .map_err(|e| InstallError::ScheduleApply(format!("schtasks /Create: {e}")))?;
+    let created = create_task(task, &path);
     crate::fsutil::remove_leftover_file(&path);
-    if !status.success() {
-        return Err(InstallError::ScheduleApply(format!(
-            "schtasks /Create exited with {}",
-            status.code().unwrap_or(-1)
-        )));
-    }
+    created?;
     Ok(vec![format!("logon task: {task}")])
 }
 

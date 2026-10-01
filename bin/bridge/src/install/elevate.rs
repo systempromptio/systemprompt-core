@@ -35,11 +35,11 @@ pub enum ElevationError {
     Spawn(#[from] std::io::Error),
 }
 
-impl From<ElevationError> for std::io::Error {
+impl From<ElevationError> for super::approval::GatedChangeError {
     fn from(error: ElevationError) -> Self {
         match error {
             ElevationError::UserCancelled => super::approval::ApprovalRefusal::Declined.into(),
-            other => Self::other(other),
+            other => super::approval::ElevationFailure::Privileged(other).into(),
         }
     }
 }

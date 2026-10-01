@@ -48,10 +48,10 @@ pub(crate) fn on_profile_fetch_finished(
     }
 
     let bridge_result = result.map_err(|err| {
-        let raw = format!("{err:#}");
-        tracing::error!(error = %raw, "profile fetch failed");
-        app.append_log_error(format!("profile fetch failed: {raw}"));
-        BridgeError::new(ErrorScope::Identity, ErrorCode::Internal, raw)
+        tracing::error!(error = %err, "profile fetch failed");
+        let bridge = BridgeError::from_error(ErrorScope::Identity, ErrorCode::Internal, &*err);
+        app.append_log_error(format!("profile fetch failed: {}", bridge.message));
+        bridge
     });
     emit::finish(app, reply_to, bridge_result);
 }

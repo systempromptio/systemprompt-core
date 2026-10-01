@@ -132,8 +132,12 @@ pub fn rehydrate_from_disk(slot: &McpRegistrySlot, gateway: &ValidatedUrl) -> st
     let Some(body) = crate::fsutil::read_optional(&path)? else {
         return Ok(());
     };
-    let fragment = serde_json::from_str::<McpServersFragment>(&body)
-        .map_err(|e| std::io::Error::other(format!("parse {}: {e}", path.display())))?;
+    let fragment = serde_json::from_str::<McpServersFragment>(&body).map_err(|e| {
+        crate::fsutil::io_context(
+            format!("parse {}", path.display()),
+            std::io::Error::new(std::io::ErrorKind::InvalidData, e),
+        )
+    })?;
     if !same_origin(&fragment.gateway, gateway) {
         tracing::info!(
             target: "bridge::proxy",

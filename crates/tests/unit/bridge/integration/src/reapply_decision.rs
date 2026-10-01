@@ -4,15 +4,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
-use systemprompt_bridge::install::approval::ApprovalRefusal;
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv,
-    ProfileGenInputs, ProfileInstalled, ProfileState,
+    AppInstallState, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, HostConfigSchema,
+    ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileState,
 };
 use systemprompt_bridge::integration::host_apps;
 use systemprompt_bridge::integration::reapply::{
-    Attendance, Outcome, build_profile_inputs, reapply_host, reapply_stale_profiles,
+    Attendance, Outcome, ProfileFailure, build_profile_inputs, reapply_host, reapply_stale_profiles,
 };
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -346,7 +345,7 @@ fn an_unattended_reapply_repairs_a_host_that_needs_no_prompt() {
 
 // A host whose install raises an operating-system prompt — the machine
 // policy on Windows, the profile approval on macOS — refuses an unattended
-// install with `ApprovalRefusal::NeedsPrompt` and installs when attended. With
+// install with `HostAppError::NeedsPrompt` and installs when attended. With
 // `os_denied` the unattended install instead fails with a plain
 // `PermissionDenied`, the shape of a read-only file or a bad ACL.
 struct PromptingHost {
@@ -390,7 +389,10 @@ impl HostApp for PromptingHost {
         }
     }
 
-    fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    fn generate_profile(
+        &self,
+        _inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
         Ok(GeneratedProfile {
             path: "prompting-host.profile".to_owned(),
             bytes: 0,
@@ -399,21 +401,21 @@ impl HostApp for PromptingHost {
         })
     }
 
-    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
     }
 
-    fn install_profile_unattended(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile_unattended(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
         if self.os_denied {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
                 "read-only file system",
-            ));
+            )
+            .into());
         }
-        Err(ApprovalRefusal::NeedsPrompt {
+        Err(HostAppError::NeedsPrompt {
             reason: "needs the user's approval",
-        }
-        .into())
+        })
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -448,12 +450,12 @@ fn a_host_that_would_prompt_is_declined_unattended_and_repaired_attended() {
         ));
         (unattended.outcome, attended.outcome)
     });
-    assert_eq!(
-        unattended,
-        Outcome::Declined,
-        "an unattended repair never raises the prompt; it leaves the host for the user's Repair"
+    assert!(
+        matches!(unattended, Outcome::Declined),
+        "an unattended repair never raises the prompt; it leaves the host for the user's Repair: \
+         {unattended:?}"
     );
-    assert_eq!(attended, Outcome::Reapplied);
+    assert!(matches!(attended, Outcome::Reapplied), "{attended:?}");
 }
 
 #[test]
@@ -477,7 +479,13 @@ fn an_operating_system_denial_is_a_failure_not_a_decline() {
         .outcome
     });
     assert!(
-        matches!(outcome, Outcome::Failed(ref e) if e.contains("read-only file system")),
+        matches!(
+            outcome,
+            Outcome::Failed(ref e) if matches!(
+                e.as_ref(),
+                ProfileFailure::Host(host) if host.is_permission_denied()
+            ) && e.to_string().contains("read-only file system")
+        ),
         "a write the OS refused is reported as failed, never as declined: {outcome:?}"
     );
 }

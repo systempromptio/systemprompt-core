@@ -51,8 +51,8 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     };
     let host_selection = match parse_host_selection(args) {
         Ok(sel) => sel,
-        Err(msg) => {
-            diag(&msg);
+        Err(e) => {
+            diag(&e.to_string());
             return ExitCode::from(64);
         },
     };
@@ -91,17 +91,25 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     }
 }
 
-fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, String> {
+#[derive(Debug, thiserror::Error)]
+enum HostSelectionError {
+    #[error("--hosts takes only 'all'; name individual hosts with --host <id>")]
+    HostsNotAll,
+    #[error("pass either --hosts all or --host <id>, not both")]
+    Both,
+}
+
+fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, HostSelectionError> {
     let ids = parse_multi_flag(args, "--host");
     let all = parse_multi_flag(args, "--hosts");
     if !all.is_empty() && all.iter().any(|v| v != "all") {
-        return Err("--hosts takes only 'all'; name individual hosts with --host <id>".to_owned());
+        return Err(HostSelectionError::HostsNotAll);
     }
     match (ids.is_empty(), all.is_empty()) {
         (true, true) => Ok(None),
         (false, true) => Ok(Some(Selection::Ids(ids))),
         (true, false) => Ok(Some(Selection::All)),
-        (false, false) => Err("pass either --hosts all or --host <id>, not both".to_owned()),
+        (false, false) => Err(HostSelectionError::Both),
     }
 }
 
@@ -132,8 +140,8 @@ fn enrol_selected(ctx: &BridgeContext, selection: &Selection) -> ExitCode {
                 ExitCode::SUCCESS
             }
         },
-        Err(msg) => {
-            diag(&msg);
+        Err(e) => {
+            diag(&e.to_string());
             ExitCode::from(64)
         },
     }

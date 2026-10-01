@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 
 use crate::gateway::manifest::SignedManifest;
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 use crate::proxy::LoopbackEndpoint;
 
 use super::config::codex_home;
@@ -45,7 +45,7 @@ impl HostSync for CodexCliSync {
         "codex-cli"
     }
 
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         let has_content =
             !ctx.manifest.skills.is_empty() || !ctx.manifest.managed_mcp_servers.is_empty();
         if has_content {
@@ -55,7 +55,7 @@ impl HostSync for CodexCliSync {
             remove_marketplace_tree()?;
             write_config_blocks(ctx.loopback, false, &[])?;
         }
-        Ok(())
+        Ok(HostSyncReport::ok())
     }
 
     fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
