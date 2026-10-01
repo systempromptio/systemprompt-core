@@ -1,6 +1,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod approval;
+#[cfg(test)]
 mod bootstrap;
 #[cfg(test)]
 mod builders;

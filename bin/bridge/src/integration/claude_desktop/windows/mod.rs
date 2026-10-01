@@ -157,11 +157,11 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
                     differing = ?differing,
                     "machine policy holds other values; an unattended repair cannot replace it"
                 );
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::PermissionDenied,
-                    "the machine policy holds other values; replacing it needs administrator \
-                     approval — use Repair",
-                ));
+                return Err(crate::install::approval::ApprovalRefusal::NeedsPrompt {
+                    reason: "the machine policy holds other values; replacing it needs \
+                             administrator approval — use Repair",
+                }
+                .into());
             }
             tracing::warn!(
                 path,

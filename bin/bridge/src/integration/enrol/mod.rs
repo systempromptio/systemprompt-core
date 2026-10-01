@@ -11,6 +11,7 @@
 pub mod claude_code;
 
 use crate::context::BridgeContext;
+use crate::install::approval::ApprovalRefusal;
 use crate::integration::host_app::{HostApp, ProbeEnv, ProfileRemoval};
 use crate::integration::profile_state::ProfileState;
 use crate::integration::reapply::ModelProtocolOverrides;
@@ -189,7 +190,7 @@ async fn enrol_one(
             };
             (outcome, installed.warnings)
         },
-        Err(e) if super::reapply::is_declined(&e) => (Outcome::Declined, Vec::new()),
+        Err(e) if ApprovalRefusal::of(&e).is_some() => (Outcome::Declined, Vec::new()),
         Err(e) => (Outcome::Failed(e.to_string()), Vec::new()),
     }
 }
@@ -270,7 +271,7 @@ pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String
                     Ok(ProfileRemoval::ManualStepRequired { instruction }) => {
                         Outcome::ManualStep(instruction)
                     },
-                    Err(e) if super::reapply::is_declined(&e) => Outcome::Declined,
+                    Err(e) if ApprovalRefusal::of(&e).is_some() => Outcome::Declined,
                     Err(e) => Outcome::Failed(e.to_string()),
                 },
                 warnings: Vec::new(),

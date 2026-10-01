@@ -107,10 +107,10 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
 }
 
 pub(super) fn install_profile_unattended(_path: &str) -> std::io::Result<ProfileInstalled> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::PermissionDenied,
-        "a configuration profile is approved by the user in System Settings; use Repair",
-    ))
+    Err(crate::install::approval::ApprovalRefusal::NeedsPrompt {
+        reason: "a configuration profile is approved by the user in System Settings; use Repair",
+    }
+    .into())
 }
 
 fn candidates(domain: &str) -> Vec<PathBuf> {

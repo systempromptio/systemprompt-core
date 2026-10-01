@@ -167,7 +167,7 @@ pub trait HostApp: Send + Sync + 'static {
     // Why: a repair the bridge starts on its own — at launch, after an upgrade
     // changed what a profile must contain — may not raise an operating-system
     // prompt the user did not ask for. A host whose install needs one answers
-    // `PermissionDenied` here and is left for the user's own Repair.
+    // `ApprovalRefusal::NeedsPrompt` here and is left for the user's own Repair.
     fn install_profile_unattended(&self, path: &str) -> std::io::Result<ProfileInstalled> {
         self.install_profile(path)
     }

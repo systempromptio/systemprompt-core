@@ -80,15 +80,7 @@ fn remove_elevated(path: &Path, prompt: &str) -> io::Result<()> {
 
 #[cfg(target_os = "macos")]
 fn run(script: &str, prompt: &str) -> io::Result<()> {
-    use crate::install::elevate::ElevationError;
-    match crate::install::elevate::run_privileged(script, prompt) {
-        Ok(()) => Ok(()),
-        Err(ElevationError::UserCancelled) => Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "administrator approval was declined — the managed configuration was not written",
-        )),
-        Err(e) => Err(io::Error::other(e.to_string())),
-    }
+    crate::install::elevate::run_privileged(script, prompt).map_err(io::Error::from)
 }
 
 #[cfg(target_os = "windows")]

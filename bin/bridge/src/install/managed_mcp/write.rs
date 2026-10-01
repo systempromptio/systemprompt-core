@@ -57,7 +57,7 @@ pub(super) fn clear_elevated(
         &script,
         "Bridge needs administrator privileges to remove the Claude Code enterprise MCP policy.",
     )
-    .map_err(std::io::Error::other)?;
+    .map_err(std::io::Error::from)?;
     verify_removal(mcp_path, settings_path, stripped_settings_body)
 }
 

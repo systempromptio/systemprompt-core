@@ -169,10 +169,9 @@ pub(crate) fn elevate_and_run(
         ],
     );
     match outcome {
-        ElevationOutcome::Declined => Err(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "administrator approval declined; installation was not completed",
-        )),
+        ElevationOutcome::Declined => {
+            Err(crate::install::approval::ApprovalRefusal::Declined.into())
+        },
         ElevationOutcome::Failed(message) => Err(std::io::Error::other(message)),
         ElevationOutcome::Completed { exit_code } => {
             verify_completed(job, id, exit_code, &result_path)

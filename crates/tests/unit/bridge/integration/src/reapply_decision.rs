@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
+use systemprompt_bridge::install::approval::ApprovalRefusal;
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv,
@@ -345,8 +346,15 @@ fn an_unattended_reapply_repairs_a_host_that_needs_no_prompt() {
 
 // A host whose install raises an operating-system prompt — the machine
 // policy on Windows, the profile approval on macOS — refuses an unattended
-// install with `PermissionDenied` and installs when attended.
-struct PromptingHost;
+// install with `ApprovalRefusal::NeedsPrompt` and installs when attended. With
+// `os_denied` the unattended install instead fails with a plain
+// `PermissionDenied`, the shape of a read-only file or a bad ACL.
+struct PromptingHost {
+    os_denied: bool,
+}
+
+static PROMPTING_HOST: PromptingHost = PromptingHost { os_denied: false };
+static DENIED_HOST: PromptingHost = PromptingHost { os_denied: true };
 
 static PROMPTING_SCHEMA: HostConfigSchema = HostConfigSchema {
     required_keys: &["alpha"],
@@ -396,10 +404,16 @@ impl HostApp for PromptingHost {
     }
 
     fn install_profile_unattended(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "needs the user's approval",
-        ))
+        if self.os_denied {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "read-only file system",
+            ));
+        }
+        Err(ApprovalRefusal::NeedsPrompt {
+            reason: "needs the user's approval",
+        }
+        .into())
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -409,7 +423,7 @@ impl HostApp for PromptingHost {
 
 #[test]
 fn a_host_that_would_prompt_is_declined_unattended_and_repaired_attended() {
-    let host: &'static dyn HostApp = &PromptingHost;
+    let host: &'static dyn HostApp = &PROMPTING_HOST;
     let (unattended, attended) = with_gateway(None, |ctx, _managed| {
         let env = ProbeEnv {
             proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
@@ -440,4 +454,30 @@ fn a_host_that_would_prompt_is_declined_unattended_and_repaired_attended() {
         "an unattended repair never raises the prompt; it leaves the host for the user's Repair"
     );
     assert_eq!(attended, Outcome::Reapplied);
+}
+
+#[test]
+fn an_operating_system_denial_is_a_failure_not_a_decline() {
+    let host: &'static dyn HostApp = &DENIED_HOST;
+    let outcome = with_gateway(None, |ctx, _managed| {
+        let env = ProbeEnv {
+            proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+            loopback_secret: None,
+            start_menu: Arc::default(),
+            expected_managed_servers: None,
+            policy_writer_ready: false,
+        };
+        ctx.block_on(reapply_host(
+            ctx,
+            host,
+            &BTreeMap::new(),
+            &env,
+            Attendance::Unattended,
+        ))
+        .outcome
+    });
+    assert!(
+        matches!(outcome, Outcome::Failed(ref e) if e.contains("read-only file system")),
+        "a write the OS refused is reported as failed, never as declined: {outcome:?}"
+    );
 }

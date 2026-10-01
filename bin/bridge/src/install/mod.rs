@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod apply;
+pub mod approval;
 pub mod bootstrap;
 mod builders;
 #[cfg(target_os = "macos")]
