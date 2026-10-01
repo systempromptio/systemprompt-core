@@ -117,10 +117,10 @@ fn build_sync_only_entry<'a>(
     }
 }
 
-pub(crate) fn single_host_payload<'a>(
-    snap: &'a AppStateSnapshot,
+pub(crate) fn single_host_payload(
+    snap: &AppStateSnapshot,
     host_id: HostKind,
-) -> Option<HostEntryPayload<'a>> {
+) -> Option<HostEntryPayload<'_>> {
     crate::integration::host_apps()
         .iter()
         .copied()

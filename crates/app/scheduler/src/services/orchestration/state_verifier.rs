@@ -40,7 +40,7 @@ fn required_text<'a>(row: &'a JsonRow, column: &str) -> SchedulerResult<&'a str>
         .ok_or_else(|| invalid_row(format!("services row has no `{column}` value")))
 }
 
-fn invalid_row(message: String) -> SchedulerError {
+const fn invalid_row(message: String) -> SchedulerError {
     SchedulerError::Repository(RepositoryError::InvalidData(message))
 }
 

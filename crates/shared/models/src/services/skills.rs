@@ -102,10 +102,9 @@ where
 
 impl DiskSkillConfig {
     pub fn resolved_id(&self, dir_name: &str) -> Result<SkillId, IdValidationError> {
-        match &self.id {
-            Some(id) => Ok(id.clone()),
-            None => SkillId::try_new(dir_name),
-        }
+        self.id
+            .as_ref()
+            .map_or_else(|| SkillId::try_new(dir_name), |id| Ok(id.clone()))
     }
 
     pub fn host_kinds(&self) -> Result<Vec<HostKind>, UnknownHostKind> {

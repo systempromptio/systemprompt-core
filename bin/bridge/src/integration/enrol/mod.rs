@@ -13,7 +13,7 @@ mod render;
 
 pub use render::render;
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{HostKind, UnknownHostKind};
 
 use crate::context::BridgeContext;
 use crate::integration::host_app::{HostApp, ProbeEnv, ProfileRemoval};
@@ -33,10 +33,11 @@ impl Selection {
     pub fn parse_ids(raw: &[String]) -> Result<Self, SelectionError> {
         raw.iter()
             .map(|id| {
-                id.parse::<HostKind>().map_err(|_| SelectionError::Unknown {
-                    id: id.clone(),
-                    known: known(),
-                })
+                id.parse::<HostKind>()
+                    .map_err(|UnknownHostKind(raw)| SelectionError::Unknown {
+                        id: raw,
+                        known: known(),
+                    })
             })
             .collect::<Result<Vec<_>, _>>()
             .map(Self::Ids)

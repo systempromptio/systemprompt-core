@@ -104,8 +104,8 @@ impl ManifestService {
         } = *request;
         let hooks = load_hooks(services_root)?;
         let plugins = load_plugins(services, &catalog.as_content(), cache)?;
-        let skill_owners = skill_owners(services, &catalog.as_content())?;
-        let rule_owners = rule_owners(services, &catalog.as_content())?;
+        let skill_owners = skill_owners(services, &catalog.as_content());
+        let rule_owners = rule_owners(services, &catalog.as_content());
         let selected_skills: BTreeSet<SkillId> = skill_owners.keys().cloned().collect();
         let (skills, rules, agents, managed_mcp_servers, artifacts) = catalog.into_parts();
 

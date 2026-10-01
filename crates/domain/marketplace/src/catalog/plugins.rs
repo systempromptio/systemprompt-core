@@ -161,7 +161,7 @@ pub(crate) fn selected_configs(services: &ServicesConfig) -> Vec<&PluginConfig> 
 pub fn skill_owners(
     services: &ServicesConfig,
     content: &BundleContent<'_>,
-) -> Result<BTreeMap<SkillId, BTreeSet<PluginId>>, MarketplaceError> {
+) -> BTreeMap<SkillId, BTreeSet<PluginId>> {
     let mut out: BTreeMap<SkillId, BTreeSet<PluginId>> = BTreeMap::new();
     for config in selected_configs(services) {
         let agent_ids = crate::bundle::resolve_agents(config, content.agents);
@@ -170,13 +170,13 @@ pub fn skill_owners(
             out.entry(id).or_default().insert(owner.clone());
         }
     }
-    Ok(out)
+    out
 }
 
 pub fn rule_owners(
     services: &ServicesConfig,
     content: &BundleContent<'_>,
-) -> Result<BTreeMap<MarketplaceRuleId, BTreeSet<PluginId>>, MarketplaceError> {
+) -> BTreeMap<MarketplaceRuleId, BTreeSet<PluginId>> {
     let mut out: BTreeMap<MarketplaceRuleId, BTreeSet<PluginId>> = BTreeMap::new();
     for config in selected_configs(services) {
         let owner = config.id.clone();
@@ -184,7 +184,7 @@ pub fn rule_owners(
             out.entry(id).or_default().insert(owner.clone());
         }
     }
-    Ok(out)
+    out
 }
 
 fn hash_entry(

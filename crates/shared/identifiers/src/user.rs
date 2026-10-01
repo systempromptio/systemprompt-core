@@ -1,7 +1,7 @@
 //! User identifier — an opaque, checked string.
 //!
 //! Every `UserId` names a row in the `users` table. New users are minted with
-//! a UUIDv4 string ([`UserId::generate`]), but the column is TEXT and existing
+//! a UUID v4 string ([`UserId::generate`]), but the column is TEXT and existing
 //! deployments hold non-UUID ids (seeded admins, imported users, service
 //! accounts), so the shape is not part of the contract. `try_new` rejects
 //! only what can never be a user id: an empty or whitespace-bearing value,

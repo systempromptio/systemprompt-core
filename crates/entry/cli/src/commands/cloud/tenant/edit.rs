@@ -33,14 +33,13 @@ pub fn edit_tenant(
         TenantStore::default()
     });
 
-    let tenant_id = match id {
-        Some(id) => id,
-        None => {
-            if store.tenants.is_empty() {
-                bail!("No tenants configured.");
-            }
-            select_tenant(prompter, &store.tenants)?.id.clone()
-        },
+    let tenant_id = if let Some(id) = id {
+        id
+    } else {
+        if store.tenants.is_empty() {
+            bail!("No tenants configured.");
+        }
+        select_tenant(prompter, &store.tenants)?.id.clone()
     };
 
     let tenant = store

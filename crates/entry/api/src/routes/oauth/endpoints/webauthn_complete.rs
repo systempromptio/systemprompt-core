@@ -131,10 +131,12 @@ pub async fn handle_webauthn_complete(
 
     Ok(create_successful_response(
         &headers,
-        &redirect_uri,
-        authorization_code.as_str(),
-        client_id,
-        params.state.as_deref(),
+        &CompletedAuthorization {
+            redirect_uri: &redirect_uri,
+            authorization_code: authorization_code.as_str(),
+            client_id,
+            state: params.state.as_deref(),
+        },
         &issuer,
     ))
 }
@@ -147,14 +149,24 @@ pub struct WebAuthnCompleteResponse {
     pub client_id: ClientId,
 }
 
+struct CompletedAuthorization<'a> {
+    redirect_uri: &'a str,
+    authorization_code: &'a str,
+    client_id: &'a ClientId,
+    state: Option<&'a str>,
+}
+
 fn create_successful_response(
     headers: &HeaderMap,
-    redirect_uri: &str,
-    authorization_code: &str,
-    client_id: &ClientId,
-    state: Option<&str>,
+    completed: &CompletedAuthorization<'_>,
     issuer: &str,
 ) -> Response {
+    let CompletedAuthorization {
+        redirect_uri,
+        authorization_code,
+        client_id,
+        state,
+    } = *completed;
     let state = state.filter(|s| !s.is_empty());
 
     if is_browser_request(headers) {

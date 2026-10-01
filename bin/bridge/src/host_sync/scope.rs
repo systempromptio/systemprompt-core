@@ -11,7 +11,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{HostKind, UnknownHostKind};
 
 const ORG_PLUGINS: &str = "org-plugins";
 
@@ -61,7 +61,7 @@ impl FromStr for WarningScope {
         }
         HostKind::from_str(s)
             .map(Self::Host)
-            .map_err(|_| UnknownWarningScope(s.to_owned()))
+            .map_err(|UnknownHostKind(raw)| UnknownWarningScope(raw))
     }
 }
 

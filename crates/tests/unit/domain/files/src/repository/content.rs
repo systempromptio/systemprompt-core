@@ -366,11 +366,7 @@ async fn list_content_by_file_returns_links() {
 
     let links = repo.list_content_by_file(&file_id).await.expect("list");
     assert_eq!(links.len(), 2);
-    assert!(
-        links
-            .iter()
-            .all(|l| l.file_id.to_string() == file_id.as_str())
-    );
+    assert!(links.iter().all(|l| l.file_id == file_id));
 
     cleanup_file(&repo, &file_id).await;
     cleanup_content(&db, &content_a).await;
