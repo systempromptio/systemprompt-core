@@ -3,9 +3,7 @@
 //! assert the translated return values; every error arm is driven through a
 //! closed pool to exercise the `Internal(e.to_string())` mapping.
 
-use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{AnalyticsProviderError, FingerprintProvider};
 use uuid::Uuid;
 
@@ -14,11 +12,8 @@ mod fingerprint_provider {
 
     #[tokio::test]
     async fn upsert_then_count_and_reuse() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
+        let pool = test_db_pool().await;
         let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
 
         let fp = format!("fp-{}", Uuid::new_v4());

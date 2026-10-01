@@ -4,7 +4,7 @@
 use systemprompt_analytics::AnalyticsEventsRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, SessionId, SessionSource, UserId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 use systemprompt_analytics::CreateSessionParams;
@@ -59,11 +59,8 @@ async fn cleanup(pool: &DbPool, session_id: &SessionId) {
 
 #[tokio::test]
 async fn create_event_folds_content_metadata_into_event_data() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = AnalyticsEventsRepository::new(std::sync::Arc::new(
         systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
     ));

@@ -9,18 +9,13 @@ mod analytics_service_instance_tests {
     use axum::extract::Request;
     use axum::http::HeaderValue;
     use systemprompt_analytics::AnalyticsService;
-    use systemprompt_test_fixtures::{
-        ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-    };
+    use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
     use systemprompt_traits::ExtractSignals;
 
     #[tokio::test]
     async fn debug_reports_type_erased_fields() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
+        let pool = test_db_pool().await;
         let service = AnalyticsService::new(
             None,
             None,
@@ -38,11 +33,8 @@ mod analytics_service_instance_tests {
 
     #[tokio::test]
     async fn extract_analytics_reads_headers_and_uri() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
+        let pool = test_db_pool().await;
         let service = AnalyticsService::new(
             None,
             None,

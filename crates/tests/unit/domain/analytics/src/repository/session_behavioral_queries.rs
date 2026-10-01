@@ -4,7 +4,7 @@
 //! sequence/timestamp readers are asserted against known expected values.
 
 use chrono::{Duration, Utc};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 use super::session_support::{
@@ -14,11 +14,8 @@ use super::session_support::{
 
 #[tokio::test]
 async fn count_sessions_by_fingerprint_counts_within_window() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -48,11 +45,8 @@ async fn count_sessions_by_fingerprint_counts_within_window() {
 
 #[tokio::test]
 async fn endpoint_sequence_and_timestamps_ordered() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -102,11 +96,8 @@ async fn endpoint_sequence_and_timestamps_ordered() {
 
 #[tokio::test]
 async fn has_analytics_events_false_without_events() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -123,11 +114,8 @@ async fn has_analytics_events_false_without_events() {
 
 #[tokio::test]
 async fn session_for_behavioral_analysis_round_trip() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -160,11 +148,8 @@ async fn session_for_behavioral_analysis_round_trip() {
 
 #[tokio::test]
 async fn count_unique_ips_by_fingerprint() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -193,11 +178,8 @@ async fn count_unique_ips_by_fingerprint() {
 
 #[tokio::test]
 async fn count_engagement_events_by_fingerprint() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -219,11 +201,8 @@ async fn count_engagement_events_by_fingerprint() {
 
 #[tokio::test]
 async fn session_starts_by_fingerprint_ordered() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -247,11 +226,8 @@ async fn session_starts_by_fingerprint_ordered() {
 
 #[tokio::test]
 async fn session_velocity_returns_count_and_duration() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -275,11 +251,8 @@ async fn session_velocity_returns_count_and_duration() {
 
 #[tokio::test]
 async fn update_behavioral_detection_and_mark_bot() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -304,11 +277,8 @@ async fn update_behavioral_detection_and_mark_bot() {
 
 #[tokio::test]
 async fn check_and_mark_behavioral_bot_threshold() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");
@@ -341,11 +311,8 @@ async fn check_and_mark_behavioral_bot_threshold() {
 
 #[tokio::test]
 async fn get_total_content_pages_is_non_negative() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");

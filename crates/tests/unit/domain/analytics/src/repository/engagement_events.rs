@@ -6,7 +6,7 @@ use systemprompt_analytics::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{EngagementEventId, SessionId, UserId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 fn sample_input(page_url: &str) -> CreateEngagementEventInput {
@@ -35,11 +35,8 @@ async fn cleanup(pool: &DbPool, session_id: &SessionId) {
 
 #[tokio::test]
 async fn create_then_lookup_by_id_and_user() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = EngagementRepository::new(&pool).expect("repo");
 
     let session_id = SessionId::new(format!("sess-{}", Uuid::new_v4()));

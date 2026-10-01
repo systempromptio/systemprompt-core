@@ -7,7 +7,7 @@
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_analytics::{ToolAnalyticsRepository, ToolListParams};
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 struct ExecutionSeed<'a> {
@@ -104,11 +104,8 @@ async fn seed_two_tools(pool: &DbPool, prefix: &str, server: &str) {
 
 #[tokio::test]
 async fn list_tools_filtered_covers_all_sort_orders() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
 
     let prefix = format!("tool-{}", Uuid::new_v4());
@@ -162,11 +159,8 @@ async fn list_tools_filtered_covers_all_sort_orders() {
 
 #[tokio::test]
 async fn list_tools_unfiltered_covers_all_sort_orders() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
 
     let prefix = format!("tool-{}", Uuid::new_v4());
@@ -197,11 +191,8 @@ async fn list_tools_unfiltered_covers_all_sort_orders() {
 
 #[tokio::test]
 async fn get_stats_and_summary_report_seeded_executions() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
 
     let prefix = format!("tool-{}", Uuid::new_v4());
@@ -245,11 +236,8 @@ async fn get_stats_and_summary_report_seeded_executions() {
 
 #[tokio::test]
 async fn detail_queries_break_down_status_errors_and_agents() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
 
     let prefix = format!("tool-{}", Uuid::new_v4());

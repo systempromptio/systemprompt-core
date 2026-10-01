@@ -6,7 +6,7 @@ use chrono::{Duration, Utc};
 use sqlx::Row;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row,
+    DisposableDb, ensure_test_bootstrap, seed_user_row, test_db_pool,
 };
 use uuid::Uuid;
 
@@ -16,9 +16,8 @@ async fn repository() -> (
     systemprompt_database::DbPool,
     systemprompt_analytics::SessionRepository,
 ) {
-    let url = fixture_database_url().expect("analytics fixture database URL");
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("analytics fixture pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .expect("analytics repositories")
         .sessions;

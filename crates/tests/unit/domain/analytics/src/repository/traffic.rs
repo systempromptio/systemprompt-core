@@ -11,7 +11,7 @@ use systemprompt_analytics::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 struct SeededSession<'a> {
@@ -103,11 +103,8 @@ fn window() -> (chrono::DateTime<Utc>, chrono::DateTime<Utc>) {
 
 #[tokio::test]
 async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
@@ -228,11 +225,8 @@ async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
 
 #[tokio::test]
 async fn get_pages_engaged_only_excludes_zero_request_sessions() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
@@ -314,11 +308,8 @@ async fn seed_link_click(
 
 #[tokio::test]
 async fn get_navigation_groups_internal_link_clicks_by_transition() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
         systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
@@ -382,11 +373,8 @@ async fn get_navigation_groups_internal_link_clicks_by_transition() {
 
 #[tokio::test]
 async fn get_navigation_include_external_returns_external_clicks() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
         systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),

@@ -3,18 +3,15 @@
 //! a real database can still enrich it.
 
 use chrono::{Duration, Utc};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 use super::session_support::{base_params, delete_session, unique_session_id};
 
 #[tokio::test]
 async fn backfill_without_a_reader_updates_nothing_and_is_idempotent() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
         .expect("repo");

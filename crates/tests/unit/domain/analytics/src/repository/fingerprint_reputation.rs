@@ -5,7 +5,7 @@
 use systemprompt_analytics::FlagReason;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 use super::session_support::{seed_session, unique_session_id};
@@ -30,11 +30,8 @@ async fn cleanup(pool: &DbPool, fingerprint: &str) {
 
 #[tokio::test]
 async fn upsert_fingerprint_inserts_then_accumulates() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
 
     let fp = unique_fingerprint();
@@ -69,11 +66,8 @@ async fn upsert_fingerprint_inserts_then_accumulates() {
 
 #[tokio::test]
 async fn flag_and_request_counter_persist() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
 
     let fp = unique_fingerprint();
@@ -109,11 +103,8 @@ async fn flag_and_request_counter_persist() {
 
 #[tokio::test]
 async fn session_queries_count_and_reuse_active_sessions() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
     let sessions = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
         .map(|repositories| repositories.sessions)
