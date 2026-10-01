@@ -11,7 +11,8 @@
 use std::fs;
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::config::paths;
 
@@ -19,7 +20,7 @@ use super::state::{FirstRunState, StepStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostOutcome {
-    pub host_id: String,
+    pub host_id: HostKind,
     pub status: StepStatus,
     #[serde(default)]
     pub error: Option<String>,
@@ -29,10 +30,51 @@ pub struct HostOutcome {
 pub struct FirstRunRecord {
     pub completed_at: String,
     pub app_version: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "known_host_outcomes")]
     pub hosts: Vec<HostOutcome>,
     #[serde(default)]
     pub sync_ok: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum StoredHostId {
+    Known(HostKind),
+    Unknown(String),
+}
+
+#[derive(Deserialize)]
+struct StoredOutcome {
+    host_id: StoredHostId,
+    status: StepStatus,
+    #[serde(default)]
+    error: Option<String>,
+}
+
+// Why: the record only proves first use already ran; a host id this build no
+// longer knows must not turn the whole record unreadable and re-run
+// provisioning, so that entry is dropped and logged instead.
+fn known_host_outcomes<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<HostOutcome>, D::Error> {
+    let stored = Vec::<StoredOutcome>::deserialize(deserializer)?;
+    Ok(stored
+        .into_iter()
+        .filter_map(|outcome| match outcome.host_id {
+            StoredHostId::Known(host_id) => Some(HostOutcome {
+                host_id,
+                status: outcome.status,
+                error: outcome.error,
+            }),
+            StoredHostId::Unknown(raw) => {
+                tracing::warn!(
+                    host_id = %raw,
+                    "first-run record names a host this build does not know; entry dropped"
+                );
+                None
+            },
+        })
+        .collect())
 }
 
 fn sentinel_path() -> Option<PathBuf> {
@@ -67,7 +109,7 @@ pub fn write(state: &FirstRunState) {
             .hosts
             .iter()
             .map(|h| HostOutcome {
-                host_id: h.host_id.clone(),
+                host_id: h.host_id,
                 status: h.status,
                 error: h.error.clone(),
             })

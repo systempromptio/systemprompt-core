@@ -3,7 +3,7 @@ use systemprompt_bridge::gateway::manifest::{
     PluginEntry, PluginFile, SignedManifestBuilder, SkillEntry, UserInfo, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{ManagedMcpServerName, PluginId, Sha256Digest, SkillId, SkillName};
+use systemprompt_bridge::ids::{McpServerId, PluginId, Sha256Digest, SkillId, SkillName};
 use systemprompt_identifiers::HookId;
 use systemprompt_models::services::hooks::{HookCategory, HookEvent};
 use systemprompt_test_fixtures::fixture_user_id;
@@ -97,7 +97,7 @@ fn sample_hook() -> HookEntry {
 fn sample_mcp_server() -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new("github").expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new("github").unwrap(),
+        name: McpServerId::try_new("github").unwrap(),
         url: ValidatedUrl::try_new("https://mcp.example.com/github").expect("valid ValidatedUrl"),
         transport: None,
         headers: None,

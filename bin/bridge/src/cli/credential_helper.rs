@@ -10,6 +10,7 @@
 
 use std::process::ExitCode;
 
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::context::BridgeContext;
 use crate::{auth, config, stdio};
@@ -20,17 +21,14 @@ pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> Exi
         return ExitCode::from(64);
     };
 
-    if host == "claude-desktop" {
-        return emit_claude_via_chain(ctx);
+    match host.parse::<HostKind>() {
+        Ok(HostKind::ClaudeDesktop) => emit_claude_via_chain(ctx),
+        Ok(kind) => emit_host_token(ctx, kind),
+        Err(e) => {
+            stdio::eprint_line(&error_json(&e.to_string()));
+            ExitCode::from(64)
+        },
     }
-    if host
-        .parse::<systemprompt_models::bridge::host::HostKind>()
-        .is_ok()
-    {
-        return emit_host_token(ctx, &crate::ids::HostId::new(host));
-    }
-    stdio::eprint_line(&error_json(&format!("unknown host id: {host}")));
-    ExitCode::from(64)
 }
 
 fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
@@ -57,7 +55,7 @@ fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
     emit_claude(&out)
 }
 
-fn emit_host_token(ctx: &BridgeContext, host: &crate::ids::HostId) -> ExitCode {
+fn emit_host_token(ctx: &BridgeContext, host: HostKind) -> ExitCode {
     let secret = match ctx.proxy.loopback().secret() {
         Ok(s) => s,
         Err(e) => {

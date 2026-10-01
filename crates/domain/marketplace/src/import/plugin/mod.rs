@@ -85,7 +85,8 @@ pub(super) fn import_plugin(
     let extra_skill_dirs = manifest::skill_paths(&manifest, dir)?;
     let sidecar = load_plugin_sidecar(&dir.join(SIDECAR_RELPATH))?;
 
-    let id = PluginId::new(manifest.name.trim());
+    let id = PluginId::try_new(manifest.name.trim())
+        .map_err(|e| MarketplaceError::import(&manifest_path, "plugin name", e))?;
     let mut warnings = Vec::new();
     collect_manifest_warnings(id.as_str(), &manifest, dir, &mut warnings);
 
@@ -101,7 +102,7 @@ pub(super) fn import_plugin(
     let mut rules = Vec::new();
     import_rules_dir(&dir.join("rules"), scope.seen_rules, sink, &mut rules)?;
 
-    let imported_hooks = hooks::import_plugin_hooks(id.as_str(), dir, sink)?;
+    let imported_hooks = hooks::import_plugin_hooks(&id, dir, sink)?;
     warnings.extend(imported_hooks.warnings);
 
     scripts::copy_plugin_scripts(&id, dir, &sidecar.plugin.scripts, sink)?;

@@ -10,6 +10,7 @@ use crate::ids::BearerToken;
 use std::time::Instant;
 
 use systemprompt_models::api::cloud::BridgeProfileUsage;
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::gateway::errors::GatewayError;
 use crate::gateway::identity_source::whoami_path;
@@ -18,7 +19,7 @@ use crate::gateway::{GatewayClient, ensure_success, record_span};
 
 #[derive(serde::Serialize)]
 struct HostModelFilterRequest<'a> {
-    host_id: &'a str,
+    host_id: HostKind,
     model_protocols: Option<&'a [String]>,
 }
 
@@ -53,7 +54,7 @@ impl GatewayClient {
     pub async fn set_host_model_filter(
         &self,
         bearer: &BearerToken,
-        host_id: &str,
+        host_id: HostKind,
         protocols: Option<&[String]>,
     ) -> Result<(), GatewayError> {
         let url = self.url("/v1/bridge/profile/host-model-filter");

@@ -8,25 +8,27 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::bridge::host::HostKind;
+
 use super::agent_health::{AgentReason, AgentState, AgentVerdict};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SyncOnlyAgent {
-    pub id: &'static str,
+    pub id: HostKind,
     pub display_name: &'static str,
     pub description: &'static str,
     pub icon: &'static str,
 }
 
 pub const SYNC_ONLY_AGENTS: &[SyncOnlyAgent] = &[SyncOnlyAgent {
-    id: "claude-code",
+    id: HostKind::ClaudeCode,
     display_name: "Claude Code",
     description: "Governed through the gateway; skills and plugins sync from here.",
     icon: "claude-code",
 }];
 
 #[must_use]
-pub fn sync_only_agent(host_id: &str) -> Option<&'static SyncOnlyAgent> {
+pub fn sync_only_agent(host_id: HostKind) -> Option<&'static SyncOnlyAgent> {
     SYNC_ONLY_AGENTS.iter().find(|a| a.id == host_id)
 }
 
@@ -35,7 +37,7 @@ pub fn sync_only_agent(host_id: &str) -> Option<&'static SyncOnlyAgent> {
 // fault `doctor`'s "claude code routing" check fails on.
 #[must_use]
 pub fn gateway_routed(agent: &SyncOnlyAgent) -> bool {
-    agent.id != "claude-code" || super::claude_code_routing::is_routed()
+    agent.id != HostKind::ClaudeCode || super::claude_code_routing::is_routed()
 }
 
 pub const fn sync_only_verdict(manifest_synced: bool, gateway_routed: bool) -> AgentVerdict {

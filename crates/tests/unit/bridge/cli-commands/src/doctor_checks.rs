@@ -110,7 +110,8 @@ fn claude_settings_doctor_diagnoses_corrupt_mismatched_and_recoverable_profiles_
 #[test]
 fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired_profile() {
     use systemprompt_bridge::cli::doctor::auth::check_host_profile_secrets;
-    use systemprompt_bridge::ids::{HostId, LoopbackSecret};
+    use systemprompt_bridge::ids::LoopbackSecret;
+    use systemprompt_bridge::integration::HostKind;
     use systemprompt_bridge::integration::host_app::ProbeEnv;
     use systemprompt_bridge::proxy::scoped_token::host_token;
 
@@ -132,8 +133,8 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
         .expect("stale profile");
         let auth = root.join("opencode/auth.json");
         std::fs::create_dir_all(auth.parent().expect("auth parent")).expect("auth directory");
-        let host = HostId::new("opencode");
-        let stale_token = host_token(&LoopbackSecret::new("retired-loopback-secret"), &host);
+        let host = HostKind::OpenCode;
+        let stale_token = host_token(&LoopbackSecret::new("retired-loopback-secret"), host);
         std::fs::write(
             &auth,
             serde_json::json!({ "systemprompt": { "type": "api", "key": stale_token.as_str() } })
@@ -162,7 +163,7 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
             stale.detail
         );
 
-        let live_token = host_token(env.loopback_secret.as_ref().expect("live secret"), &host);
+        let live_token = host_token(env.loopback_secret.as_ref().expect("live secret"), host);
         std::fs::write(
             &auth,
             serde_json::json!({ "systemprompt": { "type": "api", "key": live_token.as_str() } })

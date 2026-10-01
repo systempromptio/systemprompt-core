@@ -97,6 +97,8 @@ enum HostSelectionError {
     HostsNotAll,
     #[error("pass either --hosts all or --host <id>, not both")]
     Both,
+    #[error(transparent)]
+    Selection(#[from] enrol::SelectionError),
 }
 
 fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, HostSelectionError> {
@@ -107,7 +109,7 @@ fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, HostSelect
     }
     match (ids.is_empty(), all.is_empty()) {
         (true, true) => Ok(None),
-        (false, true) => Ok(Some(Selection::Ids(ids))),
+        (false, true) => Ok(Some(Selection::parse_ids(&ids)?)),
         (true, false) => Ok(Some(Selection::All)),
         (false, false) => Err(HostSelectionError::Both),
     }

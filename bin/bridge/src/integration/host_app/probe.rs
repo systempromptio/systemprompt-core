@@ -3,7 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::ids::{HostId, LoopbackSecret};
+use systemprompt_models::bridge::host::HostKind;
+
+use crate::ids::LoopbackSecret;
 
 /// What a host probe needs to know about the proxy to judge a profile fresh:
 /// the port the proxy is on and the secret it accepts, from which the
@@ -105,7 +107,7 @@ impl ProbeEnv {
     }
 
     #[must_use]
-    pub fn host_token_fingerprint(&self, host: &HostId) -> Option<String> {
+    pub fn host_token_fingerprint(&self, host: HostKind) -> Option<String> {
         self.loopback_secret.as_ref().map(|s| {
             crate::proxy::secret::fingerprint(
                 crate::proxy::scoped_token::host_token(s, host).as_str(),

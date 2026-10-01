@@ -15,8 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
-
-use crate::bridge::ids::LibraryArtifactId;
+use systemprompt_identifiers::LibraryArtifactId;
 
 const fn default_true() -> bool {
     true

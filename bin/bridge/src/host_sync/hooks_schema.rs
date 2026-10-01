@@ -137,7 +137,7 @@ impl HooksFile {
 
     // Why: stamped per host copy at emit time — Claude Code runs hooks from a
     // cached copy of this file while Cowork reads it in place.
-    pub(crate) fn stamp_host(&mut self, host: &str) {
+    pub(crate) fn stamp_host(&mut self, host: systemprompt_models::bridge::host::HostKind) {
         for entry in self
             .hooks
             .values_mut()
@@ -145,7 +145,7 @@ impl HooksFile {
             .flat_map(|matcher| matcher.hooks.iter_mut())
         {
             if let HookEntry::Http { headers, .. } = entry {
-                headers.insert(HOST_HEADER.to_owned(), host.to_owned());
+                headers.insert(HOST_HEADER.to_owned(), host.as_str().to_owned());
                 headers.remove(DEVICE_CREDENTIAL_HEADER);
             }
         }

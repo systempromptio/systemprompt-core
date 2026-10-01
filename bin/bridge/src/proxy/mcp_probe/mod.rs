@@ -206,7 +206,7 @@ pub async fn probe_endpoint(
         .headers()
         .get(SESSION_HEADER)
         .and_then(|v| v.to_str().ok())
-        .map(crate::ids::McpSessionId::new);
+        .and_then(|v| crate::ids::McpSessionId::try_new(v).ok());
     drop(resp);
 
     let tools = match list_tools(

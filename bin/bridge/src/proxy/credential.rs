@@ -10,21 +10,22 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::ids::{HostId, PluginId, ProxySecret};
+use crate::ids::{PluginId, ProxySecret};
 use crate::proxy::scoped_token::{self, TokenScope};
 use crate::proxy::secret;
+use systemprompt_models::bridge::host::HostKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoopbackCredential {
     Secret,
     Hook(PluginId),
-    Host(HostId),
+    Host(HostKind),
 }
 
 impl LoopbackCredential {
-    pub const fn verified_host(&self) -> Option<&HostId> {
+    pub const fn verified_host(&self) -> Option<HostKind> {
         match self {
-            Self::Host(host) => Some(host),
+            Self::Host(host) => Some(*host),
             Self::Secret | Self::Hook(_) => None,
         }
     }
@@ -135,9 +136,8 @@ pub fn authenticate(
     }
 }
 
-fn presenting_host(presented: &str, secret: &ProxySecret) -> Option<HostId> {
-    systemprompt_models::bridge::host::HostKind::ALL
-        .iter()
-        .map(|kind| HostId::new(kind.as_str()))
-        .find(|host| scoped_token::verify(presented, secret, &TokenScope::Host(host.clone())))
+fn presenting_host(presented: &str, secret: &ProxySecret) -> Option<HostKind> {
+    HostKind::ALL
+        .into_iter()
+        .find(|host| scoped_token::verify(presented, secret, &TokenScope::Host(*host)))
 }

@@ -86,7 +86,7 @@ fn write_mcp_servers(
     }
     let mut written = Vec::with_capacity(servers.len());
     let bearer = loopback
-        .host_bearer(&crate::ids::HostId::new("codex-cli"))
+        .host_bearer(systemprompt_models::bridge::host::HostKind::CodexCli)
         .map_err(|e| ApplyError::Io {
             context: "derive codex host token for mcp_servers".into(),
             source: e,

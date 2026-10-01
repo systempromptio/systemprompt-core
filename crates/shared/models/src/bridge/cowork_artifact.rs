@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{LibraryArtifactId, PluginId};
 
-use crate::bridge::ids::{LibraryArtifactId, PluginId};
 use crate::bridge::manifest::ArtifactEntry;
 
 

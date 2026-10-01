@@ -40,3 +40,4 @@ pub use host_app::{
     HostAppSnapshot, HostConfigSchema, ProfileGenInputs, ProfileProbe, ProfileState, StaleReason,
 };
 pub use registry::{ResolvedHost, find_host_by_id, host_apps, resolve_host};
+pub use systemprompt_models::bridge::host::HostKind;

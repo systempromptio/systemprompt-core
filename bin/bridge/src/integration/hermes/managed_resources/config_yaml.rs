@@ -75,7 +75,7 @@ fn write_mcp_servers(
     }
     let mut written = Vec::with_capacity(servers.len());
     let bearer = loopback
-        .host_bearer(&crate::ids::HostId::new("hermes"))
+        .host_bearer(systemprompt_models::bridge::host::HostKind::Hermes)
         .map_err(|e| ApplyError::Io {
             context: "derive hermes host token for mcp_servers".into(),
             source: e,

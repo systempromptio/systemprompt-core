@@ -35,10 +35,12 @@ mod probe;
 
 pub use managed_resources::OpenCodeSync;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::integration::host_app::{
-    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
-    HostConfigSchema, HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled,
-    ProfileProbe, ProfileRemoval, ProfileState,
+    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppKind, HostAppSnapshot,
+    HostConfigSchema, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
+    ProfileRemoval, ProfileState,
 };
 use crate::integration::reapply::Attendance;
 
@@ -53,8 +55,8 @@ pub struct OpenCodeHost;
 pub static OPENCODE_HOST: OpenCodeHost = OpenCodeHost;
 
 impl HostApp for OpenCodeHost {
-    fn id(&self) -> &'static str {
-        "opencode"
+    fn id(&self) -> HostKind {
+        HostKind::OpenCode
     }
 
     fn display_name(&self) -> &'static str {
@@ -76,8 +78,7 @@ impl HostApp for OpenCodeHost {
         // until sync re-renders it, so it must surface as Stale.
         let secret = Freshness::compare(
             install::installed_key_fingerprint(&config::auth_json_path()).as_deref(),
-            env.host_token_fingerprint(&crate::ids::HostId::new(self.id()))
-                .as_deref(),
+            env.host_token_fingerprint(self.id()).as_deref(),
             "opencode host token",
         );
         let profile_state = ProfileState::classify(&ProfileProbe {
@@ -142,18 +143,14 @@ impl HostApp for OpenCodeHost {
         }
     }
 
-    fn kind(&self) -> HostKind {
-        HostKind::CliTool
+    fn kind(&self) -> HostAppKind {
+        HostAppKind::CliTool
     }
 
     fn description(&self) -> &'static str {
         "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge \
          installs admin-managed configuration that routes inference through the gateway, \
          registers MCP connectors, and publishes managed skills."
-    }
-
-    fn icon_id(&self) -> &'static str {
-        "opencode"
     }
 
     fn config_format(&self) -> ConfigFormat {

@@ -12,7 +12,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
-use systemprompt_bridge::ids::{LoopbackSecret, ManagedMcpServerName};
+use systemprompt_bridge::ids::{LoopbackSecret, McpServerId};
 use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::integration::mcp_sidecar;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
@@ -66,7 +66,7 @@ fn manifest() -> SignedManifest {
         hooks: vec![],
         managed_mcp_servers: vec![ManagedMcpServer {
             id: systemprompt_identifiers::McpServerId::try_new("primary").expect("valid server id"),
-            name: ManagedMcpServerName::try_new("primary").unwrap(),
+            name: McpServerId::try_new("primary").unwrap(),
             url: ValidatedUrl::try_new("https://mcp.example.invalid/api").unwrap(),
             transport: Some("http".into()),
             headers: None,

@@ -603,10 +603,7 @@ fn refresh_registry_publishes_the_servers_of_a_fresh_verified_manifest() {
     with_server.managed_mcp_servers =
         vec![systemprompt_bridge::gateway::manifest::ManagedMcpServer {
             id: systemprompt_identifiers::McpServerId::try_new("salesforce-crm-dev").unwrap(),
-            name: systemprompt_models::bridge::ids::ManagedMcpServerName::try_new(
-                "salesforce-crm-dev",
-            )
-            .unwrap(),
+            name: systemprompt_bridge::ids::McpServerId::try_new("salesforce-crm-dev").unwrap(),
             url: systemprompt_identifiers::ValidatedUrl::try_new(
                 "https://gateway.invalid/api/v1/mcp/salesforce-crm-dev/mcp",
             )

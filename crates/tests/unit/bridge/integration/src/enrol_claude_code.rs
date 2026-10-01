@@ -7,6 +7,7 @@ use std::fs;
 use serde_json::Value;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::install::mdm::claude_code_settings::managed_settings_path;
+use systemprompt_bridge::integration::HostKind;
 use systemprompt_bridge::integration::enrol::{
     Outcome, Report, Selection, enrol_hosts, remove_host_profiles,
 };
@@ -83,7 +84,7 @@ fn enroll_claude_code(bridge: &BridgeContext) -> Outcome {
     runtime()
         .block_on(enrol_hosts(
             bridge,
-            &Selection::Ids(vec!["claude-code".to_owned()]),
+            &Selection::Ids(vec![HostKind::ClaudeCode]),
             &ModelProtocolOverrides::new(),
             None,
         ))
@@ -153,7 +154,7 @@ fn claude_code_enrollment_preserves_bad_settings_then_recovers_after_repair() {
             "the settings refer to the helper created by enrollment"
         );
 
-        let removal = remove_host_profiles(&Selection::Ids(vec!["claude-code".to_owned()]))
+        let removal = remove_host_profiles(&Selection::Ids(vec![HostKind::ClaudeCode]))
             .expect("Claude Code remains a valid removal target");
         assert!(
             matches!(removal.as_slice(), [report] if matches!(&report.outcome, Outcome::Removed)),
@@ -214,7 +215,7 @@ fn claude_code_removal_settings_directory_failure_is_retryable_without_deleting_
         let occupant = dirs.settings().join("operator-note");
         fs::write(&occupant, b"retain").unwrap();
 
-        let failed = remove_host_profiles(&Selection::Ids(vec!["claude-code".to_owned()]))
+        let failed = remove_host_profiles(&Selection::Ids(vec![HostKind::ClaudeCode]))
             .expect("target resolves");
         assert!(
             matches!(failed.as_slice(), [report] if matches!(report.outcome, Outcome::Failed(ref message) if message.to_string().contains("settings.json"))),
@@ -227,7 +228,7 @@ fn claude_code_removal_settings_directory_failure_is_retryable_without_deleting_
         let foreign = b"{\n  \"theme\": \"dark\"\n}\n";
         fs::write(dirs.settings(), foreign).unwrap();
         for attempt in 0..2 {
-            let retried = remove_host_profiles(&Selection::Ids(vec!["claude-code".to_owned()]))
+            let retried = remove_host_profiles(&Selection::Ids(vec![HostKind::ClaudeCode]))
                 .expect("retry resolves");
             assert!(
                 matches!(retried.as_slice(), [report] if matches!(report.outcome, Outcome::NothingToRemove)),
@@ -248,7 +249,7 @@ fn enrolling_all_hosts_routes_an_installed_claude_code_cli() {
         let reports = enrol_all(&bridge, &["claude-code"]);
         let claude = reports
             .iter()
-            .find(|r| r.host_id == "claude-code")
+            .find(|r| r.host_id == HostKind::ClaudeCode)
             .expect("an installed Claude Code CLI is part of `all`");
         assert!(matches!(claude.outcome, Outcome::Installed), "{claude:?}");
         let document: Value = serde_json::from_slice(&fs::read(dirs.settings()).unwrap()).unwrap();
@@ -269,7 +270,7 @@ fn enrolling_all_hosts_respects_an_instance_that_does_not_enable_claude_code() {
         let reports = enrol_all(&bridge, &[]);
         let claude = reports
             .iter()
-            .find(|r| r.host_id == "claude-code")
+            .find(|r| r.host_id == HostKind::ClaudeCode)
             .expect("an installed Claude Code CLI is part of `all`");
         assert!(matches!(claude.outcome, Outcome::NotEnabled), "{claude:?}");
         assert!(
@@ -292,7 +293,7 @@ fn enrolling_all_hosts_skips_claude_code_when_its_cli_is_absent() {
         let bridge = BridgeContext::start(ProxyMode::Attach).expect("attach bridge");
         let reports = enrol_all(&bridge, &["claude-code"]);
         assert!(
-            reports.iter().all(|r| r.host_id != "claude-code"),
+            reports.iter().all(|r| r.host_id != HostKind::ClaudeCode),
             "no CLI, no row: {reports:?}"
         );
         assert!(!dirs.settings().exists());

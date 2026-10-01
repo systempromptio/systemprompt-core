@@ -2,17 +2,21 @@
 //!
 //! Hosts are contributed through the `inventory` crate: built-ins submit via
 //! [`register_host_app!`](crate::register_host_app) below, and white-label
-//! crates can register their own without editing core. Registrations carry a
-//! `priority` (built-ins use 0); the registry sorts by descending priority then
-//! `id()`, then **dedups by `id()` keeping the highest-priority entry** — so a
-//! white-label crate can shadow a built-in host by re-registering its id at
-//! `priority > 0`.
+//! crates can supply their own implementation of a host without editing core.
+//! Every registration is keyed by its [`HostKind`] — the closed set of hosts
+//! the gateway knows — so a host outside that set cannot be registered.
+//! Registrations carry a `priority` (built-ins use 0); the registry sorts by
+//! descending priority then `id()`, then **dedups by `id()` keeping the
+//! highest-priority entry** — so a white-label crate can shadow a built-in
+//! host by re-registering its kind at `priority > 0`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
+
+use systemprompt_models::bridge::host::HostKind;
 
 use super::host_app::HostApp;
 
@@ -40,7 +44,7 @@ inventory::collect!(HostAppRegistration);
 /// cards, first-run provisioning, GUI payloads, doctor — stops seeing it.
 #[derive(Debug, Clone, Copy)]
 pub struct HostAppSuppression {
-    pub id: &'static str,
+    pub id: HostKind,
 }
 
 inventory::collect!(HostAppSuppression);
@@ -74,7 +78,7 @@ register_host_app!(super::opencode::OPENCODE_HOST);
 
 struct Registry {
     hosts: Vec<&'static dyn HostApp>,
-    suppressed: BTreeSet<&'static str>,
+    suppressed: BTreeSet<HostKind>,
 }
 
 static REGISTRY: LazyLock<Registry> = LazyLock::new(|| {
@@ -83,15 +87,15 @@ static REGISTRY: LazyLock<Registry> = LazyLock::new(|| {
     regs.sort_by(|a, b| {
         b.priority
             .cmp(&a.priority)
-            .then_with(|| a.app.id().cmp(b.app.id()))
+            .then_with(|| a.app.id().cmp(&b.app.id()))
     });
-    let suppressed: BTreeSet<&'static str> = inventory::iter::<HostAppSuppression>()
+    let suppressed: BTreeSet<HostKind> = inventory::iter::<HostAppSuppression>()
         .map(|s| s.id)
         .collect();
-    let mut seen: BTreeSet<&'static str> = BTreeSet::new();
+    let mut seen: BTreeSet<HostKind> = BTreeSet::new();
     let mut hosts: Vec<&'static dyn HostApp> = regs
         .into_iter()
-        .filter(|r| !suppressed.contains(r.app.id()))
+        .filter(|r| !suppressed.contains(&r.app.id()))
         .filter(|r| seen.insert(r.app.id()))
         .map(|r| r.app)
         .collect();
@@ -104,7 +108,7 @@ pub fn host_apps() -> &'static [&'static dyn HostApp] {
 }
 
 #[must_use]
-pub fn find_host_by_id(id: &str) -> Option<&'static dyn HostApp> {
+pub fn find_host_by_id(id: HostKind) -> Option<&'static dyn HostApp> {
     REGISTRY.hosts.iter().copied().find(|h| h.id() == id)
 }
 
@@ -134,14 +138,14 @@ impl std::fmt::Debug for ResolvedHost {
 }
 
 #[must_use]
-pub fn resolve_host(id: &str) -> ResolvedHost {
+pub fn resolve_host(id: HostKind) -> ResolvedHost {
     if let Some(host) = find_host_by_id(id) {
         return ResolvedHost::Local(host);
     }
     if let Some(agent) = super::sync_only::sync_only_agent(id) {
         return ResolvedHost::SyncOnly(agent);
     }
-    if REGISTRY.suppressed.contains(id) {
+    if REGISTRY.suppressed.contains(&id) {
         return ResolvedHost::Suppressed;
     }
     ResolvedHost::Unknown

@@ -5,10 +5,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::ids::{BearerToken, HostId};
+use crate::ids::BearerToken;
 use async_trait::async_trait;
 use std::path::Path;
 use std::sync::LazyLock;
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::SignedManifest;
@@ -16,9 +17,11 @@ use crate::gateway::manifest::SignedManifest;
 mod error;
 mod hooks;
 pub(crate) mod hooks_schema;
+mod scope;
 
 pub use error::{ApplyError, ForeignShape, TomlError};
 pub use hooks::stamp_hooks_file;
+pub use scope::{UnknownWarningScope, WarningScope};
 
 /// What a host warning is about. Control flow (the Cowork re-sync tick, the
 /// health verdict) reads this, never the message text.
@@ -45,16 +48,20 @@ pub enum HostWarningKind {
 pub struct HostWarning {
     pub kind: HostWarningKind,
     #[cfg_attr(feature = "ts-export", ts(type = "string"))]
-    pub host_id: HostId,
+    pub host_id: WarningScope,
     pub message: String,
 }
 
 impl HostWarning {
     #[must_use]
-    pub fn raise(kind: HostWarningKind, host_id: &str, message: impl Into<String>) -> Self {
+    pub fn raise(
+        kind: HostWarningKind,
+        host_id: impl Into<WarningScope>,
+        message: impl Into<String>,
+    ) -> Self {
         let warning = Self {
             kind,
-            host_id: HostId::new(host_id),
+            host_id: host_id.into(),
             message: message.into(),
         };
         tracing::warn!(
@@ -84,7 +91,7 @@ impl HostSyncReport {
         Self::default()
     }
 
-    pub fn warn(&mut self, kind: HostWarningKind, host_id: &str, message: impl Into<String>) {
+    pub fn warn(&mut self, kind: HostWarningKind, host_id: HostKind, message: impl Into<String>) {
         self.warnings
             .push(HostWarning::raise(kind, host_id, message));
     }
@@ -115,9 +122,9 @@ pub struct HostSyncCtx<'a> {
 /// siblings stay distinguishable.
 #[async_trait]
 pub trait HostSync: std::any::Any + Send + Sync + 'static {
-    fn host_id(&self) -> &'static str;
+    fn host_id(&self) -> HostKind;
     fn emitter_id(&self) -> &'static str {
-        self.host_id()
+        self.host_id().as_str()
     }
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError>;
     fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
@@ -159,7 +166,7 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
     regs.sort_by(|a, b| {
         b.priority
             .cmp(&a.priority)
-            .then_with(|| a.emitter.host_id().cmp(b.emitter.host_id()))
+            .then_with(|| a.emitter.host_id().cmp(&b.emitter.host_id()))
     });
     let mut seen: std::collections::BTreeSet<std::any::TypeId> = std::collections::BTreeSet::new();
     let mut v: Vec<&'static dyn HostSync> = regs
@@ -180,14 +187,14 @@ pub fn log_outcome(emitter: &dyn HostSync, enabled: bool, outcome: Result<(), &A
     match outcome {
         Ok(()) => tracing::info!(
             target: "bridge::sync::host",
-            host = emitter.host_id(),
+            host = %emitter.host_id(),
             emitter = emitter.emitter_id(),
             action,
             "host sync ok"
         ),
         Err(e) => tracing::error!(
             target: "bridge::sync::host",
-            host = emitter.host_id(),
+            host = %emitter.host_id(),
             emitter = emitter.emitter_id(),
             action,
             error = %e,

@@ -1,20 +1,23 @@
-use std::collections::HashSet;
 use systemprompt_identifiers::{
-    CategoryId, ContentId, DbValue, FileId, SkillId, SourceId, TagId, ToDbValue,
+    CategoryId, ContentId, DbValue, FileId, SkillId, SkillName, SourceId, TagId, ToDbValue,
 };
 
 #[test]
-fn skill_id_generate_uuid_format() {
-    let id = SkillId::generate();
-    assert_eq!(id.as_str().len(), 36);
+fn skill_id_try_new_rejects_blank() {
+    assert!(SkillId::try_new("").is_err());
+    assert!(SkillId::try_new("   ").is_err());
+    assert_eq!(SkillId::try_new("writer").unwrap().as_str(), "writer");
 }
 
 #[test]
-fn skill_id_generate_unique() {
-    let ids: HashSet<String> = (0..10)
-        .map(|_| SkillId::generate().as_str().to_string())
-        .collect();
-    assert_eq!(ids.len(), 10);
+fn skill_id_deserialize_rejects_empty() {
+    assert!(serde_json::from_str::<SkillId>("\"\"").is_err());
+}
+
+#[test]
+fn skill_name_try_new_rejects_blank() {
+    assert!(SkillName::try_new("").is_err());
+    assert_eq!(SkillName::try_new("Writer").unwrap().as_str(), "Writer");
 }
 
 #[test]

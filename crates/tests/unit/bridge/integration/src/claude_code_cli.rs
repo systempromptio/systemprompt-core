@@ -302,6 +302,7 @@ fn a_corrupt_sidecar_is_an_error_rather_than_an_empty_ownership_record() {
 #[test]
 fn host_projection_removes_cowork_setup_without_changing_the_source_bundle() {
     use systemprompt_bridge::gateway::manifest::SkillEntry;
+    use systemprompt_bridge::integration::HostKind;
     use systemprompt_bridge::integration::claude_code_cli::filter_skills_for_host;
     let skills: Vec<SkillEntry> = [("setup_admin", vec!["cowork"]), ("admin_report", vec![])]
         .into_iter()
@@ -322,7 +323,7 @@ fn host_projection_removes_cowork_setup_without_changing_the_source_bundle() {
             std::fs::write(path.join("SKILL.md"), "instructions").expect("skill file");
         }
     }
-    filter_skills_for_host(destination.path(), &skills, "claude-code").expect("projection");
+    filter_skills_for_host(destination.path(), &skills, HostKind::ClaudeCode).expect("projection");
     assert!(!destination.path().join("skills/setup-admin").exists());
     assert!(
         destination
@@ -337,13 +338,13 @@ fn host_projection_removes_cowork_setup_without_changing_the_source_bundle() {
             .exists()
     );
     assert!(source.path().join("skills/setup-admin/SKILL.md").exists());
-    filter_skills_for_host(destination.path(), &skills, "claude-code").expect("repeat");
-    filter_skills_for_host(source.path(), &skills, "cowork").expect("cowork");
+    filter_skills_for_host(destination.path(), &skills, HostKind::ClaudeCode).expect("repeat");
     assert!(source.path().join("skills/setup-admin/SKILL.md").exists());
 }
 #[test]
 fn host_projection_removes_an_excluded_file_skill_without_touching_foreign_skills() {
     use systemprompt_bridge::gateway::manifest::SkillEntry;
+    use systemprompt_bridge::integration::HostKind;
     use systemprompt_bridge::integration::claude_code_cli::filter_skills_for_host;
 
     let excluded: SkillEntry = serde_json::from_value(serde_json::json!({
@@ -364,7 +365,7 @@ fn host_projection_removes_an_excluded_file_skill_without_touching_foreign_skill
     )
     .unwrap();
 
-    filter_skills_for_host(destination.path(), &[excluded], "claude-code")
+    filter_skills_for_host(destination.path(), &[excluded], HostKind::ClaudeCode)
         .expect("file-shaped exclusion is removable");
 
     assert!(!destination.path().join("skills/setup-admin").exists());

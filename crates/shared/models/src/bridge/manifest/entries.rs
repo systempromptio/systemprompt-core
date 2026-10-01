@@ -6,12 +6,13 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::bridge::ids::{
-    LibraryArtifactId, PluginId, RuleId, RuleName, Sha256Digest, SkillId, SkillName,
-};
+use crate::bridge::ids::Sha256Digest;
 use crate::services::hooks::{HookCategory, HookEvent};
 use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
-use systemprompt_identifiers::{AgentId, AgentName, HookId, ModelId, ProviderId};
+use systemprompt_identifiers::{
+    AgentId, AgentName, HookId, LibraryArtifactId, MarketplaceRuleId, ModelId, PluginId,
+    ProviderId, RuleName, SkillId, SkillName,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginEntry {
@@ -79,7 +80,7 @@ pub struct SkillPublication {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuleEntry {
-    pub id: RuleId,
+    pub id: MarketplaceRuleId,
     pub name: RuleName,
     pub description: String,
     pub file_path: String,

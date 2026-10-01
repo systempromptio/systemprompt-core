@@ -25,7 +25,7 @@ const HEARTBEAT_AUTH_THRESHOLD_SECS: u64 = 300;
 
 #[derive(Serialize)]
 struct HeartbeatPayload<'a> {
-    session_id: &'a str,
+    session_id: &'a systemprompt_identifiers::SessionId,
     bridge_version: &'a str,
     os: &'a str,
     hostname: &'a str,
@@ -105,7 +105,7 @@ async fn send_one(
 
     let hostname = hostname_or_unknown();
     let payload = HeartbeatPayload {
-        session_id: session.session_id().as_str(),
+        session_id: session.session_id(),
         bridge_version: crate::brand::COMPAT_VERSION,
         os: std::env::consts::OS,
         hostname: &hostname,

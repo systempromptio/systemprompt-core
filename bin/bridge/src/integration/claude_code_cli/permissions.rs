@@ -29,7 +29,7 @@ fn apply_tool_permissions(ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, Apply
         permissions::PermissionOutcome::NoCarrier { rules, standalone } => {
             report.warn(
                 crate::host_sync::HostWarningKind::PermissionRules,
-                "claude-code",
+                systemprompt_models::bridge::host::HostKind::ClaudeCode,
                 format!(
                     "{rules} tool permission rules not applied: no Claude Code settings file is \
                      managed by this bridge; run `install --apply` to create {}",

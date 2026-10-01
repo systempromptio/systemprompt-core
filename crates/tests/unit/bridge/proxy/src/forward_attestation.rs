@@ -5,7 +5,6 @@
 use std::collections::BTreeMap;
 
 use http::{HeaderMap, HeaderValue};
-use systemprompt_bridge::ids::HostId;
 use systemprompt_bridge::proxy::credential::LoopbackCredential;
 use systemprompt_bridge::proxy::forward::headers::{
     UpstreamHeaderInputs, build_upstream_headers, copy_request_headers, stamp_attestation,
@@ -38,7 +37,7 @@ fn value<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
 fn a_host_token_stamps_host_token_and_overwrites_the_declared_client() {
     let mut headers = HeaderMap::new();
     copy_request_headers(&inbound(Some("pi"), None), &mut headers);
-    let credential = LoopbackCredential::Host(HostId::new("opencode"));
+    let credential = LoopbackCredential::Host(HostKind::OpenCode);
     stamp_attestation(&mut headers, Some(&credential)).unwrap();
     assert_eq!(value(&headers, CLIENT_ATTESTATION), Some("host-token"));
     assert_eq!(value(&headers, CLIENT_KIND), Some("opencode"));
@@ -47,16 +46,18 @@ fn a_host_token_stamps_host_token_and_overwrites_the_declared_client() {
 
 #[test]
 fn every_known_host_maps_onto_the_canonical_wire_vocabulary() {
-    for host in HostKind::ALL.map(HostKind::as_str) {
+    for host in HostKind::ALL {
         let mut headers = HeaderMap::new();
-        let credential = LoopbackCredential::Host(HostId::new(host));
+        let credential = LoopbackCredential::Host(host);
         stamp_attestation(&mut headers, Some(&credential)).unwrap();
-        let expected = ClientKind::from_bridge_host_id(host).unwrap().as_str();
+        let expected = ClientKind::from_bridge_host_id(host.as_str())
+            .unwrap()
+            .as_str();
         assert_eq!(value(&headers, CLIENT_KIND), Some(expected), "{host}");
         assert_eq!(value(&headers, CLIENT_ATTESTATION), Some("host-token"));
     }
     let mut headers = HeaderMap::new();
-    let codex = LoopbackCredential::Host(HostId::new("codex-cli"));
+    let codex = LoopbackCredential::Host(HostKind::CodexCli);
     stamp_attestation(&mut headers, Some(&codex)).unwrap();
     assert_eq!(
         value(&headers, CLIENT_KIND),

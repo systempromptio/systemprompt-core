@@ -5,7 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::ids::BearerToken;
+use crate::ids::{BearerToken, PluginId};
 use std::time::Instant;
 
 use crate::gateway::errors::GatewayError;
@@ -96,7 +96,7 @@ impl GatewayClient {
     pub async fn fetch_plugin_file(
         &self,
         bearer: &BearerToken,
-        plugin_id: &str,
+        plugin_id: &PluginId,
         relative_path: &str,
     ) -> Result<Vec<u8>, GatewayError> {
         if relative_path.contains("..") || relative_path.starts_with('/') {
@@ -111,14 +111,14 @@ impl GatewayClient {
             .send()
             .await
             .map_err(|e| GatewayError::PluginFetch {
-                plugin_id: plugin_id.to_owned(),
+                plugin_id: plugin_id.clone(),
                 path: relative_path.to_owned(),
                 source: Box::new(e),
             })?;
         record_span(&resp, started);
         let resp = ensure_success(resp, "plugin").await?;
         let bytes = resp.bytes().await.map_err(|e| GatewayError::PluginRead {
-            plugin_id: plugin_id.to_owned(),
+            plugin_id: plugin_id.clone(),
             path: relative_path.to_owned(),
             source: Box::new(e),
         })?;

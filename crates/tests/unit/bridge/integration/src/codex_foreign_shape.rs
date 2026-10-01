@@ -52,7 +52,8 @@ fn a_scalar_where_the_bridge_owns_a_table_refuses_the_install_and_keeps_the_file
         let seeded = "model_providers = \"not a table\"\nkeep = 1\n";
         fs::write(&target, seeded).unwrap();
 
-        let host = find_host_by_id("codex-cli").expect("codex host registered");
+        let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
+            .expect("codex host registered");
         let profile = host.generate_profile(&inputs()).expect("generate");
         let err = host
             .install_profile(&profile.path)

@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::services::ApiSurface;
 
 mod error;
@@ -76,7 +77,7 @@ pub struct HostConfigSchema {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct HostAppSnapshot {
-    pub host_id: &'static str,
+    pub host_id: HostKind,
     pub display_name: &'static str,
     pub profile_state: ProfileState,
     pub profile_source: Option<String>,
@@ -103,7 +104,8 @@ pub struct GeneratedProfile {
 #[serde(rename_all = "kebab-case")]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
-pub enum HostKind {
+#[cfg_attr(feature = "ts-export", ts(rename = "HostKind"))]
+pub enum HostAppKind {
     DesktopApp,
     CliTool,
 }
@@ -158,7 +160,7 @@ impl ProfileInstalled {
 }
 
 pub trait HostApp: Send + Sync + 'static {
-    fn id(&self) -> &'static str;
+    fn id(&self) -> HostKind;
     fn display_name(&self) -> &'static str;
     fn config_schema(&self) -> &'static HostConfigSchema;
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot;
@@ -192,8 +194,8 @@ pub trait HostApp: Send + Sync + 'static {
         true
     }
 
-    fn kind(&self) -> HostKind {
-        HostKind::DesktopApp
+    fn kind(&self) -> HostAppKind {
+        HostAppKind::DesktopApp
     }
 
     fn description(&self) -> &'static str {
@@ -201,7 +203,7 @@ pub trait HostApp: Send + Sync + 'static {
     }
 
     fn icon_id(&self) -> &'static str {
-        self.id()
+        self.id().as_str()
     }
 
     fn config_format(&self) -> ConfigFormat {

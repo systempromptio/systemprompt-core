@@ -1,6 +1,7 @@
 use serde_json::json;
-use systemprompt_bridge::ids::HostId;
+use systemprompt_bridge::host_sync::WarningScope;
 use systemprompt_bridge::sync::{HostFailure, HostWarning, HostWarningKind, SyncSummary};
+use systemprompt_models::bridge::host::HostKind;
 
 fn summary() -> SyncSummary {
     SyncSummary {
@@ -18,7 +19,7 @@ fn summary() -> SyncSummary {
         removed: vec![],
         malformed: vec!["broken-plugin".into()],
         host_failures: vec![HostFailure {
-            host_id: HostId::new("claude-desktop"),
+            host_id: HostKind::ClaudeDesktop,
             emitter: "claude-desktop".to_owned(),
             error: "profile write denied by policy".into(),
             needs_elevation: false,
@@ -78,10 +79,10 @@ fn diagnostics_are_carried_verbatim() {
     );
 }
 
-fn warning(kind: HostWarningKind, host: &str) -> HostWarning {
+fn warning(kind: HostWarningKind, host: HostKind) -> HostWarning {
     HostWarning {
         kind,
-        host_id: HostId::new(host),
+        host_id: WarningScope::Host(host),
         message: "detail".into(),
     }
 }
@@ -92,45 +93,51 @@ fn warning(kind: HostWarningKind, host: &str) -> HostWarning {
 // of the window (one sync every 30 s, each ~110 s long).
 #[test]
 fn cowork_enable_is_deferred_only_by_the_session_missing_warning() {
-    let desktop = HostId::new("claude-desktop");
+    let desktop = HostKind::ClaudeDesktop;
     let mut s = summary();
 
     s.host_warnings = vec![warning(
         HostWarningKind::EvidenceUnacknowledged,
-        "claude-desktop",
+        HostKind::ClaudeDesktop,
     )];
     assert!(
-        !s.cowork_enable_deferred(&desktop),
+        !s.cowork_enable_deferred(desktop),
         "evidence pending is not a deferral"
     );
 
     s.host_warnings = vec![warning(
         HostWarningKind::PluginDependencies,
-        "claude-desktop",
+        HostKind::ClaudeDesktop,
     )];
     assert!(
-        !s.cowork_enable_deferred(&desktop),
+        !s.cowork_enable_deferred(desktop),
         "a dependency note is not a deferral"
     );
 
     s.host_warnings = vec![warning(
         HostWarningKind::CoworkSessionMissing,
-        "claude-code",
+        HostKind::ClaudeCode,
     )];
     assert!(
-        !s.cowork_enable_deferred(&desktop),
+        !s.cowork_enable_deferred(desktop),
         "another host's warning is not this host's"
     );
 
     s.host_warnings = vec![
-        warning(HostWarningKind::EvidenceUnacknowledged, "claude-desktop"),
-        warning(HostWarningKind::CoworkSessionMissing, "claude-desktop"),
+        warning(
+            HostWarningKind::EvidenceUnacknowledged,
+            HostKind::ClaudeDesktop,
+        ),
+        warning(
+            HostWarningKind::CoworkSessionMissing,
+            HostKind::ClaudeDesktop,
+        ),
     ];
-    assert!(s.cowork_enable_deferred(&desktop));
+    assert!(s.cowork_enable_deferred(desktop));
 
     s.host_warnings = Vec::new();
     assert!(
-        !s.cowork_enable_deferred(&desktop),
+        !s.cowork_enable_deferred(desktop),
         "a clean report clears the deferral"
     );
 }
@@ -140,7 +147,7 @@ fn a_host_warning_carries_its_kind_on_the_wire() {
     let mut s = summary();
     s.host_warnings = vec![warning(
         HostWarningKind::CoworkSessionMissing,
-        "claude-desktop",
+        HostKind::ClaudeDesktop,
     )];
     let value = serde_json::to_value(&s).expect("summary serialises");
     assert_eq!(
@@ -155,4 +162,26 @@ fn a_host_warning_carries_its_kind_on_the_wire() {
     let back: HostWarning =
         serde_json::from_value(value["host_warnings"][0].clone()).expect("warning round-trips");
     assert_eq!(back.kind, HostWarningKind::CoworkSessionMissing);
+    assert_eq!(back.host_id, WarningScope::Host(HostKind::ClaudeDesktop));
+}
+
+#[test]
+fn an_org_plugins_warning_keeps_its_tree_scope_on_the_wire() {
+    let mut s = summary();
+    s.host_warnings = vec![HostWarning {
+        kind: HostWarningKind::NodePackages,
+        host_id: WarningScope::OrgPlugins,
+        message: "detail".into(),
+    }];
+    let value = serde_json::to_value(&s).expect("summary serialises");
+    assert_eq!(value["host_warnings"][0]["host_id"], json!("org-plugins"));
+    let back: HostWarning =
+        serde_json::from_value(value["host_warnings"][0].clone()).expect("warning round-trips");
+    assert_eq!(back.host_id, WarningScope::OrgPlugins);
+}
+
+#[test]
+fn a_warning_scope_outside_the_host_set_does_not_deserialise() {
+    let raw = json!({ "kind": "manifest", "host_id": "not-a-host", "message": "detail" });
+    assert!(serde_json::from_value::<HostWarning>(raw).is_err());
 }

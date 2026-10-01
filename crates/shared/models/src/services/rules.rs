@@ -11,8 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-
-use crate::bridge::ids::RuleId;
+use systemprompt_identifiers::MarketplaceRuleId;
 
 const fn default_true() -> bool {
     true
@@ -24,7 +23,7 @@ pub const DEFAULT_RULE_CONTENT_FILE: &str = "index.md";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiskRuleConfig {
-    pub id: RuleId,
+    pub id: MarketplaceRuleId,
     pub name: String,
     pub description: String,
     #[serde(default = "default_true")]

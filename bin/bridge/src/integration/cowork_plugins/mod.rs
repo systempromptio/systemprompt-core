@@ -30,6 +30,8 @@ use thiserror::Error;
 
 use async_trait::async_trait;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport, stamp_hooks_file};
 
 #[derive(Clone, Copy, Debug)]
@@ -37,8 +39,8 @@ pub struct CoworkSync;
 
 #[async_trait]
 impl HostSync for CoworkSync {
-    fn host_id(&self) -> &'static str {
-        "claude-desktop"
+    fn host_id(&self) -> HostKind {
+        HostKind::ClaudeDesktop
     }
 
     fn emitter_id(&self) -> &'static str {

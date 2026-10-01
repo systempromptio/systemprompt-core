@@ -18,12 +18,13 @@ use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
 use crate::hash::safe_plugin_id;
-use crate::host_sync::{HostWarning, HostWarningKind};
-use crate::ids::{BearerToken, HostId};
+use crate::host_sync::{HostWarning, HostWarningKind, WarningScope};
+use crate::ids::BearerToken;
 use crate::proxy::LoopbackEndpoint;
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::Path;
+use systemprompt_models::bridge::host::HostKind;
 use tokio_util::sync::CancellationToken;
 
 pub(crate) struct PluginApplyOutcome {
@@ -47,7 +48,7 @@ pub(crate) enum PluginPhase {
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct HostFailure {
     #[cfg_attr(feature = "ts-export", ts(type = "string"))]
-    pub host_id: HostId,
+    pub host_id: HostKind,
     pub emitter: String,
     pub error: String,
     pub needs_elevation: bool,
@@ -91,7 +92,7 @@ pub(super) async fn apply_plugins(
         if let NodeInstall::Skipped { reason } = &applied.node_install {
             warnings.push(HostWarning::raise(
                 HostWarningKind::NodePackages,
-                NODE_WARNING_HOST,
+                WarningScope::OrgPlugins,
                 format!(
                     "plugin {}: Node packages not installed — {reason}",
                     plugin.id
@@ -185,10 +186,6 @@ fn extract_mcp_servers(plugin_dir: &Path) -> Result<Vec<String>, super::ApplyErr
     Ok(names)
 }
 
-// Why: a Node install serves every host that reads the org-plugins tree, so
-// its warning is filed under the tree rather than under one host.
-const NODE_WARNING_HOST: &str = "org-plugins";
-
 enum PluginChange {
     Installed(String),
     Updated(String),
@@ -225,7 +222,7 @@ async fn sync_one_plugin(
     fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage, &target).await?;
     super::check_not_superseded(ctx.client.base_url())?;
 
-    let was_present = promote_staged(&stage, &target, plugin.id.as_str())?;
+    let was_present = promote_staged(&stage, &target, &plugin.id)?;
 
     let hooks_receipt = write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
     let manifest_shape = ensure_plugin_json_managed_fields(&target)?;

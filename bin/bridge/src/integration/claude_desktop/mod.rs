@@ -45,9 +45,12 @@ pub(crate) fn policy_summary() -> Vec<String> {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+use systemprompt_models::bridge::host::HostKind;
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, HostConfigSchema,
-    HostKind, HostProcesses, ProbeEnv, ProfileInstalled, ProfileProbe, ProfileRemoval,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind, HostAppSnapshot,
+    HostConfigSchema, HostProcesses, ProbeEnv, ProfileInstalled, ProfileProbe, ProfileRemoval,
     ProfileState,
 };
 
@@ -60,8 +63,8 @@ pub static CLAUDE_DESKTOP_HOST: ClaudeDesktopHost = ClaudeDesktopHost;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 impl HostApp for ClaudeDesktopHost {
-    fn id(&self) -> &'static str {
-        shared::HOST_ID
+    fn id(&self) -> HostKind {
+        HostKind::ClaudeDesktop
     }
 
     fn display_name(&self) -> &'static str {
@@ -144,17 +147,13 @@ impl HostApp for ClaudeDesktopHost {
         }
     }
 
-    fn kind(&self) -> HostKind {
-        HostKind::DesktopApp
+    fn kind(&self) -> HostAppKind {
+        HostAppKind::DesktopApp
     }
 
     fn description(&self) -> &'static str {
         "Anthropic's official desktop client for Claude. Routes inference through the systemprompt \
          gateway via managed policy."
-    }
-
-    fn icon_id(&self) -> &'static str {
-        "claude-desktop"
     }
 
     fn profile_carries_managed_servers(&self) -> bool {

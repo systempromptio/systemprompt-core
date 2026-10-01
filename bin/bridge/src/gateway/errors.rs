@@ -27,13 +27,13 @@ pub enum GatewayError {
     UnsafePath(String),
     #[error("plugin fetch {plugin_id}:{path} failed: {source}")]
     PluginFetch {
-        plugin_id: String,
+        plugin_id: crate::ids::PluginId,
         path: String,
         source: Box<reqwest::Error>,
     },
     #[error("plugin read {plugin_id}:{path} failed: {source}")]
     PluginRead {
-        plugin_id: String,
+        plugin_id: crate::ids::PluginId,
         path: String,
         source: Box<reqwest::Error>,
     },

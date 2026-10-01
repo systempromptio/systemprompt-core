@@ -11,7 +11,7 @@ use std::process::{Command, Output};
 use chrono::Utc;
 use systemprompt_bridge::feedback::credentials::Enrollment;
 use systemprompt_bridge::feedback::outbox::{Outbox, OutboxScope, PendingInstallation};
-use systemprompt_bridge::ids::{BearerToken, HostId, Sha256Digest};
+use systemprompt_bridge::ids::{BearerToken, Sha256Digest};
 use systemprompt_identifiers::{
     ConsumerInstallationId, DeviceId, InstallationReceiptId, ManagedResourceId, PublicationId,
     ResourceRevisionId, UserId,
@@ -653,8 +653,10 @@ fn credential_helper_emits_only_the_host_scoped_token_on_stdout() {
     let secret = with_sandbox_env(&sb, || {
         systemprompt_bridge::proxy::secret::proxy_init().expect("sandbox mints a loopback secret")
     });
-    let expected =
-        systemprompt_bridge::proxy::scoped_token::host_token(&secret, &HostId::new("codex-cli"));
+    let expected = systemprompt_bridge::proxy::scoped_token::host_token(
+        &secret,
+        systemprompt_models::bridge::host::HostKind::CodexCli,
+    );
 
     let output = require_bin!(run_bridge(
         &sb,

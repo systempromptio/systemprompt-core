@@ -6,9 +6,9 @@ use systemprompt_bridge::gateway::manifest::{
     TenantId, UserInfo, ValidatedUrl, verify_envelope,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{
-    LibraryArtifactId, ManagedMcpServerName, ManifestSignature, PluginId, RuleId, RuleName,
-    Sha256Digest, SkillId, SkillName,
+use systemprompt_bridge::ids::{ManifestSignature, Sha256Digest};
+use systemprompt_identifiers::{
+    LibraryArtifactId, MarketplaceRuleId, McpServerId, PluginId, RuleName, SkillId, SkillName,
 };
 
 const FAKE_SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -86,7 +86,7 @@ fn sample_manifest() -> SignedManifest {
             frontmatter: None,
         }],
         rules: vec![RuleEntry {
-            id: RuleId::try_new("rule_one").unwrap(),
+            id: MarketplaceRuleId::try_new("rule_one").unwrap(),
             name: RuleName::try_new("Rule One").unwrap(),
             description: "first rule".into(),
             file_path: "/rules/one.md".into(),
@@ -123,7 +123,7 @@ fn sample_manifest() -> SignedManifest {
         managed_mcp_servers: vec![ManagedMcpServer {
             id: systemprompt_identifiers::McpServerId::try_new("github")
                 .expect("valid McpServerId"),
-            name: ManagedMcpServerName::try_new("github").unwrap(),
+            name: McpServerId::try_new("github").unwrap(),
             url: ValidatedUrl::try_from("https://mcp.example.com/github").unwrap(),
             transport: Some("http".into()),
             headers: None,

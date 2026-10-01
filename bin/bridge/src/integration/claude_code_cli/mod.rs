@@ -44,18 +44,18 @@ use marketplace::{
     set_enabled, strip_known_marketplace, upsert_known_marketplace, write_marketplace_json,
 };
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::config::paths;
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 use crate::ids::PluginId;
-
-pub const HOST_ID: &str = "claude-code";
 
 pub(crate) struct ClaudeCodeCliSync;
 
 #[async_trait]
 impl HostSync for ClaudeCodeCliSync {
-    fn host_id(&self) -> &'static str {
-        HOST_ID
+    fn host_id(&self) -> HostKind {
+        HostKind::ClaudeCode
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
@@ -108,7 +108,7 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         if !manifest.plugins.is_empty() {
             report.warn(
                 crate::host_sync::HostWarningKind::Manifest,
-                HOST_ID,
+                HostKind::ClaudeCode,
                 "the manifest carries plugins but names no marketplace; nothing was mirrored \
                  for the Claude Code CLI — upgrade the gateway",
             );
@@ -181,7 +181,7 @@ fn mirror_marketplace(
         let Some(version) = versions.get(id.as_str()) else {
             report.warn(
                 crate::host_sync::HostWarningKind::Manifest,
-                HOST_ID,
+                HostKind::ClaudeCode,
                 format!(
                     "marketplace {} lists plugin {} which the manifest does not carry; skipped",
                     marketplace.id.as_str(),

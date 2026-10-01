@@ -44,7 +44,7 @@ pub fn cmd_comms_drain() -> ExitCode {
     let Ok(payload) = serde_json::from_str::<HookPayload>(&stdin) else {
         return ExitCode::SUCCESS;
     };
-    let Some(session_id) = payload.session_id.filter(|s| !s.as_str().is_empty()) else {
+    let Some(session_id) = payload.session_id else {
         return ExitCode::SUCCESS;
     };
 

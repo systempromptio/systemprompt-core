@@ -13,7 +13,8 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::ids::{RuleName, Sha256Digest};
+use systemprompt_identifiers::RuleName;
+use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::RuleEntry;
 use systemprompt_models::services::{DiskRuleConfig, RULE_CONFIG_FILENAME, strip_frontmatter};
 

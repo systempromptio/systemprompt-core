@@ -6,6 +6,7 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::services::ApiSurface;
 
 use crate::gateway::types::ProviderHealth;
@@ -48,11 +49,11 @@ pub fn host_model_view(health: &[ProviderHealth], accepted: &[ApiSurface]) -> Ho
 
 #[must_use]
 pub fn effective_surfaces(
-    host_id: &str,
+    host_id: HostKind,
     default: &[ApiSurface],
     overrides: &BTreeMap<String, Vec<String>>,
 ) -> Vec<ApiSurface> {
-    overrides.get(host_id).map_or_else(
+    overrides.get(host_id.as_str()).map_or_else(
         || default.to_vec(),
         |tags| {
             tags.iter()
@@ -63,6 +64,6 @@ pub fn effective_surfaces(
 }
 
 #[must_use]
-pub fn has_surface_override(host_id: &str, overrides: &BTreeMap<String, Vec<String>>) -> bool {
-    overrides.contains_key(host_id)
+pub fn has_surface_override(host_id: HostKind, overrides: &BTreeMap<String, Vec<String>>) -> bool {
+    overrides.contains_key(host_id.as_str())
 }

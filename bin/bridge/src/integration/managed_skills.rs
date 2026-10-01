@@ -14,6 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::gateway::manifest::{SignedManifest, SkillEntry};
 use crate::hash::{safe_id_segment, sha256_hex};
@@ -30,7 +31,7 @@ pub(crate) enum SkillDirPolicy {
 #[derive(Debug, Clone)]
 pub(crate) struct SkillTarget {
     pub root: PathBuf,
-    pub host_id: &'static str,
+    pub host_id: HostKind,
     pub policy: SkillDirPolicy,
 }
 
@@ -44,7 +45,7 @@ struct ManagedState {
 
 impl SkillTarget {
     fn targets(&self, skill: &SkillEntry) -> bool {
-        skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == self.host_id)
+        crate::gateway::manifest::skill_targets_host(skill, self.host_id)
     }
 
     fn dir_name(&self, skill: &SkillEntry) -> String {

@@ -89,8 +89,7 @@ pub async fn build_profile_inputs(
     let secret = loopback
         .secret()
         .map_err(ProfileInputsError::LoopbackSecret)?;
-    let host_token =
-        crate::proxy::scoped_token::host_token(&secret, &crate::ids::HostId::new(host.id()));
+    let host_token = crate::proxy::scoped_token::host_token(&secret, host.id());
 
     let server_profile = bridge
         .gateway_client(config::gateway_url_or_default(&cfg))

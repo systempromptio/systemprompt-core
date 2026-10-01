@@ -8,23 +8,24 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::gui::events::UiEvent;
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::{GuiApp, emit, first_run};
-use crate::ids::HostId;
 use crate::integration::enrol::{Outcome, claude_code};
 use crate::integration::{AppInstallState, HostAppSnapshot};
 
 use super::state::{FirstRunPhase, StepStatus};
 
 pub(crate) fn on_start(app: &mut GuiApp) {
-    let mut hosts: Vec<(String, String)> = crate::integration::host_apps()
+    let mut hosts: Vec<(HostKind, String)> = crate::integration::host_apps()
         .iter()
-        .map(|h| (h.id().to_owned(), h.display_name().to_owned()))
+        .map(|h| (h.id(), h.display_name().to_owned()))
         .collect();
     let desktop_hosts = hosts.len();
     let claude_code = claude_code::installed_agent();
-    hosts.extend(claude_code.map(|a| (a.id.to_owned(), a.display_name.to_owned())));
+    hosts.extend(claude_code.map(|a| (a.id, a.display_name.to_owned())));
     app.state.begin_first_run(&hosts);
     app.append_log("First use: provisioning your agents…");
     if claude_code.is_some() {
@@ -40,7 +41,7 @@ pub(crate) fn on_start(app: &mut GuiApp) {
 
 fn enrol_claude_code(app: &GuiApp) {
     let report = claude_code::enrol_report(&app.ctx);
-    let id = report.host_id.as_str();
+    let id = report.host_id;
     if let Outcome::Failed(err) = report.outcome {
         app.append_log_error(format!("[{id}] gateway routing not written: {err}"));
         app.state
@@ -51,12 +52,12 @@ fn enrol_claude_code(app: &GuiApp) {
     }
 }
 
-pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &HostId, snapshot: &HostAppSnapshot) {
+pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: HostKind, snapshot: &HostAppSnapshot) {
     if app
         .state
         .snapshot()
         .first_run
-        .host(host_id.as_str())
+        .host(host_id)
         .is_none_or(|h| h.status != StepStatus::Probing)
     {
         return;
@@ -64,7 +65,7 @@ pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &HostId, snapshot: &Hos
 
     if snapshot.app_installed == AppInstallState::NotInstalled {
         app.state
-            .set_first_run_host(host_id.as_str(), StepStatus::Skipped, None);
+            .set_first_run_host(host_id, StepStatus::Skipped, None);
         app.append_log(format!(
             "[{host_id}] not installed on this machine — skipped"
         ));
@@ -73,17 +74,17 @@ pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &HostId, snapshot: &Hos
     }
 
     app.state
-        .set_first_run_host(host_id.as_str(), StepStatus::Generating, None);
+        .set_first_run_host(host_id, StepStatus::Generating, None);
     app.state.set_first_run_phase(FirstRunPhase::Installing);
     progress(app);
     app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProfileGenerateRequested {
-            host_id: host_id.clone(),
+            host_id,
             reply_to: None,
         }));
 }
 
-pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &HostId, error: Option<String>) {
+pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: HostKind, error: Option<String>) {
     if let Some(err) = error {
         fail_host(app, host_id, err);
         return;
@@ -92,7 +93,7 @@ pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &HostId, error: Opti
         .state
         .snapshot()
         .hosts
-        .get(host_id.as_str())
+        .get(host_id)
         .and_then(|h| h.last_generated_profile.as_ref().map(|p| p.path.clone()));
     let Some(path) = path else {
         fail_host(
@@ -103,23 +104,23 @@ pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &HostId, error: Opti
         return;
     };
     app.state
-        .set_first_run_host(host_id.as_str(), StepStatus::Installing, None);
+        .set_first_run_host(host_id, StepStatus::Installing, None);
     progress(app);
     app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProfileInstallRequested {
-            host_id: host_id.clone(),
+            host_id,
             path,
             reply_to: None,
         }));
 }
 
-pub(crate) fn on_install_result(app: &mut GuiApp, host_id: &HostId, error: Option<String>) {
+pub(crate) fn on_install_result(app: &mut GuiApp, host_id: HostKind, error: Option<String>) {
     if let Some(err) = error {
         fail_host(app, host_id, err);
         return;
     }
     app.state
-        .set_first_run_host(host_id.as_str(), StepStatus::Done, None);
+        .set_first_run_host(host_id, StepStatus::Done, None);
     advance(app);
 }
 
@@ -154,9 +155,9 @@ pub(crate) fn on_sync_result(app: &mut GuiApp, succeeded: bool) {
     emit::emit_state(app);
 }
 
-fn fail_host(app: &mut GuiApp, host_id: &HostId, error: String) {
+fn fail_host(app: &mut GuiApp, host_id: HostKind, error: String) {
     app.state
-        .set_first_run_host(host_id.as_str(), StepStatus::Failed, Some(error));
+        .set_first_run_host(host_id, StepStatus::Failed, Some(error));
     advance(app);
 }
 

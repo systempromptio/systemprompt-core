@@ -9,10 +9,9 @@ use super::{FeedbackError, Result};
 use parking_lot::Mutex;
 use std::collections::BTreeSet;
 use systemprompt_identifiers::{ClientSessionId, NativeSessionId};
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::wire::origin::{ClientKind, native_marker, ua_product};
-
-use crate::ids::HostId;
 
 pub const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
 
@@ -26,7 +25,7 @@ pub struct NativeSession {
 // for it, so the same evidence decides both: the verified host token first,
 // then the shared native-marker and User-Agent helpers.
 pub fn native_session(
-    verified_host: Option<&HostId>,
+    verified_host: Option<HostKind>,
     headers: &http::HeaderMap,
     body: &[u8],
 ) -> Option<NativeSession> {
@@ -91,7 +90,7 @@ pub fn native_session(
 }
 
 fn presenting_client(
-    verified_host: Option<&HostId>,
+    verified_host: Option<HostKind>,
     headers: &http::HeaderMap,
     body: &[u8],
 ) -> Option<ClientKind> {
@@ -123,7 +122,7 @@ const MAX_UNFLUSHED: usize = 1024;
 impl NativeSessionLedger {
     pub fn observe(
         &self,
-        verified_host: Option<&HostId>,
+        verified_host: Option<HostKind>,
         headers: &http::HeaderMap,
         body: &[u8],
     ) -> Result<()> {

@@ -51,10 +51,10 @@ pub(super) fn authenticate_hook_track(
 
 pub(super) fn require_hook_credential(
     credential: &LoopbackCredential,
-    plugin_id: &str,
+    plugin_id: &crate::ids::PluginId,
 ) -> ForwardResult<()> {
     match credential {
-        LoopbackCredential::Hook(plugin) if plugin.as_str() == plugin_id => Ok(()),
+        LoopbackCredential::Hook(plugin) if plugin == plugin_id => Ok(()),
         LoopbackCredential::Hook(_) => Err(ForwardError::Scope {
             presented: "hook token of another plugin",
             route: "this plugin's hook route",

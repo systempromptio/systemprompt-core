@@ -222,7 +222,7 @@ fn a_partial_sync_record_keeps_the_prior_checkpoint_so_the_retry_is_not_a_replay
 #[test]
 fn a_host_failure_folds_to_one_sentinel_line() {
     let failure = systemprompt_bridge::sync::HostFailure {
-        host_id: systemprompt_bridge::ids::HostId::new("claude-code"),
+        host_id: systemprompt_models::bridge::host::HostKind::ClaudeCode,
         emitter: "apply".to_owned(),
         error: "io error in remove managed MCP policy: EOF\nsecond line".to_owned(),
         needs_elevation: false,

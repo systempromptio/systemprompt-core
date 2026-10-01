@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use serde::Deserialize;
-use systemprompt_models::bridge::ids::RuleId;
+use systemprompt_identifiers::MarketplaceRuleId;
 use systemprompt_models::services::frontmatter::split_frontmatter;
 use systemprompt_models::services::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig};
 
@@ -77,7 +77,8 @@ fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<(), MarketplaceEr
         None => RuleFrontmatter::default(),
     };
 
-    let id = RuleId::try_new(name).map_err(|e| MarketplaceError::import(path, "rule id", e))?;
+    let id = MarketplaceRuleId::try_new(name)
+        .map_err(|e| MarketplaceError::import(path, "rule id", e))?;
     let doc = DiskRuleConfig {
         id,
         name: front

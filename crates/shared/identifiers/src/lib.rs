@@ -35,10 +35,10 @@
 //! come from dedicated constructors.
 //!
 //! Checked identifiers (`UserId`, `ServiceName`, `AgentName`, `McpServerId`,
-//! `McpToolName`) have both: `try_new` validates input from outside, `new`
-//! accepts a value already known valid (a decoded row, a configuration key
-//! validated at load). They implement no `From<String>`, and their
-//! `Deserialize`/`FromStr` validate.
+//! `McpToolName`, `PluginId`, `SkillId`, ...) have both: `try_new` validates
+//! input from outside, `new` accepts a value already known valid (a decoded
+//! row, a configuration key validated at load). They implement no
+//! `From<String>`, and their `Deserialize`/`FromStr` validate.
 //!
 //! "Absent" is `Option<Id>`, never a sentinel value such as `"unset"`,
 //! `"unknown"` or the empty string.
@@ -61,6 +61,7 @@ mod actor;
 mod agent;
 mod ai;
 mod auth;
+mod bridge;
 mod client;
 mod client_session;
 mod cloud;
@@ -112,11 +113,12 @@ pub use ai::{
 pub use auth::{
     ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, DeviceId, JwtToken, SessionToken,
 };
+pub use bridge::{CommsMessageId, DeploymentOrganizationUuid, HookSessionId, McpSessionId};
 pub use client::{ClientId, ClientType};
 pub use client_session::ClientSessionId;
 pub use cloud::{CloudUserId, PriceId};
 pub use connection::ConnectionId;
-pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
+pub use content::{CategoryId, ContentId, FileId, SkillId, SkillName, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
 pub use engagement::EngagementEventId;
@@ -134,7 +136,7 @@ pub use managed::{
     InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId, NativeSessionId,
     PublicationId, PublicationReviewId, ResourceRevisionId, SourceSnapshotId, WithdrawalProposalId,
 };
-pub use marketplace::MarketplaceId;
+pub use marketplace::{LibraryArtifactId, MarketplaceId, MarketplaceRuleId, RuleName};
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
 pub use oauth::{AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenId};
 pub use path::ValidatedFilePath;

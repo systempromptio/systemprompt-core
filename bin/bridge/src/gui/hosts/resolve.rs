@@ -6,6 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::gui::GuiApp;
 use crate::gui::events::ReplyId;
@@ -17,7 +18,7 @@ use super::handlers::finish;
 
 pub(crate) fn resolve_or_reply(
     app: &GuiApp,
-    host_id: &str,
+    host_id: HostKind,
     action: &str,
     reply_to: ReplyId,
 ) -> Option<&'static dyn HostApp> {

@@ -10,10 +10,10 @@
 
 use std::collections::BTreeMap;
 
-use super::error::MdmError;
-use crate::ids::{HostId, HostToken, LoopbackSecret};
+use systemprompt_models::bridge::host::HostKind;
 
-pub const CLAUDE_DESKTOP_HOST_ID: &str = "claude-desktop";
+use super::error::MdmError;
+use crate::ids::{HostToken, LoopbackSecret};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PolicyValue {
@@ -70,7 +70,7 @@ pub struct PolicyInputs<'a> {
 
 #[must_use]
 pub fn desktop_host_token(secret: &LoopbackSecret) -> HostToken {
-    crate::proxy::scoped_token::host_token(secret, &HostId::new(CLAUDE_DESKTOP_HOST_ID))
+    crate::proxy::scoped_token::host_token(secret, HostKind::ClaudeDesktop)
 }
 
 pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Result<Vec<PolicyEntry>, MdmError> {

@@ -15,8 +15,10 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use systemprompt_identifiers::{AgentId, HookId, MarketplaceId, McpServerId};
-use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, RuleId, SkillId};
+use systemprompt_identifiers::{
+    AgentId, HookId, LibraryArtifactId, MarketplaceId, MarketplaceRuleId, McpServerId, PluginId,
+    SkillId,
+};
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, ManifestMarketplace, PluginEntry,
     RuleEntry, SkillEntry,
@@ -48,7 +50,7 @@ pub struct MarketplaceCandidate {
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub artifacts: Vec<ArtifactEntry>,
     pub marketplaces: Vec<ManifestMarketplace>,
-    pub rule_owners: BTreeMap<RuleId, BTreeSet<PluginId>>,
+    pub rule_owners: BTreeMap<MarketplaceRuleId, BTreeSet<PluginId>>,
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
     pub membership: MarketplaceMembership,
@@ -72,7 +74,7 @@ pub struct ManifestEntries {
 /// Assembly context consumed by filtering, never serialised to the manifest.
 #[derive(Debug, Clone, Default)]
 pub struct FilterContext {
-    pub rule_owners: BTreeMap<RuleId, BTreeSet<PluginId>>,
+    pub rule_owners: BTreeMap<MarketplaceRuleId, BTreeSet<PluginId>>,
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
     pub membership: MarketplaceMembership,
@@ -150,7 +152,10 @@ impl MarketplaceCandidate {
     }
 
     #[must_use]
-    pub fn with_rule_owners(mut self, owners: BTreeMap<RuleId, BTreeSet<PluginId>>) -> Self {
+    pub fn with_rule_owners(
+        mut self,
+        owners: BTreeMap<MarketplaceRuleId, BTreeSet<PluginId>>,
+    ) -> Self {
         self.rule_owners = owners;
         self
     }

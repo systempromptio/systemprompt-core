@@ -3,10 +3,11 @@ use std::path::Path;
 
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, ConfigFormat, HostApp, HostKind, ProbeEnv, ProfileGenInputs, ProfileState,
+    AppInstallState, ConfigFormat, HostApp, HostAppKind, ProbeEnv, ProfileGenInputs, ProfileState,
     StaleReason,
 };
 use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
+use systemprompt_models::bridge::host::HostKind;
 use tempfile::TempDir;
 
 fn probe_env() -> ProbeEnv {
@@ -73,7 +74,7 @@ const COMPLETE: &str = r#"{
 #[test]
 fn an_absent_managed_config_probes_as_absent() {
     let snapshot = sandbox(None, |_| OPENCODE_HOST.probe(&probe_env()));
-    assert_eq!(snapshot.host_id, "opencode");
+    assert_eq!(snapshot.host_id, HostKind::OpenCode);
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
         "no managed file means an absent profile, got {:?}",
@@ -257,10 +258,10 @@ fn the_binary_is_found_in_a_known_install_prefix_outside_path() {
 
 #[test]
 fn the_opencode_host_describes_itself_as_a_json_cli_tool_that_cannot_be_opened() {
-    assert_eq!(OPENCODE_HOST.id(), "opencode");
+    assert_eq!(OPENCODE_HOST.id(), HostKind::OpenCode);
     assert_eq!(OPENCODE_HOST.display_name(), "OpenCode");
     assert_eq!(OPENCODE_HOST.icon_id(), "opencode");
-    assert_eq!(OPENCODE_HOST.kind(), HostKind::CliTool);
+    assert_eq!(OPENCODE_HOST.kind(), HostAppKind::CliTool);
     assert_eq!(OPENCODE_HOST.config_format(), ConfigFormat::Json);
     assert!(!OPENCODE_HOST.can_open());
     assert!(OPENCODE_HOST.download_url().starts_with("https://"));

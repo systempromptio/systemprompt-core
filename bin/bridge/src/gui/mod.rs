@@ -170,7 +170,7 @@ pub(crate) struct GuiApp {
     // second start-up sync behind the login-triggered one.
     pub(crate) did_initial_sync: bool,
     pub(crate) active_signals: HashSet<notify::Signal>,
-    pub(crate) unattended_repairs: HashSet<crate::ids::HostId>,
+    pub(crate) unattended_repairs: HashSet<systemprompt_models::bridge::host::HostKind>,
 }
 
 impl GuiApp {

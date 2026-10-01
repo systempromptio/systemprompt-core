@@ -6,12 +6,12 @@
 use std::sync::Arc;
 
 use serde_json::json;
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::{GuiApp, emit};
-use crate::ids::HostId;
 use crate::integration::{GeneratedProfile, find_host_by_id};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
@@ -24,19 +24,17 @@ use super::finish;
      policy {display_name} reads"
 )]
 struct ManagedServersUnverified {
-    host_id: HostId,
+    host_id: HostKind,
     expected: usize,
     display_name: &'static str,
 }
 
-pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
-    let Some(host) =
-        crate::gui::hosts::resolve::resolve_or_reply(app, host_id.as_str(), "repair", reply_to)
+pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
+    let Some(host) = crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "repair", reply_to)
     else {
         return;
     };
     app.append_log(format!("Generating profile for {}…", host.display_name()));
-    let host_id_owned = host_id.clone();
     let overrides = app.state.snapshot().host_model_protocols;
     let proxy = app.proxy.clone();
     let bridge = Arc::clone(&app.ctx);
@@ -45,7 +43,7 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, repl
             .await
             .map_err(Arc::new);
         proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
-            host_id: host_id_owned,
+            host_id,
             result,
             reply_to,
         }));
@@ -54,7 +52,7 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, repl
 
 pub(crate) fn on_profile_generate_finished(
     app: &mut GuiApp,
-    host_id: &HostId,
+    host_id: HostKind,
     result: Result<GeneratedProfile, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
@@ -65,7 +63,7 @@ pub(crate) fn on_profile_generate_finished(
                 p.path, p.bytes
             ));
             let response = json!({ "path": p.path, "bytes": p.bytes });
-            app.state.set_last_generated_profile(host_id.as_str(), p);
+            app.state.set_last_generated_profile(host_id, p);
             Ok(response)
         },
         Err(e) => {
@@ -114,9 +112,9 @@ fn needs_elevation_notice(
 // the OS holds for approval is not read back — it is not installed yet.
 fn verify_managed_servers(
     app: &GuiApp,
-    host_id: &HostId,
+    host_id: HostKind,
 ) -> Result<Option<usize>, ManagedServersUnverified> {
-    let Some(host) = find_host_by_id(host_id.as_str()) else {
+    let Some(host) = find_host_by_id(host_id) else {
         return Ok(None);
     };
     if !host.profile_carries_managed_servers() || manual_approval_notice(host).is_some() {
@@ -129,7 +127,7 @@ fn verify_managed_servers(
         crate::integration::ProfileState::Stale {
             reason: crate::integration::StaleReason::ManagedServers,
         } => Err(ManagedServersUnverified {
-            host_id: host_id.clone(),
+            host_id,
             expected: expected.unwrap_or(0),
             display_name: host.display_name(),
         }),
@@ -151,16 +149,13 @@ fn manual_approval_notice(host: &dyn crate::integration::HostApp) -> Option<Stri
 
 pub(crate) fn on_profile_install_requested(
     app: &GuiApp,
-    host_id: &HostId,
+    host_id: HostKind,
     path: String,
     reply_to: ReplyId,
 ) {
-    let Some(host) = crate::gui::hosts::resolve::resolve_or_reply(
-        app,
-        host_id.as_str(),
-        "install profile",
-        reply_to,
-    ) else {
+    let Some(host) =
+        crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "install profile", reply_to)
+    else {
         return;
     };
     // Why: the path arrives from the webview; only the file this process
@@ -169,7 +164,7 @@ pub(crate) fn on_profile_install_requested(
         .state
         .snapshot()
         .hosts
-        .get(host_id.as_str())
+        .get(host_id)
         .and_then(|s| s.last_generated_profile.as_ref().map(|p| p.path.clone()));
     if generated.as_deref() != Some(path.as_str()) {
         finish(
@@ -192,7 +187,6 @@ pub(crate) fn on_profile_install_requested(
     if let Some(notice) = manual_approval_notice(host) {
         app.append_log(format!("[{host_id}] {notice}"));
     }
-    let host_id_owned = host_id.clone();
     let path_clone = path.clone();
     let proxy = app.proxy.clone();
     app.ctx.spawn(async move {
@@ -213,7 +207,7 @@ pub(crate) fn on_profile_install_requested(
             ))))),
         };
         proxy.send_event(UiEvent::Host(HostUiEvent::ProfileInstallFinished {
-            host_id: host_id_owned,
+            host_id,
             result,
             reply_to,
         }));
@@ -222,11 +216,11 @@ pub(crate) fn on_profile_install_requested(
 
 pub(crate) fn on_profile_install_finished(
     app: &mut GuiApp,
-    host_id: &HostId,
+    host_id: HostKind,
     result: Result<(String, Vec<String>), Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
-    let action = find_host_by_id(host_id.as_str()).map_or(
+    let action = find_host_by_id(host_id).map_or(
         "installed",
         crate::integration::host_app::HostApp::install_action_label,
     );
@@ -269,7 +263,7 @@ pub(crate) fn on_profile_install_finished(
     };
     app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
-            host_id: host_id.clone(),
+            host_id,
             cause: ProbeCause::Manual,
             reply_to: None,
         }));

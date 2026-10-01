@@ -1,9 +1,11 @@
 use std::str::FromStr;
 
-use systemprompt_models::bridge::ids::{
-    IdValidationError, ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId,
-    SkillName, ToolName, ToolPolicy,
+use systemprompt_identifiers::error::IdValidationError;
+use systemprompt_identifiers::{
+    LibraryArtifactId, MarketplaceRuleId, McpServerId, McpToolName, PluginId, RuleName, SkillId,
+    SkillName,
 };
+use systemprompt_models::bridge::ids::{ManifestSignature, Sha256Digest, ToolPolicy};
 
 #[test]
 fn plugin_id_try_new_accepts_non_empty() {
@@ -23,9 +25,9 @@ fn plugin_id_try_new_rejects_empty() {
 }
 
 #[test]
-fn plugin_id_into_inner_returns_owned_string() {
+fn plugin_id_into_string_returns_owned_value() {
     let id = PluginId::try_new("p").unwrap();
-    assert_eq!(id.into_inner(), "p");
+    assert_eq!(String::from(id), "p");
 }
 
 #[test]
@@ -66,15 +68,27 @@ fn plugin_id_ordering_and_hash() {
 }
 
 #[test]
-fn skill_id_skill_name_managed_mcp_tool_name_smoke() {
+fn manifest_entry_ids_reject_empty() {
     assert!(SkillId::try_new("s").is_ok());
     assert!(SkillName::try_new("n").is_ok());
-    assert!(ManagedMcpServerName::try_new("m").is_ok());
-    assert!(ToolName::try_new("t").is_ok());
+    assert!(MarketplaceRuleId::try_new("r").is_ok());
+    assert!(RuleName::try_new("n").is_ok());
+    assert!(LibraryArtifactId::try_new("a").is_ok());
+    assert!(McpServerId::try_new("m").is_ok());
+    assert!(McpToolName::try_new("t").is_ok());
     assert!(SkillId::try_new("").is_err());
     assert!(SkillName::try_new("").is_err());
-    assert!(ManagedMcpServerName::try_new("").is_err());
-    assert!(ToolName::try_new("").is_err());
+    assert!(MarketplaceRuleId::try_new("").is_err());
+    assert!(RuleName::try_new("").is_err());
+    assert!(LibraryArtifactId::try_new("").is_err());
+    assert!(McpServerId::try_new("").is_err());
+    assert!(McpToolName::try_new("").is_err());
+}
+
+#[test]
+fn marketplace_rule_id_deserialize_rejects_empty() {
+    let err = serde_json::from_str::<MarketplaceRuleId>("\"\"").unwrap_err();
+    assert!(err.to_string().contains("MarketplaceRuleId"));
 }
 
 #[test]
@@ -175,32 +189,19 @@ fn tool_policy_serde_lowercase() {
 }
 
 #[test]
-fn id_validation_error_invalid_constructor() {
-    let err = IdValidationError::invalid("Foo", "because reasons");
-    assert!(matches!(err, IdValidationError::Invalid { .. }));
-    let msg = err.to_string();
-    assert!(msg.contains("Foo"));
-    assert!(msg.contains("because reasons"));
-}
-
-#[test]
-fn id_validation_error_empty_constructor() {
-    let err = IdValidationError::empty("Bar");
-    assert!(matches!(err, IdValidationError::Empty { .. }));
-    assert!(err.to_string().contains("Bar"));
-}
-
-#[test]
 fn managed_server_tool_policy_resolves_named_then_wildcard() {
     use std::collections::BTreeMap;
     use systemprompt_models::bridge::manifest::ManagedMcpServer;
 
     let mut policies = BTreeMap::new();
-    policies.insert(ToolName::try_new("*").unwrap(), ToolPolicy::Allow);
-    policies.insert(ToolName::try_new("drop_table").unwrap(), ToolPolicy::Deny);
+    policies.insert(McpToolName::try_new("*").unwrap(), ToolPolicy::Allow);
+    policies.insert(
+        McpToolName::try_new("drop_table").unwrap(),
+        ToolPolicy::Deny,
+    );
     let server = ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::try_new("db").expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new("db").unwrap(),
+        id: McpServerId::try_new("db").expect("valid McpServerId"),
+        name: McpServerId::try_new("db").unwrap(),
         url: systemprompt_identifiers::ValidatedUrl::try_new("https://mcp.example.com/db")
             .expect("valid ValidatedUrl"),
         transport: None,

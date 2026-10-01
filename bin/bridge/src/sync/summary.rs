@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::gateway::manifest::SignedManifest;
 use crate::sync::apply::{self, HostFailure, HostWarning};
 
@@ -33,9 +35,9 @@ impl SyncSummary {
     // re-sync; any other warning under the host (evidence pending, plugin
     // dependencies) would otherwise re-request a sync on every tick.
     #[must_use]
-    pub fn cowork_enable_deferred(&self, host_id: &crate::ids::HostId) -> bool {
+    pub fn cowork_enable_deferred(&self, host_id: HostKind) -> bool {
         self.host_warnings.iter().any(|w| {
-            w.host_id == *host_id
+            w.host_id.is_host(host_id)
                 && w.kind == crate::host_sync::HostWarningKind::CoworkSessionMissing
         })
     }

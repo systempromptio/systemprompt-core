@@ -6,6 +6,7 @@
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use systemprompt_models::bridge::host::HostKind;
 
 use super::super::config::{
     ANALYTICS_ENABLED, APPROVAL_POLICY, APPROVAL_POLICY_VALUE, OTEL_ENDPOINT, OTEL_LOG_USER_PROMPT,
@@ -86,7 +87,7 @@ fn write_provider_block(
         toml::Value::Array(vec![
             toml::Value::String("credential-helper".to_owned()),
             toml::Value::String("--host".to_owned()),
-            toml::Value::String("codex-cli".to_owned()),
+            toml::Value::String(HostKind::CodexCli.as_str().to_owned()),
         ]),
     )?;
     write_dotted(

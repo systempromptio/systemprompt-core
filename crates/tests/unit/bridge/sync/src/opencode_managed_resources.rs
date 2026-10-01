@@ -8,7 +8,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{ApplyError, HostSync, HostSyncCtx};
-use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
+use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -102,7 +102,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
 fn mcp(name: &str) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).unwrap(),
+        name: McpServerId::try_new(name).unwrap(),
         url: ValidatedUrl::try_new("https://mcp.example.invalid/api").unwrap(),
         transport: Some("http".into()),
         headers: None,
