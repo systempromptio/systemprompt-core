@@ -165,7 +165,8 @@ async fn trait_rejects_an_unpriced_explicit_model_before_dispatch_or_audit() {
     assert!(matches!(
         err,
         AiInferenceError::Configuration(message)
-            if message.contains("anthropic") && message.contains("not-priced-by-the-catalogue")
+            if message.to_string().contains("anthropic")
+                && message.to_string().contains("not-priced-by-the-catalogue")
     ));
     assert!(
         server
@@ -220,7 +221,7 @@ async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
     assert!(matches!(
         err,
         AiInferenceError::Internal(message)
-            if message.contains("Provider not-configured not found")
+            if message.to_string().contains("Provider not-configured not found")
     ));
     assert!(
         server

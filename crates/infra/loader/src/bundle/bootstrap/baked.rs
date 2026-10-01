@@ -76,12 +76,12 @@ pub(super) fn stage_baked_base(
             }
         }
         let raw = serde_json::to_vec_pretty(&signed)
-            .map_err(|e| BundleError::policy(format!("baked base manifest: {e}")))?;
+            .map_err(|e| BundleError::policy_context("baked base manifest", e))?;
         fs::write(staging.join(BUNDLE_MANIFEST_FILE), raw)?;
         if let Err(e) = fs::rename(&staging, &target) {
             discard_staging(&staging);
             if !target.is_dir() {
-                return Err(BundleError::extract(&target, e));
+                return Err(BundleError::extract_cause(&target, e));
             }
         }
     }

@@ -12,8 +12,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{PgExecutor, PgPool};
-use systemprompt_database::RepositoryError;
 use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_models::errors::RepositoryError;
 
 use crate::authz::types::DecisionTag;
 use crate::policy::types::AccessScope;

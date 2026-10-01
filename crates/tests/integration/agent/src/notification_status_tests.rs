@@ -22,7 +22,7 @@ async fn notification_cannot_reopen_completed_task() -> Result<()> {
         .apply_notification_status(&task_id, "working", &now)
         .await
         .expect_err("notification 'working' on completed task must be rejected");
-    assert!(matches!(err, RepositoryError::ConstraintViolation(_)));
+    assert!(matches!(err, RepositoryError::Conflict(_)));
 
     let status = fx.current_status(&task_id).await?;
     assert_eq!(status, "TASK_STATE_COMPLETED");

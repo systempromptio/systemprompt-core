@@ -53,10 +53,17 @@ pub enum VerifyFailure {
     NoVerification,
 }
 
+pub type BundleCause = Box<dyn std::error::Error + Send + Sync + 'static>;
+
 #[derive(Debug, Error)]
 pub enum BundleError {
-    #[error("source {source_name}: fetch failed: {detail}")]
-    Fetch { source_name: String, detail: String },
+    #[error("source {source_name}: fetch failed: {}", describe(detail, cause.as_deref()))]
+    Fetch {
+        source_name: String,
+        detail: String,
+        #[source]
+        cause: Option<BundleCause>,
+    },
 
     #[error("source {source_name}: registry rejected the credentials")]
     Auth { source_name: String },
@@ -64,14 +71,23 @@ pub enum BundleError {
     #[error("verification failed: {0}")]
     Verify(#[from] VerifyFailure),
 
-    #[error("extract failed at {path}: {detail}")]
-    Extract { path: PathBuf, detail: String },
+    #[error("extract failed at {path}: {}", describe(detail, cause.as_deref()))]
+    Extract {
+        path: PathBuf,
+        detail: String,
+        #[source]
+        cause: Option<BundleCause>,
+    },
 
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("policy: {detail}")]
-    Policy { detail: String },
+    #[error("policy: {}", describe(detail, cause.as_deref()))]
+    Policy {
+        detail: String,
+        #[source]
+        cause: Option<BundleCause>,
+    },
 
     #[error("{kind} {id} is claimed by both {first} and {second}")]
     Ownership {
@@ -90,27 +106,76 @@ pub enum BundleError {
 
 pub type BundleResult<T> = Result<T, BundleError>;
 
+fn describe(
+    detail: &str,
+    cause: Option<&(dyn std::error::Error + Send + Sync + 'static)>,
+) -> String {
+    match cause {
+        Some(cause) if detail.is_empty() => cause.to_string(),
+        Some(cause) => format!("{detail}: {cause}"),
+        None => detail.to_owned(),
+    }
+}
+
 impl BundleError {
     #[must_use]
-    pub fn fetch(source_name: &str, detail: impl std::fmt::Display) -> Self {
+    pub fn fetch(source_name: &str, detail: impl Into<String>) -> Self {
         Self::Fetch {
             source_name: source_name.to_owned(),
-            detail: detail.to_string(),
+            detail: detail.into(),
+            cause: None,
         }
     }
 
     #[must_use]
-    pub fn policy(detail: impl std::fmt::Display) -> Self {
+    pub fn fetch_cause(source_name: &str, cause: impl Into<BundleCause>) -> Self {
+        Self::fetch_context(source_name, String::new(), cause)
+    }
+
+    #[must_use]
+    pub fn fetch_context(
+        source_name: &str,
+        context: impl Into<String>,
+        cause: impl Into<BundleCause>,
+    ) -> Self {
+        Self::Fetch {
+            source_name: source_name.to_owned(),
+            detail: context.into(),
+            cause: Some(cause.into()),
+        }
+    }
+
+    #[must_use]
+    pub fn policy(detail: impl Into<String>) -> Self {
         Self::Policy {
-            detail: detail.to_string(),
+            detail: detail.into(),
+            cause: None,
         }
     }
 
     #[must_use]
-    pub fn extract(path: impl Into<PathBuf>, detail: impl std::fmt::Display) -> Self {
+    pub fn policy_context(context: impl Into<String>, cause: impl Into<BundleCause>) -> Self {
+        Self::Policy {
+            detail: context.into(),
+            cause: Some(cause.into()),
+        }
+    }
+
+    #[must_use]
+    pub fn extract(path: impl Into<PathBuf>, detail: impl Into<String>) -> Self {
         Self::Extract {
             path: path.into(),
-            detail: detail.to_string(),
+            detail: detail.into(),
+            cause: None,
+        }
+    }
+
+    #[must_use]
+    pub fn extract_cause(path: impl Into<PathBuf>, cause: impl Into<BundleCause>) -> Self {
+        Self::Extract {
+            path: path.into(),
+            detail: String::new(),
+            cause: Some(cause.into()),
         }
     }
 }

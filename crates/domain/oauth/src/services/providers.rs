@@ -64,10 +64,9 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
 
     fn generate_token(&self, params: GenerateTokenParams) -> JwtResult<String> {
         let user_id = Uuid::parse_str(params.user_id.as_str()).map_err(|e| {
-            JwtProviderError::Internal(format!(
-                "user_id {:?} is not a valid UUID: {e}",
-                params.user_id.as_str()
-            ))
+            JwtProviderError::Internal(
+                format!("user_id {:?} is not a valid UUID: {e}", params.user_id.as_str()).into(),
+            )
         })?;
 
         let user = AuthenticatedUser {
@@ -83,8 +82,9 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             .permissions
             .iter()
             .map(|p| {
-                p.parse::<Permission>()
-                    .map_err(|_e| JwtProviderError::Internal(format!("unknown permission {p:?}")))
+                p.parse::<Permission>().map_err(|_e| {
+                    JwtProviderError::Internal(format!("unknown permission {p:?}").into())
+                })
             })
             .collect::<JwtResult<Vec<_>>>()?;
 
@@ -122,7 +122,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
         };
 
         generate_jwt(&user, config, jti, &params.session_id, &signing)
-            .map_err(|e| JwtProviderError::Internal(e.to_string()))
+            .map_err(|e| JwtProviderError::Internal(e.into()))
     }
 
     fn generate_secure_token(&self, prefix: &str) -> String {

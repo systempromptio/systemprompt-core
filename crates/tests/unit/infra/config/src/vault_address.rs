@@ -10,7 +10,7 @@ fn a_plaintext_non_loopback_address_is_refused_without_a_trust_entry() {
     let cfg = fx::config("http://vault:8200", fx::token_auth());
     let err = VaultKvProvider::from_config(&cfg, |_name| None).unwrap_err();
 
-    assert!(matches!(err, VaultError::Address { .. }));
+    assert!(matches!(err, VaultError::Address(_)));
 }
 
 #[test]

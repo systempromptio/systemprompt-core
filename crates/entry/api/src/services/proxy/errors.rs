@@ -6,7 +6,7 @@
 use axum::body::Body;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use systemprompt_models::api::{ApiError, ErrorCode};
+use systemprompt_models::api::ApiError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -47,7 +47,7 @@ pub enum ProxyError {
     DatabaseError {
         service: String,
         #[source]
-        source: systemprompt_database::RepositoryError,
+        source: systemprompt_traits::RepositoryError,
     },
 
     #[error("Authentication required for service '{service}'")]
@@ -141,24 +141,19 @@ impl IntoResponse for ProxyError {
                     );
                 }
 
-                let message = if status.is_server_error() {
-                    format!("Proxy request failed ({error_type})")
-                } else {
-                    self.to_string()
-                };
                 let api_error = match status {
-                    StatusCode::NOT_FOUND => ApiError::not_found(message),
-                    StatusCode::UNAUTHORIZED => ApiError::unauthorized(message),
-                    StatusCode::FORBIDDEN => ApiError::forbidden(message),
-                    StatusCode::BAD_REQUEST => ApiError::bad_request(message),
+                    StatusCode::NOT_FOUND => ApiError::not_found(self.to_string()),
+                    StatusCode::UNAUTHORIZED => ApiError::unauthorized(self.to_string()),
+                    StatusCode::FORBIDDEN => ApiError::forbidden(self.to_string()),
+                    StatusCode::BAD_REQUEST => ApiError::bad_request(self.to_string()),
                     StatusCode::SERVICE_UNAVAILABLE
                     | StatusCode::BAD_GATEWAY
                     | StatusCode::GATEWAY_TIMEOUT => {
-                        ApiError::new(ErrorCode::ServiceUnavailable, message)
+                        ApiError::service_unavailable("Proxy request failed")
                     },
-                    _ => ApiError::internal_error(message),
+                    _ => ApiError::internal_error("Proxy request failed"),
                 };
-                api_error.into_response()
+                api_error.with_error_key(error_type).into_response()
             },
         }
     }

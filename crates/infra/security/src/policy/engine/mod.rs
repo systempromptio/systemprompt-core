@@ -33,7 +33,7 @@ use thiserror::Error;
 
 use super::audit::ChainEntryOutcome;
 use super::builtin::SECRET_SCAN_ID;
-use super::config::{GovernanceConfig, PolicyConfig, PolicyMode};
+use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
 use super::governed::GovernedInput;
 use super::registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 use super::secrets::{SecretFinding, SecretScanner};
@@ -48,7 +48,7 @@ pub struct Evaluation {
     pub chain: Vec<ChainEntryOutcome>,
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum GovernanceEngineError {
     #[error(
         "governance config names policy `{id}`, but no implementation is linked into this binary"
@@ -60,8 +60,12 @@ pub enum GovernanceEngineError {
         #[source]
         source: PolicyConfigurationError,
     },
-    #[error("governance config at {path} was rejected: {message}")]
-    ConfigRejected { path: String, message: String },
+    #[error("governance config at {path} was rejected: {source}")]
+    ConfigRejected {
+        path: String,
+        #[source]
+        source: GovernanceConfigError,
+    },
 }
 
 struct ChainEntry {
@@ -93,12 +97,11 @@ impl std::fmt::Debug for GovernanceEngine {
 impl GovernanceEngine {
     pub fn from_services_root(services_root: &Path) -> Result<Self, GovernanceEngineError> {
         let path = services_root.join("governance/config.yaml");
-        let config = GovernanceConfig::load(&path).map_err(|error| {
-            GovernanceEngineError::ConfigRejected {
+        let config =
+            GovernanceConfig::load(&path).map_err(|source| GovernanceEngineError::ConfigRejected {
                 path: path.display().to_string(),
-                message: error.to_string(),
-            }
-        })?;
+                source,
+            })?;
         Self::from_config(&config)
     }
 
@@ -211,7 +214,7 @@ fn reject_toothless_enforcement(
     if toothless {
         return Err(GovernanceEngineError::InvalidPolicyConfiguration {
             id: cfg.id.clone(),
-            source: PolicyConfigurationError(
+            source: PolicyConfigurationError::Invalid(
                 "secret_scan is in enforce mode but compiles no secret patterns; declare \
                  `patterns` or set `mode: warn`"
                     .to_owned(),

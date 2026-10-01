@@ -98,7 +98,7 @@ fn not_found(id: &StoredFileId, err: &std::io::Error) -> FileStorageError {
     if err.kind() == std::io::ErrorKind::NotFound {
         FileStorageError::NotFound(id.as_str().to_owned())
     } else {
-        FileStorageError::Backend(format!("{}: {err}", id.as_str()))
+        FileStorageError::Backend(format!("{}: {err}", id.as_str()).into())
     }
 }
 

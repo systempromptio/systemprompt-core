@@ -69,7 +69,7 @@ pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthRe
     }
     let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
     let key = authority::decoding_key_for_kid(kid)
-        .map_err(|e| AuthError::KeyLookup(e.to_string()))?
+        .map_err(AuthError::KeyLookup)?
         .ok_or_else(|| AuthError::UnknownKid(kid.to_owned()))?;
 
     let mut validation = Validation::new(Algorithm::RS256);

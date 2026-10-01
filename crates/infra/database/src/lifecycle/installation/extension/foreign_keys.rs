@@ -76,15 +76,18 @@ pub(super) async fn apply_foreign_keys(
         return Ok(Vec::new());
     }
 
-    let failed = |message: String| LoaderError::SchemaInstallationFailed {
-        extension: extension_id.to_owned(),
-        message,
+    let failed = |context: String, source: RepositoryError| {
+        LoaderError::SchemaInstallationStepFailed {
+            extension: extension_id.to_owned(),
+            context,
+            source: Box::new(source),
+        }
     };
 
     let mut tx = db
         .begin_transaction()
         .await
-        .map_err(|e| failed(format!("Failed to begin transaction: {e}")))?;
+        .map_err(|e| failed("Failed to begin transaction".to_owned(), e))?;
 
     let total = keys.len();
     let mut drift = Vec::new();
@@ -92,27 +95,30 @@ pub(super) async fn apply_foreign_keys(
         let position = KeyPosition { n: idx + 1, total };
         let step = match apply_one(tx.as_mut(), key).await {
             Ok(outcome) => settle_outcome(outcome, key, extension_id, position, fresh),
-            Err(e) => Err(format!(
-                "Foreign key {n}/{total} could not be probed or savepointed: {e}",
-                n = position.n,
-            )),
+            Err(cause) => Err(KeyFailure {
+                context: format!(
+                    "Foreign key {n}/{total} could not be probed or savepointed",
+                    n = position.n,
+                ),
+                cause,
+            }),
         };
         match step {
             Ok(Some(found)) => drift.push(found),
             Ok(None) => {},
-            Err(explanation) => {
+            Err(KeyFailure { context, cause }) => {
                 let rollback_note = match tx.rollback().await {
                     Ok(()) => String::new(),
                     Err(rb) => format!(" (rollback also failed: {rb})"),
                 };
-                return Err(failed(format!("{explanation}{rollback_note}")));
+                return Err(failed(format!("{context}{rollback_note}"), cause));
             },
         }
     }
 
     tx.commit()
         .await
-        .map_err(|e| failed(format!("Failed to commit transaction: {e}")))?;
+        .map_err(|e| failed("Failed to commit transaction".to_owned(), e))?;
     Ok(drift)
 }
 
@@ -122,13 +128,18 @@ struct KeyPosition {
     total: usize,
 }
 
+struct KeyFailure {
+    context: String,
+    cause: RepositoryError,
+}
+
 fn settle_outcome(
     outcome: FkOutcome,
     key: &DeferredForeignKey,
     extension_id: &str,
     position: KeyPosition,
     fresh: bool,
-) -> Result<Option<ForeignKeyDrift>, String> {
+) -> Result<Option<ForeignKeyDrift>, KeyFailure> {
     match outcome {
         FkOutcome::Present => {
             debug!(
@@ -154,7 +165,10 @@ fn settle_outcome(
         },
         FkOutcome::CannotCreate(cause) => {
             if fresh {
-                return Err(cannot_create_explanation(key, position, &cause));
+                return Err(KeyFailure {
+                    context: cannot_create_explanation(key, position),
+                    cause,
+                });
             }
             error!(
                 extension = extension_id,
@@ -176,13 +190,9 @@ fn settle_outcome(
     }
 }
 
-fn cannot_create_explanation(
-    key: &DeferredForeignKey,
-    position: KeyPosition,
-    cause: &RepositoryError,
-) -> String {
+fn cannot_create_explanation(key: &DeferredForeignKey, position: KeyPosition) -> String {
     format!(
-        "Foreign key {n}/{total} failed: {cause}\n\
+        "Foreign key {n}/{total} failed.\n\
          This FOREIGN KEY was declared inline on CREATE TABLE {table} and is applied \
          after migrations; the referenced table must expose a PRIMARY KEY or UNIQUE \
          constraint on ({referenced}) — declare it in the referenced CREATE TABLE and \

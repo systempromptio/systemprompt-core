@@ -168,5 +168,5 @@ async fn a_body_cut_short_of_its_content_length_is_a_body_error() {
     );
     server.await.unwrap();
 
-    assert!(matches!(err, VaultError::Body { .. }), "got {err}");
+    assert!(matches!(err, VaultError::Body(_)), "got {err}");
 }

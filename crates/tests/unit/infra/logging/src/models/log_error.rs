@@ -37,16 +37,6 @@ fn test_logging_error_log_entry_not_found() {
 }
 
 #[test]
-fn test_logging_error_repository_error() {
-    let error = LoggingError::repository_error("insert failed");
-
-    assert_eq!(
-        error.to_string(),
-        "Log repository operation failed: insert failed"
-    );
-}
-
-#[test]
 fn test_logging_error_cleanup_error() {
     let error = LoggingError::cleanup_error(42);
 
@@ -138,36 +128,11 @@ fn test_logging_error_log_entry_not_found_with_string() {
 }
 
 #[test]
-fn test_logging_error_repository_error_with_string() {
-    let error = LoggingError::repository_error(String::from("operation failed"));
-
-    assert!(error.to_string().contains("operation failed"));
-}
-
-#[test]
 fn test_logging_error_filter_error_with_string() {
     let error = LoggingError::filter_error(String::from("module"), String::from("invalid"));
 
     assert!(error.to_string().contains("module"));
     assert!(error.to_string().contains("invalid"));
-}
-
-#[test]
-fn test_logging_error_into_sqlx_error() {
-    let error = LoggingError::EmptyModuleName;
-    let sqlx_error = error.into_sqlx_error();
-
-    let error_str = sqlx_error.to_string();
-    assert!(error_str.contains("Empty log module name"));
-}
-
-#[test]
-fn test_logging_error_into_sqlx_error_validation() {
-    let error = LoggingError::validation_error("test validation");
-    let sqlx_error = error.into_sqlx_error();
-
-    let error_str = sqlx_error.to_string();
-    assert!(error_str.contains("test validation"));
 }
 
 #[test]

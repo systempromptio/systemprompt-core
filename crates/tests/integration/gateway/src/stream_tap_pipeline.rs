@@ -20,6 +20,7 @@ use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_test_fixtures as fixtures;
 
 use crate::support::{minimal_request, seed_user, setup_db};
+use systemprompt_models::wire::error::WireStreamError;
 use systemprompt_models::wire::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
@@ -168,8 +169,8 @@ async fn quota_bucket(db: &DbPool, user_id: &UserId) -> Option<(i64, i64, i64)> 
 }
 
 fn events_stream(
-    events: Vec<Result<CanonicalEvent, String>>,
-) -> futures::stream::BoxStream<'static, Result<CanonicalEvent, String>> {
+    events: Vec<Result<CanonicalEvent, WireStreamError>>,
+) -> futures::stream::BoxStream<'static, Result<CanonicalEvent, WireStreamError>> {
     Box::pin(stream::iter(events))
 }
 
@@ -276,7 +277,7 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
             model: "claude-served".to_owned(),
             usage: usage(3, 0),
         }),
-        Err("upstream exploded".to_owned()),
+        Err(WireStreamError::transport("upstream exploded")),
     ]);
     let inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
     let policy = GatewayPolicySpec {

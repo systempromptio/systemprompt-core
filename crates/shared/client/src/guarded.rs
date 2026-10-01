@@ -27,8 +27,8 @@ use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use thiserror::Error;
 
 use systemprompt_models::net::{
-    HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT, is_blocked_ip, trusted_http_hosts_from_env,
-    validate_outbound_url_with_trust,
+    HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT, OutboundUrlError, is_blocked_ip,
+    trusted_http_hosts_from_env, validate_outbound_url_with_trust,
 };
 
 const LOOPBACK_HOST: &str = "localhost";
@@ -49,8 +49,12 @@ pub enum GuardedConnectError {
         host: String,
         addr: std::net::IpAddr,
     },
-    #[error("redirect to {url} refused: {reason}")]
-    RedirectRefused { url: String, reason: String },
+    #[error("redirect to {url} refused: {source}")]
+    RedirectRefused {
+        url: String,
+        #[source]
+        source: OutboundUrlError,
+    },
     #[error("more than {0} redirects")]
     TooManyRedirects(usize),
 }
@@ -224,10 +228,10 @@ fn guarded_redirect_policy(
         }
         match validate_outbound_url_with_trust(attempt.url().as_str(), &trusted) {
             Ok(_) => attempt.follow(),
-            Err(e) => {
+            Err(source) => {
                 let refused = GuardedConnectError::RedirectRefused {
                     url: attempt.url().to_string(),
-                    reason: e.to_string(),
+                    source,
                 };
                 tracing::warn!(error = %refused, "Refused outbound redirect");
                 attempt.error(refused)

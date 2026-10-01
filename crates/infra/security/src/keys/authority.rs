@@ -35,10 +35,10 @@ pub enum TokenAuthorityError {
     FileMissing(PathBuf),
 
     #[error("config unavailable: {0}")]
-    Config(String),
+    Config(#[source] systemprompt_models::errors::ConfigError),
 
     #[error("signing key secret unavailable: {0}")]
-    Secret(String),
+    Secret(#[source] systemprompt_config::SecretsBootstrapError),
 
     #[error("key load failed: {0}")]
     Key(#[from] KeyError),
@@ -95,7 +95,7 @@ fn install_authority(authority: Authority) -> TokenAuthorityResult<&'static Auth
 
 fn load_from_secret_or_file() -> TokenAuthorityResult<Authority> {
     if let Some(pem) = systemprompt_config::SecretsBootstrap::signing_key_pem()
-        .map_err(|e| TokenAuthorityError::Secret(e.to_string()))?
+        .map_err(TokenAuthorityError::Secret)?
     {
         let signing_key = RsaSigningKey::from_pkcs8_pem(&pem)?;
         return build(signing_key);
@@ -104,8 +104,7 @@ fn load_from_secret_or_file() -> TokenAuthorityResult<Authority> {
 }
 
 fn load() -> TokenAuthorityResult<Authority> {
-    let config = systemprompt_models::Config::get()
-        .map_err(|e| TokenAuthorityError::Config(e.to_string()))?;
+    let config = systemprompt_models::Config::get().map_err(TokenAuthorityError::Config)?;
     let path = &config.signing_key_path;
     if path.as_os_str().is_empty() {
         return Err(TokenAuthorityError::PathMissing);

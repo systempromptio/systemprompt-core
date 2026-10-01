@@ -96,7 +96,7 @@ impl ProviderCredential {
         }
         serde_json::from_value::<ServiceAccountKey>(value)
             .map(|key| Self::GoogleServiceAccount(Box::new(key)))
-            .map_err(|e| CredentialError::Malformed(e.to_string()))
+            .map_err(CredentialError::Malformed)
     }
 
     #[must_use]

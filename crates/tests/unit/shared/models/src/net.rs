@@ -342,7 +342,9 @@ mod ssrf_adversarial_tests {
     fn rejects_file_scheme() {
         assert!(matches!(
             validate_outbound_url("file:///etc/passwd"),
-            Err(OutboundUrlError::Scheme(_)) | Err(OutboundUrlError::Parse(_))
+            Err(OutboundUrlError::Scheme(_))
+                | Err(OutboundUrlError::Parse(_))
+                | Err(OutboundUrlError::MissingHost)
         ));
     }
 
@@ -369,7 +371,9 @@ mod ssrf_adversarial_tests {
         let err = validate_outbound_url("data:,Hello%2C%20World").unwrap_err();
         assert!(matches!(
             err,
-            OutboundUrlError::Scheme(_) | OutboundUrlError::Parse(_)
+            OutboundUrlError::Scheme(_)
+                | OutboundUrlError::Parse(_)
+                | OutboundUrlError::MissingHost
         ));
     }
 

@@ -176,7 +176,8 @@ pub(crate) fn build_managed_skill_entry(
     let name = SkillName::try_new(skill.name)
         .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
     if let Some(frontmatter) = &skill.frontmatter {
-        check_json_compatible(frontmatter).map_err(MarketplaceError::Catalog)?;
+        check_json_compatible(frontmatter)
+            .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
     }
     let sha256 = skill_digest(skill.frontmatter.as_ref(), &skill.instructions)?;
     let entry = SkillEntry {

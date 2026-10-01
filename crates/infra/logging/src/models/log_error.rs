@@ -26,11 +26,8 @@ pub enum LoggingError {
     #[error("Invalid metadata format")]
     InvalidMetadata,
 
-    #[error("Database operation failed")]
-    DatabaseError(#[from] sqlx::Error),
-
     #[error("Repository operation failed: {0}")]
-    Repository(#[from] systemprompt_database::RepositoryError),
+    Repository(#[from] systemprompt_traits::RepositoryError),
 
     #[error("JSON serialization failed")]
     JsonError(#[from] serde_json::Error),
@@ -40,9 +37,6 @@ pub enum LoggingError {
 
     #[error("DateTime parsing failed")]
     DateTimeError(#[from] chrono::ParseError),
-
-    #[error("Log repository operation failed: {operation}")]
-    RepositoryError { operation: String },
 
     #[error("Cleanup operation failed: deleted {count} entries")]
     CleanupError { count: u64 },
@@ -90,12 +84,6 @@ impl LoggingError {
         Self::LogEntryNotFound { id: id.into() }
     }
 
-    pub fn repository_error(operation: impl Into<String>) -> Self {
-        Self::RepositoryError {
-            operation: operation.into(),
-        }
-    }
-
     pub const fn cleanup_error(count: u64) -> Self {
         Self::CleanupError { count }
     }
@@ -110,8 +98,10 @@ impl LoggingError {
             value: value.into(),
         }
     }
+}
 
-    pub fn into_sqlx_error(self) -> sqlx::Error {
-        sqlx::Error::Protocol(format!("{self}"))
+impl From<sqlx::Error> for LoggingError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::Repository(systemprompt_traits::RepositoryError::from(err))
     }
 }

@@ -35,7 +35,7 @@ use health::{check_server_connection, check_server_health};
 
 fn map_resilience_err(err: ResilienceError<McpDomainError>, server: &str) -> ToolProviderError {
     match err {
-        ResilienceError::Inner(inner) => ToolProviderError::ExecutionFailed(inner.to_string()),
+        ResilienceError::Inner(inner) => ToolProviderError::Execution(Box::new(inner)),
         ResilienceError::CircuitOpen { .. } => ToolProviderError::ExecutionFailed(format!(
             "circuit breaker open for MCP server {server}; failing fast"
         )),
@@ -201,9 +201,7 @@ impl ToolProvider for McpToolProvider {
             "Refreshing MCP connections for agent"
         );
 
-        self.registry.validate().map_err(|e| {
-            ToolProviderError::Internal(format!("Failed to validate registry: {e}"))
-        })?;
+        self.registry.validate().map_err(|e| ToolProviderError::Internal(Box::new(e)))?;
 
         let api_server_url = systemprompt_models::Config::get()
             .map_err(|e| ToolProviderError::ConfigurationError {

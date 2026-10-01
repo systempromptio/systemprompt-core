@@ -100,7 +100,7 @@ impl ParentChainIndex {
         let mut plugins = BTreeMap::new();
         for id in plugin_ids {
             let entity = EntityRef::from_kind_and_id(EntityKind::Plugin, &id)
-                .map_err(|e| AuthzError::Validation(e.to_string()))?;
+                .map_err(AuthzError::InvalidEntityId)?;
             let parent = LoadedParent {
                 entity,
                 rules: rules.remove(&id).unwrap_or_default(),

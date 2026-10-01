@@ -3,8 +3,9 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use systemprompt_database::{
     DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
-    QuerySelector, RepositoryError, ToDbValue,
+    QuerySelector, ToDbValue,
 };
+use systemprompt_traits::RepositoryError;
 
 #[derive(Debug, Clone)]
 pub enum MockDbResponse {

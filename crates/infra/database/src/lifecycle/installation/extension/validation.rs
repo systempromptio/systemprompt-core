@@ -68,9 +68,10 @@ async fn validate_single_column(
             &[&schema, &table, &column],
         )
         .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
+        .map_err(|e| LoaderError::SchemaInstallationStepFailed {
             extension: extension_id.to_owned(),
-            message: format!("Failed to validate column '{column}': {e}"),
+            context: format!("Failed to validate column '{column}'"),
+            source: Box::new(e),
         })?;
 
     if result.rows.is_empty() {

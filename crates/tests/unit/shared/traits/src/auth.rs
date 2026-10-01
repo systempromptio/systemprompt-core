@@ -20,7 +20,7 @@ fn error_display_messages() {
 
 #[test]
 fn internal_error_includes_message() {
-    let err = AuthProviderError::Internal("Database connection failed".to_string());
+    let err = AuthProviderError::Internal("Database connection failed".into());
     assert_eq!(
         err.to_string(),
         "Internal error: Database connection failed"
@@ -28,12 +28,14 @@ fn internal_error_includes_message() {
 }
 
 #[test]
-fn internal_variant_construction() {
-    let auth_err = AuthProviderError::Internal("Something went wrong".to_string());
+fn internal_variant_keeps_its_source() {
+    let cause = std::io::Error::other("Something went wrong");
+    let auth_err = AuthProviderError::Internal(Box::new(cause));
 
+    assert!(std::error::Error::source(&auth_err).is_some());
     match auth_err {
-        AuthProviderError::Internal(msg) => {
-            assert!(msg.contains("Something went wrong"));
+        AuthProviderError::Internal(source) => {
+            assert!(source.to_string().contains("Something went wrong"));
         },
         _ => panic!("Expected Internal error variant"),
     }

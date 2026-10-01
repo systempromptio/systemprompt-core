@@ -165,7 +165,7 @@ impl DatabaseAdminService {
         let mut counted = Vec::new();
         for mut table in self.list_tables().await? {
             let ident = SafeIdentifier::parse(&table.name).map_err(|e| {
-                RepositoryError::internal(format!("table name {}: {e}", table.name))
+                RepositoryError::decode(format!("table name {}", table.name), e)
             })?;
             let count_query = format!("SELECT COUNT(*) as count FROM {}", ident.quoted());
             match sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(count_query))

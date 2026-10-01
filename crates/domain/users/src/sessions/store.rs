@@ -20,12 +20,12 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<Vec<SessionId>> {
         Self::fingerprint_session_ids(self, fingerprint, window_days)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn find_by_id(&self, session_id: &SessionId) -> AnalyticsResult<Option<SessionSnapshot>> {
         Self::find_by_id(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn find_active_by_id(
         &self,
@@ -33,12 +33,12 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<Option<ActiveSessionLookup>> {
         Self::find_active_by_id(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn revoke_all_for_user(&self, user_id: &UserId) -> AnalyticsResult<u64> {
         Self::revoke_all_for_user(self, user_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn find_by_fingerprint(
         &self,
@@ -47,32 +47,32 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<Option<SessionSnapshot>> {
         Self::find_by_fingerprint(self, fingerprint_hash, user_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn list_active_by_user(&self, user_id: &UserId) -> AnalyticsResult<Vec<SessionSnapshot>> {
         Self::list_active_by_user(self, user_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn increment_request_count(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         Self::increment_request_count(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn end_session(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         Self::end_session(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn mark_as_scanner(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         Self::mark_as_scanner(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn mark_converted(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         Self::mark_converted(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn mark_as_behavioral_bot(
         &self,
@@ -81,7 +81,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<()> {
         Self::mark_as_behavioral_bot(self, session_id, reason)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn check_and_mark_behavioral_bot(
         &self,
@@ -90,27 +90,27 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<bool> {
         Self::check_and_mark_behavioral_bot(self, session_id, request_count_threshold)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn cleanup_inactive(&self, inactive_hours: i32) -> AnalyticsResult<u64> {
         Self::cleanup_inactive(self, inactive_hours)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn count_inactive(&self, inactive_hours: i32) -> AnalyticsResult<i64> {
         Self::count_inactive(self, inactive_hours)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn count_sessions_missing_geo(&self) -> AnalyticsResult<i64> {
         Self::count_sessions_missing_geo(self)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn insert_session(&self, params: &CreateSessionParams<'_>) -> AnalyticsResult<()> {
         Self::create_session(self, params)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn find_recent_by_fingerprint(
         &self,
@@ -119,7 +119,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<Option<SessionRecord>> {
         Self::find_recent_anonymous_by_fingerprint(self, fingerprint_hash, max_age_seconds)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn increment_ai_usage(
         &self,
@@ -129,7 +129,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<()> {
         Self::increment_ai_usage(self, session_id, tokens, cost_microdollars)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn update_behavioral_detection(
         &self,
@@ -140,7 +140,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<()> {
         Self::update_behavioral_detection(self, session_id, score, is_behavioral_bot, reason)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn count_sessions_by_fingerprint(
         &self,
@@ -149,7 +149,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<i64> {
         Self::count_sessions_by_fingerprint(self, fingerprint_hash, window_hours)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn get_session_for_behavioral_analysis(
         &self,
@@ -157,7 +157,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<Option<SessionBehavioralData>> {
         Self::get_session_for_behavioral_analysis(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn count_unique_ips_by_fingerprint(
         &self,
@@ -166,7 +166,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<i64> {
         Self::count_unique_ips_by_fingerprint(self, fingerprint_hash, window_days)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn get_session_starts_by_fingerprint(
         &self,
@@ -175,7 +175,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<Vec<DateTime<Utc>>> {
         Self::get_session_starts_by_fingerprint(self, fingerprint_hash, window_days)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn get_session_velocity(
         &self,
@@ -183,12 +183,12 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<(Option<i64>, Option<i64>)> {
         Self::get_session_velocity(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn count_active_fingerprint_sessions(&self, fingerprint: &str) -> AnalyticsResult<i32> {
         self.count_active_fingerprint(fingerprint)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn find_reusable_fingerprint_session(
         &self,
@@ -196,7 +196,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<Option<SessionId>> {
         self.find_reusable_fingerprint(fingerprint)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn sessions_missing_geo(
         &self,
@@ -205,7 +205,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<Vec<(SessionId, String)>> {
         self.missing_geo(after, limit)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
     async fn set_session_geo(
         &self,
@@ -216,6 +216,6 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     ) -> AnalyticsResult<u64> {
         self.set_geo(session_id, country, region, city)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 }

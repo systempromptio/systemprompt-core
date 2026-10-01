@@ -26,6 +26,7 @@ fn test_api_error_display() {
 fn test_api_validation_failed_display() {
     let err = CloudError::ApiValidationFailed {
         message: "token rejected".to_string(),
+        source: Box::new(CloudError::Unauthorized),
     };
     let s = err.to_string();
     assert!(s.contains("Cloud API validation failed"));
@@ -37,7 +38,7 @@ fn test_api_validation_failed_display() {
 #[test]
 fn test_invalid_credentials_display() {
     let err = CloudError::InvalidCredentials {
-        message: "bad shape".to_string(),
+        source: Box::new(CloudError::other("bad shape")),
     };
     let s = err.to_string();
     assert!(s.contains("Cloud credentials file invalid"));

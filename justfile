@@ -1183,6 +1183,13 @@ lint-fail-open:
 lint-swallowed-errors:
     ./scripts/lint-swallowed-errors.sh
 
+# An error turned into a String (`map_err(|e| e.to_string())`,
+# `Result<_, String>`, a `Foo(String)` variant built from Display) loses its
+# source and classification. Not yet in check-gates: it ratchets per crate.
+# `just lint-stringly-errors --report [PATH...]` prints per-crate counts.
+lint-stringly-errors *ARGS:
+    ./scripts/lint-stringly-errors.sh {{ARGS}}
+
 # Bridge control flow decides on a host warning's `kind`, never its text.
 lint-bridge-typed-warnings:
     ./scripts/lint-bridge-typed-warnings.sh

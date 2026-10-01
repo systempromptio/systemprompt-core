@@ -22,7 +22,9 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum OutboundUrlError {
     #[error("invalid url: {0}")]
-    Parse(String),
+    Parse(#[from] url::ParseError),
+    #[error("invalid url: missing host")]
+    MissingHost,
     #[error("unsupported url scheme: {0}")]
     Scheme(String),
     #[error("http url only permitted for loopback hosts")]
@@ -89,10 +91,8 @@ pub fn validate_outbound_url_with_trust(
     url: &str,
     trusted_http_hosts: &[impl AsRef<str>],
 ) -> Result<url::Url, OutboundUrlError> {
-    let parsed = url::Url::parse(url).map_err(|e| OutboundUrlError::Parse(e.to_string()))?;
-    let host = parsed
-        .host()
-        .ok_or_else(|| OutboundUrlError::Parse("missing host".to_owned()))?;
+    let parsed = url::Url::parse(url)?;
+    let host = parsed.host().ok_or(OutboundUrlError::MissingHost)?;
 
     let is_loopback_host = match &host {
         url::Host::Domain(d) => d.eq_ignore_ascii_case("localhost"),

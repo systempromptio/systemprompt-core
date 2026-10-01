@@ -15,7 +15,7 @@
 
 use std::path::PathBuf;
 
-use systemprompt_models::errors::SecretsError;
+use systemprompt_models::errors::{ConfigError as ModelConfigError, SecretsError};
 use systemprompt_models::profile::ProfileError;
 
 use crate::bootstrap::{ProfileBootstrapError, SecretsBootstrapError};
@@ -91,8 +91,8 @@ pub enum ConfigError {
     #[error("Unsupported database type '{db_type}'. Only 'postgres' is supported.")]
     UnsupportedDatabaseType { db_type: String },
 
-    #[error("Invalid database URL: {message}")]
-    InvalidDatabaseUrl { message: String },
+    #[error("Invalid database URL: {0}")]
+    InvalidDatabaseUrl(#[source] ModelConfigError),
 
     #[error(
         "Profile is missing required `system_admin.username` and `SYSTEMPROMPT_SYSTEM_ADMIN` is \

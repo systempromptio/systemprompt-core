@@ -113,8 +113,9 @@ impl RssFeedProvider for DefaultRssFeedProvider {
 
     async fn feed_metadata(&self, ctx: &RssFeedContext<'_>) -> ProviderResult<RssFeedMetadata> {
         let (title, description) = self.get_source_branding(ctx.source_name);
-        let global_config = Config::get().map_err(|e| {
-            ProviderError::Configuration(format!("Failed to load global config: {e}"))
+        let global_config = Config::get().map_err(|e| ProviderError::ConfigurationLoad {
+            context: "Failed to load global config".to_owned(),
+            source: Box::new(e),
         })?;
 
         Ok(RssFeedMetadata {
@@ -150,8 +151,9 @@ impl RssFeedProvider for DefaultRssFeedProvider {
         let content_items = repo
             .list_by_source_limited(&source_id, &LocaleCode::english(), limit)
             .await
-            .map_err(|e| {
-                ProviderError::RenderFailed(format!("Failed to fetch content for RSS feed: {e}"))
+            .map_err(|e| ProviderError::Rendering {
+                context: "Failed to fetch content for RSS feed".to_owned(),
+                source: Box::new(e),
             })?;
 
         let items = content_items

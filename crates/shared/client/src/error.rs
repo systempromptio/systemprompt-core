@@ -34,6 +34,9 @@ pub enum ClientError {
     #[error("Server unavailable: {0}")]
     ServerUnavailable(String),
 
+    #[error("Server unavailable: undecodable cli event from server: {0}")]
+    UndecodableEvent(#[source] serde_json::Error),
+
     #[error("Invalid configuration: {message}")]
     ConfigError { message: String },
 
@@ -53,7 +56,10 @@ impl ClientError {
     pub const fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::Timeout | Self::ServerUnavailable(_) | Self::HttpError(_)
+            Self::Timeout
+                | Self::ServerUnavailable(_)
+                | Self::UndecodableEvent(_)
+                | Self::HttpError(_)
         )
     }
 }

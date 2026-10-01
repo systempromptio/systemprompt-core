@@ -75,9 +75,10 @@ impl MigrationService<'_> {
                     &[&schema, &name],
                 )
                 .await
-                .map_err(|e| LoaderError::MigrationFailed {
+                .map_err(|e| LoaderError::MigrationStepFailed {
                     extension: extension_id.to_owned(),
-                    message: format!("Failed to check for existing table '{table}': {e}"),
+                    context: format!("Failed to check for existing table '{table}'"),
+                    source: Box::new(e),
                 })?;
             if !result.rows.is_empty() {
                 tables_present += 1;
@@ -116,12 +117,13 @@ impl MigrationService<'_> {
             .filter(|migration| !migration.tombstone && is_retirement(migration))
         {
             let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
-                LoaderError::MigrationFailed {
+                LoaderError::MigrationStepFailed {
                     extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to parse retirement migration {} ({}): {e}",
+                    context: format!(
+                        "Failed to parse retirement migration {} ({})",
                         migration.version, migration.name
                     ),
+                    source: Box::new(e),
                 }
             })?;
             info!(

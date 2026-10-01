@@ -12,6 +12,7 @@
 
 use serde_yaml::Value as YamlValue;
 
+use super::secrets::SecretPatternError;
 use super::types::GovernancePolicy;
 
 /// Constructs one policy instance from its raw YAML config entry.
@@ -23,9 +24,21 @@ pub type PolicyFactory =
     fn(&YamlValue) -> Result<Box<dyn GovernancePolicy>, PolicyConfigurationError>;
 
 /// Why a policy factory rejected its YAML entry.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("{0}")]
-pub struct PolicyConfigurationError(pub String);
+#[derive(Debug, thiserror::Error)]
+pub enum PolicyConfigurationError {
+    #[error("{0}")]
+    Invalid(String),
+
+    #[error("{context}: {source}")]
+    Yaml {
+        context: &'static str,
+        #[source]
+        source: serde_yaml::Error,
+    },
+
+    #[error(transparent)]
+    SecretPatterns(#[from] SecretPatternError),
+}
 
 /// One inventory submission per policy. `id` is the stable referent used in
 /// `governance.policies` YAML and in `governance_decisions.policy`.

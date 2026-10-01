@@ -55,7 +55,7 @@ fn a_document_missing_the_required_pepper_fails_to_become_secrets() {
 
     assert!(matches!(
         err,
-        SecretsBootstrapError::InvalidSecretsFile { .. }
+        SecretsBootstrapError::InvalidSecretsFile(_)
     ));
 }
 
@@ -68,7 +68,7 @@ fn a_document_whose_field_has_the_wrong_type_fails_to_become_secrets() {
 
     assert!(matches!(
         document.into_secrets().unwrap_err(),
-        SecretsBootstrapError::InvalidSecretsFile { .. }
+        SecretsBootstrapError::InvalidSecretsFile(_)
     ));
 }
 

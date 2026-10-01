@@ -403,7 +403,7 @@ mod get_parameter_parsed_tests {
         let err = ctx
             .get_parameter_parsed::<i32>("retention_hours")
             .expect_err("a mistyped override must not silently fall back");
-        assert!(matches!(err, ProviderError::Configuration(_)));
+        assert!(matches!(err, ProviderError::InvalidParameter { .. }));
         let message = err.to_string();
         assert!(
             message.contains("retention_hours") && message.contains("abc"),

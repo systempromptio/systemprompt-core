@@ -33,11 +33,8 @@ pub(super) struct VaultHttp {
 impl VaultHttp {
     pub(super) fn new(cfg: &VaultSecretsConfig) -> Result<Self, VaultError> {
         let trusted = trusted_http_hosts_from_env();
-        let address = validate_outbound_url_with_trust(&cfg.address, &trusted).map_err(|e| {
-            VaultError::Address {
-                message: e.to_string(),
-            }
-        })?;
+        let address = validate_outbound_url_with_trust(&cfg.address, &trusted)
+            .map_err(|e| VaultError::Address(Box::new(e)))?;
 
         let mut builder = reqwest::Client::builder()
             .use_rustls_tls()
@@ -48,19 +45,17 @@ impl VaultHttp {
         if let Some(path) = cfg.ca_cert_path.as_deref() {
             let pem = std::fs::read(path).map_err(|e| VaultError::CaCertificate {
                 path: path.to_owned(),
-                message: e.to_string(),
+                source: Box::new(e),
             })?;
             let cert =
                 reqwest::Certificate::from_pem(&pem).map_err(|e| VaultError::CaCertificate {
                     path: path.to_owned(),
-                    message: e.to_string(),
+                    source: Box::new(e),
                 })?;
             builder = builder.add_root_certificate(cert);
         }
 
-        let client = builder.build().map_err(|e| VaultError::ClientBuild {
-            message: e.to_string(),
-        })?;
+        let client = builder.build().map_err(VaultError::ClientBuild)?;
 
         Ok(Self {
             client,
@@ -71,9 +66,10 @@ impl VaultHttp {
     }
 
     pub(super) fn request(&self, method: Method, path: &str) -> Result<RequestBuilder, VaultError> {
-        let url = self.address.join(path).map_err(|e| VaultError::Address {
-            message: e.to_string(),
-        })?;
+        let url = self
+            .address
+            .join(path)
+            .map_err(|e| VaultError::Address(Box::new(e)))?;
         let mut builder = self
             .client
             .request(method, url)

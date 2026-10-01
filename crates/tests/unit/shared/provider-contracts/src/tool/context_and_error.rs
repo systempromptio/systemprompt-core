@@ -120,7 +120,7 @@ mod tool_provider_error_tests {
 
     #[test]
     fn internal_contains_message() {
-        let err = ToolProviderError::Internal("unknown".to_string());
+        let err = ToolProviderError::Internal("unknown".into());
         assert!(err.to_string().contains("unknown"));
     }
 

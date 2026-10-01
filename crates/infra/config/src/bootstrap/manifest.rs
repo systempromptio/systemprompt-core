@@ -13,6 +13,7 @@ use std::path::Path;
 use base64::Engine;
 use rand::Rng;
 
+use super::key_material::KeyMaterialError;
 use super::secrets::SecretsBootstrapError;
 use crate::error::{ConfigError, ConfigResult};
 
@@ -30,16 +31,12 @@ pub fn decode_seed(
 ) -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES], SecretsBootstrapError> {
     let raw = base64::engine::general_purpose::STANDARD
         .decode(encoded.trim())
-        .map_err(|e| SecretsBootstrapError::ManifestSeedInvalid {
-            message: format!("base64 decode failed: {e}"),
-        })?;
+        .map_err(|e| SecretsBootstrapError::ManifestSeedInvalid(e.into()))?;
     if raw.len() != MANIFEST_SIGNING_SEED_BYTES {
-        return Err(SecretsBootstrapError::ManifestSeedInvalid {
-            message: format!(
-                "expected {MANIFEST_SIGNING_SEED_BYTES}-byte seed, got {}",
-                raw.len()
-            ),
-        });
+        return Err(SecretsBootstrapError::ManifestSeedInvalid(KeyMaterialError::Length {
+            expected: MANIFEST_SIGNING_SEED_BYTES,
+            actual: raw.len(),
+        }));
     }
     let mut out = [0u8; MANIFEST_SIGNING_SEED_BYTES];
     out.copy_from_slice(&raw);

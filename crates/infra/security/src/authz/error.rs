@@ -21,18 +21,47 @@ domain_error! {
 
         #[error("authz bootstrap: {0}")]
         Bootstrap(#[from] AuthzBootstrapError),
+
+        #[error("failed to {action} {path}: {source}")]
+        File {
+            action: &'static str,
+            path: String,
+            #[source]
+            source: std::io::Error,
+        },
+
+        #[error("failed to parse {path} as AccessControlConfig: {source}")]
+        ConfigParse {
+            path: String,
+            #[source]
+            source: serde_yaml::Error,
+        },
+
+        #[error(
+            "marketplace '{marketplace}': access.rules rule_type '{rule_type}' is not a valid \
+             subject dimension: {source}"
+        )]
+        MarketplaceRuleType {
+            marketplace: String,
+            rule_type: String,
+            #[source]
+            source: Box<AuthzError>,
+        },
+
+        #[error("invalid entity id: {0}")]
+        InvalidEntityId(#[source] systemprompt_identifiers::error::IdValidationError),
     }
 }
 
 impl From<sqlx::Error> for AuthzError {
     fn from(err: sqlx::Error) -> Self {
-        Self::Repository(systemprompt_database::RepositoryError::from(err))
+        Self::Repository(systemprompt_models::errors::RepositoryError::from(err))
     }
 }
 
 pub type AuthzResult<T> = Result<T, AuthzError>;
 
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Error)]
 pub enum AuthzBootstrapError {
     #[error(
         "governance.authz.hook.mode = webhook but `url` is missing or blank — refusing to start"
@@ -40,7 +69,7 @@ pub enum AuthzBootstrapError {
     MissingWebhookUrl,
 
     #[error("governance.authz.hook.url is invalid or unsafe: {0} — refusing to start")]
-    InvalidWebhookUrl(String),
+    InvalidWebhookUrl(#[source] systemprompt_models::net::OutboundUrlError),
 
     #[error(
         "governance.authz.hook.mode = unrestricted requires `acknowledgement` field equal to the \

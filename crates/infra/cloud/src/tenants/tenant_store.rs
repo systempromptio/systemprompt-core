@@ -52,7 +52,7 @@ impl TenantStore {
         store
             .validate()
             .map_err(|e| CloudError::TenantsStoreInvalid {
-                message: e.to_string(),
+                source: Box::new(e),
             })?;
 
         Ok(store)
@@ -61,7 +61,7 @@ impl TenantStore {
     pub fn save_to_path(&self, path: &Path) -> CloudResult<()> {
         self.validate()
             .map_err(|e| CloudError::TenantsStoreInvalid {
-                message: e.to_string(),
+                source: Box::new(e),
             })?;
 
         write_private_json(path, self)

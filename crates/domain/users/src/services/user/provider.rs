@@ -33,21 +33,21 @@ impl UserProvider for UserService {
         self.find_by_id(id)
             .await
             .map(|opt| opt.map(AuthUser::from))
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
     async fn find_by_email(&self, email: &str) -> AuthResult<Option<AuthUser>> {
         Self::find_by_email(self, email)
             .await
             .map(|opt| opt.map(AuthUser::from))
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
     async fn find_by_name(&self, name: &str) -> AuthResult<Option<AuthUser>> {
         Self::find_by_name(self, name)
             .await
             .map(|opt| opt.map(AuthUser::from))
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
     async fn create_user(
@@ -59,21 +59,21 @@ impl UserProvider for UserService {
         Self::create(self, name, email, full_name, full_name)
             .await
             .map(AuthUser::from)
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
     async fn create_anonymous(&self, fingerprint: &str) -> AuthResult<AuthUser> {
         Self::create_anonymous(self, fingerprint)
             .await
             .map(AuthUser::from)
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
     async fn assign_roles(&self, user_id: &UserId, roles: &[String]) -> AuthResult<()> {
         Self::assign_roles(self, user_id, roles)
             .await
             .map(|_| ())
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
     async fn find_or_create_federated(
@@ -85,14 +85,14 @@ impl UserProvider for UserService {
         Self::find_or_create_federated(self, issuer, external_sub, claims)
             .await
             .map(|u| u.id)
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
     async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64> {
         Self::promote_anonymous(self, source, target)
             .await
             .map(|result| result.total_rows)
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 }
 
@@ -102,7 +102,7 @@ impl RoleProvider for UserService {
         match Self::find_by_id(self, user_id).await {
             Ok(Some(user)) => Ok(user.roles),
             Ok(None) => Err(AuthProviderError::UserNotFound),
-            Err(e) => Err(AuthProviderError::Internal(e.to_string())),
+            Err(e) => Err(AuthProviderError::Internal(e.into())),
         }
     }
 
@@ -110,7 +110,7 @@ impl RoleProvider for UserService {
         let user = match Self::find_by_id(self, user_id).await {
             Ok(Some(u)) => u,
             Ok(None) => return Err(AuthProviderError::UserNotFound),
-            Err(e) => return Err(AuthProviderError::Internal(e.to_string())),
+            Err(e) => return Err(AuthProviderError::Internal(e.into())),
         };
 
         let mut roles = user.roles;
@@ -122,14 +122,14 @@ impl RoleProvider for UserService {
         Self::assign_roles(self, user_id, &roles)
             .await
             .map(|_| ())
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
     async fn revoke_role(&self, user_id: &UserId, role: &str) -> AuthResult<()> {
         let user = match Self::find_by_id(self, user_id).await {
             Ok(Some(u)) => u,
             Ok(None) => return Err(AuthProviderError::UserNotFound),
-            Err(e) => return Err(AuthProviderError::Internal(e.to_string())),
+            Err(e) => return Err(AuthProviderError::Internal(e.into())),
         };
 
         let roles: Vec<String> = user.roles.into_iter().filter(|r| r != role).collect();
@@ -137,7 +137,7 @@ impl RoleProvider for UserService {
         Self::assign_roles(self, user_id, &roles)
             .await
             .map(|_| ())
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
     async fn list_users_by_role(&self, role: &str) -> AuthResult<Vec<AuthUser>> {
@@ -148,6 +148,6 @@ impl RoleProvider for UserService {
         Self::find_by_role(self, user_role)
             .await
             .map(|users| users.into_iter().map(AuthUser::from).collect())
-            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 }

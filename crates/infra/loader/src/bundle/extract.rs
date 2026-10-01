@@ -103,7 +103,7 @@ fn extract_reader<R: Read>(
         }
         entry
             .unpack(&dest_path)
-            .map_err(|e| BundleError::extract(&dest_path, e))?;
+            .map_err(|e| BundleError::extract_cause(&dest_path, e))?;
         written.push(relative);
     }
 

@@ -16,8 +16,7 @@ pub struct AgentRegistryProviderService {
 
 impl AgentRegistryProviderService {
     pub fn new() -> Result<Self, RegistryError> {
-        let registry =
-            AgentRegistry::new().map_err(|e| RegistryError::Unavailable(e.to_string()))?;
+        let registry = AgentRegistry::new().map_err(|e| RegistryError::Unavailable(e.into()))?;
 
         Ok(Self { registry })
     }
@@ -97,8 +96,8 @@ fn registry_error(error: AgentError) -> RegistryError {
     match error {
         AgentError::NotFound(name) => RegistryError::NotFound(name),
         AgentError::Config(_) | AgentError::ServicesConfig(_) => {
-            RegistryError::Configuration(error.to_string())
+            RegistryError::Configuration(error.into())
         },
-        other => RegistryError::Unavailable(other.to_string()),
+        other => RegistryError::Unavailable(other.into()),
     }
 }

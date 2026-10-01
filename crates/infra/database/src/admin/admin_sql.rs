@@ -22,6 +22,8 @@ pub enum AdminSqlError {
     Empty,
     #[error("SQL query could not be parsed: {0}")]
     Parse(#[from] pg_query::Error),
+    #[error("SQL query syntax tree could not be inspected: {0}")]
+    Inspect(#[source] serde_json::Error),
     #[error("SQL query contains multiple statements; only one is allowed")]
     MultipleStatements,
     #[error("SQL query must be a SELECT, an EXPLAIN of a SELECT, or SHOW")]
@@ -99,8 +101,7 @@ const READONLY_ROOTS: &[&str] = &["SelectStmt", "VariableShowStmt"];
 // node wherever it sits — a CTE, a subquery, a function argument.
 fn statement_kinds(root: &NodeEnum) -> Result<Vec<String>, AdminSqlError> {
     // JSON: pg_query protobuf AST, externally tagged by node variant name
-    let tree = serde_json::to_value(root)
-        .map_err(|e| AdminSqlError::Parse(pg_query::Error::InvalidJson(e.to_string())))?;
+    let tree = serde_json::to_value(root).map_err(AdminSqlError::Inspect)?;
     let mut kinds = Vec::new();
     collect_statement_kinds(&tree, &mut kinds);
     Ok(kinds)

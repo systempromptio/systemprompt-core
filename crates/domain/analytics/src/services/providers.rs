@@ -27,13 +27,13 @@ impl FingerprintProvider for FingerprintRepository {
         self.count_active_sessions(fingerprint)
             .await
             .map(i64::from)
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 
     async fn find_reusable_session(&self, fingerprint: &str) -> AnalyticsResult<Option<SessionId>> {
         self.find_reusable_session(fingerprint)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 
     async fn upsert_fingerprint(
@@ -46,6 +46,6 @@ impl FingerprintProvider for FingerprintRepository {
         self.upsert_fingerprint(fingerprint, ip_address, user_agent, None)
             .await
             .map(|_| ())
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 }

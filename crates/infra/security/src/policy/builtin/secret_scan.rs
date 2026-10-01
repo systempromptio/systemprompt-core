@@ -25,7 +25,7 @@ impl SecretScan {
     fn from_yaml(v: &YamlValue) -> Result<Self, PolicyConfigurationError> {
         SecretScanner::from_policy_yaml(v)
             .map(|scanner| Self { scanner })
-            .map_err(|error| PolicyConfigurationError(error.to_string()))
+            .map_err(PolicyConfigurationError::SecretPatterns)
     }
 }
 

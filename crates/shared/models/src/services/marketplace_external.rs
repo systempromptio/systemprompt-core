@@ -7,6 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::marketplace::MarketplaceConfig;
+use super::marketplace_external_error::{ExternalEntryError, MAX_GIT_REF_CHARS};
 use crate::errors::ConfigValidationError;
 
 /// Where Claude Code fetches a marketplace this instance does not serve.
@@ -38,28 +39,24 @@ impl ExternalMarketplaceSource {
     }
 }
 
-const MAX_GIT_REF_CHARS: usize = 128;
-
-pub(super) fn validate_git_ref(reference: &str) -> Result<(), String> {
+pub(super) fn validate_git_ref(reference: &str) -> Result<(), ExternalEntryError> {
     if reference.is_empty() {
-        return Err("`ref` must not be empty".to_owned());
+        return Err(ExternalEntryError::EmptyRef);
     }
     if reference.chars().count() > MAX_GIT_REF_CHARS {
-        return Err(format!(
-            "`ref` must be at most {MAX_GIT_REF_CHARS} characters"
-        ));
+        return Err(ExternalEntryError::RefTooLong);
     }
     if reference
         .chars()
         .any(|c| c.is_whitespace() || c.is_control())
     {
-        return Err(format!("`ref` {reference:?} must not contain whitespace"));
+        return Err(ExternalEntryError::RefWhitespace(reference.to_owned()));
     }
     if reference.contains("..") {
-        return Err(format!("`ref` {reference:?} must not contain '..'"));
+        return Err(ExternalEntryError::RefParentTraversal(reference.to_owned()));
     }
     if reference.starts_with('-') {
-        return Err(format!("`ref` {reference:?} must not start with '-'"));
+        return Err(ExternalEntryError::RefLeadingDash(reference.to_owned()));
     }
     Ok(())
 }
@@ -119,10 +116,13 @@ impl ExternalMarketplace {
             },
             ExternalMarketplaceSource::Git { url, .. } => {
                 let parsed = crate::net::validate_outbound_url(url).map_err(|e| {
-                    ConfigValidationError::invalid_field(format!(
-                        "Marketplace '{key}': external marketplace '{name}' git url '{url}' is \
-                         not a usable public URL: {e}"
-                    ))
+                    ConfigValidationError::invalid_field_cause(
+                        format!(
+                            "Marketplace '{key}': external marketplace '{name}' git url '{url}' \
+                             is not a usable public URL"
+                        ),
+                        e,
+                    )
                 })?;
                 if parsed.scheme() != "https" {
                     return Err(ConfigValidationError::invalid_field(format!(
@@ -133,9 +133,10 @@ impl ExternalMarketplace {
         }
         if let Some(reference) = self.source.reference() {
             validate_git_ref(reference).map_err(|e| {
-                ConfigValidationError::invalid_field(format!(
-                    "Marketplace '{key}': external marketplace '{name}' {e}"
-                ))
+                ConfigValidationError::invalid_field_cause(
+                    format!("Marketplace '{key}': external marketplace '{name}'"),
+                    e,
+                )
             })?;
         }
         Ok(())

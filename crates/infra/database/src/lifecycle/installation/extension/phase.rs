@@ -23,9 +23,10 @@ pub(super) async fn execute_phase(
     let mut tx =
         db.begin_transaction()
             .await
-            .map_err(|e| LoaderError::SchemaInstallationFailed {
+            .map_err(|e| LoaderError::SchemaInstallationStepFailed {
                 extension: extension_id.to_owned(),
-                message: format!("Failed to begin transaction: {e}"),
+                context: "Failed to begin transaction".to_owned(),
+                source: Box::new(e),
             })?;
 
     let total = statements.len();
@@ -36,12 +37,13 @@ pub(super) async fn execute_phase(
                 Ok(()) => String::new(),
                 Err(rb) => format!(" (rollback also failed: {rb})"),
             };
-            return Err(LoaderError::SchemaInstallationFailed {
+            return Err(LoaderError::SchemaInstallationStepFailed {
                 extension: extension_id.to_owned(),
-                message: format!(
-                    "Statement {n}/{total} failed: {e}{rollback_note}\nSQL:\n{statement}",
+                context: format!(
+                    "Statement {n}/{total} failed{rollback_note}\nSQL:\n{statement}",
                     n = idx + 1,
                 ),
+                source: Box::new(e),
             });
         }
     }
@@ -59,21 +61,23 @@ pub(super) async fn execute_phase(
                 Ok(()) => String::new(),
                 Err(rb) => format!(" (rollback also failed: {rb})"),
             };
-            return Err(LoaderError::SchemaInstallationFailed {
+            return Err(LoaderError::SchemaInstallationStepFailed {
                 extension: extension_id.to_owned(),
-                message: format!(
-                    "Failed to stamp migration {} ({}) as applied: {e}{rollback_note}",
+                context: format!(
+                    "Failed to stamp migration {} ({}) as applied{rollback_note}",
                     row.version, row.name
                 ),
+                source: Box::new(e),
             });
         }
     }
 
     tx.commit()
         .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
+        .map_err(|e| LoaderError::SchemaInstallationStepFailed {
             extension: extension_id.to_owned(),
-            message: format!("Failed to commit transaction: {e}"),
+            context: "Failed to commit transaction".to_owned(),
+            source: Box::new(e),
         })?;
 
     Ok(())

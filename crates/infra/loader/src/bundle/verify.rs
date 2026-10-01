@@ -75,7 +75,7 @@ pub fn verify_bundle(
     let satisfied = signed
         .manifest
         .core_satisfies(core_version)
-        .map_err(|e| BundleError::policy(format!("requires_core is not a semver range: {e}")))?;
+        .map_err(|e| BundleError::policy_context("requires_core is not a semver range", e))?;
     if !satisfied {
         return Err(VerifyFailure::RequiresCore {
             required: signed.manifest.requires_core,
@@ -98,7 +98,7 @@ pub fn read_manifest(archive: &Path) -> BundleResult<SignedBundleManifest> {
         let mut raw = String::new();
         entry.read_to_string(&mut raw)?;
         return serde_json::from_str(&raw)
-            .map_err(|e| BundleError::policy(format!("bundle.json does not parse: {e}")));
+            .map_err(|e| BundleError::policy_context("bundle.json does not parse", e));
     }
     Err(VerifyFailure::MissingManifest.into())
 }
@@ -118,7 +118,7 @@ fn verify_signature(signed: &SignedBundleManifest, pinned_keys: &[String]) -> Bu
     }
 
     let payload = canonical_manifest_bytes(&signed.manifest)
-        .map_err(|e| BundleError::policy(format!("manifest cannot be canonicalised: {e}")))?;
+        .map_err(|e| BundleError::policy_context("manifest cannot be canonicalised", e))?;
 
     let matching: Vec<&String> = pinned_keys
         .iter()

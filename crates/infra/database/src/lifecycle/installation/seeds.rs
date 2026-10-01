@@ -51,7 +51,8 @@ async fn apply_one(
         .map_err(|e| LoaderError::SeedFailed {
             extension: ext_id.to_owned(),
             seed: seed.id.to_owned(),
-            message: format!("begin transaction: {e}"),
+            context: "begin transaction".to_owned(),
+            source: Box::new(e),
         })?;
 
     // Why: Postgres prepared statements cannot contain multiple SQL commands.
@@ -64,7 +65,8 @@ async fn apply_one(
             return Err(LoaderError::SeedFailed {
                 extension: ext_id.to_owned(),
                 seed: seed.id.to_owned(),
-                message: format!("execute: {e}{rollback}"),
+                context: format!("execute{rollback}"),
+                source: Box::new(e),
             });
         }
     }
@@ -72,7 +74,8 @@ async fn apply_one(
     tx.commit().await.map_err(|e| LoaderError::SeedFailed {
         extension: ext_id.to_owned(),
         seed: seed.id.to_owned(),
-        message: format!("commit: {e}"),
+        context: "commit".to_owned(),
+        source: Box::new(e),
     })?;
 
     Ok(())
@@ -82,7 +85,8 @@ fn lint_seed(ext_id: &str, seed: &Seed) -> Result<Vec<String>, LoaderError> {
     let parsed = pg_query::parse(seed.sql).map_err(|e| LoaderError::SeedFailed {
         extension: ext_id.to_owned(),
         seed: seed.id.to_owned(),
-        message: format!("parse: {e}"),
+        context: "parse".to_owned(),
+        source: Box::new(e),
     })?;
 
     let mut statements = Vec::with_capacity(parsed.protobuf.stmts.len());

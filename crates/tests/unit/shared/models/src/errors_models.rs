@@ -1,5 +1,5 @@
 use systemprompt_models::errors::{
-    ConfigError, ConfigValidationError, MetadataError, ParseEnumError, SecretsError, ServiceError,
+    ConfigError, ConfigValidationError, MetadataError, ParseEnumError, SecretsError,
 };
 
 #[test]
@@ -104,44 +104,3 @@ fn metadata_error_variants_display() {
     );
 }
 
-#[test]
-fn service_error_validation_display() {
-    let e = ServiceError::Validation("missing field".to_owned());
-    assert!(e.to_string().contains("missing field"));
-}
-
-#[test]
-fn service_error_not_found_display() {
-    let e = ServiceError::NotFound("user 42".to_owned());
-    assert!(e.to_string().contains("user 42"));
-}
-
-#[test]
-fn service_error_conflict_display() {
-    let e = ServiceError::Conflict("duplicate email".to_owned());
-    assert!(e.to_string().contains("duplicate email"));
-}
-
-#[test]
-fn service_error_external_display() {
-    let e = ServiceError::External("timeout".to_owned());
-    assert!(e.to_string().contains("timeout"));
-}
-
-#[test]
-fn service_error_unauthorized_display() {
-    let e = ServiceError::Unauthorized("no token".to_owned());
-    assert!(e.to_string().contains("no token"));
-}
-
-#[test]
-fn service_error_forbidden_display() {
-    let e = ServiceError::Forbidden("read-only".to_owned());
-    assert!(e.to_string().contains("read-only"));
-}
-
-#[test]
-fn service_error_business_logic_display() {
-    let e = ServiceError::BusinessLogic("cannot delete active user".to_owned());
-    assert!(e.to_string().contains("cannot delete active user"));
-}

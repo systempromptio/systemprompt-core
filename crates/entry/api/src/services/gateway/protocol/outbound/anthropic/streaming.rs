@@ -9,12 +9,13 @@
 
 use futures_util::StreamExt;
 use systemprompt_models::wire::anthropic;
+use systemprompt_models::wire::error::WireStreamError;
 
 use super::super::super::canonical_response::CanonicalEvent;
 
 pub fn sse_to_canonical_events<S>(
     stream: S,
-) -> futures_util::stream::BoxStream<'static, Result<CanonicalEvent, String>>
+) -> futures_util::stream::BoxStream<'static, Result<CanonicalEvent, WireStreamError>>
 where
     S: futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
 {

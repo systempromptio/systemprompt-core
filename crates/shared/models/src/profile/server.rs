@@ -53,7 +53,11 @@ pub struct ServerConfig {
     pub trusted_proxies: Vec<IpNet>,
 }
 
-fn parse_trusted_proxy(entry: &str) -> Result<IpNet, String> {
+#[derive(Debug, thiserror::Error)]
+#[error("'{0}' is not a valid CIDR range or IP address")]
+struct InvalidTrustedProxy(String);
+
+fn parse_trusted_proxy(entry: &str) -> Result<IpNet, InvalidTrustedProxy> {
     let trimmed = entry.trim();
     if let Ok(net) = trimmed.parse::<IpNet>() {
         return Ok(net);
@@ -61,9 +65,7 @@ fn parse_trusted_proxy(entry: &str) -> Result<IpNet, String> {
     match trimmed.parse::<IpAddr>() {
         Ok(IpAddr::V4(v4)) => Ok(IpNet::from(ipnet::Ipv4Net::from(v4))),
         Ok(IpAddr::V6(v6)) => Ok(IpNet::from(ipnet::Ipv6Net::from(v6))),
-        Err(_) => Err(format!(
-            "'{trimmed}' is not a valid CIDR range or IP address"
-        )),
+        Err(_) => Err(InvalidTrustedProxy(trimmed.to_owned())),
     }
 }
 

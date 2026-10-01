@@ -69,7 +69,7 @@ impl JwtContextExtractor {
             .extract(headers)
             .map_err(|_e| ContextExtractionError::MissingAuthHeader)?;
         extract_user_context(&token, &self.issuer)
-            .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))
+            .map_err(|e| ContextExtractionError::InvalidToken(e.into()))
     }
 
     async fn validate(
@@ -136,7 +136,7 @@ impl JwtContextExtractor {
         jwt_token: &systemprompt_identifiers::JwtToken,
     ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
         let jwt_context = extract_user_context(jwt_token.as_str(), &self.issuer)
-            .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))?;
+            .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
 
         let user = self.validate(&jwt_context, "gateway").await?;
         Ok((jwt_context, user))

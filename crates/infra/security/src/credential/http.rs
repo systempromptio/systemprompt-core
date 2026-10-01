@@ -18,7 +18,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use systemprompt_models::net::{HTTP_AUTH_VERIFY_TIMEOUT, HTTP_CONNECT_TIMEOUT};
@@ -28,17 +28,17 @@ use super::error::CredentialError;
 const RETRY_BACKOFF: Duration = Duration::from_millis(250);
 
 fn client() -> Result<&'static reqwest::Client, CredentialError> {
-    static CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
+    static CLIENT: OnceLock<Result<reqwest::Client, Arc<reqwest::Error>>> = OnceLock::new();
     CLIENT
         .get_or_init(|| {
             reqwest::Client::builder()
                 .connect_timeout(HTTP_CONNECT_TIMEOUT)
                 .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
                 .build()
-                .map_err(|e| e.to_string())
+                .map_err(Arc::new)
         })
         .as_ref()
-        .map_err(|e| CredentialError::Client(e.clone()))
+        .map_err(|e| CredentialError::Client(Arc::clone(e)))
 }
 
 pub(crate) async fn post_form(
@@ -60,9 +60,9 @@ pub(crate) async fn post_form(
         }
         return match outcome {
             Ok(body) => Ok(body),
-            Err(Retryable::Transport(reason)) => Err(CredentialError::Unreachable {
+            Err(Retryable::Transport(source)) => Err(CredentialError::Unreachable {
                 uri: uri.to_owned(),
-                reason,
+                source,
             }),
             Err(Retryable::Unavailable { status, body } | Retryable::Refused { status, body }) => {
                 Err(CredentialError::Rejected { status, body })
@@ -72,7 +72,7 @@ pub(crate) async fn post_form(
 }
 
 enum Retryable {
-    Transport(String),
+    Transport(reqwest::Error),
     Unavailable { status: String, body: String },
     Refused { status: String, body: String },
 }
@@ -87,13 +87,10 @@ async fn attempt_post(
         .form(form)
         .send()
         .await
-        .map_err(|e| Retryable::Transport(e.to_string()))?;
+        .map_err(Retryable::Transport)?;
 
     let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|e| Retryable::Transport(e.to_string()))?;
+    let body = response.text().await.map_err(Retryable::Transport)?;
     if status.is_success() {
         return Ok(body);
     }

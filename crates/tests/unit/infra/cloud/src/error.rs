@@ -33,7 +33,9 @@ fn test_jwt_decode_display() {
 #[test]
 fn test_credentials_corrupted_display() {
     let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
-    let error = CloudError::CredentialsCorrupted { source: json_error };
+    let error = CloudError::CredentialsCorrupted {
+        source: Box::new(json_error),
+    };
     let msg = error.to_string();
     assert!(msg.contains("Credentials file corrupted"));
 }
@@ -57,7 +59,7 @@ fn test_tenants_store_corrupted_display() {
 #[test]
 fn test_tenants_store_invalid_display() {
     let error = CloudError::TenantsStoreInvalid {
-        message: "Missing required field".to_string(),
+        source: "Missing required field".into(),
     };
     let msg = error.to_string();
     assert!(msg.contains("Tenants store invalid"));
@@ -91,7 +93,9 @@ fn test_user_message_jwt_decode() {
 #[test]
 fn test_user_message_credentials_corrupted() {
     let json_error = serde_json::from_str::<serde_json::Value>("bad").unwrap_err();
-    let error = CloudError::CredentialsCorrupted { source: json_error };
+    let error = CloudError::CredentialsCorrupted {
+        source: Box::new(json_error),
+    };
     assert_eq!(error.user_message(), "Credentials file is corrupted");
 }
 
@@ -111,7 +115,7 @@ fn test_user_message_tenants_store_corrupted() {
 #[test]
 fn test_user_message_tenants_store_invalid() {
     let error = CloudError::TenantsStoreInvalid {
-        message: "test".to_string(),
+        source: "test".into(),
     };
     assert_eq!(error.user_message(), "Tenants store is invalid");
 }
@@ -149,7 +153,9 @@ fn test_recovery_hint_jwt_decode() {
 #[test]
 fn test_recovery_hint_credentials_corrupted() {
     let json_error = serde_json::from_str::<serde_json::Value>("bad").unwrap_err();
-    let error = CloudError::CredentialsCorrupted { source: json_error };
+    let error = CloudError::CredentialsCorrupted {
+        source: Box::new(json_error),
+    };
     assert!(
         error
             .recovery_hint()
@@ -181,7 +187,7 @@ fn test_recovery_hint_tenants_store_corrupted() {
 #[test]
 fn test_recovery_hint_tenants_store_invalid() {
     let error = CloudError::TenantsStoreInvalid {
-        message: "test".to_string(),
+        source: "test".into(),
     };
     assert!(
         error
@@ -205,7 +211,9 @@ fn test_requires_login_true_for_token_expired() {
 #[test]
 fn test_requires_login_true_for_credentials_corrupted() {
     let json_error = serde_json::from_str::<serde_json::Value>("bad").unwrap_err();
-    let error = CloudError::CredentialsCorrupted { source: json_error };
+    let error = CloudError::CredentialsCorrupted {
+        source: Box::new(json_error),
+    };
     assert!(error.requires_login());
 }
 
@@ -229,7 +237,7 @@ fn is_missing_credentials_file_rejects_other_variants() {
     assert!(!CloudError::TokenExpired.is_missing_credentials_file());
     assert!(
         !CloudError::InvalidCredentials {
-            message: "bad".to_string()
+            source: Box::new(CloudError::TokenExpired)
         }
         .is_missing_credentials_file()
     );

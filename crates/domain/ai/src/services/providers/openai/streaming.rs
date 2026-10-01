@@ -54,7 +54,7 @@ impl OpenAiProvider {
         let stream = events.filter_map(|result| async move {
             match result {
                 Ok(event) => canonical_bridge::event_to_chunk(event).map(Ok),
-                Err(e) => Some(Err(crate::error::AiError::Internal(e))),
+                Err(e) => Some(Err(crate::error::AiError::Internal(e.to_string()))),
             }
         });
         Ok(Box::pin(stream))

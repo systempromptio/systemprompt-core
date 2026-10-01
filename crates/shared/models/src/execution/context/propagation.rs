@@ -111,10 +111,13 @@ fn required_header<'h>(
     header_str(hdrs, name).ok_or_else(|| ContextPropagationError::MissingHeader(name.to_owned()))
 }
 
-fn invalid_header(name: &'static str, message: impl std::fmt::Display) -> ContextPropagationError {
+fn invalid_header(
+    name: &'static str,
+    source: impl Into<systemprompt_traits::BoxedSource>,
+) -> ContextPropagationError {
     ContextPropagationError::InvalidHeader {
         name: name.to_owned(),
-        message: message.to_string(),
+        source: source.into(),
     }
 }
 
@@ -165,7 +168,7 @@ fn apply_proxy_verified_user(
     let user_id_uuid = user_id
         .as_str()
         .parse::<uuid::Uuid>()
-        .map_err(|e| invalid_header(headers::USER_ID, format!("invalid UUID: {e}")))?;
+        .map_err(|e| invalid_header(headers::USER_ID, e))?;
     let roles = header_str(hdrs, headers::USER_ROLES)
         .map(crate::auth::parse_roles)
         .unwrap_or_default();

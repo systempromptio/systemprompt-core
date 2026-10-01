@@ -15,6 +15,8 @@ use super::{AppliedMigration, MigrationService};
 use std::hash::{Hash, Hasher};
 use systemprompt_extension::{LoaderError, Migration};
 
+use crate::error::RepositoryError;
+
 pub(super) fn historical_checksum(sql: &str) -> String {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     sql.hash(&mut hasher);
@@ -52,15 +54,16 @@ impl MigrationService<'_> {
         if transitions.is_empty() {
             return Ok(());
         }
-        let failure = |message: String| LoaderError::MigrationFailed {
+        let step = |context: String, source: RepositoryError| LoaderError::MigrationStepFailed {
             extension: extension.to_owned(),
-            message,
+            context,
+            source: Box::new(source),
         };
         let mut tx = self
             .db
             .begin_transaction()
             .await
-            .map_err(|error| failure(format!("Begin verified checksum transition: {error}")))?;
+            .map_err(|error| step("Begin verified checksum transition".to_owned(), error))?;
         for (migration, row) in transitions {
             let checksum = migration.checksum();
             let result = tx.execute(
@@ -71,20 +74,24 @@ impl MigrationService<'_> {
                 Ok(1) => {},
                 Ok(_) => {
                     tx.rollback().await.map_err(|error| {
-                        failure(format!("Rollback checksum transition: {error}"))
+                        step("Rollback checksum transition".to_owned(), error)
                     })?;
-                    return Err(failure("Migration history changed concurrently; retry verified checksum transition".to_owned()));
+                    return Err(LoaderError::MigrationFailed {
+                        extension: extension.to_owned(),
+                        message: "Migration history changed concurrently; retry verified checksum transition".to_owned(),
+                    });
                 },
                 Err(error) => {
                     let rollback = tx.rollback().await;
-                    return Err(failure(format!(
-                        "Verified checksum transition failed: {error}; rollback: {rollback:?}"
-                    )));
+                    return Err(step(
+                        format!("Verified checksum transition failed; rollback: {rollback:?}"),
+                        error,
+                    ));
                 },
             }
         }
         tx.commit()
             .await
-            .map_err(|error| failure(format!("Commit verified checksum transition: {error}")))
+            .map_err(|error| step("Commit verified checksum transition".to_owned(), error))
     }
 }

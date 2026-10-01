@@ -64,12 +64,11 @@ fn validate_rule_types(
     for (id, cfg) in marketplaces {
         for rule in &cfg.access.rules {
             RuleType::extension(rule.rule_type.clone()).map_err(|source| {
-                AuthzError::Validation(format!(
-                    "marketplace '{}': access.rules rule_type '{}' is not a valid subject \
-                     dimension: {source}",
-                    id.as_str(),
-                    rule.rule_type
-                ))
+                AuthzError::MarketplaceRuleType {
+                    marketplace: id.as_str().to_owned(),
+                    rule_type: rule.rule_type.clone(),
+                    source: Box::new(source),
+                }
             })?;
         }
     }
@@ -129,8 +128,7 @@ async fn upsert_marketplace(
     }
 
     for rule in &cfg.access.rules {
-        let rule_type = RuleType::extension(rule.rule_type.clone())
-            .map_err(|source| AuthzError::Validation(source.to_string()))?;
+        let rule_type = RuleType::extension(rule.rule_type.clone())?;
         let justification = rule
             .justification
             .as_deref()

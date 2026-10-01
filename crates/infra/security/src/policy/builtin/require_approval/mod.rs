@@ -146,7 +146,7 @@ fn parse_scope(raw: &str) -> Result<AccessScope, PolicyConfigurationError> {
         "admin" => Ok(AccessScope::Admin),
         "user" => Ok(AccessScope::User),
         "unknown" => Ok(AccessScope::Unknown),
-        other => Err(PolicyConfigurationError(format!(
+        other => Err(PolicyConfigurationError::Invalid(format!(
             "unknown access scope `{other}` in require_approval exempt_scopes"
         ))),
     }

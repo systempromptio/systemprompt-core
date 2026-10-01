@@ -8,7 +8,8 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::db_helper::test_pool;
-use systemprompt_database::{DbPool, PgDbPool, RepositoryError, with_transaction_retry};
+use systemprompt_database::{DbPool, PgDbPool, with_transaction_retry};
+use systemprompt_traits::RepositoryError;
 
 fn pg(db: &DbPool) -> PgDbPool {
     db.write_pool()
@@ -56,8 +57,8 @@ async fn with_transaction_retry_commits_on_first_success() {
             sqlx::query(sqlx::AssertSqlSafe(stmt))
                 .execute(&mut **tx)
                 .await
-                .map_err(systemprompt_database::RepositoryError::from)?;
-            Ok::<_, systemprompt_database::RepositoryError>(99)
+                .map_err(RepositoryError::from)?;
+            Ok::<_, RepositoryError>(99)
         })
     })
     .await;
@@ -78,7 +79,7 @@ async fn with_transaction_retry_does_not_retry_permanent_error() {
 
     let attempts = AtomicU32::new(0);
     let table_for_closure = table.clone();
-    let result: Result<(), systemprompt_database::RepositoryError> =
+    let result: Result<(), RepositoryError> =
         with_transaction_retry(&pool, 3, |tx| {
             attempts.fetch_add(1, Ordering::SeqCst);
             let table = table_for_closure.clone();
@@ -87,7 +88,7 @@ async fn with_transaction_retry_does_not_retry_permanent_error() {
                 sqlx::query(sqlx::AssertSqlSafe(stmt))
                     .execute(&mut **tx)
                     .await
-                    .map_err(systemprompt_database::RepositoryError::from)?;
+                    .map_err(RepositoryError::from)?;
                 Ok(())
             })
         })

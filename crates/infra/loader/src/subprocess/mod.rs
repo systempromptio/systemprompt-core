@@ -76,12 +76,8 @@ pub fn spawn_supervised(cmd: Command) -> std::io::Result<u32> {
 pub fn spawn_owned_supervised(cmd: Command) -> std::io::Result<std::process::Child> {
     let sender = spawner()?;
     let (reply_tx, reply_rx) = channel();
-    sender
-        .send((cmd, reply_tx))
-        .map_err(|error| std::io::Error::other(error.to_string()))?;
-    reply_rx
-        .recv()
-        .map_err(|error| std::io::Error::other(error.to_string()))?
+    sender.send((cmd, reply_tx)).map_err(std::io::Error::other)?;
+    reply_rx.recv().map_err(std::io::Error::other)?
 }
 
 fn spawner() -> std::io::Result<Sender<SpawnRequest>> {

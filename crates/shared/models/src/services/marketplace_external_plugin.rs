@@ -16,6 +16,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::marketplace_external::{is_external_name, is_github_repo, validate_git_ref};
+use super::marketplace_external_error::ExternalEntryError;
 use crate::errors::ConfigValidationError;
 
 /// Where Claude Code fetches a pass-through plugin.
@@ -63,33 +64,41 @@ impl ExternalPluginSource {
         }
     }
 
-    fn validate_location(&self) -> Result<(), String> {
+    fn validate_location(&self) -> Result<(), ExternalEntryError> {
         match self {
             Self::Github { repo, .. } => {
                 if !is_github_repo(repo) {
-                    return Err(format!("github repo '{repo}' must be 'owner/repository'"));
+                    return Err(ExternalEntryError::GithubRepo(repo.clone()));
                 }
             },
             Self::Url { url, .. } => validate_repository(url)?,
             Self::GitSubdir { url, path, .. } => {
                 validate_repository(url)?;
                 let relative = path.trim_start_matches("./").trim_end_matches('/');
-                crate::managed::validate_path(relative)
-                    .map_err(|e| format!("path '{path}' must be a relative path: {e}"))?;
+                crate::managed::validate_path(relative).map_err(|source| {
+                    ExternalEntryError::Path {
+                        path: path.clone(),
+                        source,
+                    }
+                })?;
             },
         }
         Ok(())
     }
 }
 
-fn validate_repository(url: &str) -> Result<(), String> {
+fn validate_repository(url: &str) -> Result<(), ExternalEntryError> {
     if is_github_repo(url) {
         return Ok(());
     }
-    let parsed = crate::net::validate_outbound_url(url)
-        .map_err(|e| format!("url '{url}' is not a usable public URL: {e}"))?;
+    let parsed = crate::net::validate_outbound_url(url).map_err(|source| {
+        ExternalEntryError::UnusableUrl {
+            url: url.to_owned(),
+            source,
+        }
+    })?;
     if parsed.scheme() != "https" {
-        return Err(format!("url '{url}' must use https"));
+        return Err(ExternalEntryError::NotHttps(url.to_owned()));
     }
     Ok(())
 }
@@ -129,9 +138,9 @@ pub struct ExternalPluginEntry {
 }
 
 impl ExternalPluginEntry {
-    fn validate(&self) -> Result<(), String> {
+    fn validate(&self) -> Result<(), ExternalEntryError> {
         if !is_external_name(&self.name) {
-            return Err("must be named with letters, digits, '-', '_' and '.' only".to_owned());
+            return Err(ExternalEntryError::InvalidName);
         }
         self.source.validate_location()?;
         if let Some(reference) = self.source.reference() {
@@ -139,10 +148,7 @@ impl ExternalPluginEntry {
         }
         let sha = self.source.sha();
         if !is_commit(sha) {
-            return Err(format!(
-                "`sha` '{sha}' must be a full lowercase commit id — a pass-through plugin is \
-                 never inspected, so it must be pinned"
-            ));
+            return Err(ExternalEntryError::UnpinnedSha(sha.to_owned()));
         }
         Ok(())
     }
@@ -157,9 +163,10 @@ pub(super) fn validate_external_plugins(
     for entry in entries {
         let name = entry.name.as_str();
         entry.validate().map_err(|e| {
-            ConfigValidationError::invalid_field(format!(
-                "Marketplace '{key}': external plugin '{name}' {e}"
-            ))
+            ConfigValidationError::invalid_field_cause(
+                format!("Marketplace '{key}': external plugin '{name}'"),
+                e,
+            )
         })?;
         if vendored.iter().any(|plugin| plugin == name) {
             return Err(ConfigValidationError::invalid_field(format!(

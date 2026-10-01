@@ -3,7 +3,7 @@
 //! [`SchedulerError`] is the canonical error returned from public, non-trait
 //! signatures (services, repositories, lifecycle helpers). It composes
 //! [`sqlx::Error`], [`tokio_cron_scheduler::JobSchedulerError`],
-//! [`systemprompt_database::RepositoryError`],
+//! [`systemprompt_traits::RepositoryError`],
 //! [`systemprompt_analytics::AnalyticsError`], and
 //! [`systemprompt_users::UserError`] via `#[from]` so `?` propagation works
 //! transparently for every internal call site.
@@ -48,7 +48,7 @@ pub enum SchedulerError {
     Database(#[from] sqlx::Error),
 
     #[error("Repository error: {0}")]
-    Repository(#[from] systemprompt_database::RepositoryError),
+    Repository(#[from] systemprompt_traits::RepositoryError),
 
     #[error("Analytics error: {0}")]
     Analytics(#[from] systemprompt_analytics::AnalyticsError),
@@ -121,7 +121,7 @@ impl SchedulerError {
 
 impl From<SchedulerError> for systemprompt_provider_contracts::ProviderError {
     fn from(err: SchedulerError) -> Self {
-        Self::Internal(err.to_string())
+        Self::Internal(Box::new(err))
     }
 }
 

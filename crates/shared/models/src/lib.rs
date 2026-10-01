@@ -137,7 +137,6 @@ pub use content_config::{
     ContentSourceConfigRaw, IndexingConfig, Metadata, ParentRoute, SitemapConfig, SourceBranding,
 };
 pub use env::{contains_placeholder, interpolate, none_if_blank, read_env_optional};
-pub use errors::ServiceError;
 pub use events::{
     A2AEvent, A2AEventBuilder, A2AEventType, AnalyticsEvent, AnalyticsEventBuilder, ContextEvent,
     SystemEvent, SystemEventBuilder, SystemEventType,

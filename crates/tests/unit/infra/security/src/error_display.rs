@@ -1,5 +1,7 @@
+use systemprompt_config::SecretsBootstrapError;
 use systemprompt_models::auth::UserType;
 use systemprompt_security::error::{AuthError, JwtError, ManifestSigningError};
+use systemprompt_security::keys::TokenAuthorityError;
 
 #[test]
 fn auth_error_missing_authorization_display() {
@@ -103,23 +105,24 @@ fn auth_error_user_type_mismatch_display() {
 
 #[test]
 fn jwt_error_signing_display() {
-    let e = JwtError::Signing("key not found".to_owned());
+    let e = JwtError::Signing(TokenAuthorityError::PathMissing);
     let s = e.to_string();
-    assert!(s.contains("key not found"), "got: {s}");
+    assert!(s.contains("signing_key_path is not configured"), "got: {s}");
 }
 
 #[test]
 fn manifest_signing_error_seed_unavailable_display() {
-    let e = ManifestSigningError::SeedUnavailable("env missing".to_owned());
+    let e = ManifestSigningError::SeedUnavailable(SecretsBootstrapError::ManifestSeedRequired);
     let s = e.to_string();
-    assert!(s.contains("env missing"), "got: {s}");
+    assert!(s.contains("manifest_signing_secret_seed is required"), "got: {s}");
 }
 
 #[test]
 fn manifest_signing_error_canonicalize_display() {
-    let e = ManifestSigningError::Canonicalize("json err".to_owned());
+    let json = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+    let e = ManifestSigningError::Canonicalize(json);
     let s = e.to_string();
-    assert!(s.contains("json err"), "got: {s}");
+    assert!(s.starts_with("jcs canonicalize: "), "got: {s}");
 }
 
 #[test]

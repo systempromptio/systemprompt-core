@@ -21,7 +21,7 @@ fn i18n_validate_rejects_default_not_in_supported() {
         default_locale: LocaleCode::try_new("fr").expect("valid LocaleCode"),
         supported_locales: vec![LocaleCode::english()],
     };
-    let err = cfg.validate().unwrap_err();
+    let err = cfg.validate().unwrap_err().to_string();
     assert!(err.contains("fr"));
     assert!(err.contains("not in supported_locales"));
 }

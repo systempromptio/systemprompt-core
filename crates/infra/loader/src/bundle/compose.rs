@@ -75,7 +75,7 @@ pub fn compose(
         },
         Err(e) => {
             discard_staging(&staging);
-            Err(BundleError::extract(&target, e))
+            Err(BundleError::extract_cause(&target, e))
         },
     }
 }

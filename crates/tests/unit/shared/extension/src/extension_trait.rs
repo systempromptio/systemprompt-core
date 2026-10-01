@@ -472,7 +472,8 @@ fn loader_error_seed_failed_display() {
     let err = LoaderError::SeedFailed {
         extension: "data-ext".to_string(),
         seed: "load_defaults".to_string(),
-        message: "connection timeout".to_string(),
+        context: "execute".to_string(),
+        source: "connection timeout".into(),
     };
     let msg = err.to_string();
     assert!(msg.contains("data-ext"));

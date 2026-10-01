@@ -115,12 +115,13 @@ impl MigrationService<'_> {
                 &[&drift.extension_id, &drift.version, &drift.current_checksum],
             )
             .await
-            .map_err(|e| LoaderError::MigrationFailed {
+            .map_err(|e| LoaderError::MigrationStepFailed {
                 extension: drift.extension_id.clone(),
-                message: format!(
-                    "Failed to rewrite checksum for migration {} ('{}'): {e}",
+                context: format!(
+                    "Failed to rewrite checksum for migration {} ('{}')",
                     drift.version, drift.name
                 ),
+                source: Box::new(e),
             })?;
         Ok(())
     }
@@ -175,22 +176,24 @@ impl MigrationService<'_> {
         if migration.no_transaction {
             SqlExecutor::execute_statements_parsed(self.db, migration.sql)
                 .await
-                .map_err(|e| LoaderError::MigrationFailed {
+                .map_err(|e| LoaderError::MigrationStepFailed {
                     extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to re-apply drifted migration {} ({}): {e}",
+                    context: format!(
+                        "Failed to re-apply drifted migration {} ({})",
                         migration.version, migration.name
                     ),
+                    source: Box::new(e),
                 })?;
             self.rewrite_checksum(drift).await
         } else {
             let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
-                LoaderError::MigrationFailed {
+                LoaderError::MigrationStepFailed {
                     extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to parse migration {} ({}): {e}",
+                    context: format!(
+                        "Failed to parse migration {} ({})",
                         migration.version, migration.name
                     ),
+                    source: Box::new(e),
                 }
             })?;
             execute_statements_transactional(

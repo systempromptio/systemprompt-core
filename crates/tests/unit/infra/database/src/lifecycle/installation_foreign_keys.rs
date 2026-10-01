@@ -345,8 +345,9 @@ mod probe_failing {
     use async_trait::async_trait;
     use systemprompt_database::{
         DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow,
-        PostgresProvider, QueryResult, QuerySelector, RepositoryError, ToDbValue,
+        PostgresProvider, QueryResult, QuerySelector, ToDbValue,
     };
+    use systemprompt_traits::RepositoryError;
 
     #[derive(Debug)]
     pub(super) struct ProbeFailingProvider {

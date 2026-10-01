@@ -1,6 +1,8 @@
 //! Unit tests for RepositoryError
 
-use systemprompt_database::RepositoryError;
+use std::error::Error;
+
+use systemprompt_traits::RepositoryError;
 
 #[test]
 fn test_not_found_from_string() {
@@ -17,17 +19,48 @@ fn test_not_found_from_integer() {
 }
 
 #[test]
-fn test_constraint_from_string() {
-    let error = RepositoryError::constraint("unique_email");
-    assert!(matches!(error, RepositoryError::Constraint(_)));
-    assert!(error.to_string().contains("unique_email"));
+fn test_conflict_from_string() {
+    let error = RepositoryError::conflict("stale task update");
+    assert!(matches!(error, RepositoryError::Conflict(_)));
+    assert!(error.to_string().contains("stale task update"));
 }
 
 #[test]
-fn test_constraint_from_owned_string() {
-    let error = RepositoryError::constraint(String::from("foreign_key_violation"));
-    assert!(matches!(error, RepositoryError::Constraint(_)));
-    assert!(error.to_string().contains("foreign_key_violation"));
+fn test_conflict_is_a_conflict_but_not_a_constraint() {
+    let error = RepositoryError::conflict(String::from("invalid transition"));
+    assert!(error.is_conflict());
+    assert!(!error.is_constraint());
+}
+
+#[test]
+fn test_row_not_found_classifies_as_not_found() {
+    let error = RepositoryError::from(sqlx::Error::RowNotFound);
+    assert!(error.is_not_found());
+}
+
+#[test]
+fn test_non_database_sqlx_error_keeps_its_source() {
+    let error = RepositoryError::from(sqlx::Error::PoolClosed);
+    assert!(matches!(
+        error,
+        RepositoryError::Database { sqlstate: None, .. }
+    ));
+    let source = error.source().expect("database error keeps its source");
+    assert!(source.downcast_ref::<sqlx::Error>().is_some());
+}
+
+#[test]
+fn test_database_constructor_classifies_a_sqlx_error() {
+    let error = RepositoryError::database(sqlx::Error::RowNotFound);
+    assert!(error.is_not_found());
+}
+
+#[test]
+fn test_database_constructor_boxes_a_foreign_error() {
+    let error = RepositoryError::database(std::io::Error::other("disk gone"));
+    assert!(matches!(error, RepositoryError::Database { .. }));
+    assert!(error.to_string().contains("disk gone"));
+    assert!(!error.is_serialization_failure());
 }
 
 #[test]
@@ -65,8 +98,8 @@ fn test_is_not_found_returns_true_for_not_found() {
 }
 
 #[test]
-fn test_is_not_found_returns_false_for_constraint() {
-    let error = RepositoryError::constraint("violation");
+fn test_is_not_found_returns_false_for_conflict() {
+    let error = RepositoryError::conflict("violation");
     assert!(!error.is_not_found());
 }
 
@@ -80,12 +113,6 @@ fn test_is_not_found_returns_false_for_invalid_argument() {
 fn test_is_not_found_returns_false_for_internal() {
     let error = RepositoryError::internal("oops");
     assert!(!error.is_not_found());
-}
-
-#[test]
-fn test_is_constraint_returns_true_for_constraint() {
-    let error = RepositoryError::constraint("unique");
-    assert!(error.is_constraint());
 }
 
 #[test]
@@ -115,12 +142,12 @@ fn test_not_found_display() {
 }
 
 #[test]
-fn test_constraint_display() {
-    let error = RepositoryError::constraint("duplicate key");
+fn test_conflict_display() {
+    let error = RepositoryError::conflict("duplicate key");
     let display = error.to_string();
     assert!(
-        display.contains("Constraint") || display.contains("constraint"),
-        "Expected display to contain 'constraint', got: {}",
+        display.contains("conflict") && display.contains("duplicate key"),
+        "Expected display to name the conflict, got: {}",
         display
     );
 }

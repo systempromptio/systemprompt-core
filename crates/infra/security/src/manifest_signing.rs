@@ -29,13 +29,13 @@ pub fn signing_key() -> ManifestSigningResult<&'static SigningKey> {
         return Ok(k);
     }
     let seed = SecretsBootstrap::manifest_signing_secret_seed()
-        .map_err(|e| ManifestSigningError::SeedUnavailable(e.to_string()))?;
+        .map_err(ManifestSigningError::SeedUnavailable)?;
     let key = SigningKey::from_bytes(&seed);
     Ok(CELL.get_or_init(|| key))
 }
 
 pub fn canonicalize<T: Serialize>(value: &T) -> ManifestSigningResult<String> {
-    serde_jcs::to_string(value).map_err(|e| ManifestSigningError::Canonicalize(e.to_string()))
+    serde_jcs::to_string(value).map_err(ManifestSigningError::Canonicalize)
 }
 
 pub fn sign_bytes(payload: &[u8]) -> ManifestSigningResult<String> {
@@ -75,10 +75,7 @@ pub fn verify_with_pubkey(
             .map_err(|_e| ManifestSigningError::SignatureInvalid)?;
 
     let verifying_key =
-        VerifyingKey::from_bytes(&key_bytes).map_err(|e| ManifestSigningError::InvalidBase64 {
-            field: "ed25519 public key",
-            message: e.to_string(),
-        })?;
+        VerifyingKey::from_bytes(&key_bytes).map_err(ManifestSigningError::InvalidPublicKey)?;
     verifying_key
         .verify(payload, &Signature::from_bytes(&sig_bytes))
         .map_err(|_e| ManifestSigningError::SignatureInvalid)
@@ -103,10 +100,7 @@ fn decode_fixed(
 ) -> ManifestSigningResult<Vec<u8>> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(value)
-        .map_err(|e| ManifestSigningError::InvalidBase64 {
-            field,
-            message: e.to_string(),
-        })?;
+        .map_err(|source| ManifestSigningError::InvalidBase64 { field, source })?;
     if bytes.len() == expected {
         Ok(bytes)
     } else {

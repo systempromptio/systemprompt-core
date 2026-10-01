@@ -2,8 +2,8 @@
 //!
 //! Boilerplate variants (`Repository`, `Io`, `Json`, `Yaml`, `Validation`,
 //! `NotFound`, `Config`) are injected by [`systemprompt_models::domain_error`].
-//! Database errors funnel through the canonical
-//! [`systemprompt_database::RepositoryError`] rather than `sqlx::Error`
+//! Database errors funnel through the workspace's single
+//! [`systemprompt_traits::RepositoryError`] rather than `sqlx::Error`
 //! directly so the layer boundary is preserved.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -22,7 +22,7 @@ domain_error! {
 
 impl From<sqlx::Error> for FilesError {
     fn from(err: sqlx::Error) -> Self {
-        Self::Repository(systemprompt_database::RepositoryError::from(err))
+        Self::Repository(systemprompt_traits::RepositoryError::from(err))
     }
 }
 

@@ -2,6 +2,7 @@ use std::io;
 use std::path::PathBuf;
 
 use systemprompt_loader::{ConfigLoadError, ConfigWriteError, ExtensionLoadError};
+use systemprompt_models::errors::ConfigValidationError;
 
 #[test]
 fn config_load_error_io_display() {
@@ -98,7 +99,8 @@ fn config_load_error_duplicate_external_agent_display() {
 
 #[test]
 fn config_load_error_validation_display() {
-    let err = ConfigLoadError::Validation("port out of range".to_owned());
+    let err =
+        ConfigLoadError::Validation(ConfigValidationError::port_conflict("port out of range"));
     let msg = err.to_string();
     assert!(msg.contains("port out of range"));
 }

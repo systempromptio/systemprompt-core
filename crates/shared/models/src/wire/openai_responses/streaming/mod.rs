@@ -5,8 +5,6 @@
 
 mod delta;
 
-use core::fmt::Display;
-
 use futures_util::stream::BoxStream;
 use futures_util::{Stream, StreamExt};
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
@@ -16,14 +14,15 @@ use delta::{DeltaShape, emit_delta, handle_completed, handle_error, handle_item_
 
 use super::slot::{ItemSlot, ResponsesStreamState, SlotKind, SlotKindMatch};
 use crate::wire::canonical::{CanonicalEvent, CanonicalUsage, ContentBlockKind};
+use crate::wire::error::WireStreamError;
 
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
     fallback_model: String,
-) -> BoxStream<'static, Result<CanonicalEvent, String>>
+) -> BoxStream<'static, Result<CanonicalEvent, WireStreamError>>
 where
     S: Stream<Item = Result<bytes::Bytes, E>> + Send + 'static,
-    E: Display + 'static,
+    E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
 {
     use futures_util::stream;
     let initial = ResponsesStreamState {
@@ -34,7 +33,7 @@ where
         items: Vec::new(),
     };
     let s = stream
-        .map(|chunk| chunk.map_err(|e| e.to_string()))
+        .map(|chunk| chunk.map_err(WireStreamError::transport))
         .scan(initial, |state, item| {
             let res = match item {
                 Ok(bytes) => Some(drain_buffer(state, &bytes)),
@@ -49,9 +48,9 @@ where
 fn drain_buffer(
     state: &mut ResponsesStreamState,
     bytes: &bytes::Bytes,
-) -> Vec<Result<CanonicalEvent, String>> {
+) -> Vec<Result<CanonicalEvent, WireStreamError>> {
     state.buf.extend_from_slice(bytes);
-    let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
+    let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
     while let Some(end) = crate::wire::sse::frame_end(&state.buf) {
         let frame: Vec<u8> = state.buf.drain(..end).collect();
         let frame_str = String::from_utf8_lossy(&frame);
@@ -67,7 +66,7 @@ fn drain_buffer(
         }
         match serde_json::from_str::<Value>(&joined) {
             Ok(value) => handle_responses_event(state, &value, &mut events),
-            Err(e) => events.push(Err(format!("malformed Responses SSE frame: {e}"))),
+            Err(e) => events.push(Err(WireStreamError::MalformedResponsesFrame(e))),
         }
     }
     events
@@ -77,7 +76,7 @@ fn handle_responses_event(
     state: &mut ResponsesStreamState,
     // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
     value: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     let Some(kind) = value.get("type").and_then(Value::as_str) else {
         return;
@@ -124,7 +123,7 @@ fn handle_created(
     state: &mut ResponsesStreamState,
     // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
     value: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     let response = value.get("response").unwrap_or(&Value::Null);
     let id = response
@@ -151,7 +150,7 @@ fn handle_item_added(
     state: &mut ResponsesStreamState,
     // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
     value: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     let output_index = value
         .get("output_index")

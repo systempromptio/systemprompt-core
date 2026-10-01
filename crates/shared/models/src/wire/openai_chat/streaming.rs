@@ -3,8 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use core::fmt::Display;
-
 use bytes::Bytes;
 use futures_util::stream::{self, BoxStream, Stream, StreamExt};
 // JSON: protocol boundary — OpenAI Chat Completions wire format is dynamic
@@ -19,19 +17,20 @@ use super::stream_delta::{
 use crate::wire::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
 };
+use crate::wire::error::WireStreamError;
 
 enum Frame {
-    Chunk(Result<Bytes, String>),
+    Chunk(Result<Bytes, WireStreamError>),
     Eof,
 }
 
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
     fallback_model: String,
-) -> BoxStream<'static, Result<CanonicalEvent, String>>
+) -> BoxStream<'static, Result<CanonicalEvent, WireStreamError>>
 where
     S: Stream<Item = Result<Bytes, E>> + Send + 'static,
-    E: Display,
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     let initial = OpenAiChatStreamState {
         buf: Vec::new(),
@@ -50,7 +49,7 @@ where
     let s = stream
         .map(|chunk| match chunk {
             Ok(bytes) => Frame::Chunk(Ok(bytes)),
-            Err(e) => Frame::Chunk(Err(e.to_string())),
+            Err(e) => Frame::Chunk(Err(WireStreamError::transport(e))),
         })
         .chain(stream::once(futures_util::future::ready(Frame::Eof)))
         .scan(initial, |state, item| {
@@ -68,9 +67,9 @@ where
 fn drain_buffer(
     state: &mut OpenAiChatStreamState,
     bytes: &Bytes,
-) -> Vec<Result<CanonicalEvent, String>> {
+) -> Vec<Result<CanonicalEvent, WireStreamError>> {
     state.buf.extend_from_slice(bytes);
-    let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
+    let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
     while let Some(end) = crate::wire::sse::frame_end(&state.buf) {
         let frame: Vec<u8> = state.buf.drain(..end).collect();
         let frame_str = String::from_utf8_lossy(&frame);
@@ -92,15 +91,15 @@ fn drain_buffer(
     events
 }
 
-fn flush(state: &mut OpenAiChatStreamState) -> Vec<Result<CanonicalEvent, String>> {
-    let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
+fn flush(state: &mut OpenAiChatStreamState) -> Vec<Result<CanonicalEvent, WireStreamError>> {
+    let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
     flush_into(state, &mut events, None);
     events
 }
 
 fn flush_into(
     state: &mut OpenAiChatStreamState,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
     default_reason: Option<&str>,
 ) {
     if state.stopped {
@@ -120,7 +119,7 @@ fn handle_chunk(
     state: &mut OpenAiChatStreamState,
     // JSON: OpenAI Chat Completions streaming chunk; upstream JSON is the contract.
     value: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     if let Some(message) = crate::wire::sse::upstream_error_message(value) {
         events.push(Ok(CanonicalEvent::Error(message)));
@@ -159,7 +158,7 @@ fn emit_message_start(
     state: &mut OpenAiChatStreamState,
     // JSON: OpenAI Chat Completions streaming chunk; upstream JSON is the contract.
     value: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     let id = value
         .get("id")
@@ -184,7 +183,7 @@ fn emit_message_start(
 fn emit_message_stop(
     state: &mut OpenAiChatStreamState,
     finish: &str,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     state.stopped = true;
     close_reasoning(state, events);

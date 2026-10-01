@@ -113,13 +113,13 @@ async fn exchange(key: &ServiceAccountKey) -> Result<TokenResponse, CredentialEr
     ];
 
     let body = http::post_form(&key.token_uri, &form).await?;
-    serde_json::from_str(&body).map_err(|e| CredentialError::UnreadableBody(e.to_string()))
+    serde_json::from_str(&body).map_err(CredentialError::UnreadableBody)
 }
 
 fn sign_assertion(key: &ServiceAccountKey) -> Result<String, CredentialError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| CredentialError::Clock(e.to_string()))?
+        .map_err(CredentialError::Clock)?
         .as_secs()
         .saturating_sub(CLOCK_SKEW.as_secs());
 
@@ -132,8 +132,8 @@ fn sign_assertion(key: &ServiceAccountKey) -> Result<String, CredentialError> {
     };
 
     let encoding = EncodingKey::from_rsa_pem(key.private_key.as_bytes())
-        .map_err(|e| CredentialError::SigningKey(e.to_string()))?;
+        .map_err(CredentialError::SigningKey)?;
 
     jsonwebtoken::encode(&Header::new(Algorithm::RS256), &claims, &encoding)
-        .map_err(|e| CredentialError::Sign(e.to_string()))
+        .map_err(CredentialError::Sign)
 }

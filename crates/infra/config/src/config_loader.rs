@@ -225,13 +225,9 @@ pub fn validate_database_config(config: &Config) -> ConfigResult<()> {
         });
     }
 
-    validate_postgres_url(&config.database_url).map_err(|e| ConfigError::InvalidDatabaseUrl {
-        message: e.to_string(),
-    })?;
+    validate_postgres_url(&config.database_url).map_err(ConfigError::InvalidDatabaseUrl)?;
     if let Some(write_url) = &config.database_write_url {
-        validate_postgres_url(write_url).map_err(|e| ConfigError::InvalidDatabaseUrl {
-            message: e.to_string(),
-        })?;
+        validate_postgres_url(write_url).map_err(ConfigError::InvalidDatabaseUrl)?;
     }
     Ok(())
 }

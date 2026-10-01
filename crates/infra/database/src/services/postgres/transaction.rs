@@ -42,7 +42,7 @@ impl DatabaseTransaction for PostgresTransaction {
         let tx = self
             .tx
             .as_mut()
-            .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
+            .ok_or_else(|| RepositoryError::internal("Transaction already consumed"))?;
 
         let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
@@ -61,7 +61,7 @@ impl DatabaseTransaction for PostgresTransaction {
         let tx = self
             .tx
             .as_mut()
-            .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
+            .ok_or_else(|| RepositoryError::internal("Transaction already consumed"))?;
 
         let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
@@ -80,7 +80,7 @@ impl DatabaseTransaction for PostgresTransaction {
         let tx = self
             .tx
             .as_mut()
-            .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
+            .ok_or_else(|| RepositoryError::internal("Transaction already consumed"))?;
 
         let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
@@ -99,7 +99,7 @@ impl DatabaseTransaction for PostgresTransaction {
         let tx = self
             .tx
             .as_mut()
-            .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
+            .ok_or_else(|| RepositoryError::internal("Transaction already consumed"))?;
 
         let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
@@ -113,7 +113,7 @@ impl DatabaseTransaction for PostgresTransaction {
         let tx = self
             .tx
             .take()
-            .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
+            .ok_or_else(|| RepositoryError::internal("Transaction already consumed"))?;
 
         tx.commit().await?;
 
@@ -124,7 +124,7 @@ impl DatabaseTransaction for PostgresTransaction {
         let tx = self
             .tx
             .take()
-            .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
+            .ok_or_else(|| RepositoryError::internal("Transaction already consumed"))?;
 
         tx.rollback().await?;
 

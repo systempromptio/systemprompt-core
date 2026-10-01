@@ -19,10 +19,5 @@ pub fn load_secrets_from_path(secrets_path: &Path) -> ConfigResult<Secrets> {
         .into());
     }
     let content = std::fs::read_to_string(secrets_path)?;
-    Secrets::parse(&content).map_err(|e| {
-        SecretsBootstrapError::InvalidSecretsFile {
-            message: e.to_string(),
-        }
-        .into()
-    })
+    Secrets::parse(&content).map_err(|e| SecretsBootstrapError::InvalidSecretsFile(e).into())
 }

@@ -311,7 +311,7 @@ impl MockAiProviderBuilder {
 
     pub fn with_generate_error(mut self, error: anyhow::Error) -> Self {
         self.generate_responses
-            .push_back(Err(AiInferenceError::Internal(error.to_string())));
+            .push_back(Err(AiInferenceError::Internal(error.into())));
         self
     }
 

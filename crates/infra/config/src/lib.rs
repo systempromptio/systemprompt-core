@@ -46,7 +46,7 @@ pub(crate) mod services;
 pub(crate) mod skill_validator;
 
 pub use bootstrap::{
-    ENCRYPTION_MASTER_KEY_BYTES, MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap,
+    ENCRYPTION_MASTER_KEY_BYTES, KeyMaterialError, MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap,
     ProfileBootstrapError, ResolvedSource, SecretsBootstrap, SecretsBootstrapError,
     SecretsDocument, SecretsProvider, VaultError, VaultKvProvider, build_loaded_secrets_message,
     decode_master_key, decode_seed, generate_master_key, generate_seed, load_secrets_from_path,

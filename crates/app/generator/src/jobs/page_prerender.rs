@@ -52,7 +52,10 @@ impl Job for PagePrerenderJob {
         let content_repo = ContentRepository::new(&db_pool);
         let results = prerender_pages(db_pool, content_repo, paths)
             .await
-            .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;
+            .map_err(|e| ProviderError::Rendering {
+                context: "page prerender".to_owned(),
+                source: Box::new(e),
+            })?;
         let pages_rendered = results.len() as u64;
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

@@ -34,7 +34,7 @@ fn file_not_found_display_includes_path() {
 #[test]
 fn invalid_credentials_display_includes_message() {
     let err = CredentialsBootstrapError::InvalidCredentials {
-        message: "token field missing".to_string(),
+        source: Box::new(CloudError::other("token field missing")),
     };
     let s = err.to_string();
     assert!(s.contains("invalid"));
@@ -52,6 +52,7 @@ fn token_expired_display() {
 fn api_validation_failed_display_includes_message() {
     let err = CredentialsBootstrapError::ApiValidationFailed {
         message: "401 Unauthorized".to_string(),
+        source: Box::new(CloudError::Unauthorized),
     };
     let s = err.to_string();
     assert!(s.contains("validation failed"));
@@ -74,13 +75,14 @@ fn is_file_not_found_false_for_other_variants() {
     assert!(!CredentialsBootstrapError::TokenExpired.is_file_not_found());
     assert!(
         !CredentialsBootstrapError::InvalidCredentials {
-            message: "x".to_string()
+            source: Box::new(CloudError::TokenExpired)
         }
         .is_file_not_found()
     );
     assert!(
         !CredentialsBootstrapError::ApiValidationFailed {
-            message: "x".to_string()
+            message: "x".to_string(),
+            source: Box::new(CloudError::Unauthorized),
         }
         .is_file_not_found()
     );
@@ -135,12 +137,12 @@ fn into_cloud_error_file_not_found_preserves_path() {
 #[test]
 fn into_cloud_error_invalid_credentials_preserves_message() {
     let cloud_err: CloudError = CredentialsBootstrapError::InvalidCredentials {
-        message: "bad field".to_string(),
+        source: Box::new(CloudError::other("bad field")),
     }
     .into();
     match cloud_err {
-        CloudError::InvalidCredentials { message } => {
-            assert_eq!(message, "bad field");
+        CloudError::InvalidCredentials { source } => {
+            assert_eq!(source.to_string(), "bad field");
         },
         other => panic!("unexpected variant: {other:?}"),
     }
@@ -156,10 +158,11 @@ fn into_cloud_error_token_expired_yields_token_expired() {
 fn into_cloud_error_api_validation_failed_preserves_message() {
     let cloud_err: CloudError = CredentialsBootstrapError::ApiValidationFailed {
         message: "rejected".to_string(),
+        source: Box::new(CloudError::Unauthorized),
     }
     .into();
     match cloud_err {
-        CloudError::ApiValidationFailed { message } => {
+        CloudError::ApiValidationFailed { message, .. } => {
             assert_eq!(message, "rejected");
         },
         other => panic!("unexpected variant: {other:?}"),
@@ -177,10 +180,11 @@ fn all_conversions_produce_non_empty_display() {
             path: "/p".to_string(),
         },
         CredentialsBootstrapError::InvalidCredentials {
-            message: "m".to_string(),
+            source: Box::new(CloudError::other("m")),
         },
         CredentialsBootstrapError::ApiValidationFailed {
             message: "a".to_string(),
+            source: Box::new(CloudError::Unauthorized),
         },
     ];
     for err in errs {

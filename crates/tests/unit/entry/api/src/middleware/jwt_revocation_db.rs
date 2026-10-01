@@ -170,9 +170,10 @@ async fn a_revocation_store_failure_rejects_the_token_without_disclosing_its_jti
 
     let result = checker.ensure_not_revoked(&private_jti).await;
 
-    let Err(ContextExtractionError::DatabaseError { message }) = result else {
+    let Err(error @ ContextExtractionError::DatabaseError { .. }) = result else {
         panic!("an unavailable revocation store must fail closed, got {result:?}");
     };
+    let message = error.to_string();
     assert!(
         message.contains("JTI revocation lookup failed"),
         "{message}"

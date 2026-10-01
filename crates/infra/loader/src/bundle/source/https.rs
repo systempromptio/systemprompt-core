@@ -47,7 +47,7 @@ impl HttpsFetcher {
     fn checked_url(&self) -> BundleResult<url::Url> {
         let trusted = trusted_http_hosts_from_env();
         validate_outbound_url_with_trust(&self.url, &trusted)
-            .map_err(|e| BundleError::fetch(&self.name, e))
+            .map_err(|e| BundleError::fetch_cause(&self.name, e))
     }
 }
 
@@ -61,7 +61,7 @@ impl BundleFetcher for HttpsFetcher {
         let response = request
             .send()
             .await
-            .map_err(|e| BundleError::fetch(&self.name, e))?;
+            .map_err(|e| BundleError::fetch_cause(&self.name, e))?;
 
         if response.status() == reqwest::StatusCode::UNAUTHORIZED
             || response.status() == reqwest::StatusCode::FORBIDDEN
@@ -94,7 +94,7 @@ impl BundleFetcher for HttpsFetcher {
         let response = request
             .send()
             .await
-            .map_err(|e| BundleError::fetch(&self.name, e))?;
+            .map_err(|e| BundleError::fetch_cause(&self.name, e))?;
 
         let status = response.status();
         if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {

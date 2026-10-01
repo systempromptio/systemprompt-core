@@ -225,6 +225,6 @@ pub(super) fn runtime_resolution(
         Err(ManagedError::Integrity) => Err(ManagedSkillResolverError::Integrity {
             key: key.to_owned(),
         }),
-        Err(error) => Err(ManagedSkillResolverError::Unavailable(error.to_string())),
+        Err(error) => Err(ManagedSkillResolverError::Unavailable(error.into())),
     }
 }

@@ -7,8 +7,8 @@ mod model;
 
 use chrono::{Duration, Utc};
 use sqlx::PgPool;
-use systemprompt_database::RepositoryError;
 use systemprompt_identifiers::{CallId, SessionId, UserId};
+use systemprompt_models::errors::RepositoryError;
 
 pub use model::{
     ApprovalRequest, ApprovalStatus, ApprovalVerdict, NewApprovalRequest, args_digest,

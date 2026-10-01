@@ -5,6 +5,7 @@
 
 use std::path::PathBuf;
 
+use systemprompt_identifiers::LocaleCode;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -27,4 +28,7 @@ pub enum WebConfigError {
 
     #[error("{field} directory not found: {path}")]
     PathNotFound { field: String, path: PathBuf },
+
+    #[error("default_locale '{default_locale}' is not in supported_locales")]
+    UnsupportedDefaultLocale { default_locale: LocaleCode },
 }

@@ -104,7 +104,7 @@ impl StubAiProvider {
             .get_mut()
             .expect("lock")
             .push(Err(AiInferenceError::Internal(
-                "stub generate failure".to_owned(),
+                "stub generate failure".into(),
             )));
         self
     }
@@ -127,7 +127,7 @@ impl StubAiProvider {
         self.stream_chunks.get_mut().expect("lock").push(vec![
             Ok(StreamChunk::Text(text.to_owned())),
             Err(AiInferenceError::Internal(
-                "stub partial stream failure".to_owned(),
+                "stub partial stream failure".into(),
             )),
         ]);
         self
@@ -156,7 +156,7 @@ impl StubAiProvider {
             .get_mut()
             .expect("lock")
             .push(Err(AiInferenceError::Internal(
-                "stub response failure".to_owned(),
+                "stub response failure".into(),
             )));
         self
     }
@@ -215,7 +215,7 @@ impl AiProvider for StubAiProvider {
             .expect("lock")
             .push(request.messages.clone());
         if self.fail_stream {
-            return Err(AiInferenceError::Internal("stub stream failure".to_owned()));
+            return Err(AiInferenceError::Internal("stub stream failure".into()));
         }
         if self.stall_stream {
             return Ok(Box::pin(futures::stream::pending()));

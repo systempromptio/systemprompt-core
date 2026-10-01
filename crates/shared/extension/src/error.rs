@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -34,8 +35,24 @@ pub enum LoaderError {
     #[error("Failed to install schema for extension '{extension}': {message}")]
     SchemaInstallationFailed { extension: String, message: String },
 
+    #[error("Failed to install schema for extension '{extension}': {context}: {source}")]
+    SchemaInstallationStepFailed {
+        extension: String,
+        context: String,
+        #[source]
+        source: BoxedSource,
+    },
+
     #[error("Migration failed for extension '{extension}': {message}")]
     MigrationFailed { extension: String, message: String },
+
+    #[error("Migration failed for extension '{extension}': {context}: {source}")]
+    MigrationStepFailed {
+        extension: String,
+        context: String,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error(
         "Migration {version} for extension '{extension}' is not reversible (no down SQL provided)"
@@ -166,11 +183,13 @@ pub enum LoaderError {
     )]
     SeedInsertNotIdempotent { extension: String, seed: String },
 
-    #[error("Extension '{extension}' seed '{seed}' failed to parse or apply: {message}")]
+    #[error("Extension '{extension}' seed '{seed}' failed to parse or apply: {context}: {source}")]
     SeedFailed {
         extension: String,
         seed: String,
-        message: String,
+        context: String,
+        #[source]
+        source: BoxedSource,
     },
 }
 
@@ -182,9 +201,12 @@ pub enum ExtensionConfigError {
     #[error("Invalid configuration value for '{key}': {message}")]
     InvalidValue { key: String, message: String },
 
-    #[error("Failed to parse configuration: {message}")]
-    ParseError { message: String },
+    #[error("Failed to parse configuration: {source}")]
+    ParseError {
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("Schema validation failed: {0}")]
-    SchemaValidation(String),
+    SchemaValidation(#[source] BoxedSource),
 }

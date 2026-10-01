@@ -57,7 +57,7 @@ impl AiSessionProvider for UsersAiSessionProvider {
         self.session_repo
             .create_session(&full_params)
             .await
-            .map_err(|e| AiProviderError::Internal(e.to_string()))
+            .map_err(|e| AiProviderError::Internal(e.into()))
     }
 
     async fn increment_ai_usage(
@@ -69,7 +69,7 @@ impl AiSessionProvider for UsersAiSessionProvider {
         self.session_repo
             .increment_ai_usage(session_id, tokens, cost_microdollars)
             .await
-            .map_err(|e| AiProviderError::Internal(e.to_string()))
+            .map_err(|e| AiProviderError::Internal(e.into()))
     }
 
     async fn find_live_session(
@@ -80,7 +80,7 @@ impl AiSessionProvider for UsersAiSessionProvider {
             .session_repo
             .find_active_by_id(session_id)
             .await
-            .map_err(|e| AiProviderError::Internal(e.to_string()))?;
+            .map_err(|e| AiProviderError::Internal(e.into()))?;
         Ok(session.map(|row| ActiveSession {
             user_id: row.user_id,
         }))

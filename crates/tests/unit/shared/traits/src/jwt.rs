@@ -40,7 +40,7 @@ fn jwt_provider_error_displays_have_useful_text() {
         message: "missing key".to_owned(),
     };
     assert!(e.to_string().contains("missing key"));
-    let e = JwtProviderError::Internal("boom".to_owned());
+    let e = JwtProviderError::Internal("boom".into());
     assert!(e.to_string().contains("boom"));
 }
 

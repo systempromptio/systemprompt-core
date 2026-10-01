@@ -36,7 +36,7 @@ async fn insert_file_rejects_non_object_metadata() {
     match err {
         AiProviderError::Internal(message) => {
             assert!(
-                message.contains("Invalid file metadata"),
+                message.to_string().contains("Invalid file metadata"),
                 "unexpected message: {message}"
             );
         },

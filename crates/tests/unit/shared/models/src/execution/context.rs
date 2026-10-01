@@ -202,7 +202,7 @@ fn request_context_validate_task_execution_fails_without_task_id() {
     let ctx = test_context();
     let result = ctx.validate_task_execution();
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("task_id"));
+    assert!(result.unwrap_err().to_string().contains("task_id"));
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn request_context_validate_authenticated_fails_with_empty_token() {
     let ctx = test_context();
     let result = ctx.validate_authenticated();
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("token"));
+    assert!(result.unwrap_err().to_string().contains("token"));
 }
 
 #[test]
@@ -232,7 +232,7 @@ fn request_context_validate_authenticated_fails_with_anonymous_user() {
     let ctx = test_context().with_auth_token("some-token");
     let result = ctx.validate_authenticated();
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("not authenticated"));
+    assert!(result.unwrap_err().to_string().contains("not authenticated"));
 }
 
 #[test]

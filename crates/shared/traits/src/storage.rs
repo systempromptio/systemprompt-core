@@ -15,6 +15,8 @@
 use async_trait::async_trait;
 use std::path::Path;
 
+use crate::BoxedSource;
+
 pub type FileStorageResult<T> = Result<T, FileStorageError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -33,7 +35,7 @@ pub enum FileStorageError {
     Serialization(#[from] serde_json::Error),
 
     #[error("storage backend error: {0}")]
-    Backend(String),
+    Backend(#[source] BoxedSource),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

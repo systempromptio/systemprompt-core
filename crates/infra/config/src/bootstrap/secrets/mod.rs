@@ -39,9 +39,11 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use base64::Engine;
-use systemprompt_models::profile::resolve_with_home;
+use systemprompt_models::errors::SecretsError;
+use systemprompt_models::profile::{ProfileError, resolve_with_home};
 use systemprompt_models::secrets::Secrets;
 
+use super::key_material::KeyMaterialError;
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
 use super::master_key::decode_master_key;
 use super::profile::ProfileBootstrap;
@@ -75,14 +77,17 @@ pub enum SecretsBootstrapError {
     #[error("Secrets file not found: {path}")]
     FileNotFound { path: String },
 
-    #[error("Invalid secrets file: {message}")]
-    InvalidSecretsFile { message: String },
+    #[error("Invalid secrets file: {0}")]
+    InvalidSecretsFile(#[source] SecretsError),
+
+    #[error("Secrets document could not be encoded: {0}")]
+    DocumentEncode(#[source] serde_json::Error),
 
     #[error("No secrets configured. Create a secrets.json file.")]
     NoSecretsConfigured,
 
-    #[error("Invalid secrets configuration in profile: {message}")]
-    SecretsConfigInvalid { message: String },
+    #[error("Invalid secrets configuration in profile: {0}")]
+    SecretsConfigInvalid(#[source] ProfileError),
 
     #[error(
         "secrets.source is 'vault' but the profile has no secrets.vault block. Add one or switch \
@@ -120,8 +125,8 @@ pub enum SecretsBootstrapError {
     )]
     SigningKeyPemRequired,
 
-    #[error("manifest_signing_secret_seed is invalid: {message}")]
-    ManifestSeedInvalid { message: String },
+    #[error("manifest_signing_secret_seed is invalid: {0}")]
+    ManifestSeedInvalid(#[source] KeyMaterialError),
 
     #[error(
         "encryption_master_key is required: it seals at-rest secrets and the gateway accounting \
@@ -132,13 +137,13 @@ pub enum SecretsBootstrapError {
     EncryptionMasterKeyRequired,
 
     #[error(
-        "encryption_master_key is invalid ({message}): it must be 32 bytes as 64 hex characters \
+        "encryption_master_key is invalid ({0}): it must be 32 bytes as 64 hex characters \
          (`openssl rand -hex 32`)"
     )]
-    EncryptionMasterKeyInvalid { message: String },
+    EncryptionMasterKeyInvalid(#[source] KeyMaterialError),
 
-    #[error("signing_key_pem secret is invalid: {message}")]
-    SigningKeyPemInvalid { message: String },
+    #[error("signing_key_pem secret is invalid: {0}")]
+    SigningKeyPemInvalid(#[source] KeyMaterialError),
 }
 
 impl SecretsBootstrap {
@@ -171,13 +176,9 @@ impl SecretsBootstrap {
         };
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(encoded)
-            .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid {
-                message: e.to_string(),
-            })?;
-        let pem =
-            String::from_utf8(bytes).map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid {
-                message: e.to_string(),
-            })?;
+            .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
+        let pem = String::from_utf8(bytes)
+            .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
         Ok(Some(pem))
     }
 
@@ -230,11 +231,9 @@ impl SecretsBootstrap {
         let profile_dir = Path::new(profile_path)
             .parent()
             .ok_or_else(|| ConfigError::other("Invalid profile path - no parent directory"))?;
-        let secrets_path = secrets_config.secrets_path().map_err(|e| {
-            SecretsBootstrapError::SecretsConfigInvalid {
-                message: e.to_string(),
-            }
-        })?;
+        let secrets_path = secrets_config
+            .secrets_path()
+            .map_err(SecretsBootstrapError::SecretsConfigInvalid)?;
         Ok(resolve_with_home(profile_dir, secrets_path))
     }
 

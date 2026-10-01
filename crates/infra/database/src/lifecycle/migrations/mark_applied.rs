@@ -75,9 +75,10 @@ impl MigrationService<'_> {
                 &[&id, &ext_id, &migration.version, &migration.name, &checksum],
             )
             .await
-            .map_err(|e| LoaderError::MigrationFailed {
+            .map_err(|e| LoaderError::MigrationStepFailed {
                 extension: ext_id.to_owned(),
-                message: format!("Failed to record migration as applied: {e}"),
+                context: "Failed to record migration as applied".to_owned(),
+                source: Box::new(e),
             })?;
 
         Ok(MarkAppliedOutcome {

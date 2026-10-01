@@ -41,7 +41,7 @@ impl Job for OauthCleanupJob {
         let counts = repository
             .delete_expired()
             .await
-            .map_err(|e| ProviderError::Internal(e.to_string()))?;
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
 
         let duration_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
         info!(

@@ -85,11 +85,10 @@ impl VaultKvProvider {
             let entry =
                 kv::read_entry(&self.http, &session.token, &self.mount, &reference.path).await?;
             let value = entry.fields.get(&reference.field).cloned().ok_or_else(|| {
-                VaultError::Malformed {
-                    message: format!(
-                        "{}/{} has no field '{}' for override key '{key}'",
-                        self.mount, reference.path, reference.field
-                    ),
+                VaultError::MissingField {
+                    location: format!("{}/{}", self.mount, reference.path),
+                    field: reference.field.clone(),
+                    key: key.clone(),
                 }
             })?;
             document.merge_field(key.clone(), value);
