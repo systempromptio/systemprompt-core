@@ -2,7 +2,6 @@
 // owner check, replay safety, and the completion-over-failure precedence.
 
 use serde_json::json;
-use systemprompt_ai::error::RepositoryError;
 use systemprompt_ai::repository::ai_requests::{
     ORPHANED_REASON, SettleCompletion, SettledFailure, SettledToolCall, SettlementOutcome,
     SettlementUsage,
@@ -10,6 +9,7 @@ use systemprompt_ai::repository::ai_requests::{
 use systemprompt_ai::repository::{AiRequestRepository, UpsertPayloadParams};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, UserId};
+use systemprompt_traits::RepositoryError;
 
 use super::{bootstrapped_pool, seed_request, user};
 
@@ -247,10 +247,7 @@ async fn a_different_terminal_response_is_rejected() {
         .await
         .expect_err("conflicting response");
 
-    assert!(
-        matches!(err, RepositoryError::SettlementConflict { .. }),
-        "{err}"
-    );
+    assert!(matches!(err, RepositoryError::Conflict(_)), "{err}");
 }
 
 #[tokio::test]
@@ -272,10 +269,7 @@ async fn another_owner_cannot_settle_the_request() {
         .await
         .expect_err("owner mismatch");
 
-    assert!(
-        matches!(err, RepositoryError::SettlementConflict { .. }),
-        "{err}"
-    );
+    assert!(matches!(err, RepositoryError::Conflict(_)), "{err}");
     assert_eq!(row(&pool, &id).await.0, "pending");
 }
 
@@ -296,10 +290,7 @@ async fn a_missing_request_row_is_a_settlement_conflict_not_a_database_error() {
         .await
         .expect_err("no row");
 
-    assert!(
-        matches!(err, RepositoryError::SettlementConflict { .. }),
-        "{err}"
-    );
+    assert!(matches!(err, RepositoryError::Conflict(_)), "{err}");
 }
 
 #[tokio::test]
@@ -474,7 +465,7 @@ async fn accounting_failure_preserves_paid_completion_across_identical_and_confl
                 native_priced_completion(&json!({"different":true}), "native-receipt-b")
             )
             .await,
-            Err(RepositoryError::SettlementConflict { .. })
+            Err(RepositoryError::Conflict(_))
         ),
         "conflicting provider terminal receipt stays rejected"
     );

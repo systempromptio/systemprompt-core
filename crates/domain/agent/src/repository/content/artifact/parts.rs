@@ -39,8 +39,7 @@ pub async fn get_artifact_parts(
         context_id_str
     )
     .fetch_all(pool)
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     parts_from_rows(&part_rows)
 }
@@ -65,8 +64,7 @@ pub async fn persist_artifact_part(
                 text_part.text
             )
             .execute(pool)
-            .await
-            .map_err(RepositoryError::database)?;
+            .await?;
         },
         Part::File(file_part) => {
             sqlx::query!(
@@ -81,8 +79,7 @@ pub async fn persist_artifact_part(
                 file_part.file.bytes.as_deref()
             )
             .execute(pool)
-            .await
-            .map_err(RepositoryError::database)?;
+            .await?;
         },
         Part::Data(data_part) => {
             let data_json =
@@ -96,8 +93,7 @@ pub async fn persist_artifact_part(
                 data_json
             )
             .execute(pool)
-            .await
-            .map_err(RepositoryError::database)?;
+            .await?;
         },
     }
 

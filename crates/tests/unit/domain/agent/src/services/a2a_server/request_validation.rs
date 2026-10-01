@@ -146,7 +146,7 @@ async fn validate_message_context_rejects_foreign_context() {
         .await
         .expect_err("unowned context must be rejected");
     assert!(
-        matches!(err, ContextValidationError::Context(_)),
+        matches!(err, ContextValidationError::Context(ref inner) if inner.is_not_found()),
         "got: {err}"
     );
     assert!(

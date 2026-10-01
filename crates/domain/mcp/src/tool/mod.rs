@@ -86,7 +86,7 @@ impl McpToolExecutor {
 
         let input_value = serde_json::to_value(&request.arguments).map_err(|e| {
             tracing::error!(error = %e, "Failed to serialize tool arguments");
-            McpError::internal_error(format!("Failed to serialize arguments: {e}"), None)
+            McpError::internal_error("Failed to serialize arguments", None)
         })?;
 
         let exec_id = McpExecutionId::generate();
@@ -111,7 +111,7 @@ impl McpToolExecutor {
                     error = %e,
                     "Failed to start execution tracking"
                 );
-                McpError::internal_error(format!("Failed to start execution tracking: {e}"), None)
+                McpError::internal_error("Failed to start execution tracking", None)
             })?;
         let ctx = &self
             .with_claimed_intent(handler.tool_name(), ctx, &exec_id)

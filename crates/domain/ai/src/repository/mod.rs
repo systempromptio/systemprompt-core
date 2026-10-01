@@ -6,8 +6,8 @@
 //! `ai_safety_findings`, `ai_gateway_policies`,
 //! `ai_gateway_thought_signatures`).
 //!
-//! All repositories return [`crate::error::RepositoryError`]. Services are
-//! the only callers — repositories never execute application logic.
+//! All repositories return [`systemprompt_traits::RepositoryError`]. Services
+//! are the only callers — repositories never execute application logic.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

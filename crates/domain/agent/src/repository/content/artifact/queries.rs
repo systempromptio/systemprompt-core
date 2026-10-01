@@ -44,8 +44,7 @@ impl ArtifactRepository {
             task_id_str
         )
         .fetch_all(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         rows_to_artifacts_batch(&pool, rows).await
     }
@@ -80,8 +79,7 @@ impl ArtifactRepository {
             context_id_str
         )
         .fetch_all(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         rows_to_artifacts_batch(&pool, rows).await
     }
@@ -121,8 +119,7 @@ impl ArtifactRepository {
             limit
         )
         .fetch_all(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         rows_to_artifacts_batch(&pool, rows).await
     }
@@ -156,8 +153,7 @@ impl ArtifactRepository {
             artifact_id_str
         )
         .fetch_optional(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         match row {
             Some(row) => {
@@ -181,8 +177,7 @@ impl ArtifactRepository {
             user_id.as_str()
         )
         .fetch_optional(self.pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         match result {
             Some(_) => Ok(()),
@@ -222,8 +217,7 @@ impl ArtifactRepository {
             limit
         )
         .fetch_all(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         rows_to_artifacts_batch(&pool, rows).await
     }

@@ -1,5 +1,6 @@
-// Corrupt stored task rows surface as InvalidData on read instead of being
-// replaced with fresh default metadata or an empty agent name.
+// Corrupt stored task rows surface as a 500-class repository error on read
+// (Decode for an unparsable value, InvalidData for a missing one) instead of
+// being replaced with fresh default metadata or an empty agent name.
 
 use super::{repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_test_fixtures::test_db_pool;
@@ -26,7 +27,7 @@ async fn unreadable_task_metadata_is_an_error() {
         .get_task(&task_id)
         .await
         .expect_err("corrupt metadata must not read as defaults");
-    assert!(matches!(err, RepositoryError::InvalidData(_)), "got {err}");
+    assert!(matches!(err, RepositoryError::Decode { .. }), "got {err}");
 
     r.tasks.delete_task(&task_id).await.ok();
 }

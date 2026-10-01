@@ -143,7 +143,7 @@ async fn connect_and_validate(
     let http_client = HttpClientWithContext::new(context).map_err(|e| {
         crate::error::McpDomainError::ConnectionFailed {
             server: service_name.to_owned(),
-            message: e.to_string(),
+            source: Box::new(e),
         }
     })?;
     let transport = StreamableHttpClientTransport::with_client(http_client, config);

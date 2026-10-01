@@ -1,203 +1,22 @@
 //! Unit tests for agent error types
 //!
 //! Tests cover:
-//! - RowParseError shared variants
-//! - TaskError variants and error messages
-//! - ContextError variants and error messages
 //! - ArtifactError variants and error messages
-//! - ProtocolError variants and error messages
 //! - AgentError conversions and wrapping
 
-use systemprompt_agent::{
-    AgentError, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError,
-};
+use std::error::Error as _;
+
+use systemprompt_agent::{AgentError, ArtifactError};
+use systemprompt_identifiers::ContextId;
+use systemprompt_traits::{MetadataValidationError, RepositoryError};
 
 #[test]
-fn test_row_parse_error_missing_field_display() {
-    let error = RowParseError::MissingField {
-        field: "context_id".to_string(),
+fn test_artifact_error_missing_field_display() {
+    let error = ArtifactError::MissingField {
+        field: "structured_content".to_string(),
     };
-    assert!(error.to_string().contains("context_id"));
     assert!(error.to_string().contains("Missing required field"));
-}
-
-#[test]
-fn test_row_parse_error_invalid_datetime_display() {
-    let error = RowParseError::InvalidDatetime {
-        field: "created_at".to_string(),
-    };
-    assert!(error.to_string().contains("created_at"));
-    assert!(error.to_string().contains("Invalid datetime"));
-}
-
-
-#[test]
-fn test_task_error_missing_task_uuid_display() {
-    let error = TaskError::MissingTaskUuid;
-    assert_eq!(error.to_string(), "Task UUID missing from database row");
-}
-
-#[test]
-fn test_task_error_missing_agent_name_display() {
-    let error = TaskError::MissingAgentName {
-        task_id: systemprompt_identifiers::TaskId::new("task-123"),
-    };
-    assert!(error.to_string().contains("task-123"));
-    assert!(error.to_string().contains("Agent name not found"));
-}
-
-#[test]
-fn test_task_error_missing_context_id_display() {
-    let error = TaskError::MissingContextId;
-    assert_eq!(error.to_string(), "Context ID missing from database row");
-}
-
-#[test]
-fn test_task_error_invalid_task_state_display() {
-    let error = TaskError::InvalidTaskState {
-        state: "invalid_state".to_string(),
-    };
-    assert!(error.to_string().contains("invalid_state"));
-    assert!(error.to_string().contains("Invalid task state"));
-}
-
-#[test]
-fn test_task_error_from_row_parse_missing_field() {
-    let row_err = RowParseError::MissingField {
-        field: "context_id".to_string(),
-    };
-    let task_error: TaskError = row_err.into();
-    assert!(task_error.to_string().contains("context_id"));
-    assert!(task_error.to_string().contains("Missing required field"));
-}
-
-#[test]
-fn test_task_error_from_row_parse_invalid_datetime() {
-    let row_err = RowParseError::InvalidDatetime {
-        field: "updated_at".to_string(),
-    };
-    let task_error: TaskError = row_err.into();
-    assert!(task_error.to_string().contains("updated_at"));
-    assert!(task_error.to_string().contains("Invalid datetime"));
-}
-
-#[test]
-fn test_task_error_empty_task_id_display() {
-    let error = TaskError::EmptyTaskId;
-    assert_eq!(error.to_string(), "Empty task ID provided");
-}
-
-#[test]
-fn test_task_error_invalid_task_id_format_display() {
-    let error = TaskError::InvalidTaskIdFormat {
-        id: "not-a-uuid".to_string(),
-    };
-    assert!(error.to_string().contains("not-a-uuid"));
-    assert!(error.to_string().contains("Invalid task ID format"));
-}
-
-#[test]
-fn test_task_error_missing_message_id_display() {
-    let error = TaskError::MissingMessageId;
-    assert_eq!(error.to_string(), "Message ID missing from database row");
-}
-
-#[test]
-fn test_task_error_missing_tool_name_display() {
-    let error = TaskError::MissingToolName;
-    assert_eq!(error.to_string(), "Tool name missing for tool execution");
-}
-
-#[test]
-fn test_task_error_missing_call_id_display() {
-    let error = TaskError::MissingCallId;
-    assert_eq!(error.to_string(), "Tool call ID missing for tool execution");
-}
-
-#[test]
-fn test_task_error_missing_created_timestamp_display() {
-    let error = TaskError::MissingCreatedTimestamp;
-    assert_eq!(error.to_string(), "Created timestamp missing from database");
-}
-
-#[test]
-fn test_context_error_missing_uuid_display() {
-    let error = ContextError::MissingUuid;
-    assert_eq!(error.to_string(), "Context UUID missing from database row");
-}
-
-#[test]
-fn test_context_error_missing_name_display() {
-    let error = ContextError::MissingName;
-    assert_eq!(error.to_string(), "Context name missing from database row");
-}
-
-#[test]
-fn test_context_error_missing_user_id_display() {
-    let error = ContextError::MissingUserId;
-    assert_eq!(error.to_string(), "User ID missing from database row");
-}
-
-#[test]
-fn test_context_error_from_row_parse_missing_field() {
-    let row_err = RowParseError::MissingField {
-        field: "description".to_string(),
-    };
-    let context_error: ContextError = row_err.into();
-    assert!(context_error.to_string().contains("description"));
-    assert!(context_error.to_string().contains("Missing required field"));
-}
-
-#[test]
-fn test_context_error_from_row_parse_invalid_datetime() {
-    let row_err = RowParseError::InvalidDatetime {
-        field: "updated_at".to_string(),
-    };
-    let context_error: ContextError = row_err.into();
-    assert!(context_error.to_string().contains("updated_at"));
-    assert!(context_error.to_string().contains("Invalid datetime"));
-}
-
-#[test]
-fn test_artifact_error_missing_uuid_display() {
-    let error = ArtifactError::MissingUuid;
-    assert_eq!(error.to_string(), "Artifact UUID missing from database row");
-}
-
-#[test]
-fn test_artifact_error_missing_type_display() {
-    let error = ArtifactError::MissingType;
-    assert_eq!(error.to_string(), "Artifact type missing from database row");
-}
-
-#[test]
-fn test_artifact_error_missing_context_id_display() {
-    let error = ArtifactError::MissingContextId;
-    assert_eq!(error.to_string(), "Context ID missing for artifact");
-}
-
-#[test]
-fn test_artifact_error_from_row_parse_missing_field() {
-    let row_err = RowParseError::MissingField {
-        field: "content".to_string(),
-    };
-    let artifact_error: ArtifactError = row_err.into();
-    assert!(artifact_error.to_string().contains("content"));
-    assert!(
-        artifact_error
-            .to_string()
-            .contains("Missing required field")
-    );
-}
-
-#[test]
-fn test_artifact_error_from_row_parse_invalid_datetime() {
-    let row_err = RowParseError::InvalidDatetime {
-        field: "created_at".to_string(),
-    };
-    let artifact_error: ArtifactError = row_err.into();
-    assert!(artifact_error.to_string().contains("created_at"));
-    assert!(artifact_error.to_string().contains("Invalid datetime"));
+    assert!(error.to_string().contains("structured_content"));
 }
 
 #[test]
@@ -208,80 +27,42 @@ fn test_artifact_error_transform_display() {
 }
 
 #[test]
-fn test_artifact_error_metadata_validation_display() {
-    let error = ArtifactError::MetadataValidation("Invalid schema".to_string());
+fn test_artifact_error_metadata_validation_keeps_the_cause() {
+    let error: ArtifactError = MetadataValidationError::new("context_id", "is empty").into();
+    assert!(matches!(error, ArtifactError::MetadataValidation(_)));
     assert!(error.to_string().contains("Metadata validation error"));
-    assert!(error.to_string().contains("Invalid schema"));
+    assert!(error.source().is_some());
 }
 
 #[test]
-fn test_protocol_error_missing_tool_name_display() {
-    let error = ProtocolError::MissingToolName;
-    assert_eq!(error.to_string(), "Tool name missing in tool call");
-}
-
-#[test]
-fn test_protocol_error_missing_error_flag_display() {
-    let error = ProtocolError::MissingErrorFlag;
-    assert!(error.to_string().contains("error flag"));
-}
-
-#[test]
-fn test_protocol_error_missing_message_id_display() {
-    let error = ProtocolError::MissingMessageId;
-    assert_eq!(error.to_string(), "Message ID missing");
-}
-
-#[test]
-fn test_protocol_error_missing_request_id_display() {
-    let error = ProtocolError::MissingRequestId;
-    assert_eq!(error.to_string(), "Request ID missing");
-}
-
-#[test]
-fn test_protocol_error_invalid_latency_display() {
-    let error = ProtocolError::InvalidLatency;
-    assert!(error.to_string().contains("Latency"));
-}
-
-#[test]
-fn test_protocol_error_validation_failed_display() {
-    let error = ProtocolError::ValidationFailed("Invalid message format".to_string());
-    assert!(error.to_string().contains("Validation failed"));
-    assert!(error.to_string().contains("Invalid message format"));
-}
-
-#[test]
-fn test_agent_error_database_display() {
-    let error = AgentError::Database("Connection failed".to_string());
-    assert!(error.to_string().contains("Database error"));
-    assert!(error.to_string().contains("Connection failed"));
-}
-
-#[test]
-fn test_agent_error_task_display() {
-    let task_error = TaskError::EmptyTaskId;
-    let agent_error: AgentError = task_error.into();
-    assert!(agent_error.to_string().contains("Task error"));
-}
-
-#[test]
-fn test_agent_error_context_display() {
-    let context_error = ContextError::MissingName;
-    let agent_error: AgentError = context_error.into();
-    assert!(agent_error.to_string().contains("Context error"));
+fn test_artifact_error_invalid_context_id_keeps_the_cause() {
+    let cause = ContextId::try_new("").expect_err("empty context id is rejected");
+    let error = ArtifactError::InvalidContextId(cause);
+    assert!(error.source().is_some());
 }
 
 #[test]
 fn test_agent_error_artifact_display() {
-    let artifact_error = ArtifactError::MissingType;
+    let artifact_error = ArtifactError::Transform("bad".to_string());
     let agent_error: AgentError = artifact_error.into();
+    assert!(matches!(agent_error, AgentError::Artifact(_)));
     assert!(agent_error.to_string().contains("Artifact error"));
 }
 
 #[test]
-fn test_agent_error_protocol_display() {
-    let protocol_error = ProtocolError::MissingRequestId;
-    let agent_error: AgentError = protocol_error.into();
-    assert!(agent_error.to_string().contains("A2A protocol error"));
+fn test_agent_error_repository_keeps_its_classification() {
+    let agent_error: AgentError = RepositoryError::not_found("task t1").into();
+    match agent_error {
+        AgentError::Repository(inner) => assert!(inner.is_not_found()),
+        other => panic!("expected Repository, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_agent_error_from_sqlx_row_not_found_is_not_found() {
+    let agent_error: AgentError = sqlx::Error::RowNotFound.into();
+    match agent_error {
+        AgentError::Repository(inner) => assert!(inner.is_not_found()),
+        other => panic!("expected Repository, got {other:?}"),
+    }
 }

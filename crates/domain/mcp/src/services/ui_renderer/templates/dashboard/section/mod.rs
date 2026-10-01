@@ -67,10 +67,13 @@ pub(super) fn status_class(status: &str) -> &'static str {
 
 pub(super) fn section_data<T: DeserializeOwned>(section: &DashboardSection) -> McpDomainResult<T> {
     serde_json::from_value(section.data.clone()).map_err(|e| {
-        McpDomainError::Internal(format!(
-            "Dashboard section '{}' data does not match its declared type: {e}",
-            section.section_id.as_str()
-        ))
+        McpDomainError::operation(
+            format!(
+                "Dashboard section '{}' data does not match its declared type",
+                section.section_id.as_str()
+            ),
+            e,
+        )
     })
 }
 

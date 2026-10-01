@@ -12,7 +12,7 @@ use std::time::Duration;
 use systemprompt_identifiers::{AiRequestId, UserId};
 
 use super::AiRequestRepository;
-use crate::error::RepositoryError;
+use systemprompt_traits::RepositoryError;
 
 pub const ORPHANED_REASON: &str = "settlement never arrived; usage unknown";
 

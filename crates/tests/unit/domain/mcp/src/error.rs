@@ -14,7 +14,7 @@ fn test_mcp_error_server_not_found_display() {
 fn test_mcp_error_connection_failed_display() {
     let error = McpError::ConnectionFailed {
         server: "my-server".to_string(),
-        message: "connection refused".to_string(),
+        source: Box::new(std::io::Error::other("connection refused")),
     };
     let display = error.to_string();
     assert!(display.contains("my-server"));
@@ -40,17 +40,6 @@ fn test_mcp_error_registry_validation_display() {
     let error = McpError::RegistryValidation("missing required field".to_string());
     let display = error.to_string();
     assert!(display.contains("missing required field"));
-}
-
-#[test]
-fn test_mcp_error_process_spawn_display() {
-    let error = McpError::ProcessSpawn {
-        server: "worker-server".to_string(),
-        message: "binary not found".to_string(),
-    };
-    let display = error.to_string();
-    assert!(display.contains("worker-server"));
-    assert!(display.contains("binary not found"));
 }
 
 #[test]
@@ -141,7 +130,7 @@ fn test_mcp_error_empty_server_name() {
 fn test_mcp_error_empty_message() {
     let error = McpError::ConnectionFailed {
         server: "server".to_string(),
-        message: String::new(),
+        source: Box::new(std::io::Error::other(String::new())),
     };
     let display = error.to_string();
     assert!(display.contains("server"));

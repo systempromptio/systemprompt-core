@@ -27,11 +27,12 @@
 //!
 //! - [`AiInferenceError`](systemprompt_models::errors::AiInferenceError) for
 //!   the provider-trait seam
-//! - [`RepositoryError`](error::RepositoryError) for persistence
+//! - the canonical [`RepositoryError`](systemprompt_traits::RepositoryError)
+//!   for persistence
 //! - common transport errors ([`reqwest::Error`], [`serde_json::Error`],
-//!   [`sqlx::Error`], [`std::io::Error`], [`regex::Error`])
-//! - an `Internal(String)` carve-out for cases where the upstream cause is
-//!   stringified at the call site rather than typed
+//!   [`std::io::Error`], [`regex::Error`]) and typed storage / stream causes
+//! - an `Internal(String)` variant for invariant violations the crate itself
+//!   describes (no underlying error)
 //!
 //! The provider-trait surface ([`AiProvider`]) used over the wire bridges to
 //! [`AiInferenceResult`](systemprompt_models::errors::AiInferenceResult) in
@@ -60,8 +61,8 @@ pub use services::core::{AiService, AiServiceProviders, ImageService, ImageServi
 
 pub use services::gateway::{
     CATEGORY_SCANNER_FAILURE, Finding, GATEWAY_POLICIES_FILE, GatewayPolicyConfig,
-    GatewayPolicyEntry, GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicConfig,
-    HeuristicScanner, IngestOptions as GatewayPolicyIngestOptions,
+    GatewayPolicyEntry, GatewayPolicyError, GatewayPolicyIngestionService, GatewayPolicySpec,
+    HeuristicConfig, HeuristicScanner, IngestOptions as GatewayPolicyIngestOptions,
     IngestReport as GatewayPolicyIngestReport, NullScanner, OverrideAction, OverrideContext,
     OverrideContextBuilder, OverrideEngine, OverrideError, OverrideResolution, OverrideSource,
     PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, QuotaMode, QuotaWindow, RouteSelector,
@@ -70,7 +71,7 @@ pub use services::gateway::{
     ScannerFactory, Severity, SystemPromptOverride, SystemPromptOverrideRegistration,
     USER_QUOTA_SUBJECT, load_from_yaml as load_gateway_policies_from_yaml,
 };
-pub use services::storage::{ImageStorage, StorageConfig};
+pub use services::storage::{ImageStorage, StorageConfig, StorageConfigError};
 pub use services::tools::NoopToolProvider;
 pub use systemprompt_models::ai::{GenerateResponseParams, GoogleSearchParams};
 

@@ -108,7 +108,10 @@ pub async fn read_artifact_resource(
     let record = repo
         .find_by_id(&artifact_id)
         .await
-        .map_err(|e| McpError::internal_error(format!("Failed to load artifact: {e}"), None))?
+        .map_err(|error| {
+            tracing::error!(%error, artifact_id = %artifact_id, "Failed to load artifact");
+            McpError::internal_error("Failed to load artifact", None)
+        })?
         .ok_or_else(|| {
             McpError::invalid_params(format!("Unknown artifact: {artifact_id}"), None)
         })?;
@@ -128,8 +131,10 @@ pub async fn read_artifact_resource(
         title: record.title.clone(),
     };
 
-    let resource = artifact_ui_resource(&target)
-        .map_err(|e| McpError::internal_error(format!("Failed to render artifact: {e}"), None))?;
+    let resource = artifact_ui_resource(&target).map_err(|error| {
+        tracing::error!(%error, artifact_id = %artifact_id, "Failed to render artifact");
+        McpError::internal_error("Failed to render artifact", None)
+    })?;
 
     let ui_meta = McpResourceUiMeta::new()
         .with_prefers_border(true)

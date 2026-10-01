@@ -142,10 +142,7 @@ pub(super) async fn generate_with_schema(
             provider: "anthropic".to_owned(),
             message: "structured-output response carried no tool_use block".to_owned(),
         })?
-        .map_err(|e| AiError::ProviderError {
-            provider: "anthropic".to_owned(),
-            message: format!("structured-output tool input is not serialisable: {e}"),
-        })?;
+        .map_err(AiError::SerializationError)?;
     ai_response.content = structured;
     ai_response.tool_calls = Vec::new();
     Ok(ai_response)

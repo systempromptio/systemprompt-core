@@ -25,21 +25,16 @@ pub use signals::{
 };
 
 pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> OrchestrationResult<u32> {
-    let binary_path = BuildPaths::resolve_self().map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to resolve running binary: {e}"))
-    })?;
+    let binary_path = BuildPaths::resolve_self()
+        .map_err(|e| OrchestrationError::spawn("Failed to resolve running binary", e))?;
 
-    let config = Config::get().map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to get config: {e}"))
-    })?;
+    let config = Config::get().map_err(|e| OrchestrationError::spawn("Failed to get config", e))?;
 
-    let secrets = SecretsBootstrap::get().map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to get secrets: {e}"))
-    })?;
+    let secrets = SecretsBootstrap::get()
+        .map_err(|e| OrchestrationError::spawn("Failed to get secrets", e))?;
 
-    let profile_path = ProfileBootstrap::get_path().map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to get profile path: {e}"))
-    })?;
+    let profile_path = ProfileBootstrap::get_path()
+        .map_err(|e| OrchestrationError::spawn("Failed to get profile path", e))?;
 
     let log_file = command::prepare_agent_log_file(agent_name, &paths.system().logs())?;
 
@@ -53,9 +48,8 @@ pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> Orchestr
         log_file,
     });
 
-    let pid = systemprompt_loader::subprocess::spawn_supervised(cmd).map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to spawn {agent_name}: {e}"))
-    })?;
+    let pid = systemprompt_loader::subprocess::spawn_supervised(cmd)
+        .map_err(|e| OrchestrationError::spawn(format!("Failed to spawn {agent_name}"), e))?;
 
     if !signals::verify_process_started(pid) {
         return Err(OrchestrationError::ProcessSpawnFailed(format!(

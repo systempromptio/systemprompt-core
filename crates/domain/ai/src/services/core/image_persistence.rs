@@ -76,9 +76,7 @@ async fn persist_ai_request(
         .insert(&record)
         .await
         .map(|_| ())
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })
+        .map_err(AiError::from)
 }
 
 async fn persist_file_record(
@@ -105,7 +103,7 @@ async fn persist_file_record(
 
     let file_id = Uuid::parse_str(response.id.as_str())
         .map(|uuid| FileId::new(uuid.to_string()))
-        .map_err(|e| AiError::InvalidInput(format!("Invalid UUID: {e}")))?;
+        .map_err(AiError::InvalidFileId)?;
 
     let params =
         InsertAiFileParams::new(file_id, file_path, public_url, response.mime_type.clone())
@@ -118,9 +116,7 @@ async fn persist_file_record(
     file_provider
         .insert_file(params)
         .await
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })
+        .map_err(AiError::from)
 }
 
 pub(super) async fn find_generated_image(
@@ -130,9 +126,7 @@ pub(super) async fn find_generated_image(
     file_provider
         .find_by_id(&FileId::new(uuid))
         .await
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })
+        .map_err(AiError::from)
 }
 
 pub(super) async fn list_user_images(
@@ -146,9 +140,7 @@ pub(super) async fn list_user_images(
     file_provider
         .list_by_user(user_id, limit, offset)
         .await
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })
+        .map_err(AiError::from)
 }
 
 pub(super) async fn delete_image(
@@ -157,12 +149,7 @@ pub(super) async fn delete_image(
     uuid: &str,
 ) -> Result<()> {
     let file_id = FileId::new(uuid);
-    let file = file_provider
-        .find_by_id(&file_id)
-        .await
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })?;
+    let file = file_provider.find_by_id(&file_id).await?;
 
     if let Some(file_record) = file {
         storage
@@ -170,12 +157,7 @@ pub(super) async fn delete_image(
                 file_record.path.clone(),
             ))
             .await?;
-        file_provider
-            .delete(&file_id)
-            .await
-            .map_err(|e| AiError::DatabaseError {
-                message: e.to_string(),
-            })?;
+        file_provider.delete(&file_id).await?;
     }
 
     Ok(())

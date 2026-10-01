@@ -118,8 +118,7 @@ async fn load_task_messages(
         task_id_str
     )
     .fetch_all(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     if message_rows.is_empty() {
         return Ok(None);
@@ -163,8 +162,7 @@ async fn load_message_parts(
         task_id_str
     )
     .fetch_all(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     parts_from_rows(&part_rows)
 }
@@ -176,8 +174,7 @@ async fn load_task_artifacts(
     let artifacts = constructor
         .artifact_repo()
         .get_artifacts_by_task(task_id)
-        .await
-        .map_err(|e| RepositoryError::InvalidData(e.to_string()))?;
+        .await?;
 
     if artifacts.is_empty() {
         Ok(None)
@@ -193,8 +190,7 @@ async fn load_execution_steps(
     let steps = constructor
         .execution_step_repo()
         .list_by_task(task_id)
-        .await
-        .map_err(|e| RepositoryError::Internal(e.to_string()))?;
+        .await?;
 
     if steps.is_empty() {
         Ok(None)

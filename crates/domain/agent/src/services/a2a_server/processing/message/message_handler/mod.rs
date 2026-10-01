@@ -162,10 +162,13 @@ impl MessageProcessor {
             .get_context(context_id, context.user_id())
             .await
             .map_err(|e| {
-                AgentServiceError::Internal(format!(
-                    "Context validation failed - context_id: {context_id}, user_id: {}, error: {e}",
-                    context.user_id()
-                ))
+                AgentServiceError::operation(
+                    format!(
+                        "Context validation failed - context_id: {context_id}, user_id: {}",
+                        context.user_id()
+                    ),
+                    e,
+                )
             })?;
 
         tracing::info!(
@@ -191,7 +194,7 @@ impl MessageProcessor {
             .update_task_state(task_id, TaskState::Canceled, &chrono::Utc::now())
             .await
             .map_err(|e| {
-                AgentServiceError::Internal(format!("Failed to mark task {task_id} cancelled: {e}"))
+                AgentServiceError::operation(format!("Failed to mark task {task_id} cancelled"), e)
             })
     }
 
@@ -215,9 +218,10 @@ impl MessageProcessor {
             })
             .await
         {
-            return Err(AgentServiceError::Internal(format!(
-                "Failed to persist task at start: {e}"
-            )));
+            return Err(AgentServiceError::operation(
+                "Failed to persist task at start",
+                e,
+            ));
         }
 
         tracing::info!(task_id = %task.id, "Task persisted to database");
@@ -238,10 +242,10 @@ impl MessageProcessor {
             .update_task_state(&task.id, TaskState::Working, &working_timestamp)
             .await
         {
-            return Err(AgentServiceError::Internal(format!(
-                "Failed to mark task {} as working: {e}",
-                task.id
-            )));
+            return Err(AgentServiceError::operation(
+                format!("Failed to mark task {} as working", task.id),
+                e,
+            ));
         }
 
         Ok(())

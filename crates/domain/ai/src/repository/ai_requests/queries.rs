@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
 use crate::models::{AiRequest, ProviderUsage, UserAiUsage};
 use chrono::Utc;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, ProviderRequestId, SessionId, TaskId, TraceId,
     UserId,
 };
+use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
 

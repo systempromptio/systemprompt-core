@@ -18,9 +18,8 @@ pub(super) struct LoadedDiskSkill {
 }
 
 pub(super) fn resolve_skills_root() -> Result<PathBuf> {
-    let profile = ProfileBootstrap::get().map_err(|e| {
-        AgentServiceError::Internal(format!("Profile not initialized for SkillService: {e}"))
-    })?;
+    let profile = ProfileBootstrap::get()
+        .map_err(|e| AgentServiceError::operation("Profile not initialized for SkillService", e))?;
     Ok(ServicesRootBootstrap::active_path_or(
         &profile.paths.services,
         "skills",
@@ -40,10 +39,10 @@ pub(super) fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<
     }
 
     let config_text = std::fs::read_to_string(&config_path).map_err(|e| {
-        AgentServiceError::Internal(format!("Failed to read {}: {e}", config_path.display()))
+        AgentServiceError::operation(format!("Failed to read {}", config_path.display()), e)
     })?;
     let config: DiskSkillConfig = serde_yaml::from_str(&config_text).map_err(|e| {
-        AgentServiceError::Internal(format!("Invalid YAML in {}: {e}", config_path.display()))
+        AgentServiceError::operation(format!("Invalid YAML in {}", config_path.display()), e)
     })?;
 
     let resolved_id = if config.id.as_str().is_empty() {
@@ -55,7 +54,7 @@ pub(super) fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<
     let content_path = skill_dir.join(config.content_file());
     let instructions = if content_path.exists() {
         let raw = std::fs::read_to_string(&content_path).map_err(|e| {
-            AgentServiceError::Internal(format!("Failed to read {}: {e}", content_path.display()))
+            AgentServiceError::operation(format!("Failed to read {}", content_path.display()), e)
         })?;
         strip_frontmatter(&raw)
     } else {

@@ -1,13 +1,10 @@
 //! Typed error hierarchy for the [`systemprompt-ai`](crate) crate.
 //!
-//! Two error families live here:
-//!
-//! - [`AiError`] — the top-level public error returned by [`crate::services`].
-//!   It composes repository-level failures ([`RepositoryError`]) via `#[from]`,
-//!   plus common transport / parsing errors ([`reqwest::Error`],
-//!   [`serde_json::Error`], [`sqlx::Error`]).
-//! - [`RepositoryError`] — the persistence-layer error returned by every
-//!   `*Repository` type in [`crate::repository`].
+//! [`AiError`] is the top-level public error returned by [`crate::services`].
+//! It composes the canonical repository error ([`RepositoryError`]) returned
+//! by every `*Repository` type in [`crate::repository`] via `#[from]`, plus
+//! common transport / parsing errors ([`reqwest::Error`],
+//! [`serde_json::Error`]).
 //!
 //! All public service signatures use [`Result<T>`] (i.e. `Result<T, AiError>`).
 //! The dyn `AiProvider` seam returns
@@ -20,10 +17,13 @@
 use std::time::Duration;
 
 use thiserror::Error;
-use uuid::Uuid;
 
 use systemprompt_database::resilience::Outcome;
-use systemprompt_identifiers::{AiRequestId, McpServerId};
+use systemprompt_identifiers::McpServerId;
+use systemprompt_models::wire::error::WireStreamError;
+use systemprompt_traits::{AiProviderError, FileStorageError, RepositoryError};
+
+use crate::services::storage::StorageConfigError;
 
 #[derive(Debug, Error)]
 pub enum AiError {
@@ -104,8 +104,11 @@ pub enum AiError {
     #[error("Configuration error: {message}")]
     ConfigurationError { message: String },
 
-    #[error("Database operation failed: {message}")]
-    DatabaseError { message: String },
+    #[error(transparent)]
+    Repository(#[from] RepositoryError),
+
+    #[error("file persistence failed: {0}")]
+    FilePersistence(#[from] AiProviderError),
 
     #[error("MCP service {service_id} not found or not configured")]
     McpServiceNotFound { service_id: McpServerId },
@@ -116,8 +119,27 @@ pub enum AiError {
     #[error("Failed to determine service authentication requirements: {details}")]
     ServiceAuthCheckFailed { details: String },
 
-    #[error("Storage operation failed: {message}")]
-    StorageError { message: String },
+    #[error("{context}: {source}")]
+    Storage {
+        context: String,
+        #[source]
+        source: FileStorageError,
+    },
+
+    #[error("invalid image storage configuration: {0}")]
+    StorageConfig(#[from] StorageConfigError),
+
+    #[error("image size {size} bytes exceeds the maximum allowed size {max} bytes")]
+    ImageTooLarge { size: usize, max: usize },
+
+    #[error("failed to decode base64 image: {0}")]
+    ImageDecode(#[from] base64::DecodeError),
+
+    #[error("provider stream failed: {0}")]
+    Stream(#[from] WireStreamError),
+
+    #[error("invalid generated file id: {0}")]
+    InvalidFileId(#[source] uuid::Error),
 
     #[error("Invalid input: {0}")]
     InvalidInput(String),
@@ -171,6 +193,8 @@ impl From<AiError> for systemprompt_models::errors::AiInferenceError {
             | AiError::MissingToolField { .. }
             | AiError::EmptyToolDescription { .. }
             | AiError::InvalidInput(_)
+            | AiError::ImageDecode(_)
+            | AiError::InvalidFileId(_)
             | AiError::WireParse(_) => Self::InvalidRequest(Box::new(err)),
             AiError::NoToolCalls
             | AiError::McpServiceNotFound { .. }
@@ -182,41 +206,20 @@ impl From<AiError> for systemprompt_models::errors::AiInferenceError {
             | AiError::AuthenticationRequired { .. }
             | AiError::ConfigurationError { .. }
             | AiError::Secrets(_)
+            | AiError::StorageConfig(_)
             | AiError::Upstream(_) => Self::Configuration(Box::new(err)),
-            AiError::DatabaseError { .. } | AiError::StorageError { .. } => {
-                Self::Storage(Box::new(err))
-            },
-            AiError::SerializationError(_)
+            AiError::Repository(_)
+            | AiError::FilePersistence(_)
+            | AiError::Storage { .. }
+            | AiError::ImageTooLarge { .. } => Self::Storage(Box::new(err)),
+            AiError::Stream(_)
+            | AiError::SerializationError(_)
             | AiError::Http(_)
             | AiError::Io(_)
             | AiError::Regex(_)
             | AiError::Internal(_) => Self::Internal(Box::new(err)),
         }
     }
-}
-
-#[derive(Debug, Error)]
-pub enum RepositoryError {
-    #[error("AI request not found: {0}")]
-    NotFound(Uuid),
-
-    #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
-
-    #[error("Invalid data: {field} - {reason}")]
-    InvalidData { field: String, reason: String },
-
-    #[error("Database pool initialization failed: {0}")]
-    PoolInitialization(String),
-
-    #[error("Settlement of AI request {request_id} rejected: {reason}")]
-    SettlementConflict {
-        request_id: AiRequestId,
-        reason: String,
-    },
-
-    #[error("AI request {0} already exists")]
-    AlreadyExists(AiRequestId),
 }
 
 impl AiError {
@@ -274,11 +277,3 @@ fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
 }
 
 pub type Result<T> = std::result::Result<T, AiError>;
-
-impl From<RepositoryError> for AiError {
-    fn from(error: RepositoryError) -> Self {
-        Self::DatabaseError {
-            message: error.to_string(),
-        }
-    }
-}

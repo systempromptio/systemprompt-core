@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::domain_error;
+use systemprompt_traits::BoxedSource;
 
 domain_error! {
     pub enum McpDomainError {
@@ -12,20 +13,28 @@ domain_error! {
         #[error("MCP server not found: {0}")]
         ServerNotFound(String),
 
-        #[error("Connection failed to {server}: {message}")]
-        ConnectionFailed { server: String, message: String },
+        #[error("Connection failed to {server}: {source}")]
+        ConnectionFailed {
+            server: String,
+            #[source]
+            source: BoxedSource,
+        },
 
         #[error("Tool execution failed: {0}")]
         ToolExecutionFailed(String),
+
+        #[error("Tool execution failed: {context}: {source}")]
+        ToolCall {
+            context: String,
+            #[source]
+            source: BoxedSource,
+        },
 
         #[error("Schema validation failed: {0}")]
         SchemaValidation(String),
 
         #[error("Registry validation failed: {0}")]
         RegistryValidation(String),
-
-        #[error("Process spawn failed for {server}: {message}")]
-        ProcessSpawn { server: String, message: String },
 
         #[error("Port unavailable: {port} - {message}")]
         PortUnavailable { port: u16, message: String },
@@ -48,6 +57,13 @@ domain_error! {
         #[error("Configuration error: {0}")]
         Configuration(String),
 
+        #[error("Configuration error: {context}: {source}")]
+        InvalidConfiguration {
+            context: String,
+            #[source]
+            source: BoxedSource,
+        },
+
         #[error("Authentication required for {0}")]
         AuthRequired(String),
 
@@ -67,8 +83,12 @@ domain_error! {
         #[error("Manifest error: {0}")]
         Manifest(String),
 
-        #[error("Transport error: {0}")]
-        Transport(String),
+        #[error("Transport error: {context}: {source}")]
+        Transport {
+            context: String,
+            #[source]
+            source: BoxedSource,
+        },
 
         #[error("MCP server {server} timed out after {after_ms}ms")]
         Timeout { server: String, after_ms: u64 },
@@ -79,8 +99,18 @@ domain_error! {
         #[error("MCP server {server} unavailable: concurrency limit reached")]
         DependencyUnavailable { server: String },
 
+        #[error("Failed to start {} MCP service(s): {}", .0.len(), summarize_failures(.0))]
+        ServicesFailedToStart(Vec<ServiceStartFailure>),
+
         #[error("{0}")]
         Internal(String),
+
+        #[error("{context}: {source}")]
+        Operation {
+            context: String,
+            #[source]
+            source: BoxedSource,
+        },
 
         #[error("Configuration: {0}")]
         Config(#[from] systemprompt_models::errors::ConfigError),
@@ -92,20 +122,45 @@ domain_error! {
         ExtensionLoad(#[from] systemprompt_loader::ExtensionLoadError),
 
         #[error("MCP client initialize: {0}")]
-        ClientInitialize(String),
+        ClientInitialize(#[source] Box<rmcp::service::ClientInitializeError>),
 
-        #[error("MCP service error: {message}")]
-        ServiceError { message: String },
+        #[error("MCP service error: {0}")]
+        ServiceError(#[source] Box<rmcp::ServiceError>),
 
         #[error("Task join error: {0}")]
         TaskJoin(#[from] tokio::task::JoinError),
 
         #[error("Path error: {0}")]
-        Path(String),
+        Path(#[from] systemprompt_config::paths::PathError),
 
         #[error("Config validation: {0}")]
-        ConfigValidation(String),
+        ConfigValidation(#[from] systemprompt_models::errors::ConfigValidationError),
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{service} ({source})")]
+pub struct ServiceStartFailure {
+    pub service: String,
+    #[source]
+    pub source: Box<McpDomainError>,
+}
+
+impl ServiceStartFailure {
+    pub fn new(service: impl Into<String>, source: McpDomainError) -> Self {
+        Self {
+            service: service.into(),
+            source: Box::new(source),
+        }
+    }
+}
+
+fn summarize_failures(failures: &[ServiceStartFailure]) -> String {
+    failures
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 impl From<sqlx::Error> for McpDomainError {
@@ -116,39 +171,56 @@ impl From<sqlx::Error> for McpDomainError {
 
 impl From<rmcp::service::ClientInitializeError> for McpDomainError {
     fn from(e: rmcp::service::ClientInitializeError) -> Self {
-        Self::ClientInitialize(e.to_string())
+        Self::ClientInitialize(Box::new(e))
     }
 }
 
 impl From<rmcp::ServiceError> for McpDomainError {
     fn from(e: rmcp::ServiceError) -> Self {
-        Self::ServiceError {
-            message: e.to_string(),
-        }
-    }
-}
-
-impl From<systemprompt_models::errors::ConfigValidationError> for McpDomainError {
-    fn from(e: systemprompt_models::errors::ConfigValidationError) -> Self {
-        Self::ConfigValidation(e.to_string())
-    }
-}
-
-impl From<systemprompt_config::paths::PathError> for McpDomainError {
-    fn from(e: systemprompt_config::paths::PathError) -> Self {
-        Self::Path(e.to_string())
+        Self::ServiceError(Box::new(e))
     }
 }
 
 impl McpDomainError {
+    pub fn operation(context: impl Into<String>, source: impl Into<BoxedSource>) -> Self {
+        Self::Operation {
+            context: context.into(),
+            source: source.into(),
+        }
+    }
+
+    pub fn invalid_configuration(
+        context: impl Into<String>,
+        source: impl Into<BoxedSource>,
+    ) -> Self {
+        Self::InvalidConfiguration {
+            context: context.into(),
+            source: source.into(),
+        }
+    }
+
+    pub fn tool_call(context: impl Into<String>, source: impl Into<BoxedSource>) -> Self {
+        Self::ToolCall {
+            context: context.into(),
+            source: source.into(),
+        }
+    }
+
+    pub fn transport(context: impl Into<String>, source: impl Into<BoxedSource>) -> Self {
+        Self::Transport {
+            context: context.into(),
+            source: source.into(),
+        }
+    }
+
     #[must_use]
     pub const fn classify(&self) -> systemprompt_database::resilience::Outcome {
         use systemprompt_database::resilience::Outcome;
         match self {
             Self::ConnectionFailed { .. }
-            | Self::Transport(_)
+            | Self::Transport { .. }
             | Self::Timeout { .. }
-            | Self::ServiceError { .. } => Outcome::Transient { retry_after: None },
+            | Self::ServiceError(_) => Outcome::Transient { retry_after: None },
             _ => Outcome::Permanent,
         }
     }

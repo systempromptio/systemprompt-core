@@ -33,10 +33,10 @@ impl PortService {
                 return Ok(false);
             },
             Err(e) => {
-                return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                    "Failed to check port {}: {}",
-                    port, e
-                )));
+                return Err(OrchestrationError::spawn(
+                    format!("Failed to check port {port}"),
+                    e,
+                ));
             },
         };
 
@@ -50,10 +50,10 @@ impl PortService {
                 )));
             },
             Err(e) => {
-                return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                    "Port {} is in use but failed to identify process (PID {}): {}",
-                    port, pid, e
-                )));
+                return Err(OrchestrationError::spawn(
+                    format!("Port {port} is in use but failed to identify process (PID {pid})"),
+                    e,
+                ));
             },
         }
 
@@ -121,10 +121,10 @@ impl PortService {
                     )));
                 },
                 Err(e) => {
-                    return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                        "Port {} is in use but failed to identify process (PID {}): {}",
-                        port, pid, e
-                    )));
+                    return Err(OrchestrationError::spawn(
+                        format!("Port {port} is in use but failed to identify process (PID {pid})"),
+                        e,
+                    ));
                 },
             },
             Ok(None) => {
@@ -134,10 +134,10 @@ impl PortService {
                 )));
             },
             Err(e) => {
-                return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                    "Failed to check port {}: {}",
-                    port, e
-                )));
+                return Err(OrchestrationError::spawn(
+                    format!("Failed to check port {port}"),
+                    e,
+                ));
             },
         }
 

@@ -28,9 +28,7 @@ pub(super) fn artifact_payload<T: DeserializeOwned>(artifact: &Artifact) -> McpD
         })?;
 
     serde_json::from_value(data).map_err(|e| {
-        McpDomainError::Internal(format!(
-            "Artifact payload does not match its declared type: {e}"
-        ))
+        McpDomainError::operation("Artifact payload does not match its declared type", e)
     })
 }
 

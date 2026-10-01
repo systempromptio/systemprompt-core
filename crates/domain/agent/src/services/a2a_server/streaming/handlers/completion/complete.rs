@@ -15,6 +15,7 @@ use std::sync::Arc;
 use axum::response::sse::Event;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::{RequestContext, TaskMetadata};
+use systemprompt_traits::BoxedSource;
 use systemprompt_traits::validation::Validate;
 use tokio::sync::mpsc::Sender;
 
@@ -45,6 +46,20 @@ pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
 pub(in crate::services::a2a_server::streaming) struct CompletionFailure {
     pub code: &'static str,
     pub message: String,
+    pub source: Option<BoxedSource>,
+}
+
+impl CompletionFailure {
+    fn caused<E>(code: &'static str, message: &str, source: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self {
+            code,
+            message: message.to_owned(),
+            source: Some(Box::new(source)),
+        }
+    }
 }
 
 pub(in crate::services::a2a_server::streaming) async fn handle_complete(
@@ -81,6 +96,7 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
         return Err(CompletionFailure {
             code: "INTERNAL_ERROR",
             message: "Task status message cannot be None".to_owned(),
+            source: None,
         });
     };
 
@@ -94,9 +110,12 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
             artifacts_already_published: true,
         })
         .await
-        .map_err(|e| CompletionFailure {
-            code: "PERSISTENCE_ERROR",
-            message: format!("Failed to complete task and persist messages: {e}"),
+        .map_err(|e| {
+            CompletionFailure::caused(
+                "PERSISTENCE_ERROR",
+                "Failed to complete task and persist messages",
+                e,
+            )
         })?;
     outcome.record_undelivered_broadcasts();
 
@@ -115,18 +134,12 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
 }
 
 fn validated_metadata(agent_name: &str) -> Result<TaskMetadata, CompletionFailure> {
-    let task_metadata =
-        TaskMetadata::new_validated_agent_message(agent_name.to_owned()).map_err(|e| {
-            CompletionFailure {
-                code: "METADATA_ERROR",
-                message: format!("Internal error: {e}"),
-            }
-        })?;
+    let task_metadata = TaskMetadata::new_validated_agent_message(agent_name.to_owned())
+        .map_err(|e| CompletionFailure::caused("METADATA_ERROR", "Task metadata is invalid", e))?;
 
-    task_metadata.validate().map_err(|e| CompletionFailure {
-        code: "VALIDATION_ERROR",
-        message: format!("Validation failed: {e}"),
-    })?;
+    task_metadata
+        .validate()
+        .map_err(|e| CompletionFailure::caused("VALIDATION_ERROR", "Validation failed", e))?;
 
     Ok(task_metadata)
 }

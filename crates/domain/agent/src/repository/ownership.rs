@@ -34,11 +34,7 @@ impl OwnerReassignment for AgentOwnerReassignment {
         from: &UserId,
         to: &UserId,
     ) -> Result<ReassignedRows, RepositoryError> {
-        let mut tx = self
-            .write_pool
-            .begin()
-            .await
-            .map_err(RepositoryError::database)?;
+        let mut tx = self.write_pool.begin().await?;
 
         let contexts = sqlx::query!(
             "UPDATE user_contexts SET user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1",
@@ -46,8 +42,7 @@ impl OwnerReassignment for AgentOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let tasks = sqlx::query!(
@@ -56,8 +51,7 @@ impl OwnerReassignment for AgentOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let messages = sqlx::query!(
@@ -66,11 +60,10 @@ impl OwnerReassignment for AgentOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
-        tx.commit().await.map_err(RepositoryError::database)?;
+        tx.commit().await?;
 
         Ok(ReassignedRows {
             tables: vec![

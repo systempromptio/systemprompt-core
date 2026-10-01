@@ -12,7 +12,7 @@
 use std::collections::HashSet;
 
 use super::config::GatewayPolicyConfig;
-use crate::error::RepositoryError;
+use super::error::GatewayPolicyError;
 use crate::repository::AiGatewayPolicyRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -43,7 +43,7 @@ impl GatewayPolicyIngestionService {
         &self,
         cfg: &GatewayPolicyConfig,
         options: IngestOptions,
-    ) -> Result<IngestReport, RepositoryError> {
+    ) -> Result<IngestReport, GatewayPolicyError> {
         cfg.validate()?;
 
         let existing: HashSet<String> = self.repo.list_all_names().await?.into_iter().collect();
@@ -57,11 +57,12 @@ impl GatewayPolicyIngestionService {
                 report.skipped += 1;
                 continue;
             }
-            let spec =
-                serde_json::to_value(&entry.spec).map_err(|err| RepositoryError::InvalidData {
-                    field: format!("policies.{}.spec", entry.name),
-                    reason: err.to_string(),
-                })?;
+            let spec = serde_json::to_value(&entry.spec).map_err(|source| {
+                GatewayPolicyError::EncodeSpec {
+                    name: entry.name.clone(),
+                    source,
+                }
+            })?;
             self.repo
                 .upsert(&entry.name, &spec, entry.enabled, entry.priority)
                 .await?;

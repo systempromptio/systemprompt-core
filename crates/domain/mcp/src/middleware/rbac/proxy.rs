@@ -61,8 +61,9 @@ pub fn try_proxy_verified_auth(
 
     validate_scopes_for_permissions(server_name, &permissions, oauth_config)?;
 
-    let user_id: uuid::Uuid = user_id_str.parse().map_err(|e| {
-        McpError::invalid_request(format!("Invalid user ID in x-user-id header: {e}"), None)
+    let user_id: uuid::Uuid = user_id_str.parse().map_err(|error: uuid::Error| {
+        tracing::warn!(%error, "Rejected proxy-verified request with a malformed x-user-id");
+        McpError::invalid_request("Invalid user ID in x-user-id header".to_owned(), None)
     })?;
     // Why: a gateway that did not decorate the hop with roles asserted none;
     // the subject is evaluated with exactly the roles it presented.

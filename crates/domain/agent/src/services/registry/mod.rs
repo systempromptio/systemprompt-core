@@ -179,16 +179,17 @@ impl AgentRegistry {
             }
         }
 
-        Err(AgentError::Validation(format!(
-            "No available ports in range {BASE_PORT}-{MAX_PORT}"
-        )))
+        Err(AgentError::NoAvailablePort {
+            min: BASE_PORT,
+            max: MAX_PORT,
+        })
     }
 }
 
 fn is_cloud_deployment() -> AgentResult<bool> {
     systemprompt_models::Config::get()
         .map(|config| config.is_cloud)
-        .map_err(|e| AgentError::Config(format!("cannot resolve dev_only agents: {e}")))
+        .map_err(|e| AgentError::invalid_config("cannot resolve dev_only agents", e))
 }
 
 fn build_extensions(
@@ -216,7 +217,8 @@ fn build_extensions(
 }
 
 fn load_agent_skills(agent: &AgentConfig) -> AgentResult<Vec<crate::models::a2a::AgentSkill>> {
-    let profile = ProfileBootstrap::get().map_err(|e| AgentError::Config(e.to_string()))?;
+    let profile = ProfileBootstrap::get()
+        .map_err(|e| AgentError::invalid_config("profile is not initialised", e))?;
     let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
     load_agent_skills_from_dir(agent, &skills_path)
 }
@@ -235,10 +237,13 @@ pub fn load_agent_skills_from_dir(
         .map(|skill_id| {
             let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
             load_skill_from_disk(skills_dir, &skill_id_typed).map_err(|e| {
-                AgentError::Config(format!(
-                    "agent {} advertises skill {skill_id} which failed to load: {e}",
-                    agent.name
-                ))
+                AgentError::invalid_config(
+                    format!(
+                        "agent {} advertises skill {skill_id} which failed to load",
+                        agent.name
+                    ),
+                    e,
+                )
             })
         })
         .collect()

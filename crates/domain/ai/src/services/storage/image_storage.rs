@@ -58,17 +58,26 @@ impl StorageConfig {
         }
     }
 
-    pub fn validate(&self) -> Result<(), String> {
+    pub const fn validate(&self) -> Result<(), StorageConfigError> {
         if self.url_prefix.is_empty() {
-            return Err("url_prefix cannot be empty".to_owned());
+            return Err(StorageConfigError::EmptyUrlPrefix);
         }
 
         if self.max_file_size_bytes == 0 {
-            return Err("max_file_size_bytes must be greater than 0".to_owned());
+            return Err(StorageConfigError::ZeroMaxFileSize);
         }
 
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum StorageConfigError {
+    #[error("url_prefix cannot be empty")]
+    EmptyUrlPrefix,
+
+    #[error("max_file_size_bytes must be greater than 0")]
+    ZeroMaxFileSize,
 }
 
 /// A decoded image written to storage: its key, public URL and the size of
@@ -93,15 +102,9 @@ impl std::fmt::Debug for ImageStorage {
     }
 }
 
-const fn storage_error(message: String) -> AiError {
-    AiError::StorageError { message }
-}
-
 impl ImageStorage {
     pub fn new(config: StorageConfig, storage: Arc<dyn FileStorage>) -> Result<Self, AiError> {
-        config
-            .validate()
-            .map_err(|e| storage_error(format!("Invalid storage configuration: {e}")))?;
+        config.validate()?;
 
         Ok(Self { config, storage })
     }
@@ -111,9 +114,7 @@ impl ImageStorage {
         base64_data: &str,
         mime_type: &str,
     ) -> Result<StoredImage, AiError> {
-        let image_bytes = BASE64
-            .decode(base64_data)
-            .map_err(|e| storage_error(format!("Failed to decode base64 image: {e}")))?;
+        let image_bytes = BASE64.decode(base64_data)?;
 
         let (id, public_url) = self.save_image_bytes(&image_bytes, mime_type).await?;
         Ok(StoredImage {
@@ -129,11 +130,10 @@ impl ImageStorage {
         mime_type: &str,
     ) -> Result<(StoredFileId, String), AiError> {
         if image_bytes.len() > self.config.max_file_size_bytes {
-            return Err(storage_error(format!(
-                "Image size {} bytes exceeds maximum allowed size {} bytes",
-                image_bytes.len(),
-                self.config.max_file_size_bytes
-            )));
+            return Err(AiError::ImageTooLarge {
+                size: image_bytes.len(),
+                max: self.config.max_file_size_bytes,
+            });
         }
 
         let extension = Self::mime_type_to_extension(mime_type);
@@ -161,11 +161,9 @@ impl ImageStorage {
             .storage
             .store(&relative_path, image_bytes)
             .await
-            .map_err(|e| {
-                storage_error(format!(
-                    "Failed to write image file {}: {e}",
-                    relative_path.display()
-                ))
+            .map_err(|source| AiError::Storage {
+                context: format!("failed to write image file {}", relative_path.display()),
+                source,
             })?;
 
         Ok((stored_id, url_path))
@@ -175,14 +173,20 @@ impl ImageStorage {
         self.storage
             .delete(id)
             .await
-            .map_err(|e| storage_error(format!("Failed to delete file {id}: {e}")))
+            .map_err(|source| AiError::Storage {
+                context: format!("failed to delete file {id}"),
+                source,
+            })
     }
 
     pub async fn exists(&self, id: &StoredFileId) -> Result<bool, AiError> {
         self.storage
             .exists(id)
             .await
-            .map_err(|e| storage_error(format!("Failed to stat file {id}: {e}")))
+            .map_err(|source| AiError::Storage {
+                context: format!("failed to stat file {id}"),
+                source,
+            })
     }
 
     pub fn get_full_path(&self, relative_path: &str) -> PathBuf {

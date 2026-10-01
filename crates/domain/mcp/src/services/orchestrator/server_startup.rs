@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{McpDomainError, McpDomainResult};
+use crate::error::{McpDomainError, McpDomainResult, ServiceStartFailure};
 use crate::services::spawn_target::SpawnTarget;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -40,7 +40,7 @@ pub(super) async fn start_pending_servers(
         event_bus,
         events,
     } = params;
-    let mut failed: Vec<(String, String)> = Vec::new();
+    let mut failed: Vec<ServiceStartFailure> = Vec::new();
     let mut started_count = 0;
 
     for server in servers {
@@ -51,22 +51,14 @@ pub(super) async fn start_pending_servers(
 
         match start_single_server(server, lifecycle, database, event_bus, events).await {
             Ok(()) => started_count += 1,
-            Err(e) => failed.push((server.name.clone(), e.to_string())),
+            Err(e) => failed.push(ServiceStartFailure::new(server.name.clone(), e)),
         }
     }
 
     notify_reconciliation_complete(events, started_count, servers.len());
 
     if !failed.is_empty() {
-        return Err(McpDomainError::Internal(format!(
-            "Failed to start {} MCP service(s): {}",
-            failed.len(),
-            failed
-                .iter()
-                .map(|(name, err)| format!("{name} ({err})"))
-                .collect::<Vec<_>>()
-                .join(", ")
-        )));
+        return Err(McpDomainError::ServicesFailedToStart(failed));
     }
 
     Ok(started_count)

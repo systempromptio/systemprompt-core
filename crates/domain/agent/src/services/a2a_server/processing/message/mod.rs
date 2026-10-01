@@ -19,7 +19,7 @@ pub use message_handler::HandleMessageParams;
 pub use persistence::PersistOutcome;
 pub use stream_processor::StreamProcessor;
 
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -148,10 +148,7 @@ impl MessageProcessor {
         use crate::services::registry::AgentRegistry;
 
         let registry = AgentRegistry::new()?;
-        let agent_config = registry
-            .get_agent(agent_name)
-            .await
-            .map_err(|_e| AgentServiceError::Internal("Agent not found".to_owned()))?;
+        let agent_config = registry.get_agent(agent_name).await?;
 
         Ok(agent_config.into())
     }

@@ -7,101 +7,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::error::IdValidationError;
+use systemprompt_traits::{BoxedSource, MetadataValidationError, RepositoryError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum RowParseError {
+pub enum ArtifactError {
     #[error("Missing required field: {field}")]
     MissingField { field: String },
-
-    #[error("Invalid datetime for field '{field}'")]
-    InvalidDatetime { field: String },
-
-    #[error("JSON parse error for field '{field}': {source}")]
-    JsonParse {
-        field: String,
-        #[source]
-        source: serde_json::Error,
-    },
-}
-
-#[derive(Debug, Error)]
-pub enum TaskError {
-    #[error("Task UUID missing from database row")]
-    MissingTaskUuid,
-
-    #[error("Agent name not found for task {task_id}")]
-    MissingAgentName { task_id: TaskId },
-
-    #[error("Context ID missing from database row")]
-    MissingContextId,
-
-    #[error("Invalid task state: {state}")]
-    InvalidTaskState { state: String },
-
-    #[error(transparent)]
-    RowParse(#[from] RowParseError),
-
-    #[error("Metadata parse error: {0}")]
-    InvalidMetadata(#[from] serde_json::Error),
-
-    #[error("Empty task ID provided")]
-    EmptyTaskId,
-
-    #[error("Invalid task ID format: {id}")]
-    InvalidTaskIdFormat { id: String },
-
-    #[error("Message ID missing from database row")]
-    MissingMessageId,
-
-    #[error("Tool name missing for tool execution")]
-    MissingToolName,
-
-    #[error("Tool call ID missing for tool execution")]
-    MissingCallId,
-
-    #[error("Created timestamp missing from database")]
-    MissingCreatedTimestamp,
-
-    #[error("Database error: {0}")]
-    Database(String),
-}
-
-#[derive(Debug, Error)]
-pub enum ContextError {
-    #[error("Context UUID missing from database row")]
-    MissingUuid,
-
-    #[error("Context name missing from database row")]
-    MissingName,
-
-    #[error("User ID missing from database row")]
-    MissingUserId,
-
-    #[error(transparent)]
-    RowParse(#[from] RowParseError),
-
-    #[error("Role serialization error: {0}")]
-    RoleSerialization(#[from] serde_json::Error),
-
-    #[error("Database error: {0}")]
-    Database(String),
-}
-
-#[derive(Debug, Error)]
-pub enum ArtifactError {
-    #[error("Artifact UUID missing from database row")]
-    MissingUuid,
-
-    #[error("Artifact type missing from database row")]
-    MissingType,
-
-    #[error("Context ID missing for artifact")]
-    MissingContextId,
-
-    #[error(transparent)]
-    RowParse(#[from] RowParseError),
 
     #[error("Invalid tool response schema: expected {expected}, found keys: {actual_keys:?}")]
     InvalidSchema {
@@ -111,77 +24,33 @@ pub enum ArtifactError {
         source: serde_json::Error,
     },
 
-    #[error("Metadata parse error: {0}")]
-    InvalidMetadata(#[from] serde_json::Error),
+    #[error("Invalid artifact context id: {0}")]
+    InvalidContextId(#[source] IdValidationError),
 
-    #[error("Database error: {0}")]
-    Database(String),
+    #[error("Metadata validation error: {0}")]
+    MetadataValidation(#[from] MetadataValidationError),
 
     #[error("Transform error: {0}")]
     Transform(String),
-
-    #[error("Metadata validation error: {0}")]
-    MetadataValidation(String),
-}
-
-#[derive(Debug, Error)]
-pub enum ProtocolError {
-    #[error("Tool name missing in tool call")]
-    MissingToolName,
-
-    #[error("Tool result error flag is required but was not provided")]
-    MissingErrorFlag,
-
-    #[error("Message ID missing")]
-    MissingMessageId,
-
-    #[error("Request ID missing")]
-    MissingRequestId,
-
-    #[error("Latency value missing or invalid")]
-    InvalidLatency,
-
-    #[error("Validation failed: {0}")]
-    ValidationFailed(String),
-
-    #[error("JSON parse error: {0}")]
-    JsonParse(#[from] serde_json::Error),
-
-    #[error("Database error: {0}")]
-    Database(String),
 }
 
 #[derive(Debug, Error)]
 pub enum AgentError {
-    #[error("Task error: {0}")]
-    Task(#[from] TaskError),
-
-    #[error("Context error: {0}")]
-    Context(#[from] ContextError),
-
     #[error("Artifact error: {0}")]
     Artifact(#[from] ArtifactError),
 
-    #[error("A2A protocol error: {0}")]
-    Protocol(#[from] ProtocolError),
-
-    #[error("Repository error: {0}")]
-    Repository(String),
-
-    #[error("Database error: {0}")]
-    Database(String),
-
-    #[error("repository init: {0}")]
-    Init(String),
-
-    #[error("server: {0}")]
-    Server(String),
-
-    #[error("webhook: {0}")]
-    Webhook(String),
+    #[error("repository: {0}")]
+    Repository(#[from] RepositoryError),
 
     #[error("config: {0}")]
     Config(String),
+
+    #[error("config: {context}: {source}")]
+    InvalidConfig {
+        context: String,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("http: {0}")]
     Http(#[from] reqwest::Error),
@@ -189,32 +58,35 @@ pub enum AgentError {
     #[error("agent not found: {0}")]
     NotFound(String),
 
-    #[error("spawn failed: {0}")]
-    Spawn(String),
-
-    #[error("lifecycle: {0}")]
-    Lifecycle(String),
-
     #[error("validation: {0}")]
     Validation(String),
 
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    #[error("No available ports in range {min}-{max}")]
+    NoAvailablePort { min: u16, max: u16 },
 
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
-
-    #[error("internal: {0}")]
-    Internal(String),
 
     #[error("services config: {0}")]
     ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
 }
 
-pub type AgentResult<T> = Result<T, AgentError>;
-
-impl From<AgentError> for systemprompt_traits::RepositoryError {
-    fn from(err: AgentError) -> Self {
-        Self::database(err)
+impl AgentError {
+    pub fn invalid_config<E>(context: impl Into<String>, source: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::InvalidConfig {
+            context: context.into(),
+            source: Box::new(source),
+        }
     }
 }
+
+impl From<sqlx::Error> for AgentError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::Repository(err.into())
+    }
+}
+
+pub type AgentResult<T> = Result<T, AgentError>;

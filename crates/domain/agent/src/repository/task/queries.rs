@@ -47,8 +47,7 @@ pub async fn list_tasks_by_context(
         context_id_str
     )
     .fetch_all(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     let task_ids: Vec<TaskId> = rows.iter().map(|r| r.task_id.clone()).collect();
     let tasks = constructor.construct_tasks_batch(&task_ids).await?;
@@ -91,8 +90,7 @@ pub async fn get_tasks_by_user_id(
         off
     )
     .fetch_all(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     let task_ids: Vec<TaskId> = rows.iter().map(|r| r.task_id.clone()).collect();
     let tasks = constructor.construct_tasks_batch(&task_ids).await?;
@@ -119,8 +117,7 @@ pub async fn get_task_context_info(
         task_id_str
     )
     .fetch_optional(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     Ok(row.map(|r| TaskContextInfo {
         context_id: r.context_id,

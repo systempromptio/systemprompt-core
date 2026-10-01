@@ -23,6 +23,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{Permission, UserType};
+use systemprompt_traits::RepositoryError;
 
 #[derive(Debug, Clone)]
 pub struct ProxyIdentityRow {
@@ -52,7 +53,7 @@ impl McpProxyIdentityRepository {
         let permissions = serde_json::to_value(&identity.permissions)?;
         let roles = serde_json::to_value(&identity.roles)?;
         let auth_token = systemprompt_security::at_rest::seal(identity.auth_token.as_str())
-            .map_err(|e| McpDomainError::Internal(format!("Sealing proxy identity token: {e}")))?;
+            .map_err(|e| McpDomainError::operation("sealing proxy identity token", e))?;
         sqlx::query!(
             r#"
             INSERT INTO mcp_proxy_identities
@@ -109,7 +110,7 @@ impl McpProxyIdentityRepository {
             return Ok(None);
         };
         let user_type = UserType::from_str(&r.user_type)
-            .map_err(|e| McpDomainError::Validation(e.to_string()))?;
+            .map_err(|e| RepositoryError::decode("mcp_proxy_identities.user_type", e))?;
         let permissions: Vec<Permission> = serde_json::from_value(r.permissions)?;
         let roles: Vec<String> = serde_json::from_value(r.roles)?;
         Ok(Some(ProxyIdentityRow {

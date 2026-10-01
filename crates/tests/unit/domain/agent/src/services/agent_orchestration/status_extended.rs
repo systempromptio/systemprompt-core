@@ -154,8 +154,11 @@ fn test_orchestration_error_io_from() {
 }
 
 #[test]
-fn test_orchestration_error_generic_variant() {
-    let orch_err = OrchestrationError::Generic("something went wrong".to_string());
+fn test_orchestration_error_spawn_keeps_the_cause() {
+    let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "no binary");
+    let orch_err = OrchestrationError::spawn("Failed to spawn agent", io_err);
 
-    assert!(orch_err.to_string().contains("something went wrong"));
+    assert!(matches!(orch_err, OrchestrationError::Spawn { .. }));
+    assert!(orch_err.to_string().contains("Failed to spawn agent"));
+    assert!(std::error::Error::source(&orch_err).is_some());
 }

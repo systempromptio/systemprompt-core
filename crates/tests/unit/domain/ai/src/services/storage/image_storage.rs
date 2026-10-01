@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use systemprompt_ai::services::storage::{ImageStorage, StorageConfig};
+use systemprompt_ai::services::storage::{ImageStorage, StorageConfig, StorageConfigError};
 use systemprompt_models::profile::StorageBackend;
 use systemprompt_storage::build_file_storage;
 use systemprompt_test_mocks::MockFileStorage;
@@ -55,7 +55,7 @@ mod storage_config_tests {
         let mut config = config();
         config.url_prefix = String::new();
         let err = config.validate().unwrap_err();
-        assert!(err.contains("url_prefix"));
+        assert_eq!(err, StorageConfigError::EmptyUrlPrefix);
     }
 
     #[test]
@@ -63,7 +63,7 @@ mod storage_config_tests {
         let mut config = config();
         config.max_file_size_bytes = 0;
         let err = config.validate().unwrap_err();
-        assert!(err.contains("max_file_size"));
+        assert_eq!(err, StorageConfigError::ZeroMaxFileSize);
     }
 
     #[test]

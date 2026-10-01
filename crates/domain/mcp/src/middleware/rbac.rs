@@ -99,7 +99,7 @@ pub async fn enforce_rbac_from_registry(
 
     let services_config = ConfigLoader::load().map_err(|e| {
         tracing::error!(server = %server_name, headers = ?header_dump, error = %e, "Failed to load services config");
-        McpError::internal_error(format!("Failed to load services config: {e}"), None)
+        McpError::internal_error("Failed to load services config", None)
     })?;
 
     let deployment = services_config
@@ -120,11 +120,9 @@ pub async fn enforce_rbac_from_registry(
         return Ok(AuthResult::Anonymous(request_context));
     }
 
-    let server_id = McpServerId::try_new(server_name).map_err(|e| {
-        McpError::invalid_request(
-            format!("invalid MCP server name '{server_name}': {e}"),
-            None,
-        )
+    let server_id = McpServerId::try_new(server_name).map_err(|error| {
+        tracing::warn!(server = %server_name, %error, "Rejected invalid MCP server name");
+        McpError::invalid_request(format!("invalid MCP server name '{server_name}'"), None)
     })?;
     let floor = member_attribute_floor(&services_config, EntityKind::McpServer, server_name);
 
@@ -255,7 +253,7 @@ fn build_authenticated_context(
 ) -> Result<AuthenticatedRequestContext, McpError> {
     let user_id = claims.sub.parse().map_err(|e| {
         tracing::error!(error = %e, "Invalid user ID in JWT");
-        McpError::internal_error(format!("Invalid user ID in JWT: {e}"), None)
+        McpError::internal_error("Invalid user ID in JWT", None)
     })?;
 
     let authenticated_user = AuthenticatedUser::new_with_roles(

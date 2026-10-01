@@ -234,7 +234,10 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
         .create(request)
         .expect_err("no provider and no services config to default from");
     assert!(
-        matches!(err, ConfigAuthoringError::ServicesConfig(_)),
+        matches!(
+            err,
+            ConfigAuthoringError::ServicesConfig(_) | ConfigAuthoringError::ProviderCatalog(_)
+        ),
         "{err}"
     );
     assert!(

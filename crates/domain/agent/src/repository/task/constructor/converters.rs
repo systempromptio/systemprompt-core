@@ -10,9 +10,9 @@ use systemprompt_models::a2a::TaskMetadata;
 use systemprompt_traits::RepositoryError;
 
 pub(super) fn parse_task_state(row: &TaskRow) -> Result<TaskState, RepositoryError> {
-    row.status.parse().map_err(|e: String| {
-        RepositoryError::InvalidData(format!("unrecognised stored task state: {e}"))
-    })
+    row.status
+        .parse()
+        .map_err(|e: String| RepositoryError::decode("stored task state", e))
 }
 
 pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
@@ -67,12 +67,8 @@ pub(super) fn construct_metadata(row: &TaskRow) -> Result<TaskMetadata, Reposito
         Some(value) if value.as_object().is_some_and(serde_json::Map::is_empty) => {
             TaskMetadata::new_agent_message(agent_name.clone())
         },
-        Some(value) => serde_json::from_value::<TaskMetadata>(value.clone()).map_err(|e| {
-            RepositoryError::InvalidData(format!(
-                "task {} has unreadable metadata: {e}",
-                row.task_id
-            ))
-        })?,
+        Some(value) => serde_json::from_value::<TaskMetadata>(value.clone())
+            .map_err(|e| RepositoryError::decode(format!("task {} metadata", row.task_id), e))?,
     };
 
     metadata.agent_name = agent_name;

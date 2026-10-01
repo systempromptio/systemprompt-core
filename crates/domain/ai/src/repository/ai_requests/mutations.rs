@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
 use crate::models::{AiRequest, AiRequestRecord, RequestStatus};
 use systemprompt_identifiers::{
     AiRequestId, ClientSessionId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
     ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
+use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
 
@@ -194,7 +194,9 @@ impl AiRequestRepository {
         .await?;
         match inserted {
             Some(_) => Ok(id.clone()),
-            None => Err(RepositoryError::AlreadyExists(id.clone())),
+            None => Err(RepositoryError::conflict(format!(
+                "AI request {id} already exists"
+            ))),
         }
     }
 }

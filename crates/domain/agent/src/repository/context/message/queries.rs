@@ -38,8 +38,7 @@ pub async fn get_messages_by_task(
         task_id.as_str()
     )
     .fetch_all(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     let task_ids: Vec<String> = message_rows.iter().map(|r| r.task_id.to_string()).collect();
     let all_parts = batch_queries::fetch_message_parts(pool, &task_ids).await?;
@@ -104,8 +103,7 @@ pub async fn get_messages_by_context(
         context_id.as_str()
     )
     .fetch_all(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     let task_ids: Vec<String> = message_rows.iter().map(|r| r.task_id.to_string()).collect();
     let all_parts = batch_queries::fetch_message_parts(pool, &task_ids).await?;
@@ -147,8 +145,7 @@ pub async fn message_exists(
         message_id.as_str(),
     )
     .fetch_one(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
     Ok(row.unwrap_or(false))
 }
 
@@ -161,15 +158,13 @@ pub async fn get_next_sequence_number_sqlx(
         task_id.as_str()
     )
     .fetch_optional(&mut **tx)
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
     let row = sqlx::query!(
         r#"SELECT MAX(sequence_number) as "max_seq" FROM task_messages WHERE task_id = $1"#,
         task_id.as_str()
     )
     .fetch_optional(&mut **tx)
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     Ok(row.and_then(|r| r.max_seq).map_or(0, |s| s + 1))
 }

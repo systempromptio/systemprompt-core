@@ -43,7 +43,7 @@ fn spawn_fake_agent(port: u16) -> Option<(Child, u32)> {
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         if let Ok(Some(pid)) = find_process_using_port(port)
-            && is_agent_process(pid) == Ok(true)
+            && matches!(is_agent_process(pid), Ok(true))
         {
             return Some((child, pid));
         }

@@ -12,8 +12,8 @@
 use std::path::Path;
 
 use super::config::GatewayPolicyConfig;
+use super::error::GatewayPolicyError;
 use super::ingestion::{GatewayPolicyIngestionService, IngestOptions, IngestReport};
-use crate::error::RepositoryError;
 use crate::repository::AiGatewayPolicyRepository;
 
 pub const GATEWAY_POLICIES_FILE: &str = "gateway/policies.yaml";
@@ -21,7 +21,7 @@ pub const GATEWAY_POLICIES_FILE: &str = "gateway/policies.yaml";
 pub async fn load_from_yaml(
     repository: &AiGatewayPolicyRepository,
     services_path: &Path,
-) -> Result<IngestReport, RepositoryError> {
+) -> Result<IngestReport, GatewayPolicyError> {
     let path = services_path.join(GATEWAY_POLICIES_FILE);
     let content = match std::fs::read_to_string(&path) {
         Ok(content) => content,
@@ -33,18 +33,12 @@ pub async fn load_from_yaml(
             return Ok(IngestReport::default());
         },
         Err(err) => {
-            return Err(RepositoryError::InvalidData {
-                field: GATEWAY_POLICIES_FILE.to_owned(),
-                reason: err.to_string(),
-            });
+            return Err(GatewayPolicyError::Read { path, source: err });
         },
     };
 
-    let cfg: GatewayPolicyConfig =
-        serde_yaml::from_str(&content).map_err(|err| RepositoryError::InvalidData {
-            field: path.display().to_string(),
-            reason: err.to_string(),
-        })?;
+    let cfg: GatewayPolicyConfig = serde_yaml::from_str(&content)
+        .map_err(|source| GatewayPolicyError::Parse { path, source })?;
 
     let service = GatewayPolicyIngestionService::from_repository(repository.clone());
     service

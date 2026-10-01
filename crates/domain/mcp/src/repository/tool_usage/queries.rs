@@ -169,6 +169,6 @@ impl ToolExecutionLookup for ToolUsageRepository {
         )
         .fetch_one(&*self.pool)
         .await
-        .map_err(RepositoryError::database)
+        .map_err(RepositoryError::from)
     }
 }

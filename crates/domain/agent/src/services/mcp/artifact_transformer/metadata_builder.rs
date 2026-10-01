@@ -43,13 +43,15 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
         _ => json!(null),
     };
 
-    let context_id_typed = ContextId::try_new(context_id)
-        .map_err(|e| ArtifactError::MetadataValidation(e.to_string()))?;
+    let context_id_typed =
+        ContextId::try_new(context_id).map_err(ArtifactError::InvalidContextId)?;
     let task_id_typed = TaskId::new(task_id);
 
-    let mut metadata =
-        ArtifactMetadata::new_validated(artifact_type.to_string(), context_id_typed, task_id_typed)
-            .map_err(|e| ArtifactError::MetadataValidation(e.to_string()))?;
+    let mut metadata = ArtifactMetadata::new_validated(
+        artifact_type.to_string(),
+        context_id_typed,
+        task_id_typed,
+    )?;
 
     metadata = metadata.with_tool_name(tool_name.to_owned());
 

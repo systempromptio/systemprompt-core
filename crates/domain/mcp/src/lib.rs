@@ -27,8 +27,8 @@
 //! All public APIs return [`McpDomainResult`] — a typed `Result` aliased over
 //! [`McpDomainError`]. External error types (`sqlx`, `serde_json`, `io`,
 //! join errors) are composed via `#[from]` on the error enum. Third-party
-//! errors without a typed adapter are converted at the boundary with
-//! `.map_err(|e| McpDomainError::Internal(e.to_string()))`.
+//! errors without a typed adapter keep their cause in a `#[source]` variant
+//! such as `McpDomainError::Operation { context, source }`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -50,7 +50,7 @@ pub(crate) mod tool;
 
 pub use extension::McpExtension;
 
-pub use error::{McpDomainError, McpDomainResult};
+pub use error::{McpDomainError, McpDomainResult, ServiceStartFailure};
 pub use rmcp::ErrorData as McpError;
 pub use rmcp::model::CallToolResult;
 

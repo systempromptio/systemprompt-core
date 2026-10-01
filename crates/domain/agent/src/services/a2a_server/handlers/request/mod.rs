@@ -126,11 +126,11 @@ fn parse_json_rpc_body(
     };
 
     serde_json::from_value::<crate::models::a2a::A2aJsonRpcRequest>(payload).map_err(|e| {
+        tracing::warn!(topic = "a2a_jsonrpc", error = %e, "Invalid JSON-RPC request");
         let error_response = JsonRpcErrorBuilder::invalid_request()
             .with_data(json!(
                 "Request must be valid JSON-RPC 2.0 with jsonrpc, method, params, and id"
             ))
-            .log_error(format!("Invalid JSON-RPC request: {e}"))
             .build(&crate::models::a2a::jsonrpc::NumberOrString::Number(0));
         Box::new((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
     })

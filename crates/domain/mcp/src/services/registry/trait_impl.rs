@@ -26,6 +26,13 @@ impl From<McpDomainError> for McpRegistryError {
     }
 }
 
+fn registry_error(err: McpDomainError) -> RegistryError {
+    match err {
+        McpDomainError::ServerNotFound(what) => RegistryError::NotFound(what),
+        other => RegistryError::Unavailable(Box::new(other)),
+    }
+}
+
 fn typed_server_ids(names: impl Iterator<Item = String>) -> McpRegistryResult<Vec<McpServerId>> {
     names
         .map(|name| {
@@ -97,14 +104,12 @@ fn server_info(server: crate::McpServerConfig) -> McpServerInfo {
 #[async_trait]
 impl McpRegistryProvider for RegistryService {
     async fn get_server(&self, name: &str) -> Result<McpServerInfo, RegistryError> {
-        let server =
-            Self::get_server(self, name).map_err(|e| RegistryError::NotFound(e.to_string()))?;
+        let server = Self::get_server(self, name).map_err(registry_error)?;
         Ok(server_info(server))
     }
 
     async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {
-        let servers =
-            Self::get_enabled_servers(self).map_err(|e| RegistryError::Unavailable(e.into()))?;
+        let servers = Self::get_enabled_servers(self).map_err(registry_error)?;
         Ok(servers.into_iter().map(server_info).collect())
     }
 }

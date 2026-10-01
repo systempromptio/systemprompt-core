@@ -110,7 +110,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 
         let structured_output = serde_json::to_value(&self.output).map_err(|e| {
             tracing::error!(error = %e, tool = %tool_name, "Failed to serialize tool output");
-            McpError::internal_error(format!("Serialization error: {e}"), None)
+            McpError::internal_error("Serialization error", None)
         })?;
         let text_body = self.output.text_body();
 
@@ -132,7 +132,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             .await
             .map_err(|e| {
                 tracing::error!(error = %e, tool = %tool_name, "Failed to persist artifact");
-                McpError::internal_error(format!("Failed to persist artifact: {e}"), None)
+                McpError::internal_error("Failed to persist artifact", None)
             })?;
         let IngestOutcome {
             artifact_id,
