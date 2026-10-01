@@ -21,9 +21,7 @@ use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_runtime::{
-    AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
-};
+use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id,
@@ -113,7 +111,6 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
         },
         Plugins {
             extension_registry: Arc::new(ExtensionRegistry::new()),
-            api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter: Arc::new(AllowAllFilter),
             marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),

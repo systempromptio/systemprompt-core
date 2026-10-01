@@ -12,9 +12,7 @@ use super::common::{empty_get, json_post, setup_ctx};
 
 async fn router() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
-    Ok(gateway_router(&ctx)
-        .expect("gateway journal opens")
-        .expect("gateway router available"))
+    Ok(gateway_router(&ctx).expect("gateway router builds"))
 }
 
 #[tokio::test]

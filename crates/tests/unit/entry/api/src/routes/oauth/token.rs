@@ -144,7 +144,7 @@ async fn token_error_server_error_maps_to_server_error_with_500() {
     assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
     let json = body_to_json(resp).await;
     assert_eq!(json["error"], "server_error");
-    assert_eq!(json["error_description"], "timeout");
+    assert_ne!(json["error_description"], "timeout");
 }
 
 #[tokio::test]

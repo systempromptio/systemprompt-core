@@ -7,20 +7,15 @@ use crate::services::proxy::ProxyEngine;
 use axum::Router;
 use axum::extract::Path;
 use axum::routing::any;
-use systemprompt_runtime::{AppContext, ServiceCategory};
+use systemprompt_mcp::McpDomainError;
+use systemprompt_runtime::AppContext;
 
-pub fn router(ctx: &AppContext) -> Router {
-    let identities = match crate::repository::proxy_identities(ctx.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to initialize MCP proxy identity repository");
-            return Router::new();
-        },
-    };
+pub fn router(ctx: &AppContext) -> Result<Router, McpDomainError> {
+    let identities = crate::repository::proxy_identities(ctx.db_pool())?;
     let engine = ProxyEngine::new(identities);
     let engine_with_path = engine.clone();
 
-    Router::new()
+    Ok(Router::new()
         .route(
             "/{service_name}",
             any(move |Path(service_name): Path<String>, state, request| {
@@ -49,13 +44,5 @@ pub fn router(ctx: &AppContext) -> Router {
                 },
             ),
         )
-        .with_state(ctx.clone())
+        .with_state(ctx.clone()))
 }
-
-systemprompt_runtime::register_module_api!(
-    "agents",
-    ServiceCategory::Agent,
-    router,
-    false,
-    systemprompt_runtime::ModuleType::Proxy
-);

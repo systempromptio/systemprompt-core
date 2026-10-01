@@ -36,6 +36,8 @@ use dispatch::{RejectionError, build_error_response, dispatch_to_provider, error
 use extract::{RejectionPartial, extract_request_context};
 use rejection::persist_rejection;
 
+const GATEWAY_SERVER_ERROR_MESSAGE: &str = "The gateway could not complete the request";
+
 pub(super) struct RequestContext<'a> {
     pub jwt_extractor: &'a JwtContextExtractor,
     pub ctx: &'a AppContext,
@@ -83,12 +85,19 @@ pub async fn handle(
             if persist {
                 persist_rejection(&repos, &ai_request_id, &partial, status, &message).await;
             }
-            let body = inbound.render_error(status, &message);
+            let public_message = if status.is_server_error() {
+                GATEWAY_SERVER_ERROR_MESSAGE
+            } else {
+                message.as_str()
+            };
+            let body = inbound.render_error(status, public_message);
             Response::builder()
                 .status(status)
                 .header("content-type", "application/json")
                 .body(Body::from(body))
-                .unwrap_or_else(|_| build_error_response(status, error_type_for(status), &message))
+                .unwrap_or_else(|_| {
+                    build_error_response(status, error_type_for(status), public_message)
+                })
         },
     };
     attach_log_identity(&mut response, &partial);

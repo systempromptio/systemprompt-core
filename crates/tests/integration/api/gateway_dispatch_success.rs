@@ -118,9 +118,7 @@ async fn app() -> Result<(Router, DbPool)> {
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &h.boot.database_url);
     Ok((
-        gateway_router(&ctx)
-            .expect("gateway journal opens")
-            .expect("gateway router available"),
+        gateway_router(&ctx).expect("gateway router builds"),
         pool,
     ))
 }
@@ -384,9 +382,7 @@ mod streaming {
         let pool = test_db_pool().await;
         let ctx = test_app_context(&pool, &h.boot.database_url);
         Ok((
-            gateway_router(&ctx)
-                .expect("gateway journal opens")
-                .expect("gateway router available"),
+            gateway_router(&ctx).expect("gateway router builds"),
             pool,
         ))
     }

@@ -141,7 +141,11 @@ impl IntoResponse for ProxyError {
                     );
                 }
 
-                let message = self.to_string();
+                let message = if status.is_server_error() {
+                    format!("Proxy request failed ({error_type})")
+                } else {
+                    self.to_string()
+                };
                 let api_error = match status {
                     StatusCode::NOT_FOUND => ApiError::not_found(message),
                     StatusCode::UNAUTHORIZED => ApiError::unauthorized(message),

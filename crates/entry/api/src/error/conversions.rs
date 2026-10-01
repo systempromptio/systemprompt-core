@@ -20,7 +20,7 @@ use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
-use super::ApiHttpError;
+use super::{ApiHttpError, internal_api_error};
 
 impl From<RepositoryError> for ApiHttpError {
     fn from(err: RepositoryError) -> Self {
@@ -42,7 +42,7 @@ impl From<AgentError> for ApiHttpError {
             | AgentError::Protocol(ProtocolError::ValidationFailed(msg)) => {
                 ApiError::bad_request(msg)
             },
-            other => ApiError::internal_error(other.to_string()),
+            other => internal_api_error("Agent operation failed", &other),
         };
         Self(api)
     }
@@ -67,7 +67,9 @@ impl From<MarketplaceError> for ApiHttpError {
             | MarketplaceError::Managed(_)
             | MarketplaceError::Import { .. }
             | MarketplaceError::Signing(_)
-            | MarketplaceError::Filter(_) => ApiError::internal_error(err.to_string()),
+            | MarketplaceError::Filter(_) => {
+                internal_api_error("Marketplace operation failed", &err)
+            },
         };
         Self(api)
     }
@@ -86,7 +88,9 @@ impl From<UserError> for ApiHttpError {
             | UserError::InvalidRoles(_) => ApiError::bad_request(message),
             UserError::Pool(_)
             | UserError::MergeUnavailable
-            | UserError::OwnerReassignment { .. } => ApiError::internal_error(message),
+            | UserError::OwnerReassignment { .. } => {
+                internal_api_error("User operation failed", &message)
+            },
         };
         Self(api)
     }
@@ -127,7 +131,9 @@ impl From<OauthError> for ApiHttpError {
             | OauthError::Crypto(_)
             | OauthError::CimdFetch(_)
             | OauthError::WebAuthnConfig(_)
-            | OauthError::Internal(_) => ApiError::internal_error(message),
+            | OauthError::Internal(_) => {
+                internal_api_error("Authorization operation failed", &message)
+            },
         };
         Self(api)
     }
@@ -138,7 +144,9 @@ impl From<SessionCreationError> for ApiHttpError {
         let message = err.to_string();
         Self(match err {
             SessionCreationError::UserNotFound { .. } => ApiError::not_found(message),
-            SessionCreationError::Internal(_) => ApiError::internal_error(message),
+            SessionCreationError::Internal(_) => {
+                internal_api_error("Session creation failed", &message)
+            },
         })
     }
 }
@@ -158,7 +166,9 @@ impl From<ContextExtractionError> for ApiHttpError {
             | ContextExtractionError::InvalidUserId(_) => ApiError::bad_request(message),
             ContextExtractionError::ForbiddenHeader { .. } => ApiError::forbidden(message),
             ContextExtractionError::UserNotFound(_) => ApiError::not_found(message),
-            ContextExtractionError::DatabaseError { .. } => ApiError::internal_error(message),
+            ContextExtractionError::DatabaseError { .. } => {
+                internal_api_error("Request context lookup failed", &message)
+            },
         };
         Self(api)
     }
@@ -173,11 +183,12 @@ impl From<BundleError> for ApiHttpError {
                 ApiError::bad_request(message)
             },
             BundleError::SourceMissing { .. } => ApiError::not_found(message),
-            BundleError::Fetch { .. }
-            | BundleError::Extract { .. }
-            | BundleError::Io(_)
-            | BundleError::Policy { .. }
-            | BundleError::TooLarge { .. } => ApiError::internal_error(message),
+            BundleError::Policy { .. } | BundleError::TooLarge { .. } => {
+                ApiError::bad_request(message)
+            },
+            BundleError::Fetch { .. } | BundleError::Extract { .. } | BundleError::Io(_) => {
+                internal_api_error("Services bundle operation failed", &message)
+            },
         };
         Self(api)
     }

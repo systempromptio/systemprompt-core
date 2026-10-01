@@ -4,7 +4,7 @@
 //! settings. Lives in the integration crate so we can pull the test-fixtures
 //! DB pool.
 
-use systemprompt_api::services::gateway::policy::{PolicyResolver, QuotaWindow};
+use systemprompt_api::services::gateway::policy::{PolicyResolver, QuotaWindow, merge_policy_rows};
 use systemprompt_api::services::gateway::quota::{
     PostUpdateParams, post_update_tokens, precheck_and_reserve,
 };
@@ -458,4 +458,30 @@ fn unreadable_policy_resolver() -> PolicyResolver {
     PolicyResolver::from_repository(
         systemprompt_ai::repository::AiGatewayPolicyRepository::new(&db).expect("policy repo"),
     )
+}
+
+fn policy_row(name: &str, spec: serde_json::Value) -> systemprompt_ai::GatewayPolicyRow {
+    systemprompt_ai::GatewayPolicyRow {
+        id: systemprompt_identifiers::AiGatewayPolicyId::generate(),
+        name: name.to_owned(),
+        spec,
+        enabled: true,
+        priority: 0,
+    }
+}
+
+#[test]
+fn well_formed_policy_rows_merge() {
+    let merged = merge_policy_rows(vec![policy_row("base", serde_json::json!({}))]);
+    assert!(merged.is_ok(), "{merged:?}");
+}
+
+#[test]
+fn a_malformed_policy_row_fails_the_merge_instead_of_being_skipped() {
+    let rows = vec![
+        policy_row("base", serde_json::json!({})),
+        policy_row("typo", serde_json::json!({ "quota_windos": [] })),
+    ];
+    let err = merge_policy_rows(rows).expect_err("a malformed row must not be dropped");
+    assert_eq!(err.name, "typo");
 }

@@ -1,94 +1,76 @@
-use systemprompt_runtime::validate_database_path;
-use tempfile::{NamedTempFile, TempDir};
+use systemprompt_runtime::{RuntimeError, validate_database_url};
 
 #[test]
-fn test_empty_path_returns_error() {
-    let result = validate_database_path("");
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("empty"));
+fn test_empty_url_returns_error() {
+    let result = validate_database_url("");
+    assert!(matches!(result, Err(RuntimeError::EmptyDatabaseUrl)));
 }
 
 #[test]
 fn test_postgresql_url_accepted() {
-    validate_database_path("postgresql://localhost:5432/testdb").expect("postgresql url accepted");
+    validate_database_url("postgresql://localhost:5432/testdb").expect("postgresql url accepted");
 }
 
 #[test]
 fn test_postgres_url_accepted() {
-    validate_database_path("postgres://localhost:5432/testdb").expect("postgres url accepted");
+    validate_database_url("postgres://localhost:5432/testdb").expect("postgres url accepted");
 }
 
 #[test]
 fn test_postgresql_url_with_credentials() {
-    validate_database_path("postgresql://user:pass@localhost:5432/testdb")
+    validate_database_url("postgresql://user:pass@localhost:5432/testdb")
         .expect("postgresql url with credentials accepted");
 }
 
 #[test]
 fn test_postgres_url_with_ssl_options() {
-    validate_database_path("postgres://localhost:5432/testdb?sslmode=require")
+    validate_database_url("postgres://localhost:5432/testdb?sslmode=require")
         .expect("postgres url with ssl options accepted");
 }
 
 #[test]
-fn test_nonexistent_file_path_returns_error() {
-    let result = validate_database_path("/nonexistent/path/to/database.db");
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("not found"));
+fn test_file_path_is_unsupported() {
+    let result = validate_database_url("/var/lib/app/database.db");
+    assert!(matches!(result, Err(RuntimeError::UnsupportedDatabaseUrl)));
 }
 
 #[test]
-fn test_directory_path_returns_not_a_file_error() {
-    let temp_dir = TempDir::new().unwrap();
-    let dir_path = temp_dir.path().to_str().unwrap();
-    let result = validate_database_path(dir_path);
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("not a file"));
+fn test_mysql_url_is_unsupported() {
+    let result = validate_database_url("mysql://localhost/db");
+    assert!(matches!(result, Err(RuntimeError::UnsupportedDatabaseUrl)));
 }
 
 #[test]
-fn test_existing_file_path_accepted() {
-    let temp_file = NamedTempFile::new().unwrap();
-    let file_path = temp_file.path().to_str().unwrap();
-    validate_database_path(file_path).expect("existing file path accepted");
+fn test_http_url_is_unsupported() {
+    let result = validate_database_url("http://localhost/db");
+    assert!(matches!(result, Err(RuntimeError::UnsupportedDatabaseUrl)));
 }
 
 #[test]
-fn test_mysql_url_treated_as_file_path() {
-    let result = validate_database_path("mysql://localhost/db");
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_http_url_treated_as_file_path() {
-    let result = validate_database_path("http://localhost/db");
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_whitespace_only_path_not_treated_as_empty() {
-    let result = validate_database_path("   ");
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
-    assert!(!err_msg.contains("empty"));
+fn test_whitespace_only_url_is_unsupported_not_empty() {
+    let result = validate_database_url("   ");
+    assert!(matches!(result, Err(RuntimeError::UnsupportedDatabaseUrl)));
 }
 
 #[test]
 fn test_postgresql_prefix_case_sensitive() {
-    let result = validate_database_path("PostgreSQL://localhost/db");
+    let result = validate_database_url("PostgreSQL://localhost/db");
     assert!(result.is_err());
 }
 
 #[test]
 fn test_postgres_url_no_port() {
-    validate_database_path("postgres://localhost/db").expect("postgres url without port accepted");
+    validate_database_url("postgres://localhost/db").expect("postgres url without port accepted");
 }
 
 #[test]
 fn test_postgres_url_with_at_sign_in_password() {
-    validate_database_path("postgres://user:p%40ss@localhost:5432/db")
+    validate_database_url("postgres://user:p%40ss@localhost:5432/db")
         .expect("postgres url with at-sign in password accepted");
+}
+
+#[test]
+fn test_unsupported_url_message_does_not_echo_the_url() {
+    let err = validate_database_url("mysql://admin:hunter2@db/app").expect_err("unsupported");
+    assert!(!err.to_string().contains("hunter2"), "{err}");
 }

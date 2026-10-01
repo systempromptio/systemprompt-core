@@ -22,7 +22,11 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let _reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
     }
 
@@ -31,7 +35,11 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let result = reconciler
@@ -58,7 +66,11 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let configs = [ServiceConfig {
@@ -81,7 +93,11 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let configs = [ServiceConfig {
@@ -127,7 +143,11 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let configs = vec![
@@ -158,7 +178,11 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let configs = [ServiceConfig {
@@ -525,7 +549,11 @@ mod reconciler_action_arms {
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let name = unique_name("rec-restart-ok");
@@ -562,7 +590,11 @@ mod reconciler_action_arms {
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let name = unique_name("rec-restart-fail");
@@ -605,7 +637,11 @@ mod reconciler_action_arms {
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let name = unique_name("rec-orphan-db");
@@ -627,12 +663,66 @@ mod reconciler_action_arms {
     }
 
     #[tokio::test]
+    async fn orphan_sweep_leaves_another_instances_row_alone() {
+        let pool = test_db_pool().await;
+        let pg = pool.write_pool_arc().expect("write pool");
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
+        );
+
+        let name = unique_name("rec-orphan-scoped");
+        insert_service(&pg, &name, "stopped", None, 27404).await;
+        sqlx::query(
+            "INSERT INTO services (instance_id, name, module_name, status, pid, port)
+             VALUES ('other-instance', $1, 'mcp', 'stopped', NULL, 27404)",
+        )
+        .bind(&name)
+        .execute(&*pg)
+        .await
+        .expect("seed the other instance's row");
+
+        let result = reconciler
+            .reconcile(&[], |_n: String, _p: u16| async { Ok(()) })
+            .await
+            .expect("reconcile");
+        assert!(result.cleaned_up.contains(&name), "{result:?}");
+
+        let other: Option<String> = sqlx::query_scalar(
+            "SELECT status FROM services WHERE instance_id = 'other-instance' AND name = $1",
+        )
+        .bind(&name)
+        .fetch_optional(&*pg)
+        .await
+        .expect("fetch the other instance's row");
+        assert_eq!(
+            other.as_deref(),
+            Some("stopped"),
+            "a sweep on one instance must not delete a same-named row of another"
+        );
+
+        sqlx::query("DELETE FROM services WHERE instance_id = 'other-instance' AND name = $1")
+            .bind(&name)
+            .execute(&*pg)
+            .await
+            .ok();
+    }
+
+    #[tokio::test]
     async fn orphaned_process_is_terminated_and_row_swept() {
         let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let (mut child, port) = spawn_port_holder();
@@ -661,7 +751,11 @@ mod reconciler_action_arms {
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let (mut child, port) = spawn_port_holder();
@@ -714,7 +808,11 @@ mod reconciler_noop_arm {
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository builds"),
         );
 
         let mut child = Command::new("python3")

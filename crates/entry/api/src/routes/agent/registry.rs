@@ -24,8 +24,7 @@ pub async fn handle_agent_registry(
         Ok(r) => Arc::new(r),
         Err(e) => {
             tracing::error!(error = %e, "Failed to load agent registry");
-            return ApiError::internal_error(format!("Failed to load agent registry: {e}"))
-                .into_response();
+            return ApiError::internal_error("Failed to load agent registry").into_response();
         },
     };
     let service_repo = ctx.service_repository();
@@ -40,8 +39,7 @@ pub async fn handle_agent_registry(
         },
         Err(e) => {
             tracing::error!(error = %e, "Failed to list agents");
-            ApiError::internal_error(format!("Failed to retrieve agent registry: {e}"))
-                .into_response()
+            ApiError::internal_error("Failed to retrieve agent registry").into_response()
         },
     }
 }

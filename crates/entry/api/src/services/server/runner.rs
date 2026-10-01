@@ -55,9 +55,7 @@ pub async fn run_server(
 
     super::shutdown::arm_forced_exit();
     heartbeat.abort();
-    if let Some(recovery) = accounting_recovery {
-        recovery.abort();
-    }
+    accounting_recovery.abort();
     if let Some(listener) = metrics_listener {
         listener.abort();
     }
@@ -164,18 +162,11 @@ async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<tokio::task::
     ))
 }
 
-async fn start_accounting_recovery(
-    ctx: &AppContext,
-) -> Result<Option<tokio::task::JoinHandle<()>>> {
-    if !crate::routes::gateway::gateway_enabled(ctx) {
-        return Ok(None);
-    }
+async fn start_accounting_recovery(ctx: &AppContext) -> Result<tokio::task::JoinHandle<()>> {
     let settlement = crate::routes::gateway::gateway_repositories(ctx)?.settlement();
     let settled = crate::services::gateway::audit::journal::recover(&settlement).await?;
     if settled > 0 {
         tracing::info!(settled, "Gateway accounting receipts recovered at startup");
     }
-    Ok(Some(
-        crate::services::gateway::audit::journal::spawn_recovery(settlement),
-    ))
+    Ok(crate::services::gateway::audit::journal::spawn_recovery(settlement))
 }

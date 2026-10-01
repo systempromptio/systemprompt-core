@@ -5,9 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
-use std::sync::Arc;
 
-use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
+use systemprompt_database::{DbPool, ServiceRepository};
 
 use super::process_cleanup::ProcessCleanup;
 use super::service_records::ServiceConfig;
@@ -15,11 +14,6 @@ use super::state_types::ServiceAction;
 use super::state_verifier::ServiceStateVerifier;
 use super::verified_state::VerifiedServiceState;
 use crate::error::SchedulerResult;
-
-const DELETE_SERVICE_BY_NAME: DatabaseQuery =
-    DatabaseQuery::new("DELETE FROM services WHERE name = $1");
-const UPDATE_SERVICE_TO_STOPPED: DatabaseQuery =
-    DatabaseQuery::new("UPDATE services SET status = 'stopped', pid = NULL WHERE name = $1");
 
 #[derive(Debug, Default)]
 pub struct ReconciliationResult {
@@ -53,14 +47,14 @@ impl ReconciliationResult {
 #[derive(Debug)]
 pub struct ServiceReconciler {
     state_verifier: ServiceStateVerifier,
-    db_pool: DbPool,
+    services: ServiceRepository,
 }
 
 impl ServiceReconciler {
-    pub fn new(db_pool: DbPool, instance_id: systemprompt_identifiers::InstanceId) -> Self {
+    pub fn new(db_pool: DbPool, services: ServiceRepository) -> Self {
         Self {
-            state_verifier: ServiceStateVerifier::new(Arc::clone(&db_pool), instance_id),
-            db_pool,
+            state_verifier: ServiceStateVerifier::new(db_pool, services.instance_id().clone()),
+            services,
         }
     }
 
@@ -194,18 +188,12 @@ impl ServiceReconciler {
     }
 
     async fn cleanup_db_entry(&self, name: &str) -> SchedulerResult<()> {
-        self.db_pool
-            .as_ref()
-            .execute(&DELETE_SERVICE_BY_NAME, &[&name])
-            .await?;
+        self.services.delete_service(name).await?;
         Ok(())
     }
 
     async fn update_service_stopped(&self, name: &str) -> SchedulerResult<()> {
-        self.db_pool
-            .as_ref()
-            .execute(&UPDATE_SERVICE_TO_STOPPED, &[&name])
-            .await?;
+        self.services.update_service_stopped(name).await?;
         Ok(())
     }
 }

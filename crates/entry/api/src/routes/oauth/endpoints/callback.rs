@@ -39,11 +39,8 @@ pub async fn handle_callback(
     let config = match Config::get() {
         Ok(c) => c,
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to load config: {e}"),
-            )
-                .into_response();
+            tracing::error!(error = %e, "OAuth callback could not load config");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load config").into_response();
         },
     };
 
@@ -53,10 +50,8 @@ pub async fn handle_callback(
     let browser_client = match find_browser_client(&repo, &redirect_uri).await {
         Ok(client) => client,
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to find OAuth client: {e}"),
-            )
+            tracing::error!(error = %e, "OAuth callback could not resolve the browser client");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to find OAuth client")
                 .into_response();
         },
     };

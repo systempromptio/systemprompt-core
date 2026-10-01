@@ -115,9 +115,9 @@ async fn run_refresh(
     restart: bool,
 ) -> Result<ServicesRefreshResponse, ApiHttpError> {
     let profile = ProfileBootstrap::get()
-        .map_err(|e| ApiHttpError::internal_error(format!("profile not ready: {e}")))?;
+        .map_err(|e| ApiHttpError::internal("Profile not ready", &e))?;
     let secrets = SecretsBootstrap::get()
-        .map_err(|e| ApiHttpError::internal_error(format!("secrets not ready: {e}")))?;
+        .map_err(|e| ApiHttpError::internal("Secrets not ready", &e))?;
 
     // Why: the boot-time root is a static; after an in-place import the cache
     // state names the composition actually being served, so "changed" is
@@ -151,12 +151,10 @@ async fn run_refresh(
         // tree; the recomposed tree is the one whose config is projected.
         let services =
             ConfigLoader::reload_from_path(&resolved.path.join("config").join("config.yaml"))
-                .map_err(|e| {
-                    ApiHttpError::internal_error(format!("recomposed services config: {e}"))
-                })?;
+                .map_err(|e| ApiHttpError::internal("Recomposed services config is invalid", &e))?;
         let outcome = reconcile_fetched_services(profile, &resolved, &services, ctx.db_pool())
             .await
-            .map_err(|e| ApiHttpError::internal_error(format!("services reconcile: {e}")))?;
+            .map_err(|e| ApiHttpError::internal("Services reconcile failed", &e))?;
         reconciled = outcome == ReconcileOutcome::Projected;
 
         let system_admin = ctx.system_admin().id().clone();

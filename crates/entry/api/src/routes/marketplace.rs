@@ -52,7 +52,7 @@ fn marketplaces_path(ctx: &AppContext) -> PathBuf {
 )]
 fn load_services_config() -> Result<ServicesConfig, ApiHttpError> {
     ConfigLoader::load()
-        .map_err(|e| ApiHttpError::internal_error(format!("Failed to load services config: {e}")))
+        .map_err(|e| ApiHttpError::internal("Failed to load services config", &e))
 }
 
 async fn serve_default_marketplace_json(
@@ -64,7 +64,7 @@ async fn serve_default_marketplace_json(
     let (id, marketplace) = service.resolve_default()?;
 
     let body = serde_json::to_vec_pretty(&render_marketplace_json(id.as_str(), marketplace))
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+        .map_err(|e| ApiHttpError::internal("Failed to render marketplace", &e))?;
 
     Ok((
         StatusCode::OK,
@@ -83,7 +83,7 @@ async fn list_marketplaces(
     let service = MarketplaceService::new(&services);
 
     let body = serde_json::to_vec_pretty(&render_marketplace_list(service.list()))
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+        .map_err(|e| ApiHttpError::internal("Failed to render marketplaces", &e))?;
 
     Ok((
         StatusCode::OK,
@@ -106,7 +106,7 @@ async fn get_marketplace(
     let marketplace = service.get(&id)?;
 
     let body = serde_json::to_vec_pretty(&render_marketplace_json(id.as_str(), marketplace))
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+        .map_err(|e| ApiHttpError::internal("Failed to render marketplace", &e))?;
 
     Ok((
         StatusCode::OK,
@@ -144,7 +144,7 @@ async fn get_marketplace_yaml(
 
     let content = tokio::fs::read(&canonical_requested)
         .await
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+        .map_err(|e| ApiHttpError::internal("Failed to read marketplace config", &e))?;
 
     Ok((
         StatusCode::OK,
@@ -162,14 +162,14 @@ async fn serve_plugin_file(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let services = load_services_config()?;
     let profile = ProfileBootstrap::get()
-        .map_err(|e| ApiHttpError::internal_error(format!("profile not ready: {e}")))?;
+        .map_err(|e| ApiHttpError::internal("Profile not ready", &e))?;
     let api_external_url = &profile.server.api_external_url;
     let services_root = ctx.app_paths().system().services();
 
     let disk_catalog = ctx
         .marketplace_cache()
         .catalog(&services, services_root, api_external_url)
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+        .map_err(|e| ApiHttpError::internal("Failed to load marketplace catalog", &e))?;
     let catalog = (*disk_catalog)
         .clone()
         .without_organization_skills(
@@ -177,11 +177,11 @@ async fn serve_plugin_file(
             ctx.system_admin().id(),
         )
         .await
-        .map_err(|error| ApiHttpError::internal_error(error.to_string()))?;
+        .map_err(|e| ApiHttpError::internal("Failed to filter marketplace catalog", &e))?;
     let bundles = ctx
         .marketplace_cache()
         .bundles(&services, &catalog.as_content())
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+        .map_err(|e| ApiHttpError::internal("Failed to build plugin bundles", &e))?;
 
     let id = PluginId::try_new(&plugin_id)
         .map_err(|_e| ApiHttpError::not_found(format!("Plugin '{plugin_id}' not found")))?;

@@ -32,9 +32,7 @@ use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_runtime::{
-    AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
-};
+use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id, test_db_pool,
@@ -122,7 +120,6 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
         },
         Plugins {
             extension_registry: Arc::new(ExtensionRegistry::new()),
-            api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter: Arc::new(AllowAllFilter),
             marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
@@ -335,6 +332,28 @@ async fn unauthenticated_mcp_registry_get_is_not_anon_denied() -> anyhow::Result
     assert!(
         !body.contains("'anon' is not authorized for this route"),
         "mcp-registry regressed to anon-denial gate. status={status} body={body}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn unauthenticated_execution_lookup_is_refused() -> anyhow::Result<()> {
+    let app = boot_full_router().await?;
+    let mut req = Request::builder()
+        .method(Method::GET)
+        .uri(format!("/api/v1/mcp/executions/{}", uuid::Uuid::new_v4()))
+        .header(header::HOST, "127.0.0.1")
+        .body(Body::empty())?;
+    req.extensions_mut().insert(ConnectInfo(
+        "203.0.113.9:41000"
+            .parse::<SocketAddr>()
+            .expect("peer address must parse"),
+    ));
+    let resp = app.oneshot(req).await?;
+    let (status, body) = body_text(resp).await;
+    assert!(
+        status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN,
+        "execution lookup must require authentication. status={status} body={body}"
     );
     Ok(())
 }

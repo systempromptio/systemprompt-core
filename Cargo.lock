@@ -5058,10 +5058,8 @@ dependencies = [
 name = "systemprompt-runtime"
 version = "0.62.0"
 dependencies = [
- "axum",
  "chrono",
  "indicatif",
- "inventory",
  "maxminddb",
  "serde",
  "serde_json",

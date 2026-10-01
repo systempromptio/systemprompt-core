@@ -266,3 +266,8 @@ pub(crate) fn make_job_context(
     let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_context);
     JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
 }
+
+pub(crate) fn job_app_context(ctx: &JobContext) -> SchedulerResult<&Arc<AppContext>> {
+    ctx.app_context::<Arc<AppContext>>()
+        .ok_or_else(|| SchedulerError::missing_context("AppContext"))
+}

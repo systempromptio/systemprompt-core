@@ -12,9 +12,7 @@ use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
-use systemprompt_runtime::{
-    AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
-};
+use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::fixture_system_admin;
 
@@ -127,7 +125,6 @@ async fn plane_debug_impls_flag_optional_members() {
 
     let plugins = Plugins {
         extension_registry: Arc::new(ExtensionRegistry::new()),
-        api_registry: Arc::new(ModuleApiRegistry::new()),
         mcp_registry: RegistryService::new(systemprompt_test_fixtures::fixture_user_id()),
         marketplace_filter: Arc::new(AllowAllFilter),
         marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),

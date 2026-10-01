@@ -9,7 +9,7 @@ use systemprompt_models::errors::ConfigError;
 use systemprompt_oauth::OauthError;
 use systemprompt_traits::auth::AuthProviderError;
 
-use super::{OAuthErrorCode, OAuthHttpError};
+use super::OAuthHttpError;
 
 impl From<ConfigError> for OAuthHttpError {
     fn from(err: ConfigError) -> Self {
@@ -85,11 +85,6 @@ impl From<SecretsBootstrapError> for OAuthHttpError {
 
 impl From<sqlx::Error> for OAuthHttpError {
     fn from(err: sqlx::Error) -> Self {
-        if let sqlx::Error::Database(db_err) = &err
-            && db_err.is_unique_violation()
-        {
-            return Self::new(OAuthErrorCode::UsernameUnavailable, err.to_string());
-        }
         Self::server_error(err.to_string())
     }
 }

@@ -37,7 +37,7 @@ async fn execute_search(service: &SearchService, request: &SearchRequest) -> Res
         },
         Err(e) => {
             tracing::error!(error = %e, "Search error");
-            internal_error(&e.to_string())
+            internal_error("Search failed")
         },
     }
 }

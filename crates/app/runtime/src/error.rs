@@ -109,11 +109,8 @@ pub enum RuntimeError {
     #[error("DATABASE_URL is empty")]
     EmptyDatabaseUrl,
 
-    #[error("Database not found at '{path}'. Run setup first")]
-    DatabaseNotFound { path: String },
-
-    #[error("Database path '{path}' exists but is not a file")]
-    DatabaseNotFile { path: String },
+    #[error("DATABASE_URL must be a postgres:// or postgresql:// URL")]
+    UnsupportedDatabaseUrl,
 
     #[error("internal: {0}")]
     Internal(String),

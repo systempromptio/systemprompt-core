@@ -8,8 +8,10 @@
 //! A DB error is a fault governed by [`QuotaFaultMode`]: under `Open` the
 //! resolver degrades to a permissive policy, which drops quota windows *and*
 //! safety scanning for the request; under `Closed` it returns
-//! [`PolicyUnavailable`] and the request is denied. A malformed spec row is
-//! always skipped — the remaining rows still merge.
+//! [`PolicyUnavailable`] and the request is denied. A malformed spec row is a
+//! fault in either mode: the policy it would have contributed is unknown, so
+//! the resolver returns [`PolicyUnavailable`] rather than merging the rest from
+//! a permissive base.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +20,7 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
+use systemprompt_identifiers::AiGatewayPolicyId;
 use systemprompt_models::services::QuotaFaultMode;
 
 pub use systemprompt_ai::{GatewayPolicySpec, QuotaMode, QuotaWindow, SafetyConfig};
@@ -90,7 +93,17 @@ impl PolicyResolver {
             },
         };
 
-        let spec = merge(rows);
+        let spec = merge_policy_rows(rows).map_err(|malformed| {
+            tracing::error!(
+                policy_id = %malformed.policy_id,
+                name = %malformed.name,
+                error = %malformed.error,
+                "Gateway policy row is malformed; denying the request"
+            );
+            PolicyUnavailable {
+                reason: format!("policy '{}' is malformed", malformed.name),
+            }
+        })?;
         if let Ok(mut cache) = self.cache.write() {
             *cache = Some(CachedEntry {
                 spec: spec.clone(),
@@ -101,13 +114,26 @@ impl PolicyResolver {
     }
 }
 
-fn merge(rows: Vec<systemprompt_ai::GatewayPolicyRow>) -> GatewayPolicySpec {
+#[derive(Debug, thiserror::Error)]
+#[error("gateway policy '{name}' ({policy_id}) is malformed: {error}")]
+pub struct MalformedPolicy {
+    pub policy_id: AiGatewayPolicyId,
+    pub name: String,
+    pub error: serde_json::Error,
+}
+
+pub fn merge_policy_rows(
+    rows: Vec<systemprompt_ai::GatewayPolicyRow>,
+) -> Result<GatewayPolicySpec, MalformedPolicy> {
     let mut merged = GatewayPolicySpec::permissive();
     for row in rows {
-        let Ok(spec) = serde_json::from_value::<GatewayPolicySpec>(row.spec) else {
-            tracing::warn!(policy_id = %row.id, name = %row.name, "policy spec JSON malformed — skipped");
-            continue;
-        };
+        let spec = serde_json::from_value::<GatewayPolicySpec>(row.spec).map_err(|error| {
+            MalformedPolicy {
+                policy_id: row.id,
+                name: row.name,
+                error,
+            }
+        })?;
         if !spec.quota_windows.is_empty() || spec.quota_mode.is_warn() {
             merged.quota_mode = spec.quota_mode;
         }
@@ -122,5 +148,5 @@ fn merge(rows: Vec<systemprompt_ai::GatewayPolicyRow>) -> GatewayPolicySpec {
             merged.safety = spec.safety;
         }
     }
-    merged
+    Ok(merged)
 }

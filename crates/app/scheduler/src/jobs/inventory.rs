@@ -18,10 +18,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use crate::SchedulerError;
+use crate::services::scheduling::job_app_context;
 use async_trait::async_trait;
 use systemprompt_marketplace::inventory::configured_inventory_fingerprint;
 use systemprompt_runtime::AppContext;
@@ -55,9 +56,7 @@ impl Job for InventoryRefreshJob {
         JobScope::Node
     }
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
-        let app = ctx
-            .app_context::<Arc<AppContext>>()
-            .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
+        let app = job_app_context(ctx)?;
         let owner = app.system_admin().id();
         let published = match catalog_fingerprint(app) {
             Some(fingerprint) if unchanged(&fingerprint) => 0,

@@ -27,7 +27,6 @@ use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 use crate::error::RuntimeResult;
-use crate::registry::ModuleApiRegistry;
 pub use core_layer::discover_vertex_models as discover_models;
 use core_layer::{CoreLayer, init_core, init_extensions};
 
@@ -191,7 +190,6 @@ impl AppContextBuilder {
             },
             Plugins {
                 extension_registry,
-                api_registry: Arc::new(ModuleApiRegistry::new()),
                 mcp_registry,
                 marketplace_filter,
                 marketplace_cache: Arc::default(),
