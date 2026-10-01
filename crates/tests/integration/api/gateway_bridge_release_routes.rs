@@ -19,8 +19,8 @@ use axum::body::Body;
 use axum::http::{Request, header};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context, fixture_db_pool, init_services_bootstrap,
-    install_test_signing_key, seed_admin_credential,
+    TestBootstrap, init_services_bootstrap, install_test_signing_key, seed_admin_credential,
+    test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
@@ -85,9 +85,9 @@ async fn boot() -> &'static TestBootstrap {
 async fn app() -> anyhow::Result<(Router, String)> {
     let b = boot().await;
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let fixture = seed_admin_credential(&pool, "bridge-release").await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let ctx = test_app_context(&pool, &b.database_url);
     Ok((
         gateway_router(&ctx)
             .expect("gateway journal opens")

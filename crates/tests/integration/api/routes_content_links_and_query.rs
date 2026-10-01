@@ -16,7 +16,7 @@ use axum::{Extension, Router};
 use systemprompt_api::routes::content;
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{DisposableDb, fixture_app_context};
+use systemprompt_test_fixtures::{DisposableDb, test_app_context};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -229,9 +229,9 @@ async fn an_unknown_campaign_has_no_performance() -> Result<()> {
 
 #[tokio::test]
 async fn search_database_failure_is_a_json_500_and_recovers_after_schema_repair() -> Result<()> {
-    let owned = DisposableDb::installed("content_query_failure").await?;
-    let db = owned.pool().await?;
-    let ctx = fixture_app_context(&db, owned.url())?;
+    let owned = DisposableDb::with_schema("content_query_failure").await;
+    let db = owned.test_pool().await;
+    let ctx = test_app_context(&db, owned.url());
     let raw = db.pool_arc()?;
     sqlx::query("ALTER TABLE markdown_content RENAME TO markdown_content_unavailable")
         .execute(raw.as_ref())
@@ -376,9 +376,9 @@ async fn assert_link_reads_outage(
 async fn link_analytics_reads_report_database_outage_and_recover_without_false_empty_results()
 -> Result<()> {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let owned = DisposableDb::installed("link_read_outage").await?;
-    let db = owned.pool().await?;
-    let ctx = fixture_app_context(&db, owned.url())?;
+    let owned = DisposableDb::with_schema("link_read_outage").await;
+    let db = owned.test_pool().await;
+    let ctx = test_app_context(&db, owned.url());
     let click_user = systemprompt_identifiers::UserId::new("content_user");
     let click_session = systemprompt_identifiers::SessionId::generate();
     systemprompt_test_fixtures::seed_user_row(&db, &click_user, "content-user@outage.invalid")
@@ -452,8 +452,8 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     drop(raw);
     drop(db);
 
-    let recovered = owned.pool().await?;
-    let recovered_ctx = fixture_app_context(&recovered, owned.url())?;
+    let recovered = owned.test_pool().await;
+    let recovered_ctx = test_app_context(&recovered, owned.url());
     assert_link_reads_live(&recovered_ctx, &link, &campaign, &source).await?;
     let row: i64 = sqlx::query_scalar("SELECT count(*) FROM campaign_links WHERE id=$1")
         .bind(&link)

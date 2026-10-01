@@ -451,8 +451,8 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
     install_provider_api_key();
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("gateway_audit_admission").await?;
-    let pool = database.pool().await?;
+        systemprompt_test_fixtures::DisposableDb::with_schema("gateway_audit_admission").await;
+    let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, "audit-admission@example.invalid").await?;
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
@@ -1317,8 +1317,8 @@ fn jailbreak_sse_body() -> String {
 async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
     install_provider_api_key();
     let _ = setup_ctx().await?;
-    let database = systemprompt_test_fixtures::DisposableDb::installed("coverage_gw_quota").await?;
-    let pool = database.pool().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("coverage_gw_quota").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "quota@example.invalid").await?;
     let raw = pool.pool_arc().unwrap();
     sqlx::query("INSERT INTO ai_gateway_policies (id,name,spec,enabled,priority) VALUES ($1,$2,$3,true,100)")
@@ -1518,8 +1518,8 @@ async fn admitted_receipt_fixture(
 )> {
     install_provider_api_key();
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let database = systemprompt_test_fixtures::DisposableDb::installed(label).await?;
-    let pool = database.pool().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
+    let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, &format!("{label}@journal.invalid")).await?;
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
@@ -1630,9 +1630,9 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
     install_provider_api_key();
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("gateway_journal_settlement_retry")
-            .await?;
-    let pool = database.pool().await?;
+        systemprompt_test_fixtures::DisposableDb::with_schema("gateway_journal_settlement_retry")
+            .await;
+    let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, "journal-retry@example.invalid").await?;
     let write = pool.write_pool_arc()?;
     // The fault is scoped to the status transition settlement performs:

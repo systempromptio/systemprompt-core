@@ -208,8 +208,8 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
     install_provider_api_key();
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("gateway_artifact_safety_scan").await?;
-    let pool = database.pool().await?;
+        systemprompt_test_fixtures::DisposableDb::with_schema("gateway_artifact_safety_scan").await;
+    let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, "artifact-scan@example.invalid").await?;
     let raw = pool.pool_arc().expect("private database pool");
     sqlx::query(

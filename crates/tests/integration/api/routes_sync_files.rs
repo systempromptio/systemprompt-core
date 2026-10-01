@@ -17,12 +17,12 @@ use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::app_context::fixture_app_context_with;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use tower::ServiceExt;
 
 async fn ctx_with_services(tree: &std::path::Path) -> anyhow::Result<Arc<AppContext>> {
     let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let services = tree.to_string_lossy().into_owned();
     let paths = PathsConfig {
         system: services.clone(),

@@ -6,7 +6,7 @@ use axum::http::StatusCode;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_api::routes::contexts_router;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, seed_user_row,
+    DisposableDb, ensure_test_bootstrap, seed_user_row, test_app_context,
 };
 use tower::ServiceExt;
 
@@ -71,9 +71,9 @@ async fn delete_context_unknown_is_idempotent() -> anyhow::Result<()> {
 #[tokio::test]
 async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Result<()> {
     ensure_test_bootstrap();
-    let database = DisposableDb::installed("api_delete_context").await?;
-    let pool = database.pool().await?;
-    let ctx = fixture_app_context(&pool, database.url())?;
+    let database = DisposableDb::with_schema("api_delete_context").await;
+    let pool = database.test_pool().await;
+    let ctx = test_app_context(&pool, database.url());
     let request = request_context("delete_context_owner");
     seed_user_row(
         &pool,

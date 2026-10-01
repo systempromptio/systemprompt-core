@@ -29,7 +29,7 @@ use systemprompt_models::wire::origin::{
 };
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_db_pool, seed_admin_credential,
+    ensure_test_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
 };
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -220,8 +220,8 @@ async fn replay() -> Result<()> {
         "Artifact directory must be absolute"
     );
     let bootstrap = ensure_test_bootstrap();
-    let db = fixture_db_pool(&bootstrap.database_url).await?;
-    let _context = fixture_app_context(&db, &bootstrap.database_url)?;
+    let db = test_db_pool().await;
+    let _context = test_app_context(&db, &bootstrap.database_url);
     let journal = systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
         bootstrap.app_paths.storage().data(),
         systemprompt_config::SecretsBootstrap::get()?,

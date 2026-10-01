@@ -26,8 +26,8 @@ use systemprompt_runtime::{
 };
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, fixture_db_pool, fixture_system_admin, fixture_user_id,
-    install_test_signing_key,
+    ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id,
+    install_test_signing_key, test_db_pool,
 };
 use systemprompt_users::{UserRepository, UserService};
 use tower::ServiceExt;
@@ -35,7 +35,7 @@ use tower::ServiceExt;
 async fn boot_server() -> anyhow::Result<axum::Router> {
     let bootstrap = ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    let pool = test_db_pool().await;
 
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
@@ -142,10 +142,6 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
     Ok(router)
 }
 
-async fn try_boot_or_skip() -> Option<axum::Router> {
-    boot_server().await.ok()
-}
-
 static BOOT_GATE: OnceLock<()> = OnceLock::new();
 
 fn gate() {
@@ -153,11 +149,9 @@ fn gate() {
 }
 
 #[tokio::test]
-async fn health_endpoint_is_reachable_without_auth() {
+async fn health_endpoint_is_reachable_without_auth() -> anyhow::Result<()> {
     gate();
-    let Some(app) = try_boot_or_skip().await else {
-        return;
-    };
+    let app = boot_server().await?;
     let req = Request::builder()
         .uri("/health")
         .body(Body::empty())
@@ -167,10 +161,9 @@ async fn health_endpoint_is_reachable_without_auth() {
     // Health is public; 200 expected. Some configurations 404 if the route
     // isn't mounted under the bootstrap profile — accept either.
     assert!(s == 200 || s == 404, "{s}");
+    Ok(())
 }
 
-// The tests below propagate boot failures rather than using `try_boot`, so a
-// broken fixture fails loudly instead of passing vacuously.
 fn get(uri: &str, headers: &[(&str, &str)]) -> Request<Body> {
     let mut builder = Request::builder().uri(uri);
     for (name, value) in headers {

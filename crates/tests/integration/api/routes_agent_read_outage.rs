@@ -5,7 +5,7 @@ use axum::{Extension, Router};
 use systemprompt_api::routes::{artifacts_router, contexts_router, tasks_router};
 use systemprompt_identifiers::{ArtifactId, ContextId, SessionId, TaskId, UserId};
 use systemprompt_test_fixtures::{
-    DisposableDb, fixture_app_context, seed_user_row, seed_user_session,
+    DisposableDb, seed_user_row, seed_user_session, test_app_context,
 };
 use tower::ServiceExt;
 
@@ -143,10 +143,10 @@ async fn assert_outage(
 
 #[tokio::test]
 async fn agent_read_routes_report_database_outage_and_recover_without_data_loss() -> Result<()> {
-    let owned = DisposableDb::installed("agent_read_outage").await?;
-    let db = owned.pool().await?;
+    let owned = DisposableDb::with_schema("agent_read_outage").await;
+    let db = owned.test_pool().await;
     let seeded = seed(&db).await?;
-    let ctx = fixture_app_context(&db, owned.url())?;
+    let ctx = test_app_context(&db, owned.url());
     assert_live(&ctx, &seeded).await?;
     let raw = db.pool_arc()?;
     raw.close().await;
@@ -154,8 +154,8 @@ async fn agent_read_routes_report_database_outage_and_recover_without_data_loss(
     drop(ctx);
     drop(raw);
     drop(db);
-    let recovered = owned.pool().await?;
-    let recovered_ctx = fixture_app_context(&recovered, owned.url())?;
+    let recovered = owned.test_pool().await;
+    let recovered_ctx = test_app_context(&recovered, owned.url());
     assert_live(&recovered_ctx, &seeded).await?;
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM agent_tasks WHERE task_id=$1")
         .bind(seeded.task.as_str())

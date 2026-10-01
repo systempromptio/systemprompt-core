@@ -24,8 +24,8 @@ use systemprompt_models::profile::{
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_db_pool, install_test_signing_key,
-    pkce_pair, seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, install_test_signing_key, pkce_pair,
+    seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -121,8 +121,8 @@ async fn seed_grant(
     pkce: Option<(&str, &str)>,
     resource: Option<&str>,
 ) -> anyhow::Result<SeededGrant> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
@@ -604,8 +604,8 @@ async fn malformed_http_basic_is_refused() -> anyhow::Result<()> {
 
 async fn seed_public_grant() -> anyhow::Result<SeededGrant> {
     let grant = seed_grant(None, None).await?;
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let p = pool.pool_arc().expect("read pool");
     sqlx::query(
         "UPDATE oauth_clients SET token_endpoint_auth_method = 'none', client_secret_hash = NULL \

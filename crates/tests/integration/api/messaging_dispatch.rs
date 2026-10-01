@@ -15,8 +15,8 @@ use systemprompt_identifiers::{AgentName, SlackWorkspaceId};
 use systemprompt_security::authz::{DenyAllHook, EntityRef};
 use systemprompt_test_fixtures::{
     TEST_SLACK_WORKSPACE_ID, agent_error_response_json, agent_reply_response_json,
-    ensure_messaging_bootstrap, fixture_app_context, fixture_app_context_with_hook,
-    fixture_db_pool, install_test_signing_key, seed_agent_backend, test_messaging_agent,
+    ensure_messaging_bootstrap, fixture_app_context_with_hook, install_test_signing_key,
+    seed_agent_backend, test_app_context, test_db_pool, test_messaging_agent,
 };
 use systemprompt_traits::SenderIdentity;
 use uuid::Uuid;
@@ -53,8 +53,8 @@ async fn mount_reply(mock: &MockServer, text: &str) {
 async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
 
     let backend = MockServer::start().await;
     mount_reply(&backend, "the agent replied").await;
@@ -73,7 +73,7 @@ async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
 async fn deny_hook_short_circuits_to_denied() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let ctx = fixture_app_context_with_hook(
         &pool,
         &b.database_url,
@@ -93,8 +93,8 @@ async fn deny_hook_short_circuits_to_denied() -> anyhow::Result<()> {
 async fn agent_json_rpc_error_surfaces_as_dispatch_error() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
 
     let backend = MockServer::start().await;
     Mock::given(method("POST"))
@@ -121,8 +121,8 @@ async fn agent_json_rpc_error_surfaces_as_dispatch_error() -> anyhow::Result<()>
 async fn first_contact_creates_a_federated_user_reused_on_the_second_call() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
 
     let backend = MockServer::start().await;
     mount_reply(&backend, "ok").await;

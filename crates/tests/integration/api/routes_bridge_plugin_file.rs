@@ -9,7 +9,7 @@ use systemprompt_api::routes::gateway::bridge_data::load_services_config;
 use systemprompt_api::routes::gateway::bridge_plugin_file::{content_type, relative_path_is_safe};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{install_test_signing_key, seed_bridge_credential};
+use systemprompt_test_fixtures::{install_test_signing_key, seed_bridge_credential, test_db_pool};
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
@@ -129,7 +129,7 @@ pub(crate) fn seed_plugin_tree() {
 pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let b = systemprompt_test_fixtures::ensure_test_bootstrap();
     seed_plugin_tree();
-    let pool = systemprompt_test_fixtures::fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let paths = systemprompt_models::profile::PathsConfig {
         system: b.system_path.to_string_lossy().into_owned(),
         services: b.services_path.to_string_lossy().into_owned(),

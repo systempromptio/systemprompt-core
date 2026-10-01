@@ -10,7 +10,7 @@ use systemprompt_api::services::middleware::{AcceptedFormat, AcceptedMediaType};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, fixture_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -18,7 +18,7 @@ use super::common::{empty_get, request_context};
 
 async fn negotiating_ctx() -> Result<(DbPool, std::sync::Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let mut config = fixture_config(&b.database_url);
     config.content_negotiation.enabled = true;
     config.content_negotiation.markdown_suffix = ".md".to_owned();
@@ -105,7 +105,7 @@ async fn suffix_route_serves_markdown_when_negotiation_enabled() -> Result<()> {
 #[tokio::test]
 async fn suffix_route_absent_when_negotiation_disabled() -> Result<()> {
     let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
     let (source, slug) = seed_content(&pool).await?;
     let resp = public(&ctx)

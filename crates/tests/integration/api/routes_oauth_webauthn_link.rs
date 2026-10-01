@@ -24,7 +24,7 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
 use systemprompt_oauth::services::webauthn::hash_token;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, fixture_db_pool, install_test_signing_key, seed_user_row,
+    fixture_config, install_test_signing_key, seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -232,9 +232,7 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
 async fn issue_link_token(ctx: &systemprompt_runtime::AppContext) -> (UserId, String) {
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let email = format!("{}@link.invalid", Uuid::new_v4().simple());
-    let pool = fixture_db_pool(&ensure_test_bootstrap().database_url)
-        .await
-        .expect("pool");
+    let pool = test_db_pool().await;
     seed_user_row(&pool, &user_id, &email)
         .await
         .expect("seed user");

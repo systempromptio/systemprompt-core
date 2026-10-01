@@ -26,8 +26,8 @@ use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_db_pool, install_test_signing_key,
-    seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, install_test_signing_key, seed_oauth_client,
+    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -123,8 +123,8 @@ async fn token_app() -> anyhow::Result<Router> {
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(format!("tx-owner-{}", Uuid::new_v4()));
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
@@ -401,8 +401,8 @@ const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
 // exchange only completes for a UUID owner; the shared [`seeded_client`] uses
 // a prefixed id that only the error-path tests reach.
 async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
@@ -578,8 +578,8 @@ async fn id_jag_issue_from_untrusted_issuer_is_rejected() -> anyhow::Result<()> 
 // Seed a client whose owner id we keep, so the EMA assertions can prove the
 // issued token names the ID-JAG's employee rather than that owner.
 async fn seeded_client_with_owner() -> anyhow::Result<(OAuthClientFixture, UserId)> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")

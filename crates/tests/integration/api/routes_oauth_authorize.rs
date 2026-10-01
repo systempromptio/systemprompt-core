@@ -22,7 +22,7 @@ use systemprompt_models::profile::{
 };
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_db_pool, seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -116,8 +116,8 @@ async fn authorize_app() -> anyhow::Result<Router> {
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(format!("authz-owner-{}", Uuid::new_v4()));
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")

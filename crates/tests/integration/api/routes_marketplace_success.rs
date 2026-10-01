@@ -15,7 +15,7 @@ use systemprompt_api::routes::marketplace;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with, fixture_db_pool, refresh_services_config,
+    ensure_test_bootstrap, fixture_app_context_with, refresh_services_config, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -50,7 +50,7 @@ async fn router_with_marketplace() -> anyhow::Result<Router> {
         storage: Some(b.storage_path.display().to_string()),
         geoip_database: None,
     };
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
     Ok(marketplace::router().with_state((*ctx).clone()))
 }

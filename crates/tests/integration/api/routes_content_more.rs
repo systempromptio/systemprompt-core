@@ -12,7 +12,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_slack::signature::sign;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, ensure_messaging_bootstrap,
-    fixture_app_context, fixture_db_pool,
+    test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -41,8 +41,8 @@ fn signed_slack_post(path: &str, body: &str, secret: &str) -> Request<Body> {
 
 async fn messaging_ctx() -> anyhow::Result<std::sync::Arc<systemprompt_runtime::AppContext>> {
     let b = ensure_messaging_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    fixture_app_context(&pool, &b.database_url)
+    let pool = test_db_pool().await;
+    Ok(test_app_context(&pool, &b.database_url))
 }
 
 #[tokio::test]

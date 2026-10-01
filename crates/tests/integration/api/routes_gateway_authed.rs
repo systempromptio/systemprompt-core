@@ -112,11 +112,11 @@ async fn incompatible_heartbeat_is_recorded_with_its_usage_and_reported_incompat
 async fn heartbeat_storage_failure_is_reported_and_a_retry_records_the_session()
 -> anyhow::Result<()> {
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("heartbeat_persistence_recovery")
-            .await?;
-    let pool = database.pool().await?;
+        systemprompt_test_fixtures::DisposableDb::with_schema("heartbeat_persistence_recovery")
+            .await;
+    let pool = database.test_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let ctx = systemprompt_test_fixtures::fixture_app_context(&pool, database.url())?;
+    let ctx = systemprompt_test_fixtures::test_app_context(&pool, database.url());
     install_test_signing_key();
     let app = gateway_router(&ctx)
         .expect("gateway journal opens")

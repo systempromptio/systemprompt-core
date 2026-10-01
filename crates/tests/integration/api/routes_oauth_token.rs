@@ -24,7 +24,7 @@ use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
 use systemprompt_oauth::services::hash_client_secret;
 use systemprompt_test_fixtures::{
     OAuthClientFixture, TEST_CLIENT_SECRET, TEST_REDIRECT_URI, ensure_test_bootstrap,
-    fixture_db_pool, install_test_signing_key, seed_oauth_client,
+    install_test_signing_key, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -117,8 +117,8 @@ async fn token_app() -> anyhow::Result<Router> {
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(format!("oauth-token-owner-{}", Uuid::new_v4()));
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
@@ -272,8 +272,8 @@ async fn token_refresh_with_unknown_token_returns_invalid_grant() -> anyhow::Res
 #[tokio::test]
 async fn token_client_credentials_with_inactive_owner_returns_invalid_client() -> anyhow::Result<()>
 {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(format!("oauth-token-inactive-{}", Uuid::new_v4()));
     let p = pool.pool_arc().expect("read pool");
     sqlx::query(
@@ -523,8 +523,8 @@ async fn seed_client_for_owner(
     user: &UserId,
     scopes: Vec<&str>,
 ) -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let p = pool.pool_arc().expect("read pool");
     sqlx::query(
         "INSERT INTO users (id, name, email, roles) VALUES ($1, $1, $2, '{}'::TEXT[]) ON CONFLICT \

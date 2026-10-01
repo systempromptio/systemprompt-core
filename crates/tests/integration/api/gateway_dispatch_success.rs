@@ -20,8 +20,8 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_test_fixtures::{
-    AuthedFixture, TestBootstrap, fixture_app_context, fixture_db_pool, init_services_bootstrap,
-    install_test_signing_key, seed_admin_credential,
+    AuthedFixture, TestBootstrap, init_services_bootstrap, install_test_signing_key,
+    seed_admin_credential, test_app_context, test_db_pool,
 };
 use tokio::sync::OnceCell;
 use tower::ServiceExt;
@@ -115,8 +115,8 @@ async fn harness() -> &'static Harness {
 async fn app() -> Result<(Router, DbPool)> {
     let h = harness().await;
     install_test_signing_key();
-    let pool = fixture_db_pool(&h.boot.database_url).await?;
-    let ctx = fixture_app_context(&pool, &h.boot.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &h.boot.database_url);
     Ok((
         gateway_router(&ctx)
             .expect("gateway journal opens")
@@ -312,8 +312,8 @@ mod streaming {
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::headers::SESSION_ID;
     use systemprompt_test_fixtures::{
-        AuthedFixture, TestBootstrap, fixture_app_context, fixture_db_pool,
-        init_services_bootstrap, install_test_signing_key,
+        AuthedFixture, TestBootstrap, init_services_bootstrap, install_test_signing_key,
+        test_app_context, test_db_pool,
     };
     use tokio::sync::OnceCell;
     use tower::ServiceExt;
@@ -381,8 +381,8 @@ mod streaming {
     async fn app() -> Result<(axum::Router, DbPool)> {
         let h = harness().await;
         install_test_signing_key();
-        let pool = fixture_db_pool(&h.boot.database_url).await?;
-        let ctx = fixture_app_context(&pool, &h.boot.database_url)?;
+        let pool = test_db_pool().await;
+        let ctx = test_app_context(&pool, &h.boot.database_url);
         Ok((
             gateway_router(&ctx)
                 .expect("gateway journal opens")

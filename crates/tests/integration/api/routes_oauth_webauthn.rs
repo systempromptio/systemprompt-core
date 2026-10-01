@@ -27,9 +27,8 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::generate_secure_token;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, fixture_db_pool,
-    install_test_signing_key, pkce_pair, seed_oauth_client, seed_user_row_with_roles,
-    seed_user_session,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key, pkce_pair,
+    seed_oauth_client, seed_user_row_with_roles, seed_user_session, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -197,8 +196,8 @@ async fn authenticate_start_unknown_email_is_client_error() -> anyhow::Result<()
 }
 
 async fn seed_user_and_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
@@ -211,8 +210,8 @@ async fn seed_user_and_client() -> anyhow::Result<(UserId, OAuthClientFixture)> 
 }
 
 async fn inject_verified_auth(user: &UserId) -> anyhow::Result<String> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
     let (_pool, ctx) = setup_ctx().await?;
     let service = WebAuthnRegistry::get_or_create_service(repo, ctx.user_provider().expect("user"))
@@ -591,8 +590,8 @@ async fn webauthn_complete_without_a_client_id_is_rejected() -> anyhow::Result<(
 async fn completed_registration_migrates_anonymous_session_to_the_new_account() -> anyhow::Result<()>
 {
     ensure_config();
-    let bootstrap = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let anonymous = UserId::new(Uuid::new_v4().to_string());
     seed_user_row_with_roles(
         &pool,
@@ -669,8 +668,8 @@ async fn completed_registration_migrates_anonymous_session_to_the_new_account() 
 async fn registration_cannot_take_over_an_existing_registered_users_session() -> anyhow::Result<()>
 {
     ensure_config();
-    let bootstrap = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let existing = UserId::new(Uuid::new_v4().to_string());
     systemprompt_test_fixtures::seed_user_row(
         &pool,

@@ -78,11 +78,11 @@ fn quota_repo(
 ) -> systemprompt_ai::repository::AiQuotaBucketRepository {
     systemprompt_ai::repository::AiQuotaBucketRepository::new(db).expect("quota repo")
 }
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 
 async fn pool() -> systemprompt_database::DbPool {
-    let b = ensure_test_bootstrap();
-    fixture_db_pool(&b.database_url).await.expect("pool")
+    ensure_test_bootstrap();
+    test_db_pool().await
 }
 
 fn window(window_seconds: i32) -> QuotaWindow {

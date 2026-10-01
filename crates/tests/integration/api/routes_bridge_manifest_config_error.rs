@@ -8,7 +8,7 @@ use http::StatusCode;
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
+use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential, test_db_pool};
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -17,7 +17,7 @@ async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<(
         "http://127.0.0.1",
         "mcp_servers: [this is not a map\n",
     );
-    let pool = systemprompt_test_fixtures::fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let paths = PathsConfig {
         system: b.system_path.to_string_lossy().into_owned(),
         services: b.services_path.to_string_lossy().into_owned(),

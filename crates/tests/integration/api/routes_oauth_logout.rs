@@ -18,7 +18,7 @@ use systemprompt_models::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -94,8 +94,8 @@ async fn logout_app() -> anyhow::Result<Router> {
 }
 
 async fn seed_user(user: &UserId) -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())

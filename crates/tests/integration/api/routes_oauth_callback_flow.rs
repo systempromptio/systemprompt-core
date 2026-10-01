@@ -27,8 +27,8 @@ use systemprompt_oauth::repository::{
 };
 use systemprompt_oauth::services::hash_client_secret;
 use systemprompt_test_fixtures::{
-    TEST_CLIENT_SECRET, ensure_test_bootstrap, fixture_config, fixture_db_pool,
-    install_test_signing_key,
+    TEST_CLIENT_SECRET, ensure_test_bootstrap, fixture_config, install_test_signing_key,
+    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -87,8 +87,8 @@ struct BrowserFlow {
 
 async fn seed_browser_flow() -> anyhow::Result<BrowserFlow> {
     ensure_config();
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
     let p = pool.pool_arc().expect("read pool");
     sqlx::query(
@@ -147,8 +147,8 @@ async fn seed_browser_flow() -> anyhow::Result<BrowserFlow> {
 }
 
 async fn seed_state_binding(state_token: &str, client_id: &ClientId) -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
     let redirect_uri = callback_redirect_uri();
     repo.store_state_binding(

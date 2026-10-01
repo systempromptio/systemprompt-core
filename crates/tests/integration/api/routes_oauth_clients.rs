@@ -23,8 +23,8 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::hash_registration_token;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, fixture_db_pool,
-    install_test_signing_key, seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key,
+    seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -86,8 +86,8 @@ async fn client_config_app() -> anyhow::Result<Router> {
 }
 
 async fn seed_owner() -> anyhow::Result<UserId> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
@@ -100,16 +100,16 @@ async fn seed_owner() -> anyhow::Result<UserId> {
 
 async fn seed_existing_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
     let owner = seed_owner().await?;
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let client = seed_oauth_client(&pool, &owner).await?;
     Ok((owner, client))
 }
 
 async fn seed_dcr_client() -> anyhow::Result<OAuthClientFixture> {
     let (_owner, client) = seed_existing_client().await?;
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("UPDATE oauth_clients SET registration_token_hash = $2 WHERE client_id = $1")
         .bind(client.client_id.as_str())

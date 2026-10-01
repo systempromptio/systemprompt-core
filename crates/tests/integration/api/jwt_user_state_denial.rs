@@ -16,8 +16,8 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    AuthedFixture, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
-    install_test_signing_key, seed_admin_credential,
+    AuthedFixture, ensure_test_bootstrap, install_test_signing_key, seed_admin_credential,
+    test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -27,8 +27,8 @@ use super::common::body_to_string;
 async fn app() -> Result<(Router, DbPool)> {
     let b = ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
     Ok((
         gateway_router(&ctx)
             .expect("gateway journal opens")

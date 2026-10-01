@@ -27,8 +27,8 @@ use systemprompt_models::profile::TrustedIssuer;
 use systemprompt_oauth::OAuthState;
 use systemprompt_security::keys::authority::{active_kid, encoding_key};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, fixture_db_pool,
-    install_test_signing_key, seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key,
+    seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -100,8 +100,8 @@ async fn token_app() -> anyhow::Result<Router> {
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")

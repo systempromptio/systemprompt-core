@@ -37,14 +37,14 @@ use systemprompt_runtime::{
 };
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, fixture_db_pool, fixture_system_admin, fixture_user_id,
+    ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id, test_db_pool,
 };
 use systemprompt_users::{UserRepository, UserService};
 use tower::ServiceExt;
 
 async fn boot_full_router() -> anyhow::Result<axum::Router> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    let pool = test_db_pool().await;
 
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];

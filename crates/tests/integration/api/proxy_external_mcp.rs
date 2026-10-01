@@ -106,7 +106,7 @@ async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Resul
 }
 
 async fn private_harness(label: &str) -> anyhow::Result<Harness> {
-    let database = systemprompt_test_fixtures::DisposableDb::installed(label).await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
     harness_with_database(None, Some(database), None).await
 }
 
@@ -154,9 +154,9 @@ async fn harness_with_database(
         systemprompt_test_fixtures::DisposableDb::url,
     );
     let pool = if let Some(database) = &database {
-        database.pool().await?
+        database.test_pool().await
     } else {
-        systemprompt_test_fixtures::fixture_db_pool(database_url).await?
+        systemprompt_test_fixtures::test_db_pool().await
     };
     let paths = PathsConfig {
         system: b.system_path.to_string_lossy().into_owned(),
@@ -914,7 +914,7 @@ async fn external_session_is_bound_to_provider_credential_and_rotation_does_not_
     Ok(())
 }
 async fn private_harness_with_provider(label: &str, provider_url: &str) -> anyhow::Result<Harness> {
-    let database = systemprompt_test_fixtures::DisposableDb::installed(label).await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
     harness_with_database(None, Some(database), Some(provider_url)).await
 }
 

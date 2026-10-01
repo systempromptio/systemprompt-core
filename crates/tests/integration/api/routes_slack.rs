@@ -17,8 +17,8 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, agent_reply_response_json,
-    ensure_messaging_bootstrap, fixture_app_context, fixture_db_pool, install_test_signing_key,
-    seed_agent_backend,
+    ensure_messaging_bootstrap, install_test_signing_key, seed_agent_backend, test_app_context,
+    test_db_pool,
 };
 use tower::ServiceExt;
 use wiremock::matchers::method;
@@ -30,8 +30,8 @@ use super::common::body_to_string;
 // `resolve_app` and the signing-secret lookup resolve.
 async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_messaging_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
     Ok((pool, ctx))
 }
 
@@ -113,8 +113,8 @@ async fn url_verification_challenge_is_echoed() -> anyhow::Result<()> {
 async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
 
     let agent = MockServer::start().await;
     Mock::given(method("POST"))
@@ -181,7 +181,7 @@ async fn coverage_command_reply(
 ) -> anyhow::Result<serde_json::Value> {
     let b = ensure_messaging_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let ctx = if denied {
         systemprompt_test_fixtures::fixture_app_context_with_hook(
             &pool,
@@ -189,7 +189,7 @@ async fn coverage_command_reply(
             Arc::new(systemprompt_security::authz::DenyAllHook::null()),
         )?
     } else {
-        fixture_app_context(&pool, &b.database_url)?
+        test_app_context(&pool, &b.database_url)
     };
     let agent = MockServer::start().await;
     Mock::given(method("POST"))

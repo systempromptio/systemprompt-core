@@ -20,14 +20,14 @@ use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with, fixture_config, fixture_db_pool,
-    install_test_signing_key,
+    ensure_test_bootstrap, fixture_app_context_with, fixture_config, install_test_signing_key,
+    test_db_pool,
 };
 use tempfile::TempDir;
 
 async fn state_with_dist() -> anyhow::Result<(TempDir, StaticContentState)> {
     let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let tmp = TempDir::new()?;
     let web = tmp.path().join("web");
     std::fs::create_dir_all(web.join("dist"))?;

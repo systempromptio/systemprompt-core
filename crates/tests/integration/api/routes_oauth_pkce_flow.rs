@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::repository::ClientRepository;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_db_pool, pkce_pair, seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, pkce_pair, seed_oauth_client, test_db_pool,
 };
 use uuid::Uuid;
 
@@ -33,8 +33,8 @@ async fn seed_user(pool: &systemprompt_database::DbPool, user_id: &UserId) {
 
 #[tokio::test]
 async fn seed_oauth_client_inserts_and_finds_by_id() -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user_id = UserId::new(format!("oauth-owner-{}", Uuid::new_v4()));
     seed_user(&pool, &user_id).await;
 
