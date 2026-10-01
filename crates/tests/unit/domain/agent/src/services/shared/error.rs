@@ -199,11 +199,6 @@ fn from_repository_errors_map_to_repository() {
         systemprompt_agent::repository::RepositoryError::NotFound("row gone".to_owned()).into();
     assert!(matches!(err, AgentServiceError::Repository(_)));
     assert!(err.to_string().contains("row gone"));
-
-    let db_err: AgentServiceError =
-        systemprompt_database::RepositoryError::NotFound("db row".to_owned()).into();
-    assert!(matches!(db_err, AgentServiceError::Repository(_)));
-    assert!(db_err.to_string().contains("db row"));
 }
 
 #[test]

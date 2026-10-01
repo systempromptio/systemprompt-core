@@ -5,9 +5,9 @@ use async_trait::async_trait;
 use serde_json::json;
 use systemprompt_database::{
     DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
-    QuerySelector, RepositoryError, ToDbValue, replica_status, validate_column_exists,
-    validate_table_exists,
+    QuerySelector, ToDbValue, replica_status, validate_column_exists, validate_table_exists,
 };
+use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]
 struct ResultProvider {

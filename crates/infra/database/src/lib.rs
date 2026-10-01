@@ -12,8 +12,8 @@
 //!   query/execute/transaction primitives across providers (currently only
 //!   `PostgreSQL`).
 //! - [`PostgresProvider`] — the `PostgreSQL` implementation.
-//! - [`RepositoryError`] / [`DatabaseResult`] — canonical typed error/result
-//!   returned from non-trait public APIs.
+//! - [`DatabaseResult`] — result alias over the workspace's single
+//!   [`systemprompt_traits::RepositoryError`].
 //! - [`MigrationService`], [`install_extension_schemas_full`] — lifecycle
 //!   helpers driving extension-supplied DDL.
 //! - [`DatabaseAdminService`], [`QueryExecutor`], [`AdminSql`],
@@ -69,7 +69,7 @@ pub use services::{
     PostgresProvider, SqlExecutor, with_transaction_retry,
 };
 
-pub use error::{DatabaseResult, RepositoryError};
+pub use error::DatabaseResult;
 pub use lifecycle::{
     AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BaselineStamp, BootstrapLockGuard,
     ChecksumDrift, DeferredForeignKey, ExpensiveStatement, ExtensionMigrationStatus,

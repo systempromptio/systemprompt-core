@@ -16,10 +16,10 @@ use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::static_content::fallback::{get_api_suggestions, is_api_path};
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::MarketplaceError;
-use systemprompt_models::errors::ServiceError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::OauthError;
 use systemprompt_oauth::services::SessionCreationError;
+use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
 fn status_of(err: ApiHttpError) -> StatusCode {
@@ -316,29 +316,26 @@ fn fallback_api_suggestions_branch_by_prefix() {
 }
 
 #[test]
-fn service_error_variants_classify() {
+fn repository_error_variants_classify() {
     assert_eq!(
-        status_of(ServiceError::NotFound("s".to_owned()).into()),
+        status_of(RepositoryError::NotFound("s".to_owned()).into()),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(ServiceError::Validation("v".to_owned()).into()),
+        status_of(RepositoryError::InvalidArgument("v".to_owned()).into()),
         StatusCode::BAD_REQUEST
     );
     assert_eq!(
-        status_of(ServiceError::Conflict("c".to_owned()).into()),
+        status_of(RepositoryError::Conflict("c".to_owned()).into()),
         StatusCode::CONFLICT
     );
     assert_eq!(
-        status_of(ServiceError::Unauthorized("u".to_owned()).into()),
-        StatusCode::UNAUTHORIZED
+        status_of(RepositoryError::from(sqlx::Error::RowNotFound).into()),
+        StatusCode::NOT_FOUND,
+        "a missing row is a 404, not a 500"
     );
     assert_eq!(
-        status_of(ServiceError::Forbidden("f".to_owned()).into()),
-        StatusCode::FORBIDDEN
-    );
-    assert_eq!(
-        status_of(ServiceError::External("x".to_owned()).into()),
+        status_of(RepositoryError::from(sqlx::Error::PoolClosed).into()),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }

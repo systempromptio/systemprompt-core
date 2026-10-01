@@ -186,7 +186,7 @@ mod services_agent;
 mod disk_agent_config;
 
 #[cfg(test)]
-mod internal_api_error;
+mod api_error_codes;
 
 #[cfg(test)]
 mod execution_plan;

@@ -77,7 +77,7 @@ pub enum OauthError {
     Repository(#[from] sqlx::Error),
 
     #[error("database repository error: {0}")]
-    DatabaseRepository(#[from] systemprompt_database::RepositoryError),
+    DatabaseRepository(#[from] systemprompt_traits::RepositoryError),
 
     #[error("validation error: {0}")]
     Validation(String),

@@ -42,7 +42,7 @@ pub(super) async fn transition_in_tx(
     }
 
     if !current_state.can_transition_to(&state) {
-        return Err(RepositoryError::ConstraintViolation(format!(
+        return Err(RepositoryError::Conflict(format!(
             "invalid task state transition for {task_id_str}: {current_state:?} -> {state:?}"
         )));
     }
@@ -51,7 +51,7 @@ pub(super) async fn transition_in_tx(
         execute_state_update(tx, state, timestamp, task_id_str, expected_version).await?;
 
     if rows_affected == 0 {
-        return Err(RepositoryError::ConstraintViolation(format!(
+        return Err(RepositoryError::Conflict(format!(
             "stale task update for {task_id_str}: expected version {expected_version}"
         )));
     }
@@ -172,7 +172,7 @@ pub async fn update_task_failed_with_error(
     }
 
     if !current_state.can_transition_to(&TaskState::Failed) {
-        return Err(RepositoryError::ConstraintViolation(format!(
+        return Err(RepositoryError::Conflict(format!(
             "invalid task state transition for {task_id_str}: {current_state:?} -> Failed"
         )));
     }
@@ -199,7 +199,7 @@ pub async fn update_task_failed_with_error(
     .rows_affected();
 
     if rows_affected == 0 {
-        return Err(RepositoryError::ConstraintViolation(format!(
+        return Err(RepositoryError::Conflict(format!(
             "stale task update for {task_id_str}: expected version {expected_version}"
         )));
     }

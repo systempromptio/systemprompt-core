@@ -26,7 +26,7 @@ domain_error! {
 
 impl From<sqlx::Error> for AuthzError {
     fn from(err: sqlx::Error) -> Self {
-        Self::Repository(systemprompt_database::RepositoryError::from(err))
+        Self::Repository(systemprompt_models::errors::RepositoryError::from(err))
     }
 }
 

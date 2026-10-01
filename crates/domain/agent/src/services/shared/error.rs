@@ -91,12 +91,6 @@ impl From<crate::repository::RepositoryError> for AgentServiceError {
     }
 }
 
-impl From<systemprompt_database::RepositoryError> for AgentServiceError {
-    fn from(err: systemprompt_database::RepositoryError) -> Self {
-        Self::Repository(err.to_string())
-    }
-}
-
 impl From<crate::error::AgentError> for AgentServiceError {
     fn from(err: crate::error::AgentError) -> Self {
         Self::Internal(err.to_string())

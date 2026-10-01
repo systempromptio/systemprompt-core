@@ -66,9 +66,9 @@ async fn insert_through_closed_pool_propagates_sqlx_error() {
     assert!(
         matches!(
             err,
-            systemprompt_database::RepositoryError::Database(sqlx::Error::PoolClosed)
+            systemprompt_models::errors::RepositoryError::Database { sqlstate: None, .. }
         ),
-        "expected PoolClosed, got {err:?}"
+        "expected the closed pool as an unclassified database error, got {err:?}"
     );
 }
 

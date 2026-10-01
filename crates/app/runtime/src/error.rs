@@ -19,7 +19,6 @@ use systemprompt_analytics::AnalyticsError;
 use systemprompt_config::paths::PathError;
 use systemprompt_config::{ConfigError as ProfileConfigError, ProfileBootstrapError};
 use systemprompt_content::ContentError;
-use systemprompt_database::RepositoryError;
 use systemprompt_extension::LoaderError;
 use systemprompt_files::FilesError;
 use systemprompt_marketplace::managed::ManagedError;
@@ -27,6 +26,7 @@ use systemprompt_mcp::McpDomainError;
 use systemprompt_models::errors::ConfigError as ModelConfigError;
 use systemprompt_oauth::OauthError;
 use systemprompt_security::policy::GovernanceEngineError;
+use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 use thiserror::Error;
 

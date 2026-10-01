@@ -13,10 +13,10 @@
 
 use serde::Serialize;
 use sqlx::PgPool;
-use systemprompt_database::RepositoryError;
 use systemprompt_identifiers::{
     Actor, AgentId, CallId, ClientId, ContextId, PluginId, PolicyId, SessionId, UserId,
 };
+use systemprompt_models::errors::RepositoryError;
 
 use super::types::AccessScope;
 use crate::authz::types::{Decision, DecisionTag};

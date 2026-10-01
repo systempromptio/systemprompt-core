@@ -501,8 +501,9 @@ mod transaction_failures {
     use async_trait::async_trait;
     use systemprompt_database::{
         DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
-        QuerySelector, RepositoryError, ToDbValue,
+        QuerySelector, ToDbValue,
     };
+    use systemprompt_traits::RepositoryError;
 
     use super::*;
 

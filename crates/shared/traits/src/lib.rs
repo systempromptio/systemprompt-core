@@ -33,7 +33,8 @@
 //!
 //! ## Feature flags
 //!
-//! This crate exposes no Cargo features.
+//! - `sqlx` — `From<sqlx::Error>` for [`RepositoryError`], classifying a
+//!   database error by SQLSTATE. Enabled by `systemprompt-database`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -74,7 +75,7 @@ pub use systemprompt_identifiers::{
     DbValue, FromDbValue, JsonRow, ToDbValue, parse_database_datetime,
 };
 
-pub use repository::RepositoryError;
+pub use repository::{BoxedSource, ConstraintKind, RepositoryError};
 
 pub use ownership::{DynOwnerReassignment, OwnerReassignment, ReassignedRows};
 pub use tool_executions::{
@@ -123,7 +124,7 @@ pub use registry::{
     McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig,
 };
 
-pub use extension_error::{ExtensionApiError, ExtensionError, McpErrorData};
+pub use extension_error::{ExtensionError, McpErrorData};
 
 pub use domain_config::{DomainConfig, DomainConfigError, DomainConfigRegistry};
 

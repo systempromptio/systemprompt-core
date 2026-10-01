@@ -18,9 +18,9 @@
 //! }
 //! ```
 //!
-//! The `repository` token funnels database errors through the canonical
-//! `systemprompt_database::RepositoryError` rather than `sqlx::Error`
-//! directly, so the layer boundary is preserved.
+//! The `repository` token funnels storage errors through the workspace's single
+//! [`RepositoryError`](crate::errors::RepositoryError), named through `$crate`
+//! so the expansion depends only on this crate, never on the database crate.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -149,7 +149,7 @@ macro_rules! __domain_error_emit {
             @commons [$($rest)*]
             @body {
                 #[error("repository: {0}")]
-                Repository(#[from] ::systemprompt_database::RepositoryError),
+                Repository(#[from] $crate::errors::RepositoryError),
                 $($body)*
             }
         }

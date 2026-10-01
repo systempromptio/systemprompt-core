@@ -12,9 +12,6 @@ domain_error! {
         #[error("session owner: {0}")]
         SessionOwner(#[from] systemprompt_traits::AnalyticsProviderError),
 
-        #[error("Analytics event store failed: {0}")]
-        EventStore(#[from] systemprompt_traits::RepositoryError),
-
         #[error("Session not found: {0}")]
         SessionNotFound(String),
 
@@ -37,7 +34,7 @@ domain_error! {
 
 impl From<sqlx::Error> for AnalyticsError {
     fn from(err: sqlx::Error) -> Self {
-        Self::Repository(systemprompt_database::RepositoryError::from(err))
+        Self::Repository(systemprompt_traits::RepositoryError::from(err))
     }
 }
 

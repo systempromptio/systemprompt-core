@@ -1,31 +1,14 @@
-//! [`ExtensionError`] trait and HTTP/MCP error wire types.
+//! [`ExtensionError`] trait and the MCP error wire type.
 //!
 //! Domain crates implement [`ExtensionError`] on their own typed error
 //! enums so the API and MCP layers can render them into responses without
-//! introducing a dependency on each domain.
+//! introducing a dependency on each domain. Over HTTP an extension error
+//! renders through `systemprompt_models::api::ApiError::from_extension`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use http::StatusCode;
-
-#[derive(Debug, Clone)]
-pub struct ExtensionApiError {
-    pub code: String,
-    pub message: String,
-    pub status: StatusCode,
-}
-
-impl ExtensionApiError {
-    #[must_use]
-    pub fn new(code: impl Into<String>, message: impl Into<String>, status: StatusCode) -> Self {
-        Self {
-            code: code.into(),
-            message: message.into(),
-            status,
-        }
-    }
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct McpErrorData {
@@ -78,14 +61,6 @@ pub trait ExtensionError: std::error::Error + Send + Sync + 'static {
                 "code": self.code(),
                 "retryable": self.is_retryable(),
             })),
-        }
-    }
-
-    fn to_api_error(&self) -> ExtensionApiError {
-        ExtensionApiError {
-            code: self.code().to_owned(),
-            message: self.user_message(),
-            status: self.status(),
         }
     }
 }

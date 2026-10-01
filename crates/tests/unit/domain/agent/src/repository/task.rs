@@ -245,7 +245,7 @@ async fn update_task_state_invalid_transition_errors() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::ConstraintViolation(_)
+        systemprompt_traits::RepositoryError::Conflict(_)
     ));
 
     r.tasks.delete_task(&task_id).await.ok();

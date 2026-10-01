@@ -19,7 +19,7 @@ pub use systemprompt_extension::{
 pub use systemprompt_extension::error::{ExtensionConfigError, LoaderError};
 
 #[cfg(feature = "core")]
-pub use systemprompt_traits::{ExtensionApiError, ExtensionError, McpErrorData};
+pub use systemprompt_traits::{ExtensionError, McpErrorData};
 
 #[cfg(feature = "core")]
 pub use systemprompt_traits::{Job, JobContext, JobResult};

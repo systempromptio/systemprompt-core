@@ -1,41 +1,7 @@
 //! Tests for extension_error module types.
 
 use axum::http::StatusCode;
-use systemprompt_traits::{ExtensionApiError, ExtensionError, McpErrorData};
-
-mod api_error_tests {
-    use super::*;
-
-    #[test]
-    fn new_creates_api_error() {
-        let err = ExtensionApiError::new("NOT_FOUND", "Resource not found", StatusCode::NOT_FOUND);
-
-        assert_eq!(err.code, "NOT_FOUND");
-        assert_eq!(err.message, "Resource not found");
-        assert_eq!(err.status, StatusCode::NOT_FOUND);
-    }
-
-    #[test]
-    fn new_accepts_string_types() {
-        let err = ExtensionApiError::new(
-            String::from("BAD_REQUEST"),
-            String::from("Invalid input"),
-            StatusCode::BAD_REQUEST,
-        );
-
-        assert_eq!(err.code, "BAD_REQUEST");
-        assert_eq!(err.message, "Invalid input");
-    }
-
-    #[test]
-    fn api_error_is_debug() {
-        let err = ExtensionApiError::new("TEST", "Test message", StatusCode::OK);
-        let debug_str = format!("{:?}", err);
-
-        assert!(debug_str.contains("TEST"));
-        assert!(debug_str.contains("Test message"));
-    }
-}
+use systemprompt_traits::{ExtensionError, McpErrorData};
 
 mod mcp_error_data_tests {
     use super::*;
@@ -163,16 +129,6 @@ mod extension_error_trait_tests {
     fn user_message_returns_display_string() {
         let err = TestError("specific message".to_string());
         assert_eq!(err.user_message(), "test error: specific message");
-    }
-
-    #[test]
-    fn to_api_error_converts_correctly() {
-        let err = TestError("api test".to_string());
-        let api_err = err.to_api_error();
-
-        assert_eq!(api_err.code, "TEST_ERROR");
-        assert_eq!(api_err.message, "test error: api test");
-        assert_eq!(api_err.status, StatusCode::BAD_REQUEST);
     }
 
     #[test]

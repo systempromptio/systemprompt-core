@@ -185,8 +185,8 @@ fn repository_invalid_data_display() {
 }
 
 #[test]
-fn repository_constraint_violation_display() {
-    let e = RepositoryError::ConstraintViolation("unique_email".to_owned());
+fn repository_conflict_display() {
+    let e = RepositoryError::Conflict("unique_email".to_owned());
     assert!(format!("{e}").contains("unique_email"));
 }
 

@@ -30,7 +30,7 @@ pub enum LoggingError {
     DatabaseError(#[from] sqlx::Error),
 
     #[error("Repository operation failed: {0}")]
-    Repository(#[from] systemprompt_database::RepositoryError),
+    Repository(#[from] systemprompt_traits::RepositoryError),
 
     #[error("JSON serialization failed")]
     JsonError(#[from] serde_json::Error),

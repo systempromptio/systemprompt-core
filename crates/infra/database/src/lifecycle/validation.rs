@@ -32,7 +32,7 @@ pub async fn validate_write_pool_is_primary(db: &Database) -> DatabaseResult<()>
         return Ok(());
     }
 
-    Err(RepositoryError::invalid_state(if db.has_write_pool() {
+    Err(RepositoryError::internal(if db.has_write_pool() {
         "`database_write_url` points at a read-only standby. Writes, migrations and \
          LISTEN/NOTIFY all require the primary — point it at the primary and restart"
     } else {

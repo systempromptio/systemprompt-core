@@ -271,7 +271,7 @@ impl DatabaseProvider for RecordingProvider {
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
         self.log.push("begin");
         if *self.log.fail_begin.lock().expect("lock") {
-            return Err(systemprompt_database::RepositoryError::internal(
+            return Err(systemprompt_traits::RepositoryError::internal(
                 "begin refused",
             ));
         }
@@ -336,7 +336,7 @@ impl DatabaseTransaction for RecordingTx {
         if let Some(fail_at) = self.fail_on_statement
             && fail_at == self.statement_index
         {
-            return Err(systemprompt_database::RepositoryError::internal(format!(
+            return Err(systemprompt_traits::RepositoryError::internal(format!(
                 "boom on stmt {}",
                 self.statement_index
             )));
@@ -371,7 +371,7 @@ impl DatabaseTransaction for RecordingTx {
     async fn commit(self: Box<Self>) -> DatabaseResult<()> {
         self.log.push("commit");
         if self.fail_commit {
-            return Err(systemprompt_database::RepositoryError::internal(
+            return Err(systemprompt_traits::RepositoryError::internal(
                 "commit refused",
             ));
         }
@@ -381,7 +381,7 @@ impl DatabaseTransaction for RecordingTx {
     async fn rollback(self: Box<Self>) -> DatabaseResult<()> {
         self.log.push("rollback");
         if self.fail_rollback {
-            return Err(systemprompt_database::RepositoryError::internal(
+            return Err(systemprompt_traits::RepositoryError::internal(
                 "rollback refused",
             ));
         }

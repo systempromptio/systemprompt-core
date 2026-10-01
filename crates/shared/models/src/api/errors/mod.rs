@@ -1,27 +1,31 @@
-//! Public HTTP error envelope ([`ApiError`], [`ErrorCode`],
-//! [`ValidationError`], [`ErrorResponse`]) plus the internal
-//! `thiserror`-derived [`InternalApiError`] used by the application
-//! tier.
+//! The single HTTP error model: [`ApiError`] with its [`ErrorCode`] status
+//! class, plus [`ValidationError`] field detail.
+//!
+//! An [`ApiError`] carries a stable machine code, a public message and,
+//! optionally, the internal cause as a source that is logged and never
+//! serialised. The wire shape enforces the redaction rule itself: a 5xx
+//! serialises the fixed public message of its code with no details or
+//! validation errors, whatever text the error was built with, so internal
+//! error text cannot reach a response body. Repository errors convert through
+//! the one canonical `From<RepositoryError>` mapping in [`repository`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod internal;
+mod extension;
+mod repository;
+#[cfg(feature = "web")]
+mod response;
+mod wire;
 
-pub use internal::InternalApiError;
+use std::error::Error;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use systemprompt_traits::BoxedSource;
 
-#[cfg(feature = "web")]
-use axum::Json;
-#[cfg(feature = "web")]
-use axum::http::{StatusCode, header};
-#[cfg(feature = "web")]
-use axum::response::IntoResponse;
-
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     NotFound,
@@ -35,6 +39,21 @@ pub enum ErrorCode {
     ServiceUnavailable,
 }
 
+impl ErrorCode {
+    #[must_use]
+    pub const fn is_server_error(self) -> bool {
+        matches!(self, Self::InternalError | Self::ServiceUnavailable)
+    }
+
+    #[must_use]
+    pub const fn public_server_message(self) -> &'static str {
+        match self {
+            Self::ServiceUnavailable => "Service temporarily unavailable",
+            _ => "Internal server error",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationError {
     pub field: String,
@@ -45,21 +64,24 @@ pub struct ValidationError {
     pub context: Option<Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// The HTTP error envelope every non-protocol route answers with.
+#[derive(Debug, Deserialize)]
 pub struct ApiError {
     pub code: ErrorCode,
     pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub details: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub error_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub path: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub validation_errors: Vec<ValidationError>,
     pub timestamp: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub trace_id: Option<String>,
+    #[serde(skip)]
+    source: Option<BoxedSource>,
 }
 
 impl ApiError {
@@ -73,6 +95,7 @@ impl ApiError {
             validation_errors: Vec::new(),
             timestamp: Utc::now(),
             trace_id: None,
+            source: None,
         }
     }
 
@@ -106,6 +129,16 @@ impl ApiError {
         self
     }
 
+    #[must_use]
+    pub fn with_source(mut self, source: impl Into<BoxedSource>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    pub fn source(&self) -> Option<&(dyn Error + Send + Sync + 'static)> {
+        self.source.as_deref()
+    }
+
     pub fn not_found(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::NotFound, message)
     }
@@ -122,77 +155,27 @@ impl ApiError {
         Self::new(ErrorCode::Forbidden, message)
     }
 
-    pub fn internal_error(message: impl Into<String>) -> Self {
-        Self::new(ErrorCode::InternalError, message)
+    pub fn conflict(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::ConflictError, message)
+    }
+
+    pub fn rate_limited(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::RateLimited, message)
     }
 
     pub fn validation_error(message: impl Into<String>, errors: Vec<ValidationError>) -> Self {
         Self::new(ErrorCode::ValidationError, message).with_validation_errors(errors)
     }
 
-    pub fn conflict(message: impl Into<String>) -> Self {
-        Self::new(ErrorCode::ConflictError, message)
+    pub fn internal_error(context: &'static str) -> Self {
+        Self::new(ErrorCode::InternalError, context)
     }
-}
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ErrorResponse {
-    pub error: ApiError,
-    pub api_version: String,
-}
-
-#[cfg(feature = "web")]
-impl ErrorCode {
-    #[must_use]
-    pub const fn status_code(&self) -> StatusCode {
-        match self {
-            Self::NotFound => StatusCode::NOT_FOUND,
-            Self::BadRequest => StatusCode::BAD_REQUEST,
-            Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::Forbidden => StatusCode::FORBIDDEN,
-            Self::ValidationError => StatusCode::UNPROCESSABLE_ENTITY,
-            Self::ConflictError => StatusCode::CONFLICT,
-            Self::RateLimited => StatusCode::TOO_MANY_REQUESTS,
-            Self::ServiceUnavailable => StatusCode::SERVICE_UNAVAILABLE,
-            Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
-        }
+    pub fn internal(context: &'static str, source: impl Into<BoxedSource>) -> Self {
+        Self::internal_error(context).with_source(source)
     }
-}
 
-#[cfg(feature = "web")]
-impl IntoResponse for ApiError {
-    fn into_response(self) -> axum::response::Response {
-        let status = self.code.status_code();
-
-        if status.is_server_error() {
-            tracing::error!(
-                error_code = ?self.code,
-                message = %self.message,
-                path = ?self.path,
-                trace_id = ?self.trace_id,
-                "API server error response"
-            );
-        } else if status.is_client_error() {
-            tracing::warn!(
-                error_code = ?self.code,
-                message = %self.message,
-                path = ?self.path,
-                trace_id = ?self.trace_id,
-                "API client error response"
-            );
-        }
-
-        let mut response = (status, Json(self)).into_response();
-
-        if status == StatusCode::UNAUTHORIZED
-            && let Ok(header_value) =
-                "Bearer resource_metadata=\"/.well-known/oauth-protected-resource\"".parse()
-        {
-            response
-                .headers_mut()
-                .insert(header::WWW_AUTHENTICATE, header_value);
-        }
-
-        response
+    pub fn service_unavailable(context: &'static str) -> Self {
+        Self::new(ErrorCode::ServiceUnavailable, context)
     }
 }

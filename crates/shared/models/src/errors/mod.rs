@@ -15,7 +15,9 @@
 //! - [`SecretsError`] — on-disk secrets document.
 //! - [`AiInferenceError`] / [`McpRegistryError`] — the typed errors of the
 //!   dyn-dispatched provider seams.
-//! - [`ServiceError`] — application-tier umbrella enum.
+//! - [`RepositoryError`] — the workspace's single repository error, defined in
+//!   `systemprompt-traits`; it renders over HTTP through
+//!   [`crate::api::ApiError`]'s `From` impl.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,12 +29,10 @@ mod metadata;
 mod parse;
 mod provider;
 mod secrets;
-mod service;
 mod validation;
 
 pub use metadata::MetadataError;
 pub use parse::{ConfigError, ParseEnumError};
 pub use provider::{AiInferenceError, AiInferenceResult, McpRegistryError, McpRegistryResult};
 pub use secrets::SecretsError;
-pub use service::ServiceError;
 pub use validation::ConfigValidationError;
