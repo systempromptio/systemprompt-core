@@ -11,8 +11,8 @@
 //! The pipeline is **synchronous, spawned**: the route acks the platform within
 //! its timeout, then a spawned task runs this blocking dispatch and posts the
 //! reply. There is no responder job and no dispatch-state table — a stable
-//! [`ContextId`] (derived from the conversation) ties multi-turn history
-//! together instead.
+//! [`ContextId`](systemprompt_identifiers::ContextId) (derived from the
+//! conversation) ties multi-turn history together instead.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
