@@ -13,7 +13,6 @@ workspace = true
 [dependencies]
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
-systemprompt-database = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 rmcp = { workspace = true }
 
