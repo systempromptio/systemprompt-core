@@ -109,10 +109,8 @@ fn bridge_row(
 
 #[tokio::test]
 async fn bridge_list_filters_owner_and_activity_window_with_exact_session_projection() {
-    let database = DisposableDb::installed("cli_bridge_list")
-        .await
-        .expect("install isolated bridge database");
-    let pool = database.pool().await.expect("bridge database pool");
+    let database = DisposableDb::with_schema("cli_bridge_list").await;
+    let pool = database.test_pool().await;
     let owner = UserId::new("user_bridge_owner");
     let other = UserId::new("user_bridge_other");
     let admin = UserId::new("user_bridge_admin");

@@ -7,7 +7,7 @@ use systemprompt_cloud::TenantStore;
 use systemprompt_identifiers::TenantId;
 
 use super::{OTHER_TENANT_ID, TENANT_ID, enter, interactive_ctx, json_ctx};
-use crate::full_bootstrap::database_url_or_skip;
+use systemprompt_test_fixtures::test_database_url;
 
 fn tenant_cmd(command: TenantCommands) -> CloudCommands {
     CloudCommands::Tenant {
@@ -125,9 +125,7 @@ async fn tenant_create_external_rejects_empty_inputs() {
 
 #[tokio::test]
 async fn tenant_create_external_full_flow() {
-    let Some(url) = database_url_or_skip() else {
-        return;
-    };
+    let url = test_database_url();
     let env = enter().await;
     let profiles = env.root().join(".systemprompt/profiles/ext-prof");
     if profiles.exists() {

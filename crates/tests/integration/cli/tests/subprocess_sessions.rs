@@ -10,12 +10,12 @@ use std::path::{Path, PathBuf};
 
 use predicates::prelude::*;
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    command_bare_or_skip, command_or_skip, fixture_or_skip,
+    cli_command, cli_command_bare, full_fixture,
 };
 
-fn isolated_home_or_skip() -> Option<tempfile::TempDir> {
-    fixture_or_skip()?;
-    Some(tempfile::tempdir().expect("create isolated home"))
+fn isolated_home() -> tempfile::TempDir {
+    full_fixture();
+    tempfile::tempdir().expect("create isolated home")
 }
 
 fn session_probe_args() -> [&'static str; 4] {
@@ -48,12 +48,8 @@ fn store_json(home: &Path) -> serde_json::Value {
 
 #[test]
 fn session_from_profile_flag_records_session_without_activating_it() {
-    let Some(home) = isolated_home_or_skip() else {
-        return;
-    };
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let home = isolated_home();
+    let mut cmd = cli_command();
     cmd.env("HOME", home.path());
     cmd.current_dir(home.path());
     cmd.args(session_probe_args());
@@ -74,16 +70,9 @@ fn session_from_profile_flag_records_session_without_activating_it() {
 
 #[test]
 fn session_from_env_profile_resolves() {
-    let Some(home) = isolated_home_or_skip() else {
-        return;
-    };
-    let profile_path = fixture_or_skip()
-        .expect("fixture present")
-        .profile_path
-        .clone();
-    let Some(mut cmd) = command_bare_or_skip() else {
-        return;
-    };
+    let home = isolated_home();
+    let profile_path = full_fixture().profile_path.clone();
+    let mut cmd = cli_command_bare();
     cmd.env("HOME", home.path());
     cmd.env("SYSTEMPROMPT_PROFILE", &profile_path);
     cmd.current_dir(home.path());
@@ -98,21 +87,15 @@ fn session_from_env_profile_resolves() {
 
 #[test]
 fn profile_flag_alone_leaves_a_bare_invocation_unresolved() {
-    let Some(home) = isolated_home_or_skip() else {
-        return;
-    };
+    let home = isolated_home();
 
-    let Some(mut first) = command_or_skip() else {
-        return;
-    };
+    let mut first = cli_command();
     first.env("HOME", home.path());
     first.current_dir(home.path());
     first.args(session_probe_args());
     first.assert().failure();
 
-    let Some(mut second) = command_bare_or_skip() else {
-        return;
-    };
+    let mut second = cli_command_bare();
     second.env("HOME", home.path());
     second.current_dir(home.path());
     second.args(session_probe_args());
@@ -124,21 +107,14 @@ fn profile_flag_alone_leaves_a_bare_invocation_unresolved() {
 
 #[test]
 fn session_from_stored_active_key_resolves_after_switch() {
-    let Some(home) = isolated_home_or_skip() else {
-        return;
-    };
-    let fixture_profile = fixture_or_skip()
-        .expect("fixture present")
-        .profile_path
-        .clone();
+    let home = isolated_home();
+    let fixture_profile = full_fixture().profile_path.clone();
     let profile_dir = home.path().join(".systemprompt/profiles/switched");
     std::fs::create_dir_all(&profile_dir).expect("mkdir profiles dir");
     std::fs::copy(&fixture_profile, profile_dir.join("profile.yaml"))
         .expect("copy fixture profile");
 
-    let Some(mut switch) = command_or_skip() else {
-        return;
-    };
+    let mut switch = cli_command();
     switch.env("HOME", home.path());
     switch.current_dir(home.path());
     switch.args(["admin", "session", "switch", "switched"]);
@@ -148,17 +124,13 @@ fn session_from_stored_active_key_resolves_after_switch() {
     assert_eq!(store["active_profile_name"], "switched");
     assert!(store["active_key"].is_string());
 
-    let Some(mut login) = command_bare_or_skip() else {
-        return;
-    };
+    let mut login = cli_command_bare();
     login.env("HOME", home.path());
     login.current_dir(home.path());
     login.args(["admin", "session", "login"]);
     login.assert().success();
 
-    let Some(mut bare) = command_bare_or_skip() else {
-        return;
-    };
+    let mut bare = cli_command_bare();
     bare.env("HOME", home.path());
     bare.current_dir(home.path());
     bare.args(session_probe_args());
@@ -170,14 +142,10 @@ fn session_from_stored_active_key_resolves_after_switch() {
 
 #[test]
 fn cached_session_is_reused_on_second_invocation() {
-    let Some(home) = isolated_home_or_skip() else {
-        return;
-    };
+    let home = isolated_home();
 
     for _ in 0..2 {
-        let Some(mut cmd) = command_or_skip() else {
-            return;
-        };
+        let mut cmd = cli_command();
         cmd.env("HOME", home.path());
         cmd.current_dir(home.path());
         cmd.args(session_probe_args());
@@ -193,12 +161,8 @@ fn cached_session_is_reused_on_second_invocation() {
 
 #[test]
 fn no_profile_anywhere_reports_profile_required() {
-    let Some(home) = isolated_home_or_skip() else {
-        return;
-    };
-    let Some(mut cmd) = command_bare_or_skip() else {
-        return;
-    };
+    let home = isolated_home();
+    let mut cmd = cli_command_bare();
     cmd.env("HOME", home.path());
     cmd.current_dir(home.path());
     cmd.args(session_probe_args());
@@ -209,13 +173,8 @@ fn no_profile_anywhere_reports_profile_required() {
 
 #[test]
 fn tenant_profile_without_credentials_fails_closed() {
-    let Some(home) = isolated_home_or_skip() else {
-        return;
-    };
-    let profile_path = fixture_or_skip()
-        .expect("fixture present")
-        .profile_path
-        .clone();
+    let home = isolated_home();
+    let profile_path = full_fixture().profile_path.clone();
     let base = std::fs::read_to_string(&profile_path).expect("read fixture profile");
 
     let tenant_dir = home.path().join("tenantprof");
@@ -227,9 +186,7 @@ fn tenant_profile_without_credentials_fails_closed() {
     )
     .expect("write tenant profile");
 
-    let Some(mut cmd) = command_bare_or_skip() else {
-        return;
-    };
+    let mut cmd = cli_command_bare();
     cmd.env("HOME", home.path());
     cmd.current_dir(home.path());
     cmd.arg("--profile").arg(&tenant_profile);

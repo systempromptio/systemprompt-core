@@ -4,9 +4,8 @@
 use std::path::Path;
 
 use predicates::prelude::*;
-use systemprompt_cli_integration_tests::full_bootstrap::{
-    command_bare_or_skip, database_url_or_skip, fixture_or_skip,
-};
+use systemprompt_cli_integration_tests::full_bootstrap::{cli_command_bare, full_fixture};
+use systemprompt_test_fixtures::test_database_url;
 
 struct DbParts {
     host: String,
@@ -15,15 +14,21 @@ struct DbParts {
     password: String,
 }
 
-fn db_parts_or_skip() -> Option<DbParts> {
-    let raw = database_url_or_skip()?;
-    let url = url::Url::parse(&raw).ok()?;
-    Some(DbParts {
-        host: url.host_str()?.to_owned(),
+fn db_parts() -> DbParts {
+    let raw = test_database_url();
+    let url = url::Url::parse(&raw).expect("DATABASE_URL parses as a URL");
+    DbParts {
+        host: url
+            .host_str()
+            .expect("DATABASE_URL carries a host")
+            .to_owned(),
         port: url.port().unwrap_or(5432).to_string(),
         user: url.username().to_owned(),
-        password: url.password()?.to_owned(),
-    })
+        password: url
+            .password()
+            .expect("DATABASE_URL carries a password")
+            .to_owned(),
+    }
 }
 
 fn project_dir() -> tempfile::TempDir {
@@ -32,21 +37,19 @@ fn project_dir() -> tempfile::TempDir {
     dir
 }
 
-fn setup_cmd_or_skip(project: &Path, args: &[&str]) -> Option<assert_cmd::Command> {
-    let mut cmd = command_bare_or_skip()?;
+fn setup_cmd(project: &Path, args: &[&str]) -> assert_cmd::Command {
+    let mut cmd = cli_command_bare();
     cmd.env("HOME", project);
     cmd.current_dir(project);
     cmd.args(args);
-    Some(cmd)
+    cmd
 }
 
 #[test]
 fn setup_dry_run_previews_without_writing() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let project = project_dir();
-    let Some(mut cmd) = setup_cmd_or_skip(
+    let mut cmd = setup_cmd(
         project.path(),
         &[
             "admin",
@@ -63,10 +66,7 @@ fn setup_dry_run_previews_without_writing() {
             "sk-cov-test",
             "--no-migrate",
         ],
-        // skip-ok: the systemprompt binary is not built in this checkout
-    ) else {
-        return;
-    };
+    );
     cmd.assert().success();
     assert!(
         !project
@@ -78,10 +78,8 @@ fn setup_dry_run_previews_without_writing() {
 
 #[test]
 fn setup_full_non_interactive_writes_profile_and_secrets() {
-    let Some(db) = db_parts_or_skip() else { return };
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    let db = db_parts();
+    full_fixture();
     let project = project_dir();
     let base = [
         "admin",
@@ -109,9 +107,7 @@ fn setup_full_non_interactive_writes_profile_and_secrets() {
         "cov-admin@example.com",
         "--no-migrate",
     ];
-    let Some(mut cmd) = setup_cmd_or_skip(project.path(), &base) else {
-        return;
-    };
+    let mut cmd = setup_cmd(project.path(), &base);
     cmd.assert().success();
 
     let profile = project
@@ -119,26 +115,20 @@ fn setup_full_non_interactive_writes_profile_and_secrets() {
         .join(".systemprompt/profiles/covsetup/profile.yaml");
     assert!(profile.exists(), "profile.yaml written by setup");
 
-    let Some(mut rerun) = setup_cmd_or_skip(project.path(), &base) else {
-        return;
-    };
+    let mut rerun = setup_cmd(project.path(), &base);
     rerun.assert().success();
 
     let mut forced_args = base.to_vec();
     forced_args.push("--force");
-    let Some(mut forced) = setup_cmd_or_skip(project.path(), &forced_args) else {
-        return;
-    };
+    let mut forced = setup_cmd(project.path(), &forced_args);
     forced.assert().success();
 }
 
 #[test]
 fn setup_json_output_dry_run() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let project = project_dir();
-    let Some(mut cmd) = setup_cmd_or_skip(
+    let mut cmd = setup_cmd(
         project.path(),
         &[
             "--json",
@@ -156,10 +146,7 @@ fn setup_json_output_dry_run() {
             "gm-cov",
             "--no-migrate",
         ],
-        // skip-ok: the systemprompt binary is not built in this checkout
-    ) else {
-        return;
-    };
+    );
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("covsetup"));

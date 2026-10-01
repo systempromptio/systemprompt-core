@@ -44,9 +44,7 @@ fn redact(output: &[u8], database_url: &str) -> String {
 
 #[tokio::test]
 async fn cloud_doctor_reports_missing_secrets_then_accepts_repaired_owned_profile() {
-    let database = DisposableDb::installed("cli_cloud_doctor_recovery")
-        .await
-        .expect("install isolated doctor database");
+    let database = DisposableDb::with_schema("cli_cloud_doctor_recovery").await;
     let fixture = isolated_fixture(8080);
     let profile_dir = fixture.profile_path.parent().expect("profile directory");
     let secrets_path = profile_dir.join("secrets.json");

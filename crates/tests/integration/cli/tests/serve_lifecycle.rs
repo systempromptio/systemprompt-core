@@ -259,10 +259,8 @@ async fn wait_for_owned_listener(port: u16, expected_pid: u32) {
 
 #[tokio::test]
 async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
-    let database = DisposableDb::installed("cli_serve_vertical")
-        .await
-        .expect("dedicated installed database");
-    let pool = database.pool().await.expect("dedicated database pool");
+    let database = DisposableDb::with_schema("cli_serve_vertical").await;
+    let pool = database.test_pool().await;
     let admin_id = systemprompt_identifiers::UserId::new(format!(
         "serve-admin-{}",
         uuid::Uuid::new_v4().simple()
@@ -404,10 +402,8 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
 }
 #[tokio::test]
 async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
-    let database = DisposableDb::installed("cli_serve_agent_vertical")
-        .await
-        .expect("dedicated installed database");
-    let pool = database.pool().await.expect("dedicated database pool");
+    let database = DisposableDb::with_schema("cli_serve_agent_vertical").await;
+    let pool = database.test_pool().await;
     let raw_pool = pool.pool_arc().expect("raw dedicated database pool");
     let admin_id = systemprompt_identifiers::UserId::new(format!(
         "serve-agent-admin-{}",

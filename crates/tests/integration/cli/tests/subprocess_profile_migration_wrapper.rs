@@ -230,9 +230,7 @@ fn run_interactive_profile_command(
 
 #[tokio::test]
 async fn profile_create_selects_the_owned_tenant_and_keeps_prompted_provider_secret_hidden() {
-    let database = DisposableDb::create("cli_profile_interactive")
-        .await
-        .expect("create isolated interactive profile database");
+    let database = DisposableDb::empty("cli_profile_interactive").await;
     let parsed = url::Url::parse(database.url()).expect("fixture database URL");
     let password = parsed.password().expect("fixture database password");
     let fixture = isolated_fixture(8080);
@@ -325,7 +323,7 @@ async fn profile_create_selects_the_owned_tenant_and_keeps_prompted_provider_sec
     assert!(secrets["anthropic"].is_null());
     assert!(secrets["gemini"].is_null());
 
-    let pool = database.pool().await.expect("interactive database pool");
+    let pool = database.test_pool().await;
     let raw = pool.pool_arc().expect("raw interactive database pool");
     let migration_table: Option<String> =
         sqlx::query_scalar("SELECT to_regclass('public.extension_migrations')::text")
