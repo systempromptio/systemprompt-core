@@ -36,7 +36,7 @@ pub(super) fn session_context_required_error(
         "Middleware configuration error: SessionMiddleware must run before context middleware"
     );
     ApiError::internal_error("Middleware configuration error")
-        .with_trace_id(trace_id.as_str())
+        .with_trace_id(trace_id.clone())
         .with_path(path)
         .into_response()
 }

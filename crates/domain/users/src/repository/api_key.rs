@@ -9,6 +9,7 @@ use systemprompt_identifiers::{ApiKeyId, UserId};
 use crate::error::Result;
 use crate::models::UserApiKey;
 use crate::repository::UserRepository;
+use crate::models::UserApiKeyRow;
 
 pub struct CreateApiKeyParams<'a> {
     pub id: &'a ApiKeyId,
@@ -22,7 +23,7 @@ pub struct CreateApiKeyParams<'a> {
 impl UserRepository {
     pub async fn create_api_key(&self, params: CreateApiKeyParams<'_>) -> Result<UserApiKey> {
         let row = sqlx::query_as!(
-            UserApiKey,
+            UserApiKeyRow,
             r#"
             INSERT INTO user_api_keys
                 (id, user_id, name, key_prefix, key_hash, expires_at)
@@ -38,7 +39,7 @@ impl UserRepository {
             params.expires_at,
         )
         .fetch_one(&*self.write_pool)
-        .await?;
+        .await.map(UserApiKey::from)?;
         Ok(row)
     }
 
@@ -47,7 +48,7 @@ impl UserRepository {
         key_prefix: &str,
     ) -> Result<Option<UserApiKey>> {
         let row = sqlx::query_as!(
-            UserApiKey,
+            UserApiKeyRow,
             r#"
             SELECT id, user_id, name, key_prefix, key_hash,
                    created_at, last_used_at, expires_at, revoked_at
@@ -58,13 +59,13 @@ impl UserRepository {
             key_prefix,
         )
         .fetch_optional(&*self.write_pool)
-        .await?;
+        .await.map(|row| row.map(UserApiKey::from))?;
         Ok(row)
     }
 
     pub async fn list_api_keys_for_user(&self, user_id: &UserId) -> Result<Vec<UserApiKey>> {
         let rows = sqlx::query_as!(
-            UserApiKey,
+            UserApiKeyRow,
             r#"
             SELECT id, user_id, name, key_prefix, key_hash,
                    created_at, last_used_at, expires_at, revoked_at
@@ -75,7 +76,7 @@ impl UserRepository {
             user_id.as_str(),
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await.map(|rows| rows.into_iter().map(UserApiKey::from).collect::<Vec<_>>())?;
         Ok(rows)
     }
 

@@ -18,21 +18,30 @@ fn serde_transparent_json() {
 }
 
 #[test]
-fn deserialize_rejects_a_non_uuid() {
-    let result: Result<UserId, _> = serde_json::from_str("\"serde-user\"");
-    assert!(result.is_err());
+fn deserialize_accepts_a_non_uuid_id() {
+    let id: UserId = serde_json::from_str("\"seeded-admin\"").unwrap();
+    assert_eq!(id.as_str(), "seeded-admin");
 }
 
 #[test]
-fn try_new_accepts_a_uuid() {
-    let id = UserId::try_new(UUID).unwrap();
-    assert_eq!(id.as_str(), UUID);
-    assert_eq!(id.to_uuid().unwrap().to_string(), UUID);
+fn deserialize_rejects_empty_and_sentinel() {
+    for raw in ["\"\"", "\"unset\"", "\"two words\""] {
+        let result: Result<UserId, _> = serde_json::from_str(raw);
+        assert!(result.is_err(), "{raw} must be rejected");
+    }
 }
 
 #[test]
-fn try_new_rejects_sentinels_and_garbage() {
-    for raw in ["", "unset", "unknown", "user@example.com", "test-user"] {
+fn try_new_accepts_uuid_and_opaque_ids() {
+    for raw in [UUID, "admin", "imported_user-42", "svc:reporting", "user@example.com"] {
+        let id = UserId::try_new(raw).unwrap();
+        assert_eq!(id.as_str(), raw);
+    }
+}
+
+#[test]
+fn try_new_rejects_empty_sentinel_whitespace_and_control() {
+    for raw in ["", "unset", "UNSET", " ", "test user", " padded", "tab\tid", "line\nid", "nul\u{0}id"] {
         assert!(UserId::try_new(raw).is_err(), "{raw:?} must be rejected");
     }
 }
@@ -40,14 +49,16 @@ fn try_new_rejects_sentinels_and_garbage() {
 #[test]
 fn from_str_validates() {
     assert!(UUID.parse::<UserId>().is_ok());
-    assert!("not-a-uuid".parse::<UserId>().is_err());
+    assert!("not-a-uuid".parse::<UserId>().is_ok());
+    assert!("".parse::<UserId>().is_err());
 }
 
 #[test]
-fn generate_and_from_uuid_round_trip() {
+fn generate_mints_a_uuid_v4() {
     let id = UserId::generate();
-    let uuid = id.to_uuid().unwrap();
-    assert_eq!(UserId::from_uuid(uuid), id);
+    let parsed = uuid::Uuid::parse_str(id.as_str()).unwrap();
+    assert_eq!(parsed.get_version_num(), 4);
+    assert_ne!(UserId::generate(), id);
 }
 
 #[test]

@@ -47,8 +47,6 @@ pub enum ClientCredentialsError {
     OwnerNotFound,
     #[error("Client owner is not active")]
     OwnerInactive,
-    #[error("Client owner has a non-uuid id")]
-    OwnerIdMalformed(#[source] uuid::Error),
     #[error("Invalid scope: {0}")]
     InvalidScope(String),
     #[error("Requested scope is not a list of known permissions")]
@@ -168,10 +166,8 @@ pub async fn generate_client_tokens(
         return Err(ClientCredentialsError::HookScopeRequiresHookAudience);
     }
 
-    let owner_uuid = uuid::Uuid::parse_str(client.owner_user_id.as_str())
-        .map_err(ClientCredentialsError::OwnerIdMalformed)?;
     let authenticated = AuthenticatedUser::new(
-        UserId::from_uuid(owner_uuid),
+        client.owner_user_id.clone(),
         owner.name,
         owner.email,
         permissions.clone(),

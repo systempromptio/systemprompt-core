@@ -9,6 +9,7 @@ use systemprompt_identifiers::UserId;
 use crate::error::Result;
 use crate::models::{User, UserRole, UserStatus, normalise_email};
 use crate::repository::UserRepository;
+use crate::models::UserRow;
 
 #[derive(Debug)]
 pub struct UpdateUserParams<'a> {
@@ -34,7 +35,7 @@ impl UserRepository {
         let email = normalise_email(email);
 
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             INSERT INTO users (
                 id, name, email, full_name, display_name,
@@ -55,7 +56,7 @@ impl UserRepository {
             now
         )
         .fetch_one(&*self.write_pool)
-        .await?;
+        .await.map(User::from)?;
 
         Ok(row)
     }
@@ -75,7 +76,7 @@ impl UserRepository {
         let email = normalise_email(email);
 
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             INSERT INTO users (
                 id, name, email, full_name, display_name,
@@ -97,7 +98,7 @@ impl UserRepository {
             now
         )
         .fetch_optional(&*self.write_pool)
-        .await?;
+        .await.map(|row| row.map(User::from))?;
 
         Ok(row)
     }
@@ -106,7 +107,7 @@ impl UserRepository {
         let email = normalise_email(&format!("{}@anonymous.local", fingerprint));
 
         if let Some(existing) = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -116,7 +117,7 @@ impl UserRepository {
             email
         )
         .fetch_optional(&*self.pool)
-        .await?
+        .await.map(|row| row.map(User::from))?
         {
             return Ok(existing);
         }
@@ -129,7 +130,7 @@ impl UserRepository {
         let role = UserRole::Anonymous.as_str();
 
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             INSERT INTO users (
                 id, name, email, status, email_verified, roles,
@@ -148,7 +149,7 @@ impl UserRepository {
             now
         )
         .fetch_one(&*self.write_pool)
-        .await?;
+        .await.map(User::from)?;
 
         Ok(row)
     }

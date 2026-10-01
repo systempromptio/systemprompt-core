@@ -8,7 +8,6 @@ use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
-use uuid::Uuid;
 
 use crate::error::OauthError;
 
@@ -47,8 +46,9 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             })?;
 
         let is_admin = claims.is_admin();
+        let subject = UserId::try_new(claims.sub).map_err(|_e| JwtProviderError::InvalidToken)?;
         Ok(AgentJwtClaims {
-            subject: UserId::new(claims.sub),
+            subject,
             username: claims.username,
             user_type: claims.user_type.to_string(),
             audiences: claims.aud.iter().map(ToString::to_string).collect(),
@@ -60,15 +60,8 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
     }
 
     fn generate_token(&self, params: GenerateTokenParams) -> JwtResult<String> {
-        let user_id = Uuid::parse_str(params.user_id.as_str()).map_err(|source| {
-            JwtProviderError::Internal(Box::new(OauthError::InvalidUserId {
-                user_id: params.user_id.clone(),
-                source,
-            }))
-        })?;
-
         let user = AuthenticatedUser {
-            id: UserId::from_uuid(user_id),
+            id: params.user_id.clone(),
             username: params.username.clone(),
             email: params.username.clone(),
             roles: vec![],

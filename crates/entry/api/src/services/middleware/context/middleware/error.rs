@@ -93,7 +93,7 @@ pub(super) fn log_error_response(
     }
 
     extraction_error_to_api_error(error)
-        .with_trace_id(trace_id.as_str())
+        .with_trace_id(trace_id.clone())
         .with_path(path)
         .into_response()
 }

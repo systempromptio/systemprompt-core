@@ -12,6 +12,7 @@ use systemprompt_traits::FederatedIdentityClaims;
 use crate::error::Result;
 use crate::models::{User, UserRole, UserStatus, normalise_email};
 use crate::repository::UserRepository;
+use crate::models::UserRow;
 
 impl UserRepository {
     pub async fn find_federated(&self, issuer: &str, external_sub: &str) -> Result<Option<UserId>> {
@@ -45,7 +46,7 @@ impl UserRepository {
         .await?
         {
             let user = sqlx::query_as!(
-                User,
+                UserRow,
                 r#"
                 SELECT id, name, email, full_name, display_name, status,
                        email_verified, roles, avatar_url, is_bot, is_scanner,
@@ -55,7 +56,7 @@ impl UserRepository {
                 existing.user_id
             )
             .fetch_one(&mut *tx)
-            .await?;
+            .await.map(User::from)?;
             tx.commit().await?;
             return Ok(user);
         }
@@ -70,7 +71,7 @@ impl UserRepository {
         let fields = NewFederatedUser::derive(issuer, external_sub, claims);
 
         let user = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             INSERT INTO users (
                 id, name, email, full_name, display_name,
@@ -91,7 +92,7 @@ impl UserRepository {
             fields.now,
         )
         .fetch_one(&mut *tx)
-        .await?;
+        .await.map(User::from)?;
 
         sqlx::query!(
             "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
@@ -122,7 +123,7 @@ async fn link_by_verified_email(
     let email = normalise_email(addr);
     let deleted_status = UserStatus::Deleted.as_str();
     let Some(existing) = sqlx::query_as!(
-        User,
+        UserRow,
         r#"
         SELECT id, name, email, full_name, display_name, status,
                email_verified, roles, avatar_url, is_bot, is_scanner,
@@ -133,7 +134,7 @@ async fn link_by_verified_email(
         deleted_status
     )
     .fetch_optional(&mut **tx)
-    .await?
+    .await.map(|row| row.map(User::from))?
     else {
         return Ok(None);
     };

@@ -15,6 +15,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, EngagementEventId, SessionId, UserId};
 
 use crate::models::{CreateEngagementEventInput, EngagementEvent};
+use crate::models::EngagementEventRow;
 
 #[derive(Clone, Debug)]
 pub struct EngagementRepository {
@@ -88,7 +89,7 @@ impl EngagementRepository {
 
     pub async fn find_by_id(&self, id: &EngagementEventId) -> Result<Option<EngagementEvent>> {
         let event = sqlx::query_as!(
-            EngagementEvent,
+            EngagementEventRow,
             r#"
             SELECT
                 id as "id: EngagementEventId", session_id, user_id, page_url,
@@ -110,14 +111,14 @@ impl EngagementRepository {
             id.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await.map(|row| row.map(EngagementEvent::from))?;
 
         Ok(event)
     }
 
     pub async fn list_by_user(&self, user_id: &UserId, limit: i64) -> Result<Vec<EngagementEvent>> {
         let events = sqlx::query_as!(
-            EngagementEvent,
+            EngagementEventRow,
             r#"
             SELECT
                 id as "id: EngagementEventId", session_id, user_id, page_url,
@@ -142,7 +143,7 @@ impl EngagementRepository {
             limit
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await.map(|rows| rows.into_iter().map(EngagementEvent::from).collect::<Vec<_>>())?;
 
         Ok(events)
     }

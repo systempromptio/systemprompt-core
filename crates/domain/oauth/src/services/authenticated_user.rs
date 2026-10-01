@@ -52,10 +52,6 @@ pub async fn load_authenticated_user(
         ));
     }
 
-    user.id
-        .to_uuid()
-        .map_err(|_e| OauthError::Validation(format!("Invalid user UUID: {}", user.id)))?;
-
     Ok(AuthenticatedUser::new_with_roles(
         user.id,
         user.name,

@@ -10,7 +10,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use uuid::Uuid;
 
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
@@ -20,7 +19,7 @@ use crate::error::OauthResult;
 
 #[derive(Debug, Clone)]
 pub struct PluginTokenSubject {
-    pub id: Uuid,
+    pub id: UserId,
     pub username: String,
     pub email: String,
 }
@@ -44,7 +43,7 @@ impl PluginTokenService {
     ) -> OauthResult<IssuedPluginToken> {
         let permissions = vec![Permission::HookGovern, Permission::HookTrack];
         let authenticated = AuthenticatedUser::new_with_roles(
-            UserId::from_uuid(subject.id),
+            subject.id,
             subject.username,
             subject.email,
             permissions.clone(),

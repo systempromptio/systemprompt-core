@@ -14,7 +14,7 @@ pub fn fixture_user_id() -> UserId {
 
 #[must_use]
 pub fn unique_user_id(prefix: &str) -> UserId {
-    UserId::from_uuid(uuid::Uuid::new_v5(&uuid::Uuid::new_v4(), prefix.as_bytes()))
+    UserId::new(uuid::Uuid::new_v5(&uuid::Uuid::new_v4(), prefix.as_bytes()).to_string())
 }
 
 #[must_use]

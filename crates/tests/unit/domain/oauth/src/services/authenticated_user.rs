@@ -162,15 +162,15 @@ async fn rejects_user_with_only_invalid_roles() {
 }
 
 #[tokio::test]
-async fn rejects_non_uuid_user_id() {
-    let user_id = UserId::new("not-a-uuid");
+async fn accepts_non_uuid_user_id() {
+    let user_id = UserId::new("seeded-admin");
     let users = FixedUser(Some(user_with_roles(&user_id, &["user"])));
 
-    let err = load_authenticated_user(&users, &user_id)
+    let authed = load_authenticated_user(&users, &user_id)
         .await
-        .expect_err("a non-UUID id cannot become a principal");
+        .expect("a non-UUID id is a valid principal");
 
-    assert!(err.to_string().contains("Invalid user UUID"));
+    assert_eq!(authed.id, user_id);
 }
 
 #[tokio::test]

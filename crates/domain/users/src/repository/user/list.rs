@@ -8,12 +8,13 @@ use systemprompt_identifiers::UserId;
 use crate::error::{Result, UserError};
 use crate::models::{User, UserActivity, UserRole, UserStatus, UserWithSessions};
 use crate::repository::{MAX_PAGE_SIZE, UserRepository};
+use crate::models::{UserActivityRow, UserRow, UserWithSessionsRow};
 
 impl UserRepository {
     pub async fn find_with_sessions(&self, user_id: &UserId) -> Result<Option<UserWithSessions>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(
-            UserWithSessions,
+            UserWithSessionsRow,
             r#"
             SELECT
                 u.id, u.name, u.email, u.full_name, u.status, u.roles, u.created_at,
@@ -28,14 +29,14 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await.map(|row| row.map(UserWithSessions::from))?;
 
         Ok(row)
     }
 
     pub async fn get_activity(&self, user_id: &UserId) -> Result<UserActivity> {
         let row = sqlx::query_as!(
-            UserActivity,
+            UserActivityRow,
             r#"
             SELECT
                 u.id as user_id,
@@ -51,7 +52,7 @@ impl UserRepository {
             user_id.as_str()
         )
         .fetch_one(&*self.pool)
-        .await?;
+        .await.map(UserActivity::from)?;
 
         Ok(row)
     }
@@ -74,7 +75,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
         let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -91,7 +92,7 @@ impl UserRepository {
             anonymous_role
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await.map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
 
         Ok(rows)
     }
@@ -100,7 +101,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
         let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -113,7 +114,7 @@ impl UserRepository {
             anonymous_role
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await.map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
 
         Ok(rows)
     }
@@ -137,7 +138,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
         let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -157,7 +158,7 @@ impl UserRepository {
             anonymous_role
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await.map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
 
         Ok(rows)
     }
@@ -198,7 +199,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
 
         let rows = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -217,7 +218,7 @@ impl UserRepository {
             safe_limit
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await.map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
 
         Ok(rows)
     }
@@ -247,7 +248,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
         let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
-            UserWithSessions,
+            UserWithSessionsRow,
             r#"
             SELECT
                 u.id, u.name, u.email, u.full_name, u.status, u.roles, u.created_at,
@@ -266,7 +267,7 @@ impl UserRepository {
             safe_limit
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await.map(|rows| rows.into_iter().map(UserWithSessions::from).collect::<Vec<_>>())?;
 
         Ok(rows)
     }

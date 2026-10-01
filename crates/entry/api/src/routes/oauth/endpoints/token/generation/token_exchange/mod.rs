@@ -22,7 +22,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ClientId, UserId};
+use systemprompt_identifiers::ClientId;
 use systemprompt_models::Config;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_oauth::OAuthState;
@@ -94,10 +94,8 @@ pub async fn handle_token_exchange(
     let issuer = &global.jwt_issuer;
     let act = build_act_chain(client_id, issuer, subject.prior_act);
 
-    let delegate_uuid = uuid::Uuid::parse_str(delegate.user_id.as_str())
-        .map_err(|e| TokenError::server("Delegated user has a non-uuid id", e))?;
     let delegated_user = AuthenticatedUser::new(
-        UserId::from_uuid(delegate_uuid),
+        delegate.user_id.clone(),
         delegate.name,
         delegate.email,
         final_perms.clone(),

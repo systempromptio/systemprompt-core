@@ -84,7 +84,7 @@ pub async fn validate_id_jag_subject(
 async fn verify_id_jag_signature(
     token: &str,
     global: &Config,
-) -> TokenResult<(IdJagClaims, Vec<systemprompt_identifiers::ClientId>)> {
+) -> TokenResult<(IdJagClaims, Vec<ClientId>)> {
     let header = decode_header(token)
         .map_err(|e| TokenError::rejected_grant("ID-JAG header decode failed", e))?;
     validate_typ(header.typ.as_deref()).map_err(TokenError::IdJagRejected)?;

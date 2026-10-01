@@ -175,8 +175,8 @@ fn extract_user_context_rejects_an_over_deep_act_chain() {
 }
 
 #[test]
-fn extract_user_context_rejects_a_subject_that_is_not_a_user_uuid() {
-    for subject in ["alice", "unset", ""] {
+fn extract_user_context_rejects_an_empty_or_sentinel_subject() {
+    for subject in ["unset", "", "two words"] {
         let token = mint_custom(
             subject,
             Some(SessionId::generate()),
@@ -189,4 +189,16 @@ fn extract_user_context_rejects_a_subject_that_is_not_a_user_uuid() {
             "expected InvalidSubject for sub {subject:?}, got {err:?}"
         );
     }
+}
+
+#[test]
+fn extract_user_context_accepts_a_non_uuid_subject() {
+    let token = mint_custom(
+        "seeded-admin",
+        Some(SessionId::generate()),
+        vec![Permission::User],
+        UserType::User,
+    );
+    let ctx = extract_user_context(&token, ISSUER).expect("non-UUID subject is a valid user id");
+    assert_eq!(ctx.user_id.as_str(), "seeded-admin");
 }

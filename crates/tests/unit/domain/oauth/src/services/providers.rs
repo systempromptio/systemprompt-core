@@ -219,23 +219,23 @@ mod config_backed {
     }
 
     #[test]
-    fn generate_token_rejects_non_uuid_user_id() {
+    fn generate_token_accepts_a_non_uuid_user_id() {
         ensure_test_bootstrap();
         systemprompt_test_fixtures::install_test_signing_key();
         let provider = JwtValidationProviderImpl::from_config().expect("from_config");
 
-        let err = provider
+        let token = provider
             .generate_token(GenerateTokenParams {
-                user_id: UserId::new("not-a-uuid"),
-                username: "prov-bad".to_owned(),
+                user_id: UserId::new("seeded-admin"),
+                username: "prov-opaque".to_owned(),
                 user_type: "user".to_owned(),
                 session_id: SessionId::generate(),
                 permissions: vec![],
                 audiences: vec![],
                 expires_in_hours: None,
             })
-            .expect_err("non-uuid user id");
-        assert!(err.to_string().contains("not a valid UUID"));
+            .expect("a non-UUID user id is a valid principal");
+        assert!(!token.is_empty());
     }
 }
 

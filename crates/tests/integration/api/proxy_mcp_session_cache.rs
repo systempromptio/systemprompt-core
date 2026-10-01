@@ -85,7 +85,7 @@ async fn successful_response_with_session_header_caches_identity() {
     .await;
     let user_uuid = Uuid::new_v4();
     let user = AuthenticatedUser::new(
-        systemprompt_identifiers::UserId::from_uuid(user_uuid),
+        systemprompt_identifiers::UserId::new(user_uuid.to_string()),
         "cache-user".to_owned(),
         "cache@test.invalid".to_owned(),
         vec![Permission::User],

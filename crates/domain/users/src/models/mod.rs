@@ -17,6 +17,11 @@ use systemprompt_identifiers::{ApiKeyId, DeviceCertId, SessionId, UserId};
 
 pub use systemprompt_models::auth::{UserRole, UserStatus};
 
+mod rows;
+pub(crate) use rows::{
+    UserActivityRow, UserApiKeyRow, UserDeviceCertRow, UserRow, UserWithSessionsRow,
+};
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     #[sqlx(try_from = "String")]

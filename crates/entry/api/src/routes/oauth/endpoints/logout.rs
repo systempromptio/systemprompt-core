@@ -34,9 +34,7 @@ pub async fn handle_logout(
         .and_then(|exp_unix| DateTime::<Utc>::from_timestamp(exp_unix, 0))
         .ok_or_else(|| OAuthHttpError::invalid_request("Invalid token expiry"))?;
 
-    let user_uuid = req_ctx
-        .user_id()
-        .to_uuid()
+    let user_uuid = Uuid::parse_str(req_ctx.user_id().as_str())
         .map_err(|_e| OAuthHttpError::invalid_request("Invalid user id"))?;
 
     revoke_jti(&repo, jti.as_str(), user_uuid, exp_dt).await?;

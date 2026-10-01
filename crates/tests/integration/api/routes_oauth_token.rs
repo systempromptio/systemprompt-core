@@ -565,8 +565,8 @@ async fn seed_client_for_owner(
 }
 
 #[tokio::test]
-async fn token_client_credentials_non_uuid_owner_returns_server_error() -> anyhow::Result<()> {
-    let user = UserId::new(format!("not-a-uuid-owner-{}", Uuid::new_v4().simple()));
+async fn token_client_credentials_non_uuid_owner_is_issued() -> anyhow::Result<()> {
+    let user = UserId::new(format!("seeded-owner-{}", Uuid::new_v4().simple()));
     let client = seed_client_for_owner(&user, vec!["hook:govern"]).await?;
     let app = token_app().await?;
     let body = urlencode(&[
@@ -581,9 +581,9 @@ async fn token_client_credentials_non_uuid_owner_returns_server_error() -> anyho
     let v = read_json(resp).await?;
     assert_eq!(
         s,
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "non-uuid owner id is operator misconfiguration and must be 500; got {s} {v}"
+        StatusCode::OK,
+        "a non-UUID owner id is a valid user id and must be issued a token; got {s} {v}"
     );
-    assert_eq!(v["error"].as_str(), Some("server_error"), "{v}");
+    assert!(v["access_token"].as_str().is_some_and(|t| !t.is_empty()), "{v}");
     Ok(())
 }

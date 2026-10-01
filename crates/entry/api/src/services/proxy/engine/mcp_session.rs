@@ -61,16 +61,6 @@ pub async fn enrich_with_cached_identity(
         },
     };
 
-    if identity.user_id.to_uuid().is_err() {
-        tracing::warn!(
-            service = %service_name,
-            session_id = %session_id,
-            user_id = %identity.user_id,
-            "Stored proxy session identity has a non-UUID user id"
-        );
-        return req_context;
-    }
-
     tracing::info!(
         service = %service_name,
         session_id = %session_id,

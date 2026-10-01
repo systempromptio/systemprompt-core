@@ -148,8 +148,7 @@ fn map_client_credentials_error(client_id: &ClientId, error: ClientCredentialsEr
         ClientCredentialsError::UnknownAudience { audience, .. } => TokenError::InvalidTarget {
             message: format!("'{audience}' is not a known audience"),
         },
-        err @ (ClientCredentialsError::OwnerIdMalformed(_)
-        | ClientCredentialsError::UserProviderUnavailable(_)
+        err @ (ClientCredentialsError::UserProviderUnavailable(_)
         | ClientCredentialsError::SessionCreate(_)
         | ClientCredentialsError::JwtSign(_)
         | ClientCredentialsError::ConfigUnavailable(_)) => {

@@ -8,7 +8,6 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
@@ -85,11 +84,8 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
         anyhow::bail!("User '{}' is not an admin — refusing to mint", email);
     }
 
-    let user_uuid = Uuid::parse_str(user.id.as_str())
-        .with_context(|| format!("User id '{}' is not a valid UUID", user.id))?;
-
     let subject = PluginTokenSubject {
-        id: user_uuid,
+        id: user.id.clone(),
         username: user.name,
         email: user.email,
     };

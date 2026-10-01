@@ -23,7 +23,7 @@ pub mod identity;
 use std::sync::LazyLock;
 
 use serde_json::json;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId};
 use systemprompt_oauth::OauthError;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
@@ -83,12 +83,6 @@ pub enum DispatchOutcome {
 pub enum MessagingError {
     #[error("identity resolution failed")]
     Identity(#[source] UserError),
-    #[error("user id {user_id} is not a uuid")]
-    InvalidUserId {
-        user_id: UserId,
-        #[source]
-        source: uuid::Error,
-    },
     #[error("token minting failed")]
     Token(#[source] OauthError),
     #[error("could not encode the agent request")]
@@ -127,7 +121,7 @@ pub async fn dispatch_messaging(
         &inbound.sender.claims(),
     )
     .await?;
-    let authed = authenticated_user(&user)?;
+    let authed = authenticated_user(&user);
 
     let context_id =
         ContextId::derived_from_messaging(inbound.platform, &inbound.org_id, &inbound.channel_id);

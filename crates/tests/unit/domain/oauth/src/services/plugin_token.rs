@@ -3,7 +3,7 @@
 
 use base64::Engine;
 use jsonwebtoken::{Algorithm, decode_header};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission};
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_test_fixtures::install_test_signing_key;
@@ -12,7 +12,7 @@ const ISSUER: &str = "https://issuer.test";
 
 fn subject() -> PluginTokenSubject {
     PluginTokenSubject {
-        id: uuid::Uuid::parse_str("11111111-2222-3333-4444-555555555555").expect("uuid"),
+        id: UserId::new("11111111-2222-3333-4444-555555555555"),
         username: "Admin User".to_owned(),
         email: "admin@example.com".to_owned(),
     }

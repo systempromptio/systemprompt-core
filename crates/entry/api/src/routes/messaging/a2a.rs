@@ -18,7 +18,7 @@ use systemprompt_agent::models::a2a::protocol::MessageSendConfiguration;
 use systemprompt_agent::models::a2a::{
     A2aJsonRpcRequest, Message, MessageRole, MessageSendParams, Part, Task, TextPart,
 };
-use systemprompt_identifiers::{Actor, ContextId, JwtToken, MessageId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, ContextId, JwtToken, MessageId, SessionId, TraceId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::methods;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, JwtAudience, Permission};
@@ -41,21 +41,15 @@ pub fn permissions_for(roles: &[String]) -> Vec<Permission> {
     vec![Permission::A2a, held]
 }
 
-pub(super) fn authenticated_user(user: &User) -> Result<AuthenticatedUser, MessagingError> {
-    let id = uuid::Uuid::parse_str(user.id.as_str()).map_err(|source| {
-        MessagingError::InvalidUserId {
-            user_id: user.id.clone(),
-            source,
-        }
-    })?;
-    Ok(AuthenticatedUser {
-        id: UserId::from_uuid(id),
+pub(super) fn authenticated_user(user: &User) -> AuthenticatedUser {
+    AuthenticatedUser {
+        id: user.id.clone(),
         username: user.name.clone(),
         email: user.email.clone(),
         permissions: permissions_for(&user.roles),
         roles: user.roles.clone(),
         attributes: std::collections::BTreeMap::new(),
-    })
+    }
 }
 
 pub(super) fn mint_a2a_token(
