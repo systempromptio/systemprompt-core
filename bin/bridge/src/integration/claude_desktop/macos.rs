@@ -28,8 +28,25 @@ pub(super) const fn update_needs_approval(
 
 pub(super) fn read_domain(domain: &str) -> DomainRead {
     let mut out = DomainRead::default();
+    if let Err(e) = read_domain_into(domain, &mut out) {
+        out.keys.clear();
+        out.api_key_fp = None;
+        out.probe_error = Some(e);
+    }
+    out
+}
 
-    let plist_path = candidates(domain).into_iter().find(|p| p.exists());
+fn read_domain_into(domain: &str, out: &mut DomainRead) -> Result<(), String> {
+    let mut plist_path = None;
+    for candidate in candidates(domain) {
+        if candidate
+            .try_exists()
+            .map_err(|e| format!("{}: {e}", candidate.display()))?
+        {
+            plist_path = Some(candidate);
+            break;
+        }
+    }
 
     if let Some(path) = plist_path.as_ref() {
         out.source_path = Some(path.display().to_string());
@@ -37,11 +54,12 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
 
     let plist_json = plist_path
         .as_deref()
-        .and_then(read_plist_as_json)
+        .map(read_plist_as_json)
+        .transpose()?
         .unwrap_or(serde_json::Value::Null);
 
     for key in KEYS_OF_INTEREST {
-        if let Some(raw) = read_key_raw(&plist_json, domain, key) {
+        if let Some(raw) = read_key_raw(&plist_json, domain, key)? {
             if *key == API_KEY_KEY {
                 out.api_key_fp = Some(crate::proxy::secret::fingerprint(raw.trim()));
             }
@@ -49,8 +67,7 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
                 .insert((*key).to_owned(), redact_if_sensitive(key, raw));
         }
     }
-
-    out
+    Ok(())
 }
 
 pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::SysprocError> {
@@ -107,10 +124,10 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
 }
 
 pub(super) fn install_profile_unattended(_path: &str) -> std::io::Result<ProfileInstalled> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::PermissionDenied,
-        "a configuration profile is approved by the user in System Settings; use Repair",
-    ))
+    Err(crate::install::approval::ApprovalRefusal::NeedsPrompt {
+        reason: "a configuration profile is approved by the user in System Settings; use Repair",
+    }
+    .into())
 }
 
 fn candidates(domain: &str) -> Vec<PathBuf> {
@@ -129,7 +146,7 @@ fn candidates(domain: &str) -> Vec<PathBuf> {
 }
 
 // JSON: Claude Desktop plist — native preferences read back as JSON.
-fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
+fn read_plist_as_json(path: &Path) -> Result<serde_json::Value, String> {
     let output = Command::new("/usr/bin/plutil")
         .arg("-convert")
         .arg("json")
@@ -137,28 +154,34 @@ fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
         .arg("-")
         .arg(path)
         .output()
-        .ok()?;
+        .map_err(|e| format!("{}: run plutil: {e}", path.display()))?;
     if !output.status.success() {
-        return None;
+        return Err(format!(
+            "{}: plutil exited {}: {}",
+            path.display(),
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
     }
-    serde_json::from_slice(&output.stdout).ok()
+    serde_json::from_slice(&output.stdout).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 // JSON: Claude Desktop plist — native preferences read back as JSON.
-fn read_key_raw(plist_json: &serde_json::Value, _domain: &str, key: &str) -> Option<String> {
+fn read_key_raw(
+    plist_json: &serde_json::Value,
+    _domain: &str,
+    key: &str,
+) -> Result<Option<String>, String> {
     if let Some(val) = plist_json.get(key) {
-        return Some(format_plist_value(val));
+        return Ok(Some(format_plist_value(val)));
     }
 
     let raw = crate::config::store::managed_policy_store()
         .read_managed_policy(key)
-        .ok()
-        .flatten()?;
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    Some(trimmed.to_owned())
+        .map_err(|e| format!("read managed policy key {key}: {e}"))?;
+    Ok(raw
+        .map(|raw| raw.trim().to_owned())
+        .filter(|trimmed| !trimmed.is_empty()))
 }
 
 // Why: an array of objects (`allowedWorkspaceFolders`, `managedMcpServers`)

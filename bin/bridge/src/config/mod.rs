@@ -25,7 +25,7 @@ use crate::ids::DeploymentOrganizationUuid;
 pub use self::profile::{ClaudeConfig, gateway_url_or_default};
 pub use self::trust::{
     GatewayIdentity, PinSource, PinnedPubkeyState, SyncConfig, TrustError, TrustRecord,
-    persist_pinned_pubkey, pinned_pubkey, pinned_pubkey_state, policy_pubkey,
+    persist_pinned_pubkey, pinned_pubkey, pinned_pubkey_state,
 };
 pub use self::write::ConfigWriteError;
 

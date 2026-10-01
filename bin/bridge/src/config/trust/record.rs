@@ -73,7 +73,7 @@ impl PinSource {
     #[must_use]
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Policy => "policy (env or managed policy)",
+            Self::Policy => "managed policy",
             Self::Operator => "config file",
         }
     }

@@ -26,8 +26,12 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
         return out;
     }
 
-    let Ok(read) = managed_policy_store().read_managed_policy_keys(KEYS_OF_INTEREST) else {
-        return out;
+    let read = match managed_policy_store().read_managed_policy_keys(KEYS_OF_INTEREST) {
+        Ok(read) => read,
+        Err(e) => {
+            out.probe_error = Some(format!("read the Claude Desktop managed policy: {e}"));
+            return out;
+        },
     };
     if read.values.is_empty() {
         return out;
@@ -157,11 +161,11 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
                     differing = ?differing,
                     "machine policy holds other values; an unattended repair cannot replace it"
                 );
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::PermissionDenied,
-                    "the machine policy holds other values; replacing it needs administrator \
-                     approval — use Repair",
-                ));
+                return Err(crate::install::approval::ApprovalRefusal::NeedsPrompt {
+                    reason: "the machine policy holds other values; replacing it needs \
+                             administrator approval — use Repair",
+                }
+                .into());
             }
             tracing::warn!(
                 path,

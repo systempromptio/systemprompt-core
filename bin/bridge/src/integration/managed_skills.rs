@@ -195,7 +195,8 @@ fn write_state(root: &Path, state: &ManagedState) -> Result<(), ApplyError> {
         source: e,
     })?;
     let path = root.join(SIDECAR);
-    fs::write(&path, bytes).map_err(|e| io_err("write skills sidecar", &path, e))
+    crate::fsutil::atomic_write_0644(&path, &bytes)
+        .map_err(|e| io_err("write skills sidecar", &path, e))
 }
 
 fn write_skill(root: &Path, dir_name: &str, content: &str) -> Result<(), ApplyError> {
@@ -207,7 +208,8 @@ fn write_skill(root: &Path, dir_name: &str, content: &str) -> Result<(), ApplyEr
     {
         return Ok(());
     }
-    fs::write(&path, content).map_err(|e| io_err("write SKILL.md", &path, e))
+    crate::fsutil::atomic_write_0644(&path, content.as_bytes())
+        .map_err(|e| io_err("write SKILL.md", &path, e))
 }
 
 pub(crate) fn skill_markdown(skill: &SkillEntry) -> String {

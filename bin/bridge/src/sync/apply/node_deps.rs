@@ -147,7 +147,7 @@ pub fn install(plugin_dir: &Path) -> NodeInstall {
     match run_bounded(&mut command, tool) {
         Ok(()) => {
             let stamp = plugin_dir.join("node_modules").join(STAMP);
-            if let Err(error) = std::fs::write(&stamp, expected) {
+            if let Err(error) = crate::fsutil::atomic_write_0644(&stamp, expected.as_bytes()) {
                 return NodeInstall::Skipped {
                     reason: format!(
                         "{tool} finished but {} could not be written: {error}",

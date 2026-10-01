@@ -73,7 +73,7 @@ fn retain_drops_servers_that_left_the_manifest_and_keeps_the_rest() {
 }
 
 #[test]
-fn authenticated_probe_replaces_sorted_tools_while_failures_preserve_last_good_catalog() {
+fn authenticated_probe_replaces_sorted_tools_while_a_failed_probe_drops_the_stale_names() {
     use systemprompt_bridge::proxy::mcp_probe::{McpAuthState, McpServerAuth, McpTool};
 
     let state = TempDir::new().expect("state");
@@ -112,14 +112,27 @@ fn authenticated_probe_replaces_sorted_tools_while_failures_preserve_last_good_c
         assert_eq!(recorded["atlassian"], vec!["read_issue", "write_issue"]);
 
         let after_failure = tool_catalog::record(&[result(McpAuthState::UpstreamError, &[])])
-            .expect("failed probe preserves catalog");
-        assert_eq!(
-            after_failure["atlassian"],
-            vec!["read_issue", "write_issue"]
+            .expect("a failed probe is recorded");
+        assert!(
+            !after_failure.contains_key("atlassian"),
+            "names the latest probe did not confirm are never expanded under a wildcard"
         );
         assert_eq!(
             tool_catalog::read().expect("durable catalog"),
             after_failure
         );
     });
+}
+
+#[test]
+fn invalidating_the_catalog_leaves_it_empty_and_is_idempotent() {
+    let state = TempDir::new().expect("state");
+    let path = catalog_file(&state);
+    std::fs::write(&path, "{ not json").expect("seed");
+    in_sandbox(&state, || {
+        tool_catalog::invalidate().expect("invalidate");
+        assert!(tool_catalog::read().expect("absent is empty").is_empty());
+        tool_catalog::invalidate().expect("an absent catalog is already invalid");
+    });
+    assert!(!path.exists());
 }

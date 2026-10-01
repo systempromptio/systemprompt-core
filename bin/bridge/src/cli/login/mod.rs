@@ -187,7 +187,9 @@ fn enroll_device_after_login(ctx: &BridgeContext, gateway: Option<&str>) {
         let base_url = resolve_gateway(gateway)?;
         let client = ctx.gateway_client(base_url);
         let http = ctx.http.clone();
-        let install_id = ctx.install_id().clone();
+        let install_id = ctx.durable_install_id().cloned().ok_or_else(|| {
+            "the install identity could not be read, so this device is not enrolled".to_owned()
+        })?;
         ctx.block_on(async move {
             let live = crate::auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
                 .await

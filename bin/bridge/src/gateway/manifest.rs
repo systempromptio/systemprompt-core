@@ -10,7 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use base64::Engine;
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use ed25519_dalek::{Signature, VerifyingKey};
 
 pub use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
@@ -79,7 +79,7 @@ pub fn verify_envelope(
         .map_err(|_len| ManifestError::SignatureLengthMismatch)?;
     let signature = Signature::from_bytes(&sig_arr);
 
-    key.verify(envelope.payload.as_bytes(), &signature)
+    key.verify_strict(envelope.payload.as_bytes(), &signature)
         .map_err(ManifestError::Verify)
 }
 

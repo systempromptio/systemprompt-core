@@ -28,7 +28,7 @@ pub fn check_settings(origin: &str) -> Vec<Check> {
             "not enrolled; run install --host claude-code to create gateway settings",
         ));
     }
-    let config_dir = std::env::var_os(CONFIG_DIR_VAR).map(PathBuf::from);
+    let config_dir = claude_code_routing::config_dir_override();
     checks.push(check_effective_routing(&read_paths(config_dir.as_deref())));
     checks.extend(config_dir.as_deref().map(check_config_dir_override));
     checks.extend(check_env_credentials(|key| std::env::var_os(key).is_some()));

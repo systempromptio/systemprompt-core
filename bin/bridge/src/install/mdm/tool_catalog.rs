@@ -3,14 +3,15 @@
 //! entry says "every tool".
 //!
 //! Claude Desktop has no server-wide switch: `managedMcpServers[].toolPolicy`
-//! names tools one by one. The bridge already learns the names through its
-//! MCP auth probe (`initialize` → `tools/list`); this file remembers them so
-//! a policy write never depends on the server answering at that moment. A
-//! server that fails a probe keeps the names it reported last time. An
-//! absent file is an empty catalog; an unreadable or corrupt one is an error,
-//! never an empty catalog, so a transient read failure cannot wipe every
-//! server's names on the next write. Servers that leave the manifest are
-//! dropped so a retired server's names never leak into a later policy.
+//! names tools one by one. The bridge learns the names through its MCP auth
+//! probe (`initialize` → `tools/list`) and keeps only what the latest probe
+//! of each server confirmed: a server that fails a probe loses its names, so
+//! a wildcard over it is withheld rather than expanded over a list that may
+//! miss new tools. An absent file is an empty catalog; an unreadable or
+//! corrupt one is an error, never an empty catalog. A catalog that could not
+//! be refreshed is invalidated (removed) so no policy is projected over it.
+//! Servers that leave the manifest are dropped so a retired server's names
+//! never leak into a later policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -50,7 +51,11 @@ pub fn read() -> std::io::Result<ToolCatalog> {
 pub fn record(results: &[McpServerAuth]) -> std::io::Result<ToolCatalog> {
     let mut catalog = read()?;
     for result in results {
-        if result.state != McpAuthState::Authenticated || result.id.is_empty() {
+        if result.id.is_empty() {
+            continue;
+        }
+        if result.state != McpAuthState::Authenticated {
+            catalog.remove(&result.id);
             continue;
         }
         let mut names: Vec<String> = result.tools.iter().map(|t| t.name.clone()).collect();
@@ -77,4 +82,8 @@ pub fn retain(slugs: &[String]) -> std::io::Result<()> {
         crate::fsutil::atomic_write_0644(&path, format!("{body}\n").as_bytes())?;
     }
     Ok(())
+}
+
+pub fn invalidate() -> std::io::Result<()> {
+    path().map_or(Ok(()), |path| crate::fsutil::remove_verified(&path))
 }

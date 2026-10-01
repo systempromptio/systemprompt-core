@@ -320,7 +320,7 @@ fn a_staged_profile_yields_the_loopback_and_the_inference_facts() {
     let loopback = Loopback::from_entries(&entries).unwrap();
     assert_eq!(loopback.port, 48217);
     assert_eq!(loopback.host_token.as_str(), "tok");
-    let facts = facts_from_entries(&entries);
+    let facts = facts_from_entries(&entries).unwrap();
     assert_eq!(
         facts
             .headers
@@ -336,6 +336,14 @@ fn a_staged_profile_yields_the_loopback_and_the_inference_facts() {
     assert!(
         Loopback::from_entries(&[("inferenceProvider".to_owned(), "gateway".to_owned())]).is_err(),
         "a profile that names no proxy cannot become a request"
+    );
+    let malformed = [("inferenceCustomHeaders".to_owned(), "{ not json".to_owned())];
+    assert!(
+        matches!(
+            facts_from_entries(&malformed),
+            Err(PolicyWriterError::Io { .. })
+        ),
+        "malformed headers are an error, never an empty header map"
     );
 }
 

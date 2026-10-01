@@ -22,9 +22,13 @@ pub fn read_paths(config_dir: Option<&Path>) -> Vec<PathBuf> {
 }
 
 #[must_use]
+pub fn config_dir_override() -> Option<PathBuf> {
+    std::env::var_os(CONFIG_DIR_VAR).map(PathBuf::from)
+}
+
+#[must_use]
 pub fn effective_read_paths() -> Vec<PathBuf> {
-    let config_dir = std::env::var_os(CONFIG_DIR_VAR).map(PathBuf::from);
-    read_paths(config_dir.as_deref())
+    read_paths(config_dir_override().as_deref())
 }
 
 #[must_use]

@@ -3,6 +3,7 @@ import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtDurationLong } from "/assets/js/utils/format.js";
+import { activateRailTab } from "/assets/js/utils/rail-tabs.js";
 
 // Three pills, three verdicts, all computed by the bridge. Each one here is a
 // tone plus a catalogue lookup on the code.
@@ -28,10 +29,7 @@ function tokenPill(snap) {
 }
 
 function gotoStatus() {
-  const rail = document.querySelector("sp-rail");
-  if (rail && typeof rail.activateTab === "function") {
-    rail.activateTab("status");
-  }
+  activateRailTab("status");
 }
 
 export class SpAgentsStatus extends SpElement {

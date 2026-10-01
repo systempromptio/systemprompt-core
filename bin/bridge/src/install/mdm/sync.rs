@@ -39,11 +39,15 @@ fn write_empty_managed_mcp_servers(
 }
 
 // Why: Desktop's `toolPolicy` names tools one by one, so the policy write
-// needs each server's current tool list before it runs.
+// needs each server's current tool list before it runs. A catalog that could
+// not be refreshed is invalidated, so every wildcard over it is withheld from
+// the policy instead of expanded over names that may miss new tools.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-async fn refresh_tool_catalog(ctx: &crate::host_sync::HostSyncCtx<'_>) {
+async fn refresh_tool_catalog(
+    ctx: &crate::host_sync::HostSyncCtx<'_>,
+) -> Result<(), crate::host_sync::ApplyError> {
     if ctx.mcp_registry.is_empty() {
-        return;
+        return Ok(());
     }
     let results = crate::proxy::mcp_probe::probe_all(ctx.loopback, ctx.mcp_registry).await;
     let slugs: Vec<String> = ctx.mcp_registry.keys().cloned().collect();
@@ -59,18 +63,31 @@ async fn refresh_tool_catalog(ctx: &crate::host_sync::HostSyncCtx<'_>) {
             "mcp tool catalog refreshed for the desktop tool policy"
         ),
         Err(e) => {
+            if let Err(source) = super::tool_catalog::invalidate() {
+                return Err(crate::host_sync::ApplyError::Io {
+                    context: format!(
+                        "tool catalog not refreshed ({e}) and could not be invalidated; desktop \
+                         policy withheld"
+                    ),
+                    source,
+                });
+            }
             tracing::warn!(
                 target: "bridge::mdm",
                 error = %e,
-                "mcp tool catalog not written; desktop tool policy keeps its last names"
+                "mcp tool catalog not refreshed; wildcard tool policies are withheld"
             );
             ctx.warnings.push(
                 crate::host_sync::HostWarningKind::ToolCatalog,
                 "claude-desktop",
-                format!("tool catalog not updated ({e}); the tool policy keeps its last names"),
+                format!(
+                    "tool catalog not refreshed ({e}); managed connectors with a wildcard tool \
+                     policy are withheld until the next successful sync"
+                ),
             );
         },
     }
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]
@@ -133,7 +150,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<(), crate::host_sync::ApplyError> {
-        refresh_tool_catalog(ctx).await;
+        refresh_tool_catalog(ctx).await?;
         let inputs = super::MdmPayloadInputs {
             policy_store: ctx.policy_store,
             loopback: ctx.loopback,
@@ -142,10 +159,13 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         };
         #[cfg(target_os = "windows")]
         {
+            let config = crate::config::load().map_err(|e| crate::host_sync::ApplyError::Io {
+                context: "load the bridge config for the desktop policy's organization".to_owned(),
+                source: std::io::Error::other(e),
+            })?;
             let facts = crate::install::policy_writer::RequestFacts {
-                org_uuid: crate::config::load()
-                    .ok()
-                    .and_then(|cfg| cfg.deployment_organization_uuid)
+                org_uuid: config
+                    .deployment_organization_uuid
                     .map(|uuid| uuid.as_str().to_owned()),
                 ..Default::default()
             };

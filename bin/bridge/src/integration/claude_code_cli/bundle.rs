@@ -112,7 +112,8 @@ fn drop_standard_hooks_pointer(dst: &Path) -> Result<(), ApplyError> {
             source: e,
         }
     })?;
-    fs::write(&path, &bytes).map_err(|e| io_err(format!("write {}", path.display()), e))?;
+    crate::fsutil::atomic_write_0644(&path, &bytes)
+        .map_err(|e| io_err(format!("write {}", path.display()), e))?;
     Ok(())
 }
 

@@ -35,13 +35,12 @@ bin/bridge/src/auth/mod.rs  # <PREFIX>_PAT inline PAT presence probe for the cre
 bin/bridge/src/auth/providers/pat.rs  # <PREFIX>_PAT inline PAT
 bin/bridge/src/basedirs.rs  # HOME and XDG_CONFIG_HOME / XDG_CACHE_HOME / XDG_DATA_HOME / XDG_STATE_HOME base-directory probes
 bin/bridge/src/cli/args.rs  # __CFBundleIdentifier LaunchServices app-bundle launch probe (macOS GUI-by-default)
-bin/bridge/src/cli/doctor/claude_code.rs  # CLAUDE_CONFIG_DIR and ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN presence probes: the doctor reports what the shell's Claude Code will read
+bin/bridge/src/cli/doctor/claude_code.rs  # ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN presence probes: the doctor reports what the shell's Claude Code will read
 bin/bridge/src/config/mod.rs  # <PREFIX>_CONFIG config-file path
 bin/bridge/src/sysproc.rs  # PATH lookup for host tool binaries
 bin/bridge/src/config/paths/dirs.rs  # LOCALAPPDATA / USERPROFILE Windows folder probes
 bin/bridge/src/config/paths/mod.rs  # <PREFIX>_ORG_PLUGINS_SYSTEM system org-plugins root; ProgramFiles / ProgramData / LOCALAPPDATA Windows folder probes
 bin/bridge/src/config/store/macos_plist_store.rs  # USER for the per-user managed-preferences plist path (macOS)
-bin/bridge/src/config/trust/policy.rs  # <PREFIX>_POLICY_TRUST managed trust record and <PREFIX>_POLICY_PUBKEY pinned pubkey overrides
 bin/bridge/src/i18n.rs  # LANG locale probe for GUI language selection
 bin/bridge/src/install/bootstrap/unix.rs  # SUDO_USER to resolve the invoking user under sudo
 bin/bridge/src/install/mdm/egress.rs  # <PREFIX>_EGRESS_ALLOWED_HOSTS Cowork egress allowlist when --egress-allowed-hosts is absent
@@ -51,6 +50,7 @@ bin/bridge/src/install/mdm/windows/mod.rs  # USERPROFILE Windows home probe for 
 bin/bridge/src/integration/app_launch/mod.rs  # PATH lookup for the host app binary
 bin/bridge/src/integration/claude_desktop/macos.rs  # USER for the Claude Desktop per-user managed preferences (macOS)
 bin/bridge/src/integration/claude_desktop/mod.rs  # LOCALAPPDATA Claude Desktop install probe (Windows)
+bin/bridge/src/integration/claude_code_routing.rs  # CLAUDE_CONFIG_DIR (Claude Code-defined config-dir override): which user settings file this user's Claude Code reads
 bin/bridge/src/integration/codex_cli/config.rs  # CODEX_HOME / CODEX_SYSTEM_CONFIG (Codex-defined home overrides); USER for the per-user config path
 bin/bridge/src/integration/hermes/config.rs  # HERMES_HOME (Hermes-defined home override)
 bin/bridge/src/integration/opencode/config.rs  # ProgramData / APPDATA Windows folder probes; USER for the per-user config path; SP_BRIDGE_OPENCODE_MANAGED_DIR managed-dir override via basedirs::env_dir

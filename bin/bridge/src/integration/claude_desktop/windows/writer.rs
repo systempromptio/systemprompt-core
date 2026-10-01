@@ -43,7 +43,7 @@ pub(super) fn install_through_writer(
         loopback,
         &fragment,
         catalog,
-        policy_writer::facts_from_entries(entries),
+        policy_writer::facts_from_entries(entries)?,
         requester,
     );
     policy_writer::write_policy(&request)?;

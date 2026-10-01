@@ -35,6 +35,15 @@ pub enum ElevationError {
     Spawn(#[from] std::io::Error),
 }
 
+impl From<ElevationError> for std::io::Error {
+    fn from(error: ElevationError) -> Self {
+        match error {
+            ElevationError::UserCancelled => super::approval::ApprovalRefusal::Declined.into(),
+            other => Self::other(other),
+        }
+    }
+}
+
 pub(crate) fn run_privileged(script: &str, prompt: &str) -> Result<(), ElevationError> {
     if std::io::stdin().is_terminal() {
         sudo_direct(script)

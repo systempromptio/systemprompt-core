@@ -78,8 +78,15 @@ async fn ensure_device_enrolled(
     if crate::feedback::credentials::Enrollment::load(&root, fetch.client.base_url_str()).is_ok() {
         return;
     }
+    let Some(install_id) = bridge.durable_install_id() else {
+        tracing::warn!(
+            "install identity is not durable; device self-enrolment skipped so a throwaway \
+             identity is never enrolled"
+        );
+        return;
+    };
     let enrolment = crate::feedback::enrol::SelfEnrolment {
-        install_id: bridge.install_id().as_str(),
+        install_id: install_id.as_str(),
         user_id,
         label: crate::sysproc::host_name(),
         force_rotate: false,
@@ -182,20 +189,12 @@ pub async fn run_once(
     let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
     let last_sync_path = meta.join(paths::LAST_SYNC_SENTINEL);
     let now = chrono::Utc::now();
-    let last_state = acceptance::accept(&synced, &run_gateway, force_replay)?;
-    if !force_replay {
-        if last_state.manifest_version.as_ref() == Some(&synced.manifest_version) {
-            ensure_not_superseded(&run_gateway)?;
-            if let Err(error) =
-                crate::feedback::recover_current_manifest(fetch.client.base_url_str(), &synced)
-                    .await
-            {
-                tracing::debug!(%error, "Pending installation recovery remains unacknowledged");
-            }
-        }
-        check_replay(&last_state, &synced.manifest_version)?;
-    }
-    ensure_not_superseded(&run_gateway)?;
+    let last_state = acceptance::accept(
+        &synced,
+        &run_gateway,
+        force_replay,
+        acceptance::CurrentVersion::Replay,
+    )?;
     persist_envelope(&fetch)?;
 
     let request = apply::ApplyRequest {

@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 use crate::config;
 use crate::context::BridgeContext;
+use crate::install::approval::ApprovalRefusal;
 use crate::integration::host_app::{HostApp, ProbeEnv, ProfileGenInputs};
 use crate::integration::profile_state::ProfileState;
 
@@ -172,7 +173,7 @@ async fn reapply_one(
     };
     match installed {
         Ok(installed) => (verify(host, env), installed.warnings),
-        Err(e) if is_declined(&e) => (Outcome::Declined, Vec::new()),
+        Err(e) if ApprovalRefusal::of(&e).is_some() => (Outcome::Declined, Vec::new()),
         Err(e) => (Outcome::Failed(e.to_string()), Vec::new()),
     }
 }
@@ -183,11 +184,6 @@ fn verify(host: &'static dyn HostApp, env: &ProbeEnv) -> Outcome {
     } else {
         Outcome::Pending
     }
-}
-
-pub(crate) fn is_declined(e: &std::io::Error) -> bool {
-    e.kind() == std::io::ErrorKind::PermissionDenied
-        || e.to_string().contains("cancelled the administrator")
 }
 
 #[must_use]

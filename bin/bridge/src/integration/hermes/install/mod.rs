@@ -49,11 +49,7 @@ pub fn install_profile_into(
         write_env_key(&config::env_path_in(hermes_home), config::ENV_API_KEY, &key)?;
     }
 
-    let target = config::config_yaml_path_in(hermes_home);
-    if let Some(parent) = target.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    merge::install(&source, &target)
+    merge::install(&source, &config::config_yaml_path_in(hermes_home))
 }
 
 pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
@@ -114,12 +110,9 @@ fn write_env_key(path: &std::path::Path, key: &str, value: &str) -> std::io::Res
     if !replaced {
         lines.push(format!("{key}={value}"));
     }
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
     let mut body = lines.join("\n");
     body.push('\n');
-    std::fs::write(path, body)
+    crate::fsutil::atomic_write_0600(path, body.as_bytes())
 }
 
 fn remove_env_key(path: &std::path::Path, key: &str) -> std::io::Result<bool> {
@@ -137,11 +130,11 @@ fn remove_env_key(path: &std::path::Path, key: &str) -> std::io::Result<bool> {
         return Ok(false);
     }
     if kept.iter().all(|l| l.trim().is_empty()) {
-        std::fs::remove_file(path)?;
+        crate::fsutil::remove_verified(path)?;
         return Ok(true);
     }
     let mut body = kept.join("\n");
     body.push('\n');
-    std::fs::write(path, body)?;
+    crate::fsutil::atomic_write_0600(path, body.as_bytes())?;
     Ok(true)
 }

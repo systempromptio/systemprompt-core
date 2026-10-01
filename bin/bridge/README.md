@@ -69,18 +69,18 @@ A bare invocation with no subcommand is `run`; the GUI opens by default only whe
 
 ## Security posture
 
-- **Manifest trust.** `install --apply --pubkey <base64>` provisions administrator trust in the brand’s policy location. Operator trust uses a gateway-bound `[sync.trust]` record; a key that is not bound to the configured gateway is never adopted. `sync --allow-unsigned` is refused once a pin exists for the gateway.
+- **Manifest trust.** `install --apply --pubkey <base64>` provisions administrator trust in the brand’s policy location; that `manifestTrust` record is the only administrator channel, and no environment variable or user-writable file can supply or outrank it. Operator trust uses a gateway-bound `[sync.trust]` record; a key that is not bound to the configured gateway is never adopted. `sync --allow-unsigned` is refused once a pin exists for the gateway.
 - **Windows machine policy without a prompt per change.** Claude Desktop reads its connector list from `HKLM\SOFTWARE\Policies\Claude`, which only an elevated process may write. An elevated `install --apply` that holds a pinned gateway key (`--pubkey`, or the operator pin carried up into `manifestTrust` in the machine hive) also registers a Task Scheduler task — `<Brand>BridgePolicyWriter`, principal SYSTEM, no triggers, runnable by authenticated users but editable only by administrators — that runs an administrator-owned copy of the bridge under `%ProgramData%\<brand>\policy-writer\bin`. A later sync or a Claude Desktop update drops a request in the writer's inbox and runs the task; the writer verifies the request's manifest envelope against the machine anchor and derives the server list from what it verified, so a user cannot add a server, change a tool policy, or point the task at another binary. The result is read back and the hive compared against the same derivation before success is reported. No anchor, no writer: the install says so, and connector changes fall back to the approval prompt. `doctor` reports the writer's state.
 - **Distinct JWT audience.** Bridge tokens use the audiences selected by the gateway credential exchange. Acceptance is determined by the receiving route’s audience and authorization policies.
 - **Replay protection.** Manifests carry a signed `not_before` field; sync rejects `manifest_version` ≤ last applied or `not_before` outside ±5 min skew.
-- **RFC 8785 (JCS) canonical JSON** for signature input. Field-order stability is contract, not coincidence.
+- **Signature input is the payload string as signed.** The gateway signs the manifest's RFC 8785 (JCS) canonical JSON and the envelope carries that exact string; the bridge verifies those bytes with strict Ed25519 verification (non-canonical signatures and weak keys refused) and parses the manifest only afterwards, never re-canonicalising it.
 - **Loopback proxy** validates a constant-time-compared credential on every inbound path except `/healthz` and `/__bridge/whoami`, and rejects non-loopback `Host` headers.
 - **Auto-update policy is fail-closed.** The last-sync sentinel carries the organisation's `AutoUpdatePolicy`; when it is unreadable, corrupt, or written by another gateway the bridge withholds automatic staging and records a start-up fault instead of falling back to the staged default.
 - **Uninstall removes only what the bridge wrote.** Plugins, policy values and marketplace entries are removed from the sidecar records the bridge keeps; foreign entries are reported and left in place.
 
 ### Loopback credentials
 
-The loopback secret (`<config_dir>/<brand>/bridge-loopback.key`, mode 0600) is the root credential and is only ever written to bridge-owned 0600 files: the OpenCode `auth.json`, the Hermes `.env`, the Codex credential helper, and the Linux `env.sh`. Every surface another local account can read carries a token derived from it with a domain-separated HMAC-SHA256 (`src/proxy/scoped_token.rs`), so a leaked file grants only what that surface needs and a secret reset invalidates every derived token at once:
+The loopback secret (`<config_dir>/<brand>/bridge-loopback.key`, mode 0600) is the root credential. The CLI hosts never receive it: the OpenCode `auth.json`, the Hermes `.env` and `config.yaml`, the Codex credential helper and the Linux `env.sh` carry that host's `host:<id>` token, and the OpenCode and Hermes files are written atomically as 0600 and read back. Every surface another local account can read carries a token derived from it with a domain-separated HMAC-SHA256 (`src/proxy/scoped_token.rs`), so a leaked file grants only what that surface needs and a secret reset invalidates every derived token at once:
 
 | Surface | Credential | Accepted on |
 |---|---|---|
@@ -162,13 +162,12 @@ under *Add agent* rather than listed with a status.
 |---|---|
 | `SP_BRIDGE_CONFIG` | Path to `systemprompt-bridge.toml` (default: `<config_dir>/systemprompt/systemprompt-bridge.toml`) |
 | `SP_BRIDGE_PAT` | Inline PAT (overrides file-based `[pat]`) |
-| `SP_BRIDGE_POLICY_TRUST` | Managed manifest trust record as JSON (`{"gateway","key","source"}`); takes precedence over the OS policy store `manifestTrust` key |
 | `SP_BRIDGE_ORG_PLUGINS_SYSTEM` | Override the system-scope org-plugins root (nonstandard installs, hermetic tests) |
 | `SP_BRIDGE_EGRESS_ALLOWED_HOSTS` | Comma-separated Cowork egress allowlist for `install --apply` when `--egress-allowed-hosts` is absent; `loopback` expands to `127.0.0.1` |
 | `SP_BRIDGE_LOG_FORMAT` | `json` for structured logs; default human-readable |
 | `RUST_LOG` | `tracing` filter directive; default `info,systemprompt_bridge::proxy=debug`. A malformed value fails start-up |
 
-The `SP_BRIDGE_` prefix is the brand's `env_prefix`; a white-label build reads the same suffixes under its own prefix. Every other environment read is an OS directory or identity probe (`HOME`, `XDG_CONFIG_HOME`/`XDG_CACHE_HOME`/`XDG_DATA_HOME`/`XDG_STATE_HOME`, `USER`, `SUDO_USER`, `HOSTNAME`/`COMPUTERNAME`, `LANG`, `PATH`, and the Windows `LOCALAPPDATA`/`APPDATA`/`USERPROFILE`/`ProgramData`/`ProgramFiles` folders) or a home override the managed host tool itself defines (`CODEX_HOME`, `CODEX_SYSTEM_CONFIG`, `HERMES_HOME`). Bridge behaviour is never switched by an undocumented variable; `just lint-env-vars` holds that line.
+The `SP_BRIDGE_` prefix is the brand's `env_prefix`; a white-label build reads the same suffixes under its own prefix. Every other environment read is an OS directory or identity probe (`HOME`, `XDG_CONFIG_HOME`/`XDG_CACHE_HOME`/`XDG_DATA_HOME`/`XDG_STATE_HOME`, `USER`, `SUDO_USER`, `HOSTNAME`/`COMPUTERNAME`, `LANG`, `PATH`, and the Windows `LOCALAPPDATA`/`APPDATA`/`USERPROFILE`/`ProgramData`/`ProgramFiles` folders) or a home override the managed host tool itself defines (`CODEX_HOME`, `CODEX_SYSTEM_CONFIG`, `HERMES_HOME`, `CLAUDE_CONFIG_DIR`). Bridge behaviour is never switched by an undocumented variable; `just lint-env-vars` holds that line.
 
 Cache lives at the OS cache dir under `systemprompt-bridge/cache.json` (mode 0600 on Unix).
 

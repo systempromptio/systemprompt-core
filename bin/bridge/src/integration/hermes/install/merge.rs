@@ -12,6 +12,8 @@ use std::path::Path;
 
 use serde_yaml::Value;
 
+use crate::host_sync::ForeignShape;
+
 const OWNED_MODEL_KEYS: &[&str] = &["provider", "default"];
 const MODEL_TABLE: &str = "model";
 const PROVIDERS_TABLE: &str = "providers";
@@ -36,13 +38,19 @@ pub(super) fn install(source: &Value, target: &Path) -> std::io::Result<()> {
         serde_yaml::from_str(&existing_text).map_err(io_invalid)?
     };
     if !matches!(merged, Value::Mapping(_)) {
-        merged = Value::Mapping(serde_yaml::Mapping::new());
+        return Err(ForeignShape {
+            path: target.display().to_string(),
+            key: "<root>".to_owned(),
+            found: "not a mapping",
+            expected: "a mapping",
+        }
+        .into());
     }
 
     strip_owned(&mut merged);
     deep_merge(&mut merged, source);
 
-    write_atomic(target, &merged)
+    write_private(target, &merged)
 }
 
 pub(super) fn uninstall(target: &Path) -> std::io::Result<bool> {
@@ -63,22 +71,16 @@ pub(super) fn uninstall(target: &Path) -> std::io::Result<bool> {
 
     let empty = matches!(&value, Value::Mapping(m) if m.is_empty());
     if empty {
-        std::fs::remove_file(target)?;
+        crate::fsutil::remove_verified(target)?;
         return Ok(true);
     }
-    write_atomic(target, &value)?;
+    write_private(target, &value)?;
     Ok(true)
 }
 
-fn write_atomic(target: &Path, value: &Value) -> std::io::Result<()> {
+fn write_private(target: &Path, value: &Value) -> std::io::Result<()> {
     let rendered = serde_yaml::to_string(value).map_err(io_invalid)?;
-    if let Some(parent) = target.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let tmp = target.with_extension(format!("yaml.tmp.{}", std::process::id()));
-    std::fs::write(&tmp, rendered)?;
-    std::fs::rename(&tmp, target)?;
-    Ok(())
+    crate::fsutil::atomic_write_0600(target, rendered.as_bytes())
 }
 
 fn strip_owned(target: &mut Value) {

@@ -25,6 +25,8 @@ use super::mdm::MdmError;
 use super::mdm::tool_catalog::ToolCatalog;
 use crate::ids::HostToken;
 
+pub use self::request::facts_from_entries;
+
 #[cfg(target_os = "windows")]
 pub(crate) use self::child::perform_task;
 #[cfg(target_os = "windows")]
@@ -279,20 +281,9 @@ impl Loopback {
     }
 }
 
-fn entry_value(entries: &[(String, String)], name: &str) -> Option<String> {
+pub(super) fn entry_value(entries: &[(String, String)], name: &str) -> Option<String> {
     entries
         .iter()
         .find(|(key, _)| key == name)
         .map(|(_, value)| value.clone())
-}
-
-#[must_use]
-pub fn facts_from_entries(entries: &[(String, String)]) -> RequestFacts {
-    RequestFacts {
-        headers: entry_value(entries, "inferenceCustomHeaders")
-            .and_then(|raw| serde_json::from_str(&raw).ok())
-            .unwrap_or_default(),
-        models: entry_value(entries, "inferenceModels"),
-        org_uuid: entry_value(entries, "deploymentOrganizationUuid"),
-    }
 }

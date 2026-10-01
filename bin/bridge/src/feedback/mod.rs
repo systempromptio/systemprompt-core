@@ -13,10 +13,7 @@ pub mod sessions;
 mod sync;
 pub mod transport;
 
-pub use sync::{
-    RecoveryProgress, deliver, recover_current_manifest, recover_manifest_installations,
-    recover_pending, retry_pending,
-};
+pub use sync::{RecoveryProgress, deliver, recover_pending, retry_pending};
 
 #[derive(Debug, thiserror::Error)]
 pub enum FeedbackError {

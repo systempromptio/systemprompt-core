@@ -17,12 +17,14 @@ use crate::stdio::diag;
 use crate::{install, stdio};
 
 pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
-    let print_mdm = parse_opt_flag(args, "--print-mdm")
-        .as_deref()
-        .and_then(Os::parse);
-    let emit_sched = parse_opt_flag(args, "--emit-schedule-template")
-        .as_deref()
-        .and_then(Os::parse);
+    let print_mdm = match os_flag(args, "--print-mdm") {
+        Ok(os) => os,
+        Err(code) => return code,
+    };
+    let emit_sched = match os_flag(args, "--emit-schedule-template") {
+        Ok(os) => os,
+        Err(code) => return code,
+    };
     let gateway = match parse_opt_flag(args, "--gateway") {
         Some(raw) => match ValidatedUrl::try_new(raw.trim()) {
             Ok(url) => Some(url),
@@ -135,4 +137,16 @@ fn enrol_selected(ctx: &BridgeContext, selection: &Selection) -> ExitCode {
             ExitCode::from(64)
         },
     }
+}
+
+fn os_flag(args: &[String], flag: &str) -> Result<Option<Os>, ExitCode> {
+    let Some(raw) = parse_opt_flag(args, flag) else {
+        return Ok(None);
+    };
+    Os::parse(&raw).map(Some).ok_or_else(|| {
+        diag(&format!(
+            "{flag}: expected macos, windows or linux, got {raw:?}"
+        ));
+        ExitCode::from(64)
+    })
 }
