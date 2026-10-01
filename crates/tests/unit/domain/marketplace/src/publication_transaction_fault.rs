@@ -10,10 +10,8 @@ use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
 
 #[tokio::test]
 async fn final_outbox_write_failure_rolls_back_publication_then_identical_retry_commits() {
-    let db = DisposableDb::installed("publication_outbox_rollback")
-        .await
-        .expect("isolated database");
-    let pool = db.pool().await.expect("database pool");
+    let db = DisposableDb::with_schema("publication_outbox_rollback").await;
+    let pool = db.test_pool().await;
     let raw = pool.write_pool_arc().expect("write pool");
     let owner = UserId::new(format!("publication-tx-{}", uuid::Uuid::new_v4()));
     seed_user_row(&pool, &owner, &format!("{owner}@publication-tx.invalid"))

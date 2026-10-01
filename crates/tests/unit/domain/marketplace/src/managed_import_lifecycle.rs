@@ -2,7 +2,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::managed::{
     ManagedRepository, ResourceKind, SourceSpec, capture_skills,
 };
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 fn write_skill(root: &std::path::Path, id: &str, instructions: &str) {
     let skill = root.join("skills").join(id);
@@ -19,8 +19,8 @@ fn write_skill(root: &std::path::Path, id: &str, instructions: &str) {
 
 #[tokio::test]
 async fn importing_captured_skills_retains_one_snapshot_and_immutable_files_per_skill() {
-    let bootstrap = ensure_test_bootstrap();
-    let db = fixture_db_pool(&bootstrap.database_url).await.unwrap();
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
     let owner = UserId::new(format!("import-owner-{}", uuid::Uuid::new_v4()));
     seed_user_row(&db, &owner, &format!("{owner}@managed.invalid"))
         .await

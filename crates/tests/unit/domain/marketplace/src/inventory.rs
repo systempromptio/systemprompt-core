@@ -10,7 +10,7 @@ use systemprompt_marketplace::managed::{
 };
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
 use systemprompt_models::services::ServicesConfig;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 struct Fixture {
     repository: ManagedRepository,
@@ -19,10 +19,8 @@ struct Fixture {
 }
 impl Fixture {
     async fn new() -> Self {
-        let bootstrap = ensure_test_bootstrap();
-        let db = fixture_db_pool(&bootstrap.database_url)
-            .await
-            .expect("database");
+        ensure_test_bootstrap();
+        let db = test_db_pool().await;
         let owner = UserId::new(uuid::Uuid::new_v4().to_string());
         seed_user_row(&db, &owner, &format!("{owner}@inventory.invalid"))
             .await

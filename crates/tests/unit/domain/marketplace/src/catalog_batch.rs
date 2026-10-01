@@ -68,9 +68,7 @@ async fn bind_second_skill(f: &Fixture, key: &str) -> (ManagedResourceId, Resour
 
 #[tokio::test]
 async fn batched_resolution_matches_the_per_key_states_and_bundles() {
-    let Some(f) = fixture().await else {
-        return;
-    };
+    let f = fixture().await;
     publish(&f).await;
     let withdrawn_key = format!("{}_withdrawn", f.key);
     let (withdrawn_resource, withdrawn_revision) = bind_second_skill(&f, &withdrawn_key).await;
@@ -163,11 +161,9 @@ async fn batched_resolution_matches_the_per_key_states_and_bundles() {
 
 #[tokio::test]
 async fn the_overlay_withholds_revoked_keys_for_that_consumer_only() {
-    let Some(f) = fixture().await else {
-        return;
-    };
-    let revoked = fixture().await.expect("revoked consumer");
-    let granted = fixture().await.expect("granted consumer");
+    let f = fixture().await;
+    let revoked = fixture().await;
+    let granted = fixture().await;
     publish(&f).await;
     let stamp_before = f
         .repository
@@ -235,10 +231,8 @@ async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored
     use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
     use uuid::Uuid;
 
-    let database = DisposableDb::installed("managed_catalog_integrity_recovery")
-        .await
-        .expect("isolated managed catalog database");
-    let pool = database.pool().await.expect("managed catalog pool");
+    let database = DisposableDb::with_schema("managed_catalog_integrity_recovery").await;
+    let pool = database.test_pool().await;
     let owner = UserId::new(format!("catalog-owner-{}", Uuid::new_v4().simple()));
     seed_user_row(
         &pool,

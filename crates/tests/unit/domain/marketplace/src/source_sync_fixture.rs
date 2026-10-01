@@ -9,7 +9,7 @@ use systemprompt_marketplace::managed::{
     GitSyncResult, GitSynchronizationService, ManagedError, ManagedRepository, NewResource,
     PublicationAction, PublicationRequest, ResourceKind, Result, RevisionFiles, SourceSpec,
 };
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 /// The provenance retained for a snapshot, read straight from its row.
 pub(super) async fn stored_provenance(
@@ -65,10 +65,8 @@ pub(super) struct Fixture {
 }
 impl Fixture {
     pub async fn new() -> Self {
-        let bootstrap = ensure_test_bootstrap();
-        let db = fixture_db_pool(&bootstrap.database_url)
-            .await
-            .expect("source sync database required");
+        ensure_test_bootstrap();
+        let db = test_db_pool().await;
         let owner = UserId::new(uuid::Uuid::new_v4().to_string());
         seed_user_row(&db, &owner, &format!("{owner}@source-sync.invalid"))
             .await

@@ -21,10 +21,8 @@ fn files(bytes: &[u8]) -> RevisionFiles {
 
 #[tokio::test]
 async fn source_registration_and_resource_binding_reject_conflicting_identity() {
-    let database = DisposableDb::installed("managed_source_identity")
-        .await
-        .expect("private database");
-    let db = database.pool().await.expect("private pool");
+    let database = DisposableDb::with_schema("managed_source_identity").await;
+    let db = database.test_pool().await;
     let owner = UserId::new(Uuid::new_v4().to_string());
     seed_user_row(&db, &owner, &format!("{owner}@managed.invalid"))
         .await
@@ -90,10 +88,8 @@ async fn source_registration_and_resource_binding_reject_conflicting_identity() 
 
 #[tokio::test]
 async fn revision_creation_rejects_invalid_lineage_and_dependency_digest() {
-    let database = DisposableDb::installed("managed_revision_integrity")
-        .await
-        .expect("private database");
-    let db = database.pool().await.expect("private pool");
+    let database = DisposableDb::with_schema("managed_revision_integrity").await;
+    let db = database.test_pool().await;
     let owner = UserId::new(Uuid::new_v4().to_string());
     seed_user_row(&db, &owner, &format!("{owner}@managed.invalid"))
         .await

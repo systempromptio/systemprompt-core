@@ -639,13 +639,8 @@ fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
 #[test]
 fn seal_round_trips_against_published_pubkey() {
     ensure_bootstrap();
-    let pubkey_b64 = match manifest_signing::pubkey_b64() {
-        Ok(k) => k,
-        Err(e) => {
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
+    let pubkey_b64 = manifest_signing::pubkey_b64()
+        .expect("ensure_bootstrap installs the manifest signing secret");
 
     let version =
         ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");
@@ -680,10 +675,7 @@ fn seal_round_trips_against_published_pubkey() {
 #[test]
 fn seal_is_deterministic_for_identical_manifests() {
     ensure_bootstrap();
-    if manifest_signing::pubkey_b64().is_err() {
-        eprintln!("skipping: secrets bootstrap unavailable in this env");
-        return;
-    }
+    manifest_signing::pubkey_b64().expect("ensure_bootstrap installs the manifest signing secret");
 
     let version =
         ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");

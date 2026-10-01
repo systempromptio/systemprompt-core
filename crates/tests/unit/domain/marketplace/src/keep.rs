@@ -22,7 +22,7 @@ use systemprompt_marketplace::{
 use systemprompt_models::bridge::ids::{PluginId, SkillId};
 use systemprompt_models::bridge::manifest::{PluginEntry, SkillEntry};
 use systemprompt_security::authz::{AccessControlRepository, NO_SUBJECT_ATTRIBUTES};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 struct Fixture {
@@ -36,10 +36,8 @@ struct Fixture {
 }
 
 async fn setup() -> Fixture {
-    let b = ensure_test_bootstrap();
-    let db = fixture_db_pool(&b.database_url)
-        .await
-        .expect("the keep_sets tests need a reachable test database");
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
     let pg = db.pool_arc().expect("read pool");
     let tag = Uuid::new_v4().simple().to_string();
     let fixture = Fixture {

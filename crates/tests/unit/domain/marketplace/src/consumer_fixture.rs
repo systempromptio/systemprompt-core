@@ -11,7 +11,7 @@ use systemprompt_models::feedback::receipts::{
     ConsumerReceiptRequest, FileReadback, ReadbackStatus, SessionBindingRequest,
 };
 use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 pub struct Fixture {
     pub repo: ManagedRepository,
@@ -28,10 +28,8 @@ pub async fn fixture() -> Fixture {
 }
 
 pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
-    let bootstrap = ensure_test_bootstrap();
-    let db = fixture_db_pool(&bootstrap.database_url)
-        .await
-        .expect("database required");
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
     let pool = db.write_pool_arc().expect("write pool").as_ref().clone();
     let owner = UserId::new(uuid::Uuid::new_v4().to_string());
     let consumer = UserId::new(uuid::Uuid::new_v4().to_string());
