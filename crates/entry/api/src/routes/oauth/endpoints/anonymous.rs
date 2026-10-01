@@ -115,7 +115,8 @@ pub async fn generate_anonymous_token(
 
     let validation = validator
         .validate_client(&client_id, req.redirect_uri.as_deref())
-        .await?;
+        .await
+        .map_err(|e| internal::reclassify(e, OAuthHttpError::invalid_client))?;
     let client_type = validation.client_type();
 
     let session_service = build_session_service(&state);

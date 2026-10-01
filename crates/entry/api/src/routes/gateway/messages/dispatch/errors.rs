@@ -5,7 +5,8 @@
 //! provider-shaped answer: a rendered envelope for the failures that carry
 //! their own headers or body, or a [`RejectionError`] the handler renders
 //! through the inbound wire. Classification is a `match` on the variant; a 5xx
-//! never carries the error's own text.
+//! never carries the error's own text, and every rejection keeps the error as
+//! its logged cause, so a fixed public message never costs the diagnosis.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -101,11 +102,7 @@ fn render_error(error: &GatewayError) -> Option<Response<Body>> {
 }
 
 pub fn classify_dispatch_error(error: GatewayError) -> RejectionError {
-    let rejection = classify_dispatch_error_ref(&error);
-    if rejection.status.is_server_error() {
-        return rejection.with_cause(error);
-    }
-    rejection
+    classify_dispatch_error_ref(&error).with_cause(error)
 }
 
 fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {

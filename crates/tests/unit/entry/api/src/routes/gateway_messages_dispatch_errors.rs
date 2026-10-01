@@ -97,7 +97,10 @@ fn an_internal_failure_is_a_502_that_never_renders_its_cause() {
 #[test]
 fn an_unconfigured_provider_secret_is_a_non_retryable_404() {
     let RejectionError {
-        status, message, ..
+        status,
+        message,
+        cause,
+        ..
     } = classify_dispatch_error(GatewayError::from(UpstreamTargetError::MissingSecret {
         provider: "vertex-maas".to_owned(),
         secret: "vertex_maas".to_owned(),
@@ -109,6 +112,10 @@ fn an_unconfigured_provider_secret_is_a_non_retryable_404() {
     assert!(
         !message.contains("vertex_maas"),
         "the secret name is deployment detail and must not reach the client"
+    );
+    assert!(
+        cause.is_some_and(|cause| cause.to_string().contains("vertex_maas")),
+        "the operator still learns which secret is missing from the logged cause"
     );
 }
 

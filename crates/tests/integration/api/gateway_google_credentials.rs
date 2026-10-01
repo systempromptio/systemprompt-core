@@ -82,8 +82,12 @@ gateway:
             if matches!(outcome, Outcome::Unservable) {
                 assert_eq!(status, http::StatusCode::NOT_FOUND, "{body}");
                 assert!(
-                    body.contains("declares a Google service account but is malformed"),
+                    body.contains("The requested model is not served by this gateway"),
                     "{body}"
+                );
+                assert!(
+                    !body.contains("coverage_google_key"),
+                    "the secret name stays in the log, not the client body: {body}"
                 );
             } else {
                 assert!(status.is_server_error(), "{status}: {body}");

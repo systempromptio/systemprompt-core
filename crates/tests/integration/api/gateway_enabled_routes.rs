@@ -436,7 +436,8 @@ async fn a_routed_model_with_no_provider_key_fails_closed() -> anyhow::Result<()
     // extraction and route resolution and then fails closed at credential
     // resolution. A 5xx would make SDK clients retry a request that can never
     // succeed; 404 not_found_error is what upstream providers answer for a
-    // model they do not serve.
+    // model they do not serve. Which secret is missing is operator detail: it
+    // is the rejection's logged cause, not part of the answer.
     assert_eq!(
         status.as_u16(),
         404,
@@ -448,8 +449,12 @@ async fn a_routed_model_with_no_provider_key_fails_closed() -> anyhow::Result<()
         "the request must have got past the gateway gate: {body}"
     );
     assert!(
-        body.contains("not configured"),
-        "the failure must name the missing credential: {body}"
+        body.contains("The requested model is not served by this gateway"),
+        "the client sees the fixed unservable-model answer: {body}"
+    );
+    assert!(
+        !body.contains("not configured"),
+        "the missing credential is named in the log, never the client body: {body}"
     );
     Ok(())
 }
