@@ -690,6 +690,26 @@ fn several_actions_under_one_event_get_distinct_indexed_directories() {
 }
 
 #[test]
+fn an_authored_hook_timeout_is_carried_and_an_absent_one_is_omitted() {
+    let tree = tree_with_hooks(
+        r#"{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"gate","timeout":30},{"type":"command","command":"plain"}]}]}}"#,
+    );
+
+    let (dest, _report) = expect_ok(&tree);
+
+    let read = |n: u8| {
+        let text = std::fs::read_to_string(
+            dest.path()
+                .join(format!("hooks/alpha__PreToolUse__{n}/config.yaml")),
+        )
+        .expect("hook written");
+        serde_yaml::from_str::<serde_yaml::Value>(&text).expect("valid yaml")
+    };
+    assert_eq!(read(0)["timeout"].as_u64(), Some(30));
+    assert!(read(1).get("timeout").is_none());
+}
+
+#[test]
 fn an_unparsable_hooks_file_names_it() {
     let tree = tree_with_hooks("{ not json");
 

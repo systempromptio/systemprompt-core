@@ -12,23 +12,43 @@ use crate::gui::events::UiEvent;
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::{GuiApp, emit, first_run};
 use crate::ids::HostId;
+use crate::integration::enrol::{Outcome, claude_code};
 use crate::integration::{AppInstallState, HostAppSnapshot};
 
 use super::state::{FirstRunPhase, StepStatus};
 
 pub(crate) fn on_start(app: &mut GuiApp) {
-    let hosts: Vec<(String, String)> = crate::integration::host_apps()
+    let mut hosts: Vec<(String, String)> = crate::integration::host_apps()
         .iter()
         .map(|h| (h.id().to_owned(), h.display_name().to_owned()))
         .collect();
+    let desktop_hosts = hosts.len();
+    let claude_code = claude_code::installed_agent();
+    hosts.extend(claude_code.map(|a| (a.id.to_owned(), a.display_name.to_owned())));
     app.state.begin_first_run(&hosts);
     app.append_log("First use: provisioning your agents…");
+    if claude_code.is_some() {
+        enrol_claude_code(app);
+    }
     progress(app);
-    if hosts.is_empty() {
+    if desktop_hosts == 0 {
         advance(app);
         return;
     }
     crate::gui::hosts::tick::request_initial_probe(app);
+}
+
+fn enrol_claude_code(app: &GuiApp) {
+    let report = claude_code::enrol_report(&app.ctx);
+    let id = report.host_id.as_str();
+    if let Outcome::Failed(err) = report.outcome {
+        app.append_log_error(format!("[{id}] gateway routing not written: {err}"));
+        app.state
+            .set_first_run_host(id, StepStatus::Failed, Some(err));
+    } else {
+        app.append_log(format!("[{id}] {}", report.install_action_label));
+        app.state.set_first_run_host(id, StepStatus::Done, None);
+    }
 }
 
 pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &HostId, snapshot: &HostAppSnapshot) {

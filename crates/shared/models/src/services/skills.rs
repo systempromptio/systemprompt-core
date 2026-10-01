@@ -79,6 +79,8 @@ pub struct DiskSkillConfig {
     pub category: Option<String>,
     #[serde(default)]
     pub hosts: Vec<String>,
+    #[serde(default)]
+    pub frontmatter: Option<serde_yaml::Mapping>,
 }
 
 impl DiskSkillConfig {

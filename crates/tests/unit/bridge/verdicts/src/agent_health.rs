@@ -61,6 +61,7 @@ const fn inputs<'a>(
         has_download_url: true,
         surface: AgentSurface::LocalProfile,
         manifest_synced: true,
+        gateway_routed: true,
         can_open: true,
     }
 }
@@ -225,6 +226,32 @@ fn sync_only_agents_are_cloud_managed_and_never_need_attention() {
 
     let unsynced = verdict(&HostHealthInputs {
         surface: AgentSurface::SyncOnly,
+        manifest_synced: false,
+        ..inputs(None, &px)
+    });
+    assert_eq!(unsynced.state, AgentState::Checking);
+}
+
+// Claude Code whose settings do not name the gateway keeps the user's own
+// login, which `doctor` fails as "claude code routing"; the Agents card must
+// say the same thing instead of reporting it Working.
+#[test]
+fn an_unrouted_sync_only_agent_is_reported_not_routed() {
+    let px = proxy(ProxyProbeState::Listening);
+    let v = verdict(&HostHealthInputs {
+        surface: AgentSurface::SyncOnly,
+        gateway_routed: false,
+        ..inputs(None, &px)
+    });
+    assert_eq!(v.state, AgentState::Attention);
+    assert!(matches!(v.reason, AgentReason::NotRouted), "{:?}", v.reason);
+    assert!(v.is_set_up, "it stays on the Agents list");
+    assert!(!v.is_installed);
+    assert!(v.action.is_none(), "a sync-only row has no repair button");
+
+    let unsynced = verdict(&HostHealthInputs {
+        surface: AgentSurface::SyncOnly,
+        gateway_routed: false,
         manifest_synced: false,
         ..inputs(None, &px)
     });

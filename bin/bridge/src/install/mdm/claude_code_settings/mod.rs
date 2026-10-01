@@ -16,6 +16,7 @@ use helper::{key_helper_path, prepare_helper, shell_command_for};
 pub mod model_picker;
 pub mod permissions;
 mod removal;
+pub mod skill_budget;
 
 use std::fs;
 use std::path::{Path, PathBuf};

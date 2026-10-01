@@ -10,29 +10,57 @@ use systemprompt_bridge::integration::claude_code_cli::foreign::{
     ForeignRefs, apply_settings, collect,
 };
 use systemprompt_bridge::integration::claude_code_cli::marketplace::{
-    HostMarketplace, marketplace_value,
+    HostMarketplace, append_external_plugins, marketplace_value,
 };
 use systemprompt_bridge::integration::claude_code_cli::sidecar;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::bridge::manifest::{ExternalMarketplace, ExternalMarketplaceSource};
+use systemprompt_models::bridge::manifest::{
+    ManifestExternalMarketplace, ManifestExternalMarketplaceSource, ManifestExternalPlugin,
+    ManifestExternalPluginSource, ManifestMarketplace,
+};
 use tempfile::tempdir;
 
-fn salesforce() -> ExternalMarketplace {
-    ExternalMarketplace {
+const SHA: &str = "74354ecc7a43da16d91a9bc54fa8db8283a3fcf5";
+
+fn salesforce() -> ManifestExternalMarketplace {
+    ManifestExternalMarketplace {
         name: "salesforce".into(),
-        source: ExternalMarketplaceSource::Github {
-            repo: "SalesforceCommerceCloud/claude-plugins".into(),
+        source: ManifestExternalMarketplaceSource {
+            source: "github".into(),
+            repo: Some("SalesforceCommerceCloud/claude-plugins".into()),
+            ..Default::default()
         },
     }
 }
 
-fn host_marketplace(id: &str, external: Vec<ExternalMarketplace>) -> HostMarketplace {
+fn playwright() -> ManifestExternalPlugin {
+    ManifestExternalPlugin {
+        name: "playwright-cli".into(),
+        source: ManifestExternalPluginSource {
+            source: "git-subdir".into(),
+            url: Some("microsoft/playwright-cli".into()),
+            path: Some("skills".into()),
+            reference: Some("v0.1.21".into()),
+            sha: Some(SHA.into()),
+            ..Default::default()
+        },
+        description: None,
+        version: Some("0.1.21".into()),
+        strict: Some(false),
+        skills: Some(systemprompt_models::services::ExternalPluginSkills::Paths(
+            vec!["./".into()],
+        )),
+    }
+}
+
+fn host_marketplace(id: &str, external: Vec<ManifestExternalMarketplace>) -> HostMarketplace {
     HostMarketplace {
         id: MarketplaceId::new(id),
         name: id.into(),
         plugin_ids: vec![],
         allow_cross_marketplace_dependencies_on: external.iter().map(|m| m.name.clone()).collect(),
         external_marketplaces: external,
+        external_plugins: vec![],
     }
 }
 
@@ -213,4 +241,121 @@ fn sidecar_round_trips_foreign_ownership_and_reads_the_old_shape() {
     assert_eq!(legacy.marketplaces, vec![MarketplaceId::new("legacy")]);
     assert!(legacy.dependency_keys.is_empty());
     assert!(legacy.external_marketplaces.is_empty());
+}
+
+#[test]
+fn the_catalog_carries_each_pass_through_entry_as_authored() {
+    let mut catalog = marketplace_value("org", "Org", "v1", &[], &[]);
+    append_external_plugins(&mut catalog, &[playwright()]).unwrap();
+    assert_eq!(
+        catalog["plugins"],
+        json!([{
+            "name": "playwright-cli",
+            "source": {
+                "source": "git-subdir",
+                "url": "microsoft/playwright-cli",
+                "path": "skills",
+                "ref": "v0.1.21",
+                "sha": SHA
+            },
+            "version": "0.1.21",
+            "strict": false,
+            "skills": ["./"]
+        }])
+    );
+}
+
+#[test]
+fn collect_enables_a_bare_name_dependency_on_a_pass_through_plugin() {
+    let root = tempdir().unwrap();
+    write_plugin(root.path(), "app", json!(["playwright-cli", "helper"]));
+    let mut marketplace = host_marketplace("org", vec![]);
+    marketplace.external_plugins = vec![playwright()];
+    let refs = collect(
+        &marketplace,
+        &[&root.path().join("app")],
+        &[MarketplaceId::new("org")],
+    );
+    assert_eq!(
+        refs.dependency_keys.iter().cloned().collect::<Vec<_>>(),
+        vec!["playwright-cli@org"],
+        "the mirror never enables a pass-through plugin, so its dependency key is collected"
+    );
+}
+
+#[test]
+fn extra_known_marketplaces_carries_the_ref_pin() {
+    let mut pinned = salesforce();
+    pinned.source.reference = Some("b2c-agent-plugins@1.10.0".into());
+    let mut current = ForeignRefs::default();
+    current.external_marketplaces.push(pinned);
+    let mut root = settings_with(&[], &[]);
+    apply_settings(
+        &mut root,
+        Path::new("settings.json"),
+        &sidecar::Owned::default(),
+        &current,
+    )
+    .unwrap();
+    assert_eq!(
+        root["extraKnownMarketplaces"]["salesforce"],
+        json!({ "source": {
+            "source": "github",
+            "repo": "SalesforceCommerceCloud/claude-plugins",
+            "ref": "b2c-agent-plugins@1.10.0"
+        } })
+    );
+}
+
+#[test]
+fn a_manifest_marketplace_with_ref_and_external_plugins_parses_and_so_does_one_without() {
+    let newer: ManifestMarketplace = serde_json::from_value(json!({
+        "id": "org",
+        "name": "Org",
+        "plugin_ids": ["app"],
+        "external_marketplaces": [{
+            "name": "salesforce",
+            "source": {
+                "source": "github",
+                "repo": "SalesforceCommerceCloud/claude-plugins",
+                "ref": "b2c-agent-plugins@1.10.0",
+                "future_key": true
+            },
+            "future_key": 1
+        }],
+        "external_plugins": [{
+            "name": "playwright-cli",
+            "source": {
+                "source": "git-subdir",
+                "url": "microsoft/playwright-cli",
+                "path": "skills",
+                "ref": "v0.1.21",
+                "sha": SHA
+            },
+            "strict": false,
+            "skills": ["./"],
+            "version": "0.1.21",
+            "future_key": "ignored"
+        }],
+        "future_key": "ignored"
+    }))
+    .expect("a newer gateway's marketplace parses");
+    assert_eq!(
+        newer.external_marketplaces[0].source.reference.as_deref(),
+        Some("b2c-agent-plugins@1.10.0")
+    );
+    assert_eq!(newer.external_plugins, vec![playwright()]);
+
+    let older: ManifestMarketplace = serde_json::from_value(json!({
+        "id": "org",
+        "name": "Org",
+        "plugin_ids": ["app"],
+        "external_marketplaces": [{
+            "name": "salesforce",
+            "source": { "source": "github", "repo": "SalesforceCommerceCloud/claude-plugins" }
+        }]
+    }))
+    .expect("an older gateway's marketplace parses");
+    assert_eq!(older.external_marketplaces, vec![salesforce()]);
+    assert!(older.external_plugins.is_empty());
 }

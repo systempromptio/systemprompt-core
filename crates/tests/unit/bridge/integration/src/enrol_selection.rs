@@ -54,12 +54,39 @@ fn an_unknown_id_fails_the_whole_request() {
     );
 }
 
+fn with_claude_cli<R>(installed: bool, body: impl FnOnce() -> R) -> R {
+    let home = tempfile::tempdir().expect("home");
+    let bin = tempfile::tempdir().expect("empty PATH dir");
+    if installed {
+        std::fs::create_dir_all(home.path().join(".claude")).expect(".claude");
+    }
+    temp_env::with_vars(
+        [
+            ("HOME", Some(home.path().as_os_str())),
+            ("PATH", Some(bin.path().as_os_str())),
+        ],
+        body,
+    )
+}
+
 #[test]
 fn all_resolves_to_every_locally_installable_host() {
-    let all = ids(&Selection::All).expect("all");
+    let all = with_claude_cli(false, || ids(&Selection::All)).expect("all");
     assert!(all.contains(&"opencode"), "{all:?}");
     assert!(
         !all.contains(&"claude-code"),
-        "claude-code has no local profile, so `all` must not claim to install one: {all:?}"
+        "with no Claude Code CLI on this machine `all` must not claim to enrol it: {all:?}"
     );
+}
+
+#[test]
+fn all_includes_claude_code_once_its_cli_is_installed() {
+    let all = with_claude_cli(true, || ids(&Selection::All)).expect("all");
+    assert!(all.contains(&"opencode"), "{all:?}");
+    assert_eq!(
+        all.iter().filter(|id| **id == "claude-code").count(),
+        1,
+        "an installed Claude Code CLI is enrolled by `all`, exactly once: {all:?}"
+    );
+    assert_eq!(all.last(), Some(&"claude-code"), "it follows the host apps");
 }

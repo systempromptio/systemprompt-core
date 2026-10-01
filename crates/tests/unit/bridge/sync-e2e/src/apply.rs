@@ -59,6 +59,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
         instructions: body.into(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
@@ -92,6 +93,7 @@ fn hook() -> HookEntry {
         matcher: "*".into(),
         command: "echo hi".into(),
         is_async: false,
+        timeout: None,
         category: HookCategory::Custom,
         tags: vec![],
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
@@ -874,7 +876,41 @@ fn an_included_hook_is_materialised_as_a_user_command_entry() {
     assert_eq!(entry["type"], "command");
     assert_eq!(entry["command"], "echo hi");
     assert_eq!(entry["event"], "PreToolUse");
+    assert!(
+        entry.get("timeout").is_none(),
+        "no authored timeout leaves Claude Code's per-event default: {hooks}"
+    );
     assert_eq!(group[0]["matcher"], "*");
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn an_authored_hook_timeout_reaches_the_written_hooks_json() {
+    let m = manifest_of(
+        vec![plugin_with_include(
+            "acme-plugin",
+            vec!["hook-1".to_owned()],
+        )],
+        vec![HookEntry {
+            timeout: Some(30),
+            ..hook()
+        }],
+    );
+    let b = serve_plugins(
+        &m,
+        &[(
+            "acme-plugin",
+            ".claude-plugin/plugin.json",
+            PLUGIN_FILE_BODY,
+        )],
+        "pat-include-timeout",
+    );
+    run_sync(&b.dirs).expect("sync applies");
+
+    let hooks = hooks_json_of(&b.dirs, "acme-plugin");
+    let entry = &hooks["hooks"]["PreToolUse"][0]["hooks"][0];
+    assert_eq!(entry["type"], "command", "{hooks}");
+    assert_eq!(entry["timeout"], 30, "{hooks}");
     let _ = (&b.server, &b.pat_dir);
 }
 

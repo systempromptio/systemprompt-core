@@ -313,6 +313,8 @@ fn claude_manifest(publication: SkillPublication) -> SignedManifest {
             plugin_ids: vec![plugin.id],
             allow_cross_marketplace_dependencies_on: vec![],
             external_marketplaces: vec![],
+            external_plugins: vec![],
+            claude_code: None,
         },
     ];
     manifest
@@ -535,6 +537,7 @@ fn manifest() -> SignedManifest {
             instructions: "capture".into(),
             hosts: vec!["opencode".into()],
             plugins: vec![],
+            frontmatter: None,
         }],
         rules: vec![],
         agents: vec![],

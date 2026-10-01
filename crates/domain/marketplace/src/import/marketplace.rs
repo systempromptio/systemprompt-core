@@ -6,12 +6,13 @@
 use std::path::Path;
 
 use systemprompt_identifiers::MarketplaceId;
+use systemprompt_models::services::ExternalPluginEntry;
 use systemprompt_models::services::marketplace::{MarketplaceConfig, MarketplaceConfigFile};
 use systemprompt_models::services::plugin::{ComponentSource, PluginAuthor, PluginComponentRef};
 
 use crate::error::MarketplaceError;
 
-use super::anthropic::MarketplaceJson;
+use super::anthropic::{MarketplaceJson, PluginEntryMode};
 use super::sidecar::MarketplaceSidecar;
 use super::writer::Sink;
 
@@ -22,6 +23,7 @@ pub(super) const DEFAULT_VERSION: &str = "0.1.0";
 pub(super) fn import_marketplace(
     manifest: &MarketplaceJson,
     sidecar: &MarketplaceSidecar,
+    external_plugins: Vec<ExternalPluginEntry>,
     manifest_path: &Path,
     sink: &Sink,
 ) -> Result<MarketplaceId, MarketplaceError> {
@@ -54,7 +56,12 @@ pub(super) fn import_marketplace(
         plugins: PluginComponentRef {
             source: ComponentSource::Explicit,
             filter: None,
-            include: manifest.plugins.iter().map(|p| p.name.clone()).collect(),
+            include: manifest
+                .plugins
+                .iter()
+                .filter(|p| p.mode == PluginEntryMode::Vendor)
+                .map(|p| p.name.clone())
+                .collect(),
             exclude: Vec::new(),
         },
         mcp_servers: sidecar.marketplace.mcp_servers.clone(),
@@ -65,6 +72,8 @@ pub(super) fn import_marketplace(
             .allow_cross_marketplace_dependencies_on
             .clone(),
         external_marketplaces: sidecar.marketplace.external_marketplaces.clone(),
+        external_plugins,
+        claude_code: sidecar.marketplace.claude_code,
     };
 
     config

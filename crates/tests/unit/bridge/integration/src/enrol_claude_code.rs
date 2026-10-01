@@ -8,7 +8,7 @@ use serde_json::Value;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::install::mdm::claude_code_settings::managed_settings_path;
 use systemprompt_bridge::integration::enrol::{
-    Outcome, Selection, enrol_hosts, remove_host_profiles,
+    Outcome, Report, Selection, enrol_hosts, remove_host_profiles,
 };
 use systemprompt_bridge::integration::reapply::ModelProtocolOverrides;
 
@@ -54,6 +54,7 @@ impl Sandbox {
                 ("SP_BRIDGE_CONFIG", None),
                 ("SP_BRIDGE_PAT", None),
                 ("SUDO_USER", None),
+                ("PATH", Some(self.state.path().as_os_str())),
             ],
             body,
         )
@@ -65,6 +66,17 @@ fn runtime() -> tokio::runtime::Runtime {
         .enable_all()
         .build()
         .expect("runtime")
+}
+
+fn enrol_all(bridge: &BridgeContext, enabled: &[&str]) -> Vec<Report> {
+    runtime()
+        .block_on(enrol_hosts(
+            bridge,
+            &Selection::All,
+            &ModelProtocolOverrides::new(),
+            Some(enabled.iter().map(|h| (*h).to_owned()).collect()),
+        ))
+        .expect("`all` is always a valid selection")
 }
 
 fn enroll_claude_code(bridge: &BridgeContext) -> Outcome {
@@ -223,5 +235,63 @@ fn claude_code_removal_settings_directory_failure_is_retryable_without_deleting_
             );
             assert_eq!(fs::read(dirs.settings()).unwrap(), foreign);
         }
+    });
+}
+
+#[test]
+fn enrolling_all_hosts_routes_an_installed_claude_code_cli() {
+    let dirs = Sandbox::new();
+    dirs.within(|| {
+        fs::create_dir_all(dirs.home.path().join(".claude")).expect(".claude");
+        let bridge = BridgeContext::start(ProxyMode::Attach).expect("attach bridge");
+
+        let reports = enrol_all(&bridge, &["claude-code"]);
+        let claude = reports
+            .iter()
+            .find(|r| r.host_id == "claude-code")
+            .expect("an installed Claude Code CLI is part of `all`");
+        assert!(matches!(claude.outcome, Outcome::Installed), "{claude:?}");
+        let document: Value = serde_json::from_slice(&fs::read(dirs.settings()).unwrap()).unwrap();
+        assert_eq!(
+            document["env"]["ANTHROPIC_BASE_URL"].as_str(),
+            Some(bridge.proxy.loopback().origin().as_str())
+        );
+    });
+}
+
+#[test]
+fn enrolling_all_hosts_respects_an_instance_that_does_not_enable_claude_code() {
+    let dirs = Sandbox::new();
+    dirs.within(|| {
+        fs::create_dir_all(dirs.home.path().join(".claude")).expect(".claude");
+        let bridge = BridgeContext::start(ProxyMode::Attach).expect("attach bridge");
+
+        let reports = enrol_all(&bridge, &[]);
+        let claude = reports
+            .iter()
+            .find(|r| r.host_id == "claude-code")
+            .expect("an installed Claude Code CLI is part of `all`");
+        assert!(matches!(claude.outcome, Outcome::NotEnabled), "{claude:?}");
+        assert!(!dirs.settings().exists(), "nothing is written when not enabled");
+
+        let named = enroll_claude_code(&bridge);
+        assert!(
+            matches!(named, Outcome::Installed),
+            "`--host claude-code` still enrols regardless of the enabled list: {named:?}"
+        );
+    });
+}
+
+#[test]
+fn enrolling_all_hosts_skips_claude_code_when_its_cli_is_absent() {
+    let dirs = Sandbox::new();
+    dirs.within(|| {
+        let bridge = BridgeContext::start(ProxyMode::Attach).expect("attach bridge");
+        let reports = enrol_all(&bridge, &["claude-code"]);
+        assert!(
+            reports.iter().all(|r| r.host_id != "claude-code"),
+            "no CLI, no row: {reports:?}"
+        );
+        assert!(!dirs.settings().exists());
     });
 }

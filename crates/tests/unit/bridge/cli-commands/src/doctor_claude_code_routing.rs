@@ -8,6 +8,7 @@ use systemprompt_bridge::cli::doctor::Status;
 use systemprompt_bridge::cli::doctor::claude_code::{
     check_config_dir_override, check_effective_routing, check_env_credentials, read_paths,
 };
+use systemprompt_bridge::integration::claude_code_routing::routes_through_gateway;
 use tempfile::TempDir;
 
 fn write(dir: &Path, name: &str, body: &str) -> PathBuf {
@@ -107,4 +108,27 @@ fn environment_credentials_that_outrank_the_helper_are_warned_about() {
         "{}",
         check.detail
     );
+}
+
+// The GUI's Claude Code verdict reads `routes_through_gateway`; the doctor's
+// check must pass exactly when it does, or the two disagree about one machine.
+#[test]
+fn the_doctor_check_and_the_gui_verdict_agree_on_routing() {
+    let dir = TempDir::new().expect("dir");
+    for (body, routed) in [
+        (r#"{"model": "claude-sonnet-5"}"#, false),
+        (r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}}"#, false),
+        (r#"{"apiKeyHelper": "/bin/helper"}"#, false),
+        (
+            r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}, "apiKeyHelper": "/bin/h"}"#,
+            true,
+        ),
+        ("{ not json", false),
+    ] {
+        let user = write(dir.path(), "settings.json", body);
+        let paths = [dir.path().join("managed-settings.json"), user];
+        assert_eq!(routes_through_gateway(&paths), routed, "{body}");
+        let status = check_effective_routing(&paths).status;
+        assert_eq!(status == Status::Ok, routed, "{body}: {status:?}");
+    }
 }

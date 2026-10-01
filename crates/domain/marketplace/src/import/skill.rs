@@ -17,13 +17,25 @@
 //! names under Claude Code's `skills` override; a named path is a skill itself
 //! or a folder of them, so `"./"` reads skill folders at the plugin root.
 //!
+//! The skill folder is copied without its dev-only files (see
+//! [`crate::dev_files`]).
+//!
+//! Every frontmatter key the platform does not own (see
+//! `systemprompt_models::services::skill_frontmatter`) is kept in `config.yaml`
+//! under `frontmatter`, in authored order, and rendered back into the client
+//! `SKILL.md`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
-use systemprompt_models::services::frontmatter::split_frontmatter;
+use serde_yaml::Value;
+use systemprompt_models::services::skill_frontmatter::{
+    SplitSkillFrontmatter, authored_skill_frontmatter, check_json_compatible,
+    split_skill_frontmatter,
+};
 
 use crate::error::MarketplaceError;
 
@@ -113,13 +125,17 @@ pub(super) fn import_skill(
         message: e.to_string(),
     })?;
 
-    let front: SkillFrontmatter = match split_frontmatter(&raw) {
-        Some(f) => serde_yaml::from_str(f.yaml).map_err(|e| MarketplaceError::Import {
-            path: skill_md.display().to_string(),
-            message: format!("SKILL.md frontmatter is not valid YAML: {e}"),
-        })?,
-        None => SkillFrontmatter::default(),
+    let invalid = |message: String| MarketplaceError::Import {
+        path: skill_md.display().to_string(),
+        message,
     };
+    let SplitSkillFrontmatter { owned, passthrough } =
+        split_skill_frontmatter(authored_skill_frontmatter(&raw).map_err(invalid)?);
+    if let Some(passthrough) = &passthrough {
+        check_json_compatible(passthrough).map_err(|e| invalid(format!("SKILL.md {e}")))?;
+    }
+    let front: SkillFrontmatter = serde_yaml::from_value(Value::Mapping(owned))
+        .map_err(|e| invalid(format!("SKILL.md frontmatter is not valid YAML: {e}")))?;
 
     let description = front.description.unwrap_or_default();
     if description.trim().is_empty() {
@@ -145,9 +161,10 @@ pub(super) fn import_skill(
             .or_else(|| fallback_category.map(str::to_owned)),
         display_category: front.display_category,
         hosts: front.hosts,
+        frontmatter: passthrough,
     };
 
     let rel = Path::new("skills").join(id);
-    sink.copy_tree(skill_dir, &rel)?;
+    sink.copy_skill_tree(skill_dir, &rel)?;
     sink.write_yaml(&rel.join("config.yaml"), &doc)
 }

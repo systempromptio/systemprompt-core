@@ -30,6 +30,8 @@ fn marketplace(id: &str, refs: PluginComponentRef) -> MarketplaceConfig {
         access: Default::default(),
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 
@@ -213,6 +215,75 @@ marketplace:
     assert_eq!(parsed.marketplace.id.as_str(), "enterprise-demo");
     assert_eq!(parsed.marketplace.plugins.include, vec!["enterprise-demo"]);
     assert_eq!(parsed.marketplace.visibility, MarketplaceVisibility::Public);
+}
+
+#[test]
+fn marketplace_config_file_accepts_external_plugins_and_a_ref() {
+    let yaml = r#"
+marketplace:
+  id: astound-europe-dev
+  name: Astound Europe Dev
+  description: demo
+  version: "1.0.0"
+  author:
+    name: Astound
+    email: dev@example.com
+  license: MIT
+  plugins:
+    include: [ai-mate-sfn-dev]
+  external_marketplaces:
+    - name: b2c-developer-tooling
+      source:
+        source: github
+        repo: SalesforceCommerceCloud/b2c-developer-tooling
+        ref: b2c-agent-plugins@1.10.0
+  external_plugins:
+    - name: playwright-cli
+      source:
+        source: git-subdir
+        url: microsoft/playwright-cli
+        path: skills
+        ref: v0.1.21
+        sha: 74354ecc7a43da16d91a9bc54fa8db8283a3fcf5
+      strict: false
+      skills: ["./"]
+      version: 0.1.21
+"#;
+    let parsed: systemprompt_models::services::MarketplaceConfigFile =
+        serde_yaml::from_str(yaml).expect("should parse");
+    let m = parsed.marketplace;
+    m.validate("astound-europe-dev").expect("valid");
+    assert_eq!(m.external_plugins.len(), 1);
+    assert_eq!(m.external_plugins[0].name, "playwright-cli");
+    assert_eq!(
+        m.external_marketplaces[0].source.reference(),
+        Some("b2c-agent-plugins@1.10.0")
+    );
+
+    let reparsed: systemprompt_models::services::MarketplaceConfigFile = serde_yaml::from_str(
+        &serde_yaml::to_string(&systemprompt_models::services::MarketplaceConfigFile {
+            marketplace: m.clone(),
+        })
+        .unwrap(),
+    )
+    .expect("round trips");
+    assert_eq!(reparsed.marketplace.external_plugins, m.external_plugins);
+    assert_eq!(
+        reparsed.marketplace.external_marketplaces,
+        m.external_marketplaces
+    );
+}
+
+#[test]
+fn marketplace_external_plugins_refuse_unknown_keys() {
+    let yaml = r#"
+name: playwright-cli
+source: { source: github, repo: microsoft/playwright-cli, sha: 74354ecc7a43da16d91a9bc54fa8db8283a3fcf5 }
+category: testing
+"#;
+    let err = serde_yaml::from_str::<systemprompt_models::services::ExternalPluginEntry>(yaml)
+        .expect_err("deny_unknown_fields");
+    assert!(err.to_string().contains("category"), "{err}");
 }
 
 #[test]

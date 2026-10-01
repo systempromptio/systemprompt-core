@@ -7,8 +7,7 @@ use std::path::{Path, PathBuf};
 
 use super::Check;
 use crate::install::mdm::claude_code_settings::standalone_settings_path;
-
-const CONFIG_DIR_VAR: &str = "CLAUDE_CONFIG_DIR";
+use crate::integration::claude_code_routing::{self, CONFIG_DIR_VAR};
 
 pub fn check_settings(origin: &str) -> Vec<Check> {
     let mut checks = Vec::new();
@@ -37,37 +36,19 @@ pub fn check_settings(origin: &str) -> Vec<Check> {
 }
 
 pub fn read_paths(config_dir: Option<&Path>) -> Vec<PathBuf> {
-    let policy = crate::config::paths::claude_code_policy_dir().join("managed-settings.json");
-    let user = config_dir.map_or_else(crate::config::paths::claude_cli_settings_path, |dir| {
-        Some(dir.join("settings.json"))
-    });
-    std::iter::once(policy).chain(user).collect()
+    claude_code_routing::read_paths(config_dir)
 }
 
 // Why: a user upgraded past an enrolment that no longer applies sees only a
 // login prompt; the per-file checks pass for files Claude Code never reads.
 pub fn check_effective_routing(paths: &[PathBuf]) -> Check {
     let name = "claude code routing";
-    let docs: Vec<serde_json::Map<String, serde_json::Value>> = paths
-        .iter()
-        .filter_map(|path| std::fs::read_to_string(path).ok())
-        .filter_map(|body| serde_json::from_str(&body).ok())
-        .collect();
-    let non_empty = |value: Option<&serde_json::Value>| {
-        value
-            .and_then(serde_json::Value::as_str)
-            .is_some_and(|s| !s.is_empty())
-    };
-    let base_url = docs
-        .iter()
-        .any(|doc| non_empty(doc.get("env").and_then(|env| env.get("ANTHROPIC_BASE_URL"))));
-    let helper = docs.iter().any(|doc| non_empty(doc.get("apiKeyHelper")));
     let listed = paths
         .iter()
         .map(|path| path.display().to_string())
         .collect::<Vec<_>>()
         .join(", ");
-    if base_url && helper {
+    if claude_code_routing::routes_through_gateway(paths) {
         return Check::ok(name, format!("gateway routing and helper set in {listed}"));
     }
     let standalone = standalone_settings_path().map_or_else(

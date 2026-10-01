@@ -30,19 +30,17 @@ pub fn sync_only_agent(host_id: &str) -> Option<&'static SyncOnlyAgent> {
     SYNC_ONLY_AGENTS.iter().find(|a| a.id == host_id)
 }
 
-pub const fn sync_only_verdict(manifest_synced: bool) -> AgentVerdict {
-    if manifest_synced {
-        AgentVerdict {
-            state: AgentState::Working,
-            tone: AgentState::Working.tone(),
-            reason: AgentReason::CloudManaged,
-            action: None,
-            is_set_up: true,
-            is_installed: true,
-            is_running: false,
-        }
-    } else {
-        AgentVerdict {
+// Why: Claude Code with no gateway keys in the settings it reads keeps the
+// user's own Anthropic login, so reporting it Working would hide exactly the
+// fault `doctor`'s "claude code routing" check fails on.
+#[must_use]
+pub fn gateway_routed(agent: &SyncOnlyAgent) -> bool {
+    agent.id != "claude-code" || super::claude_code_routing::is_routed()
+}
+
+pub const fn sync_only_verdict(manifest_synced: bool, gateway_routed: bool) -> AgentVerdict {
+    if !manifest_synced {
+        return AgentVerdict {
             state: AgentState::Checking,
             tone: AgentState::Checking.tone(),
             reason: AgentReason::NeverProbed,
@@ -50,6 +48,26 @@ pub const fn sync_only_verdict(manifest_synced: bool) -> AgentVerdict {
             is_set_up: false,
             is_installed: false,
             is_running: false,
-        }
+        };
+    }
+    if !gateway_routed {
+        return AgentVerdict {
+            state: AgentState::Attention,
+            tone: AgentState::Attention.tone(),
+            reason: AgentReason::NotRouted,
+            action: None,
+            is_set_up: true,
+            is_installed: false,
+            is_running: false,
+        };
+    }
+    AgentVerdict {
+        state: AgentState::Working,
+        tone: AgentState::Working.tone(),
+        reason: AgentReason::CloudManaged,
+        action: None,
+        is_set_up: true,
+        is_installed: true,
+        is_running: false,
     }
 }

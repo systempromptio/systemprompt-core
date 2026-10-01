@@ -14,7 +14,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
 pub use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
-    ManifestMarketplace, PluginEntry, PluginFile, RuleEntry, SignedManifest,
+    ManifestClaudeCode, ManifestMarketplace, PluginEntry, PluginFile, RuleEntry, SignedManifest,
     SignedManifestEnvelope, SkillEntry, UserInfo, bridge_version_is_supported,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;

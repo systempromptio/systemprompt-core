@@ -27,6 +27,7 @@ schemars = { workspace = true }
 systemprompt-extension = { workspace = true }
 sqlx = { workspace = true }
 serde_jcs = { workspace = true }
+globset = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 inventory = { workspace = true }

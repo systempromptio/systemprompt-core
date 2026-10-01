@@ -13,9 +13,13 @@ mod catalog_batch;
 #[cfg(test)]
 mod catalog_rules;
 #[cfg(test)]
+mod dev_files;
+#[cfg(test)]
 mod errors;
 #[cfg(test)]
 mod helpers;
+#[cfg(test)]
+mod import_claude_code;
 #[cfg(test)]
 mod import_edges;
 #[cfg(test)]
@@ -48,6 +52,8 @@ mod resolved_cache;
 mod scope;
 #[cfg(test)]
 mod service;
+#[cfg(test)]
+mod skill_frontmatter;
 #[cfg(test)]
 mod trace;
 #[cfg(test)]

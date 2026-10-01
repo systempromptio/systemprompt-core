@@ -186,6 +186,7 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.26", features = ["v4", "v5", "serde"] }
 validator = { version = "0.21", features = ["derive"] }
 regex = "1.13"
+globset = { version = "0.4", default-features = false }
 indexmap = { version = "2.14", features = ["serde"] }
 
 # HTTP/API (for API crate)

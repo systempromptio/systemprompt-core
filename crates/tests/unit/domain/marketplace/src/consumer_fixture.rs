@@ -28,6 +28,14 @@ pub async fn fixture() -> Fixture {
 }
 
 pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
+    fixture_with(metadata, &[]).await
+}
+
+pub async fn fixture_with_extra_files(extra: &[(&str, &[u8])]) -> Fixture {
+    fixture_with(None, extra).await
+}
+
+async fn fixture_with(metadata: Option<(&str, &str)>, extra: &[(&str, &[u8])]) -> Fixture {
     ensure_test_bootstrap();
     let db = test_db_pool().await;
     let pool = db.write_pool_arc().expect("write pool").as_ref().clone();
@@ -89,6 +97,16 @@ pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
             },
         ),
     ]));
+    for (path, bytes) in extra {
+        files.0.insert(
+            (*path).to_owned(),
+            AssetFile {
+                bytes: bytes.to_vec(),
+                media_type: "text/plain".to_owned(),
+                executable: false,
+            },
+        );
+    }
     if let Some((name, description)) = metadata {
         files.0.insert("config.yaml".to_owned(), AssetFile {
             bytes: serde_json::to_vec(&serde_json::json!({"id":"skill","name":name,"description":description,"file":"SKILL.md"})).unwrap(),

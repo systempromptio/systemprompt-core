@@ -27,7 +27,7 @@ use std::path::Path;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature, PluginId, SkillId};
 use systemprompt_models::bridge::manifest::{
-    ManifestMarketplace, SignedManifest, SignedManifestEnvelope,
+    ManifestClaudeCode, ManifestMarketplace, SignedManifest, SignedManifestEnvelope,
 };
 use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_security::manifest_signing;
@@ -194,7 +194,21 @@ fn listed_marketplaces(
                 allow_cross_marketplace_dependencies_on: marketplace
                     .allow_cross_marketplace_dependencies_on
                     .clone(),
-                external_marketplaces: marketplace.external_marketplaces.clone(),
+                external_marketplaces: marketplace
+                    .external_marketplaces
+                    .iter()
+                    .cloned()
+                    .map(Into::into)
+                    .collect(),
+                external_plugins: marketplace
+                    .external_plugins
+                    .iter()
+                    .cloned()
+                    .map(Into::into)
+                    .collect(),
+                claude_code: marketplace.claude_code.map(|c| ManifestClaudeCode {
+                    skill_listing_budget_chars: c.skill_listing_budget_chars,
+                }),
             })
         })
         .collect()

@@ -186,6 +186,8 @@ fn valid_marketplace(id: &str) -> MarketplaceConfig {
         access: Default::default(),
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 

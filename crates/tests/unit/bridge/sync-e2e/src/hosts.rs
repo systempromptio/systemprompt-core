@@ -18,7 +18,10 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
 use systemprompt_bridge::integration::claude_code_cli::sidecar;
 use systemprompt_bridge::sync::{SyncOptions, run_once};
-use systemprompt_models::services::{ExternalMarketplace, ExternalMarketplaceSource};
+use systemprompt_models::bridge::manifest::{
+    ManifestExternalMarketplace, ManifestExternalMarketplaceSource, ManifestExternalPlugin,
+    ManifestExternalPluginSource,
+};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -190,6 +193,8 @@ fn org_provisioned_marketplace() -> ManifestMarketplace {
         plugin_ids: vec![PluginId::try_new(PLUGIN_ID).unwrap()],
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 
@@ -735,6 +740,8 @@ fn a_manifest_naming_marketplaces_mirrors_each_and_spares_every_marketplace_it_d
             plugin_ids: vec![PluginId::try_new(PLUGIN_ID).unwrap()],
             allow_cross_marketplace_dependencies_on: vec![],
             external_marketplaces: vec![],
+            external_plugins: vec![],
+            claude_code: None,
         })
         .collect();
     let (server, dirs) = rt.block_on(async {
@@ -1427,10 +1434,12 @@ fn claude_code_sync_aggregates_shared_foreign_marketplaces_once() {
         foreign_plugin_entry("research-plugin", &first_files),
         foreign_plugin_entry("commerce-plugin", &second_files),
     ];
-    let vendor = ExternalMarketplace {
+    let vendor = ManifestExternalMarketplace {
         name: "vendor".into(),
-        source: ExternalMarketplaceSource::Github {
-            repo: "acme/vendor".into(),
+        source: ManifestExternalMarketplaceSource {
+            source: "github".into(),
+            repo: Some("acme/vendor".into()),
+            ..Default::default()
         },
     };
     m.marketplaces = vec![
@@ -1440,6 +1449,8 @@ fn claude_code_sync_aggregates_shared_foreign_marketplaces_once() {
             plugin_ids: vec![PluginId::try_new("research-plugin").unwrap()],
             allow_cross_marketplace_dependencies_on: vec!["vendor".into()],
             external_marketplaces: vec![vendor.clone()],
+            external_plugins: vec![],
+            claude_code: None,
         },
         ManifestMarketplace {
             id: systemprompt_identifiers::MarketplaceId::new("commerce"),
@@ -1447,6 +1458,8 @@ fn claude_code_sync_aggregates_shared_foreign_marketplaces_once() {
             plugin_ids: vec![PluginId::try_new("commerce-plugin").unwrap()],
             allow_cross_marketplace_dependencies_on: vec!["vendor".into()],
             external_marketplaces: vec![vendor],
+            external_plugins: vec![],
+            claude_code: None,
         },
     ];
     let (server, dirs) = rt.block_on(async {
@@ -1491,5 +1504,103 @@ fn claude_code_sync_aggregates_shared_foreign_marketplaces_once() {
     assert_eq!(
         owned["external_marketplaces"],
         serde_json::json!(["vendor"])
+    );
+}
+
+#[test]
+fn claude_code_sync_lists_and_enables_a_pass_through_dependency_and_spares_its_install() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let files = vec![
+        (
+            ".claude-plugin/plugin.json".to_owned(),
+            br#"{"name":"app","version":"1.0.0","dependencies":["playwright-cli"]}"#.to_vec(),
+        ),
+        ("SKILL.md".to_owned(), b"# managed\n".to_vec()),
+    ];
+    let sha = "74354ecc7a43da16d91a9bc54fa8db8283a3fcf5";
+    let mut m = manifest(vec!["claude-code".into()], false, "face0002");
+    m.plugins = vec![foreign_plugin_entry("app", &files)];
+    m.marketplaces = vec![ManifestMarketplace {
+        id: systemprompt_identifiers::MarketplaceId::new("org"),
+        name: "Org".into(),
+        plugin_ids: vec![PluginId::try_new("app").unwrap()],
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
+        external_plugins: vec![ManifestExternalPlugin {
+            name: "playwright-cli".into(),
+            source: ManifestExternalPluginSource {
+                source: "git-subdir".into(),
+                url: Some("microsoft/playwright-cli".into()),
+                path: Some("skills".into()),
+                reference: Some("v0.1.21".into()),
+                sha: Some(sha.into()),
+                ..Default::default()
+            },
+            description: None,
+            version: Some("0.1.21".into()),
+            strict: Some(false),
+            skills: None,
+        }],
+        claude_code: None,
+    }];
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway_files(&server, &m, &[("app".into(), files)]).await;
+        let dirs = sandbox(&server.uri());
+        let plugins = dirs.claude_home.join("plugins");
+        fs::create_dir_all(plugins.join("cache/org/playwright-cli/0.1.21")).unwrap();
+        fs::write(
+            plugins.join("installed_plugins.json"),
+            serde_json::json!({
+                "version": 2,
+                "plugins": { "playwright-cli@org": [{ "scope": "user", "version": "0.1.21" }] }
+            })
+            .to_string(),
+        )
+        .unwrap();
+        (server, dirs)
+    });
+    let _ = &server;
+    let summary = run_sync(&dirs).expect("sync succeeds");
+    assert!(
+        summary.host_failures.is_empty(),
+        "{:#?}",
+        summary.host_failures
+    );
+
+    let plugins = dirs.claude_home.join("plugins");
+    let catalog: serde_json::Value = serde_json::from_slice(
+        &fs::read(plugins.join("marketplaces/org/.claude-plugin/marketplace.json")).unwrap(),
+    )
+    .unwrap();
+    let listed = catalog["plugins"].as_array().unwrap();
+    assert_eq!(listed.len(), 2, "{catalog:#}");
+    assert_eq!(listed[1]["name"], "playwright-cli");
+    assert_eq!(listed[1]["source"]["sha"], sha);
+    assert_eq!(listed[1]["strict"], false);
+
+    let settings: serde_json::Value =
+        serde_json::from_slice(&fs::read(dirs.claude_home.join("settings.json")).unwrap()).unwrap();
+    assert_eq!(settings["enabledPlugins"]["app@org"], true);
+    assert_eq!(settings["enabledPlugins"]["playwright-cli@org"], true);
+
+    let installed: serde_json::Value =
+        serde_json::from_slice(&fs::read(plugins.join("installed_plugins.json")).unwrap()).unwrap();
+    assert!(
+        installed["plugins"].get("playwright-cli@org").is_some(),
+        "Claude Code's own install record survives: {installed:#}"
+    );
+    assert!(plugins.join("cache/org/playwright-cli/0.1.21").is_dir());
+
+    let owned: serde_json::Value =
+        serde_json::from_slice(&fs::read(plugins.join(sidecar::SIDECAR)).unwrap()).unwrap();
+    assert_eq!(
+        owned["dependency_keys"],
+        serde_json::json!(["playwright-cli@org"])
     );
 }

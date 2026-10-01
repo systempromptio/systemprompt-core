@@ -96,6 +96,7 @@ fn build_hook_entry(
         matcher: config.matcher,
         command: config.command,
         is_async: config.is_async,
+        timeout: config.timeout,
         category: config.category,
         tags: config.tags,
         sha256,

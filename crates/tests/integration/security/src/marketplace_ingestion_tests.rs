@@ -70,6 +70,8 @@ fn marketplace(id: &MarketplaceId, access: MarketplaceAccess) -> MarketplaceConf
         access,
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 

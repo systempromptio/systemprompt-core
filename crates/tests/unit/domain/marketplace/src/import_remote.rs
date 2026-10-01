@@ -285,3 +285,86 @@ fn a_remote_url_that_is_not_public_https_is_refused() {
         "{err}"
     );
 }
+
+fn marketplace_yaml(dest: &Path) -> serde_yaml::Value {
+    let text = std::fs::read_to_string(dest.join("marketplaces/acme/config.yaml"))
+        .expect("marketplace config written");
+    serde_yaml::from_str(&text).expect("valid yaml")
+}
+
+const PASS_THROUGH: &str = r#"{"name":"playwright-cli","mode":"pass_through","source":{"source":"git-subdir","url":"microsoft/playwright-cli","path":"skills","ref":"v0.1.21","sha":"74354ecc7a43da16d91a9bc54fa8db8283a3fcf5"},"strict":false,"skills":["./"],"version":"0.1.21"}"#;
+
+#[test]
+fn a_pass_through_entry_is_kept_as_authored_and_never_fetched() {
+    let tree = kit(PASS_THROUGH);
+
+    let (dest, report) = import(&tree, &Unreachable, true).expect("strict import succeeds");
+
+    assert!(report.plugins.is_empty(), "nothing is vendored");
+    assert!(report.upstream.is_empty(), "nothing is fetched");
+    assert!(!dest.path().join("plugins/playwright-cli").exists());
+    let marketplace = &marketplace_yaml(dest.path())["marketplace"];
+    assert_eq!(
+        marketplace["plugins"]["include"],
+        serde_yaml::Value::Sequence(vec![])
+    );
+    let expected: serde_yaml::Value = serde_yaml::from_str(
+        r#"
+- name: playwright-cli
+  source:
+    source: git-subdir
+    url: microsoft/playwright-cli
+    path: skills
+    ref: v0.1.21
+    sha: 74354ecc7a43da16d91a9bc54fa8db8283a3fcf5
+  version: 0.1.21
+  strict: false
+  skills: ["./"]
+"#,
+    )
+    .expect("expected yaml");
+    assert_eq!(marketplace["external_plugins"], expected);
+}
+
+#[test]
+fn a_pass_through_entry_without_a_sha_is_refused_naming_it() {
+    let tree = kit(
+        r#"{"name":"playwright-cli","mode":"pass_through","source":{"source":"git-subdir","url":"microsoft/playwright-cli","path":"skills","ref":"v0.1.21"}}"#,
+    );
+
+    let err = import(&tree, &Unreachable, false).expect_err("unpinned refused");
+
+    let text = err.to_string();
+    assert!(
+        text.contains("pass-through plugin 'playwright-cli'"),
+        "{text}"
+    );
+    assert!(text.contains("sha"), "{text}");
+}
+
+#[test]
+fn a_pass_through_entry_carrying_unmodelled_keys_is_refused() {
+    let tree = kit(&PASS_THROUGH.replacen('{', r#"{"category":"testing","#, 1));
+
+    let err = import(&tree, &Unreachable, false).expect_err("category refused");
+
+    assert!(err.to_string().contains("remove category"), "{err}");
+}
+
+#[test]
+fn a_pass_through_entry_beside_a_vendored_one_leaves_the_vendored_one_imported() {
+    let tree = kit(&format!("{},{PASS_THROUGH}", git_subdir("b2c", "")));
+    let capture = FakeCapture::new(vec![("skills/one/SKILL.md", skill("One."))]);
+
+    let (dest, report) = import(&tree, &capture, true).expect("import succeeds");
+
+    assert_eq!(
+        capture.seen().len(),
+        1,
+        "only the vendored entry is fetched"
+    );
+    assert_eq!(report.plugins.len(), 1);
+    let marketplace = &marketplace_yaml(dest.path())["marketplace"];
+    assert_eq!(marketplace["plugins"]["include"][0], "b2c");
+    assert_eq!(marketplace["external_plugins"][0]["name"], "playwright-cli");
+}

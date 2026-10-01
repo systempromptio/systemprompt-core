@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_identifiers::MarketplaceId;
 
+pub use super::marketplace_claude_code::ClaudeCodeMarketplaceConfig;
 pub use super::marketplace_external::{ExternalMarketplace, ExternalMarketplaceSource};
+use super::marketplace_external_plugin::{ExternalPluginEntry, validate_external_plugins};
 use super::plugin::{PluginAuthor, PluginComponentRef};
 use crate::errors::ConfigValidationError;
 
@@ -205,6 +207,10 @@ pub struct MarketplaceConfig {
     pub allow_cross_marketplace_dependencies_on: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub external_marketplaces: Vec<ExternalMarketplace>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub external_plugins: Vec<ExternalPluginEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_code: Option<ClaudeCodeMarketplaceConfig>,
 }
 
 impl MarketplaceConfig {
@@ -244,6 +250,10 @@ impl MarketplaceConfig {
 
         self.access.validate(key)?;
         self.validate_external_marketplaces(key)?;
+        validate_external_plugins(&self.external_plugins, &self.plugins.include, key)?;
+        if let Some(claude_code) = &self.claude_code {
+            claude_code.validate(key)?;
+        }
 
         Ok(())
     }
@@ -280,12 +290,5 @@ impl MarketplaceConfig {
             }
         }
         Ok(())
-    }
-
-    #[must_use]
-    pub fn external_marketplace(&self, name: &str) -> Option<&ExternalMarketplace> {
-        self.external_marketplaces
-            .iter()
-            .find(|m| m.name.trim() == name)
     }
 }

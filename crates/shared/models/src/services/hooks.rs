@@ -159,6 +159,8 @@ pub struct DiskHookConfig {
     pub command: String,
     #[serde(default, rename = "async")]
     pub is_async: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u32>,
     #[serde(default)]
     pub category: HookCategory,
     #[serde(default)]

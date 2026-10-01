@@ -83,6 +83,7 @@ fn sample_manifest() -> SignedManifest {
             instructions: "do the thing".into(),
             hosts: Vec::new(),
             plugins: Vec::new(),
+            frontmatter: None,
         }],
         rules: vec![RuleEntry {
             id: RuleId::try_new("rule_one").unwrap(),

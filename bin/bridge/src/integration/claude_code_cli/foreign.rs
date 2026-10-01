@@ -8,7 +8,9 @@
 //! written: the dependency enabled at user scope under
 //! `<plugin>@<marketplace>`, and the foreign marketplace registered in
 //! `extraKnownMarketplaces`. Claude Code then clones and caches the
-//! dependency at its next session start.
+//! dependency at its next session start. A dependency on a pass-through
+//! plugin — listed in the mirrored catalog but never mirrored — is enabled
+//! the same way, under the marketplace that lists it.
 //!
 //! Every key written here is recorded in the sidecar so a later sync or
 //! uninstall removes exactly these and never a key the user added.
@@ -21,7 +23,7 @@ use std::path::Path;
 
 use serde_json::{Map, Value};
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::bridge::manifest::ExternalMarketplace;
+use systemprompt_models::bridge::manifest::ManifestExternalMarketplace;
 use systemprompt_models::bridge::plugin_bundle::PluginManifest;
 
 use super::marketplace::HostMarketplace;
@@ -34,7 +36,7 @@ use crate::integration::json_io::object_entry;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ForeignRefs {
     pub dependency_keys: BTreeSet<String>,
-    pub external_marketplaces: Vec<ExternalMarketplace>,
+    pub external_marketplaces: Vec<ManifestExternalMarketplace>,
 }
 
 impl ForeignRefs {
@@ -84,7 +86,9 @@ pub fn read_plugin_manifest(plugin_dir: &Path) -> Option<PluginManifest> {
 }
 
 // Why: a dependency on a marketplace this run mirrors is already enabled by
-// the mirror itself, so only keys that leave the mirrored set are collected.
+// the mirror itself, so only keys that leave the mirrored set are collected —
+// and keys for pass-through plugins, which Claude Code fetches from this
+// marketplace's catalog but the mirror never enables.
 #[must_use]
 pub fn collect(
     marketplace: &HostMarketplace,
@@ -101,7 +105,12 @@ pub fn collect(
         };
         for dependency in &manifest.dependencies {
             let target = dependency.marketplace().unwrap_or(marketplace.id.as_str());
-            if mirrored.iter().any(|id| id.as_str() == target) {
+            let passed_through = target == marketplace.id.as_str()
+                && marketplace
+                    .external_plugins
+                    .iter()
+                    .any(|p| p.name == dependency.name());
+            if !passed_through && mirrored.iter().any(|id| id.as_str() == target) {
                 continue;
             }
             refs.dependency_keys

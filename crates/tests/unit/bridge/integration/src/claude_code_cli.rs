@@ -224,6 +224,8 @@ fn manifest_marketplace(id: &str, name: &str, plugin_ids: &[&str]) -> ManifestMa
             .collect(),
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 

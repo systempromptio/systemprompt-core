@@ -87,6 +87,8 @@ fn original_marketplace() -> MarketplaceConfig {
         },
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 
@@ -105,6 +107,7 @@ fn skill_entry(id: &str, description: &str) -> SkillEntry {
         instructions: format!("Instructions for {id}."),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 

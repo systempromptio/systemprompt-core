@@ -37,7 +37,8 @@ pub(crate) enum HookEntry {
     },
     Command {
         command: String,
-        timeout: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        timeout: Option<u32>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         r#async: Option<bool>,
         event: String,
@@ -67,10 +68,15 @@ impl HookEntry {
         }
     }
 
-    pub(crate) fn user_command(command: String, event: &str, is_async: bool) -> Self {
+    pub(crate) fn user_command(
+        command: String,
+        event: &str,
+        is_async: bool,
+        timeout: Option<u32>,
+    ) -> Self {
         Self::Command {
             command,
-            timeout: DEFAULT_TIMEOUT_SECS,
+            timeout,
             r#async: if is_async { Some(true) } else { None },
             event: event.to_owned(),
         }
@@ -124,6 +130,7 @@ impl HooksFile {
                     command.to_owned(),
                     event,
                     is_async,
+                    Some(DEFAULT_TIMEOUT_SECS),
                 )));
         }
     }

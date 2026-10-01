@@ -95,6 +95,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
         instructions: body.into(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
@@ -376,6 +377,8 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
                 plugin_ids: vec![],
                 allow_cross_marketplace_dependencies_on: vec![],
                 external_marketplaces: vec![],
+                external_plugins: vec![],
+                claude_code: None,
             },
             ManifestMarketplace {
                 id: systemprompt_identifiers::MarketplaceId::new("commerce"),
@@ -383,6 +386,8 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
                 plugin_ids: vec![],
                 allow_cross_marketplace_dependencies_on: vec![],
                 external_marketplaces: vec![],
+                external_plugins: vec![],
+                claude_code: None,
             },
         ];
         apply(&m, &sb.skills).unwrap();

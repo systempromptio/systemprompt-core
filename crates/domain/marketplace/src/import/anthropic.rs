@@ -10,7 +10,9 @@
 //! [`PluginSource`]: a string is a path inside the tree; an object whose
 //! `source` is `github`, `url` or `git-subdir` is remote and fetched at import;
 //! `npm` and `pip` cannot be vendored. Any other object keeps the older
-//! reading of its `path` or `source` string as a local path.
+//! reading of its `path` or `source` string as a local path. An entry whose
+//! `mode` is `pass_through` is not read this way at all: it is kept as
+//! authored (`pass_through`).
 //!
 //! [`HooksFile`] is the `hooks/hooks.json` a plugin ships, whose body is the
 //! same `HookEventsConfig` core already models.
@@ -86,6 +88,18 @@ pub struct MarketplacePluginEntry {
     #[serde(default)]
     // JSON: Claude Code component path override, a string or an array of them
     pub skills: Option<serde_json::Value>,
+    #[serde(default)]
+    pub mode: PluginEntryMode,
+}
+
+/// How the importer treats a marketplace entry: `vendor` fetches and imports
+/// it, `pass_through` keeps it as authored for Claude Code to fetch.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginEntryMode {
+    #[default]
+    Vendor,
+    PassThrough,
 }
 
 impl MarketplacePluginEntry {

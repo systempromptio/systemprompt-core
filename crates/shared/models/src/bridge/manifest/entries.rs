@@ -62,6 +62,8 @@ pub struct SkillEntry {
     pub hosts: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frontmatter: Option<serde_yaml::Mapping>,
 }
 
 /// Exact signed publication identity shared by every host projection. This is
@@ -127,6 +129,8 @@ pub struct HookEntry {
     pub command: String,
     #[serde(default)]
     pub is_async: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u32>,
     pub category: HookCategory,
     #[serde(default)]
     pub tags: Vec<String>,

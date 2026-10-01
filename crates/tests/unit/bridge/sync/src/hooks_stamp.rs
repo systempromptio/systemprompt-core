@@ -41,6 +41,11 @@ const HOOKS: &str = r#"{
             "command": "echo hi",
             "timeout": 10,
             "event": "Stop"
+          },
+          {
+            "type": "command",
+            "command": "echo untimed",
+            "event": "Stop"
           }
         ]
       }
@@ -100,7 +105,11 @@ fn command_entries_are_left_alone() {
     let command = &doc["hooks"]["Stop"][0]["hooks"][1];
     assert_eq!(command["type"], "command", "{doc}");
     assert_eq!(command["command"], "echo hi");
+    assert_eq!(command["timeout"], 10, "{doc}");
     assert!(command.get("headers").is_none(), "{doc}");
+    let untimed = &doc["hooks"]["Stop"][0]["hooks"][2];
+    assert_eq!(untimed["command"], "echo untimed", "{doc}");
+    assert!(untimed.get("timeout").is_none(), "{doc}");
 }
 
 #[test]

@@ -531,3 +531,47 @@ async fn historical_multiple_receipts_ack_identical_binding_retries() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn plan_and_receipt_omit_dev_files_from_runtime_and_source_copies() {
+    let f = crate::consumer_fixture::fixture_with_extra_files(&[
+        ("README.md", b"# dev readme"),
+        ("tests/run.test.sh", b"exit 0"),
+        ("foo.test.ts", b"test()"),
+        ("references/guide.md", b"# guide"),
+    ])
+    .await;
+    let paths: Vec<&str> = f
+        .request
+        .runtime_files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect();
+    let source = format!(".systemprompt-source/{}", f.request.revision_id);
+    assert!(paths.contains(&"references/guide.md"));
+    assert!(paths.contains(&format!("{source}/references/guide.md").as_str()));
+    assert!(paths.contains(&format!("{source}/SKILL.md").as_str()));
+    for dev in ["README.md", "tests/run.test.sh", "foo.test.ts"] {
+        assert!(
+            !paths.iter().any(|path| path.ends_with(dev)),
+            "{dev} shipped"
+        );
+    }
+    let mut readback = f.request.clone();
+    readback.files.retain(|file| {
+        !["README.md", "tests/run.test.sh", "foo.test.ts"].contains(&file.path.as_str())
+    });
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &f.request)
+            .await
+            .is_err(),
+        "a readback naming a dev file the plan never shipped is refused"
+    );
+    let receipt = f
+        .repo
+        .record_consumer_receipt(&f.credential.credential, &readback)
+        .await
+        .unwrap();
+    assert!(receipt.fully_verified);
+}

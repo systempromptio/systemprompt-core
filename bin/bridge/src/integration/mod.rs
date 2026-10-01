@@ -9,6 +9,7 @@ pub mod agent_fleet;
 pub mod agent_health;
 pub(crate) mod app_launch;
 pub mod claude_code_cli;
+pub mod claude_code_routing;
 pub mod claude_desktop;
 pub mod codex_cli;
 pub(crate) mod config_read;

@@ -112,3 +112,26 @@ fn copy_tree(src: &std::path::Path, dest: &std::path::Path) {
         }
     }
 }
+
+#[test]
+fn a_pass_through_entry_named_like_a_vendored_plugin_is_refused() {
+    let source = TempDir::new().expect("tempdir");
+    let manifest = source.path().join(".claude-plugin/marketplace.json");
+    std::fs::create_dir_all(manifest.parent().expect("parent")).expect("mkdir");
+    std::fs::write(
+        &manifest,
+        r#"{"name":"acme","owner":{"name":"Acme"},"plugins":[
+            {"name":"tools","source":"./plugins/tools"},
+            {"name":"tools","mode":"pass_through","source":{"source":"github","repo":"acme/tools","sha":"74354ecc7a43da16d91a9bc54fa8db8283a3fcf5"}}
+        ]}"#,
+    )
+    .expect("write manifest");
+
+    let dest = TempDir::new().expect("tempdir");
+    let err = import_anthropic_tree(source.path(), dest.path(), &ImportOptions::default())
+        .expect_err("name collision refused");
+
+    let text = err.to_string();
+    assert!(text.contains("external plugin 'tools'"), "{text}");
+    assert!(text.contains("vendors"), "{text}");
+}

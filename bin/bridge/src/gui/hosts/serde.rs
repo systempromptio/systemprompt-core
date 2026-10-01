@@ -34,6 +34,7 @@ fn build_entry<'a>(
         has_download_url: !host.download_url().is_empty(),
         surface: AgentSurface::LocalProfile,
         manifest_synced: snap.manifest_synced(),
+        gateway_routed: true,
         can_open: host.can_open(),
     });
     let caps = HostCapabilities::for_surface(AgentSurface::LocalProfile, host.can_open());
@@ -81,6 +82,7 @@ fn build_sync_only_entry<'a>(
         has_download_url: false,
         surface: AgentSurface::SyncOnly,
         manifest_synced: snap.manifest_synced(),
+        gateway_routed: crate::integration::sync_only::gateway_routed(agent),
         can_open: false,
     });
     let caps = HostCapabilities::for_surface(AgentSurface::SyncOnly, false);

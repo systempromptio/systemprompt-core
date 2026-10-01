@@ -47,6 +47,7 @@ fn skill(id: &str) -> SkillEntry {
         instructions: String::new(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
@@ -84,6 +85,7 @@ fn hook(id: &str) -> HookEntry {
         matcher: "*".into(),
         command: String::new(),
         is_async: false,
+        timeout: None,
         category: Default::default(),
         tags: vec![],
         sha256: Sha256Digest::try_new(

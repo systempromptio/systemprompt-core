@@ -80,6 +80,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
         instructions: body.into(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 

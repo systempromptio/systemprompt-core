@@ -14,7 +14,9 @@ pub mod gateway;
 pub mod hooks;
 mod includable;
 pub mod marketplace;
+pub mod marketplace_claude_code;
 pub mod marketplace_external;
+pub mod marketplace_external_plugin;
 pub mod mcp;
 pub mod plugin;
 pub mod providers;
@@ -22,6 +24,7 @@ pub mod rules;
 pub mod runtime;
 pub mod scheduler;
 pub mod settings;
+pub mod skill_frontmatter;
 pub mod skills;
 pub mod slack;
 pub mod system_admin;
@@ -59,9 +62,12 @@ pub use hooks::{
     HookMatcher, HookType,
 };
 pub use marketplace::{
-    ExternalMarketplace, ExternalMarketplaceSource, MarketplaceAccess, MarketplaceAccessRule,
-    MarketplaceConfig, MarketplaceConfigFile, MarketplaceMemberKind, MarketplaceRuleAccess,
-    MarketplaceVisibility,
+    ClaudeCodeMarketplaceConfig, ExternalMarketplace, ExternalMarketplaceSource, MarketplaceAccess,
+    MarketplaceAccessRule, MarketplaceConfig, MarketplaceConfigFile, MarketplaceMemberKind,
+    MarketplaceRuleAccess, MarketplaceVisibility,
+};
+pub use marketplace_external_plugin::{
+    ExternalPluginEntry, ExternalPluginSkills, ExternalPluginSource,
 };
 pub use mcp::McpServerSummary;
 pub use plugin::{

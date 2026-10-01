@@ -211,6 +211,7 @@ fn disk_skill_config_content_file_default_and_explicit() {
         tags: vec![],
         category: None,
         hosts: vec![],
+        frontmatter: None,
     };
     assert_eq!(cfg.content_file(), "index.md");
 
@@ -232,6 +233,7 @@ fn skill_summary_from_disk_config_file_path_logic() {
         tags: vec!["a".to_owned(), "b".to_owned()],
         category: None,
         hosts: vec![],
+        frontmatter: None,
     };
     let sum: SkillSummary = (&cfg).into();
     assert_eq!(sum.skill_id, cfg.id);
@@ -258,6 +260,7 @@ fn skill_detail_from_disk_config_carries_category_and_blank_preview() {
         tags: vec!["t".to_owned()],
         category: Some("dev".to_owned()),
         hosts: vec![],
+        frontmatter: None,
     };
     let det: SkillDetail = (&cfg).into();
     assert_eq!(det.category.as_deref(), Some("dev"));

@@ -118,6 +118,7 @@ fn skill(id: &str) -> SkillEntry {
         instructions: String::new(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 

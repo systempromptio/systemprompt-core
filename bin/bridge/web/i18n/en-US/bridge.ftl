@@ -172,6 +172,7 @@ agent-reason-no-models = No model this agent can use is available
 agent-reason-proxy-down = The local proxy is not responding
 agent-reason-never-probed = Not checked yet
 agent-reason-cloud-managed = Managed from the cloud — nothing to install on this computer
+agent-reason-not-routed = Not routed through the gateway — Claude Code still uses its own login; run install --host claude-code
 agent-action-repair = Repair
 agent-action-update = Update
 agent-action-update-admin = Update (administrator)

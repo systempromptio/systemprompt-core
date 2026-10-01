@@ -35,6 +35,8 @@ mod schedule;
 #[cfg(test)]
 mod settings_path_probe;
 #[cfg(test)]
+mod skill_budget;
+#[cfg(test)]
 mod summary;
 #[cfg(test)]
 mod tool_catalog;

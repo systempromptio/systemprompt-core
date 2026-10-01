@@ -149,7 +149,7 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
             external_marketplaces: foreign.external_names(),
         },
     )?;
-    permissions::apply_tool_permissions(ctx)?;
+    permissions::apply_client_settings(ctx)?;
 
     tracing::info!(
         target: "bridge::claude-code-cli",
@@ -208,7 +208,7 @@ fn mirror_marketplace(
         ids.push(id);
     }
 
-    let dirs: Vec<&str> = ids.iter().map(|id| id.as_str()).collect();
+    let dirs = marketplace.retained(&ids);
     remove_stale_children(
         &marketplace_dir(plugins, &marketplace.id).join("plugins"),
         &dirs,
@@ -222,7 +222,7 @@ fn mirror_marketplace(
         &entries,
     )?;
     upsert_known_marketplace(plugins, &marketplace.id, &manifest.issued_at.to_rfc3339())?;
-    upsert_installed_plugins(plugins, manifest, &marketplace.id, &ids)?;
+    upsert_installed_plugins(plugins, manifest, marketplace, &ids)?;
     let sources: Vec<PathBuf> = ids
         .iter()
         .map(|id| ctx.org_plugins_root.join(id.as_str()))
@@ -266,7 +266,7 @@ pub(crate) fn clear_install() -> Result<(), ApplyError> {
         purge_marketplace(&plugins, id)?;
     }
     set_enabled(&[], &owned.marketplaces, &owned, &ForeignRefs::default())?;
-    permissions::clear_tool_permissions()?;
+    permissions::clear_client_settings()?;
     sidecar::remove(&plugins)
 }
 

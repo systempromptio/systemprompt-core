@@ -34,6 +34,8 @@
 //! - [`import`]: [`import_anthropic_tree`] translates a repository authored in
 //!   Anthropic `.claude-plugin` form into the services tree the loader reads,
 //!   taking everything that format cannot express from strict sidecars.
+//! - [`DevFileFilter`]: the dev-only files (skill `README.md`, tests, fixtures,
+//!   the kit's `.systempromptignore`) kept out of the client tree.
 //!
 //! ## Error model
 //!
@@ -56,6 +58,7 @@
 pub mod bundle;
 mod candidate;
 pub mod catalog;
+pub mod dev_files;
 mod error;
 mod extension;
 mod filter;
@@ -79,6 +82,7 @@ pub use catalog::{
     BundleMap, CatalogContent, MarketplaceCache, RESOLVED_CAPACITY, RESOLVED_TTL, ResolvedCatalog,
     ResolvedKey, plugin_bundles,
 };
+pub use dev_files::{DevFileError, DevFileFilter, IGNORE_FILE};
 pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use extension::ManagedResourcesExtension;
 pub use filter::{AllowAllFilter, MarketplaceFilter};

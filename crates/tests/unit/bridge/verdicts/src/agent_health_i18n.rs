@@ -79,6 +79,7 @@ fn every_agent_reason_has_copy() {
         },
         AgentReason::NeverProbed,
         AgentReason::CloudManaged,
+        AgentReason::NotRouted,
     ] {
         assert_key("agent-reason", &code_of(&r));
     }

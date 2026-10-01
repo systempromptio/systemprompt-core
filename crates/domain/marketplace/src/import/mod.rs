@@ -25,6 +25,12 @@
 //! and needs no network at boot. An entry without a `sha` is imported from
 //! whatever its ref points at and flagged, which `strict` refuses.
 //!
+//! An entry marked `"mode": "pass_through"` is the exception: it is not
+//! fetched but kept as authored on the marketplace config
+//! (`external_plugins`), and Claude Code fetches it itself. Such an entry must
+//! pin a `sha`, and its name may not repeat a vendored plugin's
+//! ([`pass_through`]).
+//!
 //! ## Destination
 //!
 //! `into` must not exist or must be empty. The importer composes a whole tree
@@ -42,6 +48,7 @@ mod base;
 mod disk;
 mod hooks;
 mod marketplace;
+mod pass_through;
 mod plugin;
 mod remote;
 mod rules;
@@ -56,10 +63,13 @@ use std::path::Path;
 
 use systemprompt_identifiers::{MarketplaceId, PluginId};
 
+use crate::dev_files::DevFileFilter;
 use crate::error::MarketplaceError;
 use crate::managed::{GitSourceCapture, NativeGitSourceCapture};
 
-pub use anthropic::{MarketplaceJson, MarketplacePluginEntry, PluginSource, RemotePluginSource};
+pub use anthropic::{
+    MarketplaceJson, MarketplacePluginEntry, PluginEntryMode, PluginSource, RemotePluginSource,
+};
 pub use sidecar::{MarketplaceSidecar, PluginSidecar, SIDECAR_RELPATH};
 pub use warning::ImportWarning;
 
@@ -107,7 +117,11 @@ pub fn import_anthropic_tree_with(
         ensure_empty(into)?;
     }
 
-    let sink = writer::Sink::new(into, opts.dry_run);
+    let dev_files = DevFileFilter::load(from).map_err(|e| MarketplaceError::Import {
+        path: from.display().to_string(),
+        message: e.to_string(),
+    })?;
+    let sink = writer::Sink::new(into, opts.dry_run, dev_files);
     let mut report = ImportReport {
         copied_base_dirs: base::copy_base_tree(from, &sink)?,
         ..ImportReport::default()
@@ -162,14 +176,21 @@ fn import_marketplace_tree(
         })?;
 
     let sidecar = sidecar::load_marketplace_sidecar(&from.join(SIDECAR_RELPATH))?;
-    let id = marketplace::import_marketplace(&manifest, &sidecar, manifest_path, sink)?;
+    let (vendored, external_plugins) = pass_through::split(&manifest.plugins, manifest_path)?;
+    let id = marketplace::import_marketplace(
+        &manifest,
+        &sidecar,
+        external_plugins,
+        manifest_path,
+        sink,
+    )?;
     report.marketplaces.push(id);
 
     let mut seen_skills: BTreeSet<String> = BTreeSet::new();
     let mut seen_rules: BTreeSet<String> = BTreeSet::new();
     let plugin_root = manifest.metadata.plugin_root.as_deref();
 
-    for entry in &manifest.plugins {
+    for entry in vendored {
         let source = entry
             .plugin_source()
             .map_err(|message| MarketplaceError::Import {

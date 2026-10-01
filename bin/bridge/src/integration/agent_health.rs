@@ -37,9 +37,10 @@ impl AgentState {
     }
 }
 
-/// Why the agent is in that state. Carries the arguments its message needs;
-/// `CloudManaged` is routed through the gateway centrally with nothing to
-/// install on this machine.
+/// Why the agent is in that state, with the arguments its message needs.
+///
+/// `CloudManaged` is routed through the gateway centrally; `NotRouted` is a
+/// sync-only CLI whose settings do not send its inference to the gateway.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "code", rename_all = "kebab-case")]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
@@ -57,6 +58,7 @@ pub enum AgentReason {
     ProxyDown { probe: ProxyProbeState },
     NeverProbed,
     CloudManaged,
+    NotRouted,
 }
 
 /// The one button that fixes this state, if there is one.
@@ -148,6 +150,7 @@ pub struct HostHealthInputs<'a> {
     pub has_download_url: bool,
     pub surface: AgentSurface,
     pub manifest_synced: bool,
+    pub gateway_routed: bool,
     pub can_open: bool,
 }
 
@@ -171,7 +174,7 @@ impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRe
 #[must_use]
 pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
     if input.surface == AgentSurface::SyncOnly {
-        return super::sync_only::sync_only_verdict(input.manifest_synced);
+        return super::sync_only::sync_only_verdict(input.manifest_synced, input.gateway_routed);
     }
 
     let Some(snap) = input.snapshot else {

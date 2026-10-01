@@ -95,11 +95,16 @@ impl ServicesConfig {
         for plugin in &members {
             for dependency in &plugin.dependencies {
                 let Some(target) = dependency.marketplace.as_deref() else {
-                    if !members.iter().any(|p| p.id.as_str() == dependency.name) {
+                    let carried = members.iter().any(|p| p.id.as_str() == dependency.name)
+                        || marketplace
+                            .external_plugins
+                            .iter()
+                            .any(|p| p.name == dependency.name);
+                    if !carried {
                         return Err(ConfigValidationError::unknown_reference(format!(
                             "Marketplace '{name}': plugin '{}' depends on '{}', which this \
-                             marketplace does not carry — name its marketplace or add it to \
-                             plugins.include",
+                             marketplace does not carry — name its marketplace, add it to \
+                             plugins.include or list it under external_plugins",
                             plugin.id.as_str(),
                             dependency.name
                         )));

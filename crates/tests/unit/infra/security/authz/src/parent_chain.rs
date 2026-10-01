@@ -308,6 +308,8 @@ fn from_services_records_which_plugin_selects_each_skill() {
         },
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     };
     services
         .marketplaces

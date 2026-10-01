@@ -16,6 +16,7 @@ The governing rule is that no fact has two authors. A field the importer can der
 
 ```
 your-marketplace/
+├── .systempromptignore           # optional, dev-only paths, see step 4
 ├── .claude-plugin/
 │   ├── marketplace.json          # required
 │   └── systemprompt.yaml         # optional marketplace sidecar
@@ -27,7 +28,7 @@ your-marketplace/
 │       ├── skills/
 │       │   └── alpha_discovery/
 │       │       ├── SKILL.md
-│       │       └── checklist.md  # siblings are copied verbatim
+│       │       └── checklist.md  # siblings are copied, dev-only files aside
 │       ├── rules/
 │       │   └── handover.md
 │       ├── hooks/
@@ -44,7 +45,7 @@ The importer writes a mirror-image services tree:
 |--------|-------------|
 | `.claude-plugin/marketplace.json` | `marketplaces/<id>/config.yaml` |
 | `plugins/<id>/.claude-plugin/plugin.json` | `plugins/<id>/config.yaml` |
-| `plugins/<id>/skills/<id>/` | `skills/<id>/` (config plus every file verbatim) |
+| `plugins/<id>/skills/<id>/` | `skills/<id>/` (config plus every file verbatim, dev-only files excluded) |
 | `rules/<name>.md` | `rules/<name>/{config.yaml,index.md}` |
 | `plugins/<id>/hooks/hooks.json` | `hooks/<plugin>__<Event>__<n>/config.yaml` |
 | `plugins/<id>/scripts/` | `plugins/<id>/scripts/` |
@@ -213,7 +214,27 @@ A plugin whose skills ship Node scripts keeps `package.json` and its lockfile at
 
 ## 4. Skills
 
-Each `skills/<id>/SKILL.md` becomes `skills/<id>/config.yaml`, and every file and subdirectory beside it is copied unchanged.
+Each `skills/<id>/SKILL.md` becomes `skills/<id>/config.yaml`, and every file and subdirectory beside it is copied unchanged, except dev-only files.
+
+### Dev-only files
+
+What a skill's author needs and its user does not never reaches a client. These are excluded by default, matched inside each skill folder:
+
+- `README.md` at the skill root, in any case (a `README.md` in a subfolder such as `references/` ships);
+- any `tests/`, `test/`, `fixtures/` or `__tests__/` directory, at any depth;
+- any `*.test.*` or `*.spec.*` file, at any depth.
+
+A kit adds its own paths in `.systempromptignore` at the repository root, in gitignore syntax: `#` comments, `*`, `?` and `**`, a trailing `/` for a directory, and a pattern containing `/` anchored to the repository root. The ignore file is read before the defaults, one directory level at a time, so `!fixtures/` ships a skill's fixtures; a negation cannot re-include a file under an excluded directory. A malformed pattern fails the import.
+
+```
+# .systempromptignore
+*.snap
+coverage/
+/plugins/alpha-tools/skills/alpha_discovery/notes/
+!fixtures/
+```
+
+The same rules apply where skill files are captured into a managed revision (the authoring tree's own `.systempromptignore` at its root) and the defaults apply again when a revision is laid out for a client, so a dev file left in an older revision is not installed either.
 
 The **directory name is the id**, never the frontmatter `name`. The loader keys skills by directory and refuses a descriptor that disagrees with it, while Anthropic's `name` is a display string that may contain anything.
 
@@ -222,6 +243,32 @@ Skill ids are canonically `snake_case`, but a generated Claude Code bundle names
 Frontmatter `description` must be present and non-empty. `name`, `tags`, `category` and `hosts` are optional; `tags` accepts a list or a comma-separated string. A skill with no `category` inherits its plugin's.
 
 A skill id claimed by two plugins is an error. Skill ids are unique across the whole tree, not per plugin.
+
+### Skill frontmatter
+
+The platform owns seven frontmatter keys and passes every other key through as you wrote it:
+
+| Key | What the platform does with it |
+|-----|--------------------------------|
+| `name` | Replaced in the client `SKILL.md` by the kebab-case skill id. |
+| `description` | Re-emitted from the skill's `config.yaml`. |
+| `title` | The display name; stripped from the client file. |
+| `tags`, `category`, `display_category` | Catalogue metadata; stripped. |
+| `hosts` | Which clients receive the skill; stripped. |
+
+Any other key (`allowed-tools`, `disable-model-invocation`, `user-invocable`, `argument-hint`, `when_to_use`, `model`, `hooks`, `metadata`, a key Claude Code adds in a later release) is kept in `config.yaml` under `frontmatter`, in the order you wrote it, and written to the `SKILL.md` that Claude Code, Claude Desktop and Cowork receive, after `name` and `description`. Nested values such as `hooks` and `metadata` keep their structure. The value is re-serialised, not copied byte for byte, so comments and quoting style in the frontmatter are not preserved.
+
+```yaml
+---
+name: alpha-discovery
+title: Alpha Discovery          # platform-owned, stripped
+description: Walk a new field engagement.
+allowed-tools: [Read, Grep]     # passed through
+disable-model-invocation: true  # passed through
+---
+```
+
+The frontmatter travels in the signed manifest as JSON, so a mapping key must be a string, a value must not carry a YAML tag (`!tag`) and a number must be finite; anything else fails the import. A skill's `sha256` covers the passed-through keys as well as its instructions, so editing an authored key re-stamps the skill. Codex, OpenCode and Hermes skill files keep `name` and `description` alone.
 
 ## 5. Rules and hooks
 

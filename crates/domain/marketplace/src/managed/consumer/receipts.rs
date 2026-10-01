@@ -9,6 +9,7 @@ use systemprompt_models::feedback::receipts::{
     ConsumerReceiptRequest, ConsumerReceiptResponse, InstallationPlanFile, ReceiptAcknowledgement,
 };
 
+use super::plan::ships;
 use super::{credentials, host_key};
 use crate::managed::{
     AssetDigest, InstalledFile, ManagedError, ManagedRepository, Result, RevisionBundle,
@@ -27,7 +28,7 @@ pub fn verify_readback(bundle: &RevisionBundle, request: &ConsumerReceiptRequest
     let expected_count: usize = bundle
         .revisions
         .values()
-        .map(|revision| revision.files.len())
+        .map(|revision| revision.files.keys().filter(|path| ships(path)).count())
         .sum();
     if expected_count != request.files.len() {
         return Err(ManagedError::Integrity);
@@ -37,6 +38,7 @@ pub fn verify_readback(bundle: &RevisionBundle, request: &ConsumerReceiptRequest
             .revisions
             .get(&file.revision_id)
             .and_then(|revision| revision.files.get(&file.path))
+            .filter(|_| ships(&file.path))
             .ok_or(ManagedError::Integrity)?;
         if file.digest.as_str() != expected.digest.as_str()
             || file.bytes != expected.bytes

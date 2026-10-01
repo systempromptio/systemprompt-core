@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod claude_code;
+pub mod claude_code;
 
 use crate::context::BridgeContext;
 use crate::integration::host_app::{HostApp, ProbeEnv, ProfileRemoval};
@@ -81,6 +81,7 @@ pub fn resolve(selection: &Selection) -> Result<Vec<Target>, String> {
                 .iter()
                 .copied()
                 .map(Target::Local)
+                .chain(claude_code::installed_agent().map(Target::SyncOnly))
                 .collect());
         },
         Selection::Ids(ids) => ids,
@@ -121,15 +122,23 @@ pub async fn enrol_hosts(
 ) -> Result<Vec<Report>, String> {
     let targets = resolve(selection)?;
     let env = ProbeEnv::for_bridge(bridge);
+    let not_enabled = |id: &str| {
+        enabled
+            .as_ref()
+            .is_some_and(|hosts| !hosts.iter().any(|h| h == id))
+    };
+    // Why: `--host claude-code` has always enrolled regardless of the
+    // instance's enabled hosts; only the implicit `all` selection respects it.
+    let claude_code_gated = matches!(selection, Selection::All) && not_enabled(claude_code::ID);
     let mut reports = Vec::with_capacity(targets.len());
     for target in targets {
         reports.push(match target {
-            Target::SyncOnly(agent) if agent.id == claude_code::ID => Report {
-                host_id: agent.id.to_owned(),
-                display_name: agent.display_name,
-                install_action_label: claude_code::LABEL,
-                outcome: claude_code::enrol(bridge),
-                warnings: Vec::new(),
+            Target::SyncOnly(agent) if agent.id == claude_code::ID => {
+                if claude_code_gated {
+                    claude_code::not_enabled_report()
+                } else {
+                    claude_code::enrol_report(bridge)
+                }
             },
             Target::SyncOnly(agent) => Report {
                 host_id: agent.id.to_owned(),
@@ -139,10 +148,7 @@ pub async fn enrol_hosts(
                 warnings: Vec::new(),
             },
             Target::Local(host) => {
-                let (outcome, warnings) = if enabled
-                    .as_ref()
-                    .is_some_and(|hosts| !hosts.iter().any(|h| h == host.id()))
-                {
+                let (outcome, warnings) = if not_enabled(host.id()) {
                     (Outcome::NotEnabled, Vec::new())
                 } else {
                     enrol_one(bridge, host, overrides, &env).await
@@ -246,13 +252,7 @@ pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String
     Ok(targets
         .into_iter()
         .map(|target| match target {
-            Target::SyncOnly(agent) if agent.id == claude_code::ID => Report {
-                host_id: agent.id.to_owned(),
-                display_name: agent.display_name,
-                install_action_label: claude_code::LABEL,
-                outcome: claude_code::remove(),
-                warnings: Vec::new(),
-            },
+            Target::SyncOnly(agent) if agent.id == claude_code::ID => claude_code::removal_report(),
             Target::SyncOnly(agent) => Report {
                 host_id: agent.id.to_owned(),
                 display_name: agent.display_name,

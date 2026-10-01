@@ -159,6 +159,7 @@ fn recompute(doc: &Value) -> Option<Value> {
                 .is_some_and(|u| !u.is_empty()),
             surface: AgentSurface::LocalProfile,
             manifest_synced,
+            gateway_routed: true,
             can_open: host
                 .get("can_open")
                 .and_then(Value::as_bool)
@@ -199,6 +200,7 @@ fn recompute(doc: &Value) -> Option<Value> {
             has_download_url: false,
             surface: AgentSurface::SyncOnly,
             manifest_synced,
+            gateway_routed: true,
             can_open: false,
         });
         // Why: read from the same `HostCapabilities` the real payload uses

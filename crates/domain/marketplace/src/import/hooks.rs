@@ -75,6 +75,7 @@ pub(super) fn import_plugin_hooks(
                     matcher: matcher.matcher.clone(),
                     command,
                     is_async: action.r#async,
+                    timeout: action.timeout,
                     category: HookCategory::Custom,
                     tags: vec![plugin_id.to_owned()],
                 };

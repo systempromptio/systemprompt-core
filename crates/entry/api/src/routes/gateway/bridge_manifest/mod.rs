@@ -18,7 +18,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
 use systemprompt_models::bridge::manifest::{
-    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, min_bridge_version,
+    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, manifest_min_bridge_version,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_models::services::BridgePolicyConfig;
@@ -86,7 +86,7 @@ pub async fn manifest(
 
     let manifest = SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
-        min_bridge_version: Some(min_bridge_version()),
+        min_bridge_version: Some(manifest_min_bridge_version(&marketplaces)),
         manifest_version,
         issued_at,
         not_before,

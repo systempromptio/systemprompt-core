@@ -84,6 +84,7 @@ fn skill(id: &str, hosts: &[&str], instructions: &str) -> SkillEntry {
         instructions: instructions.to_owned(),
         hosts: hosts.iter().map(|h| (*h).to_owned()).collect(),
         plugins: vec![],
+        frontmatter: None,
     }
 }
 

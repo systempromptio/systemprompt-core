@@ -12,7 +12,7 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::bridge::manifest::ExternalMarketplace;
+use systemprompt_models::bridge::manifest::{ManifestExternalMarketplace, ManifestExternalPlugin};
 
 use super::foreign::{self, ForeignRefs};
 use super::io_err;
@@ -27,14 +27,28 @@ use crate::integration::json_io::{
 };
 
 /// A Claude Code marketplace this emitter mirrors: the gateway marketplace's
-/// id and name, and the manifest plugins it carries.
+/// id and name, the manifest plugins it carries, and the pass-through plugins
+/// its catalog lists for Claude Code to fetch itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HostMarketplace {
     pub id: MarketplaceId,
     pub name: String,
     pub plugin_ids: Vec<PluginId>,
     pub allow_cross_marketplace_dependencies_on: Vec<String>,
-    pub external_marketplaces: Vec<ExternalMarketplace>,
+    pub external_marketplaces: Vec<ManifestExternalMarketplace>,
+    pub external_plugins: Vec<ManifestExternalPlugin>,
+}
+
+impl HostMarketplace {
+    // Why: Claude Code caches and records a pass-through plugin under this
+    // marketplace's key, so a sync must not sweep it as stale.
+    pub(super) fn retained<'a>(&'a self, mirrored: &[&'a PluginId]) -> Vec<&'a str> {
+        mirrored
+            .iter()
+            .map(|id| id.as_str())
+            .chain(self.external_plugins.iter().map(|p| p.name.as_str()))
+            .collect()
+    }
 }
 
 /// The plugins mirrored under one marketplace, as written to `settings.json`.
@@ -60,6 +74,7 @@ pub fn host_marketplaces(manifest: &SignedManifest) -> Vec<HostMarketplace> {
                 .allow_cross_marketplace_dependencies_on
                 .clone(),
             external_marketplaces: m.external_marketplaces.clone(),
+            external_plugins: m.external_plugins.clone(),
         })
         .collect()
 }
@@ -91,16 +106,34 @@ pub(super) fn write_marketplace_json(
 ) -> Result<(), ApplyError> {
     let dir = marketplace_dir(plugins, &marketplace.id).join(".claude-plugin");
     fs_create(&dir)?;
-    write_json(
-        &dir.join("marketplace.json"),
-        &marketplace_value(
-            marketplace.id.as_str(),
-            &marketplace.name,
-            version,
-            entries,
-            &marketplace.allow_cross_marketplace_dependencies_on,
-        ),
-    )
+    let mut value = marketplace_value(
+        marketplace.id.as_str(),
+        &marketplace.name,
+        version,
+        entries,
+        &marketplace.allow_cross_marketplace_dependencies_on,
+    );
+    append_external_plugins(&mut value, &marketplace.external_plugins)?;
+    write_json(&dir.join("marketplace.json"), &value)
+}
+
+// JSON: Claude Code `marketplace.json` — each entry is written as authored so
+// Claude Code fetches the pinned commit itself.
+pub fn append_external_plugins(
+    catalog: &mut Value,
+    external: &[ManifestExternalPlugin],
+) -> Result<(), ApplyError> {
+    let Some(plugins) = catalog.get_mut("plugins").and_then(Value::as_array_mut) else {
+        return Ok(());
+    };
+    for entry in external {
+        let value = serde_json::to_value(entry).map_err(|e| ApplyError::Serialize {
+            what: format!("pass-through plugin {}", entry.name),
+            source: e,
+        })?;
+        plugins.push(value);
+    }
+    Ok(())
 }
 
 // Why: Claude Code requires an object owner and a manifest name matching the
@@ -187,19 +220,22 @@ pub(super) fn set_enabled(
         return Ok(());
     };
     let mut root = read_json_object(&path)?;
-    foreign::apply_settings(&mut root, &path, previous, foreign)?;
 
     let enabled_map = object_entry(&mut root, &path, "enabledPlugins")?;
     for marketplace in stale {
         strip_marketplace_keys(enabled_map, marketplace, &[]);
     }
     for mirrored in current {
-        let ids: Vec<&PluginId> = mirrored.plugin_ids.iter().collect();
+        let ids: Vec<&str> = mirrored.plugin_ids.iter().map(PluginId::as_str).collect();
         strip_marketplace_keys(enabled_map, &mirrored.id, &ids);
-        for id in ids {
+        for id in &mirrored.plugin_ids {
             enabled_map.insert(plugin_key(id, &mirrored.id), Value::Bool(true));
         }
     }
+    // Why: Claude Code keys a pass-through dependency as
+    // `<plugin>@<marketplace>` under a mirrored marketplace, so it is written
+    // after that marketplace's sweep or the sweep would take it back.
+    foreign::apply_settings(&mut root, &path, previous, foreign)?;
 
     {
         let mkts = object_entry(&mut root, &path, "extraKnownMarketplaces")?;
@@ -231,10 +267,10 @@ pub(super) fn set_enabled(
 pub(super) fn strip_marketplace_keys(
     map: &mut serde_json::Map<String, Value>,
     marketplace: &MarketplaceId,
-    keep: &[&PluginId],
+    keep: &[&str],
 ) -> bool {
     let suffix = format!("@{}", marketplace.as_str());
-    let expected: Vec<String> = keep.iter().map(|id| plugin_key(id, marketplace)).collect();
+    let expected: Vec<String> = keep.iter().map(|name| format!("{name}{suffix}")).collect();
     let stale: Vec<String> = map
         .keys()
         .filter(|k| k.ends_with(&suffix) && !expected.iter().any(|e| e == *k))

@@ -1,6 +1,11 @@
 //! Projects on-disk skill directories into the signed `SkillEntry` records the
 //! manifest carries.
 //!
+//! A skill's `sha256` covers its rendered pass-through frontmatter followed by
+//! its instructions, so a change to an authored key (`allowed-tools`, `hooks`,
+//! …) re-stamps the skill. A skill with no pass-through keys hashes exactly as
+//! its instructions alone.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -9,6 +14,9 @@ use std::path::Path;
 use sha2::{Digest, Sha256};
 use systemprompt_models::bridge::ids::{Sha256Digest, SkillId, SkillName};
 use systemprompt_models::bridge::manifest::SkillEntry;
+use systemprompt_models::services::skill_frontmatter::{
+    check_json_compatible, render_passthrough_frontmatter,
+};
 use systemprompt_models::services::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 
 use crate::error::MarketplaceError;
@@ -126,11 +134,11 @@ fn build_skill_entry(
     let raw = std::fs::read_to_string(&content_path)
         .map_err(|e| MarketplaceError::Catalog(format!("read {}: {e}", content_path.display())))?;
     let instructions = strip_frontmatter(&raw);
-
-    let mut hasher = Sha256::new();
-    hasher.update(instructions.as_bytes());
-    let sha256 = Sha256Digest::try_new(hex::encode(hasher.finalize()))
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    if let Some(frontmatter) = &config.frontmatter {
+        check_json_compatible(frontmatter)
+            .map_err(|e| MarketplaceError::Catalog(format!("{}: {e}", config_path.display())))?;
+    }
+    let sha256 = skill_digest(config.frontmatter.as_ref(), &instructions)?;
 
     Ok(Some(SkillEntry {
         publication: None,
@@ -143,7 +151,21 @@ fn build_skill_entry(
         instructions,
         hosts: config.hosts,
         plugins: Vec::new(),
+        frontmatter: config.frontmatter,
     }))
+}
+
+fn skill_digest(
+    frontmatter: Option<&serde_yaml::Mapping>,
+    instructions: &str,
+) -> Result<Sha256Digest, MarketplaceError> {
+    let rendered = render_passthrough_frontmatter(frontmatter)
+        .map_err(|e| MarketplaceError::Catalog(format!("render skill frontmatter: {e}")))?;
+    let mut hasher = Sha256::new();
+    hasher.update(rendered.as_bytes());
+    hasher.update(instructions.as_bytes());
+    Sha256Digest::try_new(hex::encode(hasher.finalize()))
+        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
 }
 
 pub(crate) fn build_managed_skill_entry(
@@ -153,8 +175,10 @@ pub(crate) fn build_managed_skill_entry(
         .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
     let name = SkillName::try_new(skill.name)
         .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
-    let sha256 = Sha256Digest::try_new(hex::encode(Sha256::digest(skill.instructions.as_bytes())))
-        .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
+    if let Some(frontmatter) = &skill.frontmatter {
+        check_json_compatible(frontmatter).map_err(MarketplaceError::Catalog)?;
+    }
+    let sha256 = skill_digest(skill.frontmatter.as_ref(), &skill.instructions)?;
     let entry = SkillEntry {
         publication: Some(systemprompt_models::bridge::manifest::SkillPublication {
             publication_id: skill.publication_id,
@@ -173,6 +197,7 @@ pub(crate) fn build_managed_skill_entry(
         instructions: skill.instructions,
         hosts: skill.hosts,
         plugins: Vec::new(),
+        frontmatter: skill.frontmatter,
     };
     Ok((entry, skill.files))
 }

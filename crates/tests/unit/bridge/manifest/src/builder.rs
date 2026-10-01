@@ -53,6 +53,7 @@ fn sample_skill() -> SkillEntry {
         instructions: "do the thing".into(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
@@ -86,6 +87,7 @@ fn sample_hook() -> HookEntry {
         matcher: "*".into(),
         command: "echo hi".into(),
         is_async: false,
+        timeout: None,
         category: HookCategory::Custom,
         tags: vec![],
         sha256: Sha256Digest::try_new(FAKE_SHA).unwrap(),

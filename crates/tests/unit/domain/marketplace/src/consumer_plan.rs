@@ -80,3 +80,54 @@ async fn every_host_plan_preserves_multiline_quoted_and_backslash_yaml_scalars()
             .any(|file| file.path == "SKILL.md")
     );
 }
+
+async fn rendered_skill_md(
+    fixture: &crate::consumer_fixture::Fixture,
+    host: EvaluatorClient,
+) -> String {
+    let plan = fixture
+        .repo
+        .consumer_installation_plan(
+            &fixture.credential.credential,
+            &fixture.request.resource_id,
+            &fixture.request.publication_id,
+            host,
+        )
+        .await
+        .unwrap();
+    let file = plan
+        .runtime_files
+        .iter()
+        .find(|file| file.path == "SKILL.md")
+        .unwrap();
+    String::from_utf8(file.bytes.clone()).unwrap()
+}
+
+#[tokio::test]
+async fn claude_hosts_receive_the_authored_frontmatter_and_other_hosts_do_not() {
+    let config: &[u8] = b"id: skill\nname: Skill\ndescription: d\nfile: SKILL.md\n\
+        frontmatter:\n  allowed-tools:\n  - Read\n  title: platform owned\n  user-invocable: false\n";
+    let fixture = crate::consumer_fixture::fixture_with_extra_files(&[("config.yaml", config)]).await;
+    for host in [EvaluatorClient::ClaudeCode, EvaluatorClient::ClaudeDesktop] {
+        assert_eq!(
+            rendered_skill_md(&fixture, host).await,
+            "---\nname: \"skill\"\ndescription: \"d\"\nallowed-tools:\n- Read\nuser-invocable: false\n---\n\n# Skill\n"
+        );
+    }
+    for host in [
+        EvaluatorClient::OpenCode,
+        EvaluatorClient::Codex,
+        EvaluatorClient::Hermes,
+    ] {
+        let md = rendered_skill_md(&fixture, host).await;
+        assert!(!md.contains("allowed-tools"), "{host:?}: {md}");
+    }
+
+    let authored: &[u8] =
+        b"---\nname: skill\ndescription: d\nargument-hint: \"[file]\"\n---\n# Skill";
+    let bare = crate::consumer_fixture::fixture_with_extra_files(&[("SKILL.md", authored)]).await;
+    assert_eq!(
+        rendered_skill_md(&bare, EvaluatorClient::ClaudeCode).await,
+        "---\nname: \"skill\"\ndescription: \"\"\nargument-hint: '[file]'\n---\n\n# Skill\n"
+    );
+}

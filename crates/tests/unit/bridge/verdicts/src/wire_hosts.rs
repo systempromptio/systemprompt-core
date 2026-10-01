@@ -16,7 +16,9 @@ use systemprompt_bridge::integration::profile_state::{ProfileState, StaleReason}
 use systemprompt_bridge::integration::{GeneratedProfile, HostAppSnapshot};
 use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
 use systemprompt_bridge::verdict::Tone;
-use systemprompt_bridge::wire::first_run::{FirstRunPayload, FirstRunPhase, StepStatus};
+use systemprompt_bridge::wire::first_run::{
+    FirstRunHostPayload, FirstRunPayload, FirstRunPhase, StepStatus,
+};
 use systemprompt_bridge::wire::hosts::{
     HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
 };
@@ -283,6 +285,42 @@ fn hosts_payload_fails_closed_before_the_first_manifest_sync() {
     assert_eq!(v["first_run"]["phase"], json!("probing"));
     assert_eq!(v["first_run"]["sync"], json!("pending"));
     assert_eq!(v["agent_fleet"]["all"]["total"], json!(0));
+}
+
+// First run enrols the Claude Code CLI alongside the desktop hosts and
+// reports it as one more row, so the wizard shows its outcome — including a
+// failed settings merge — the same way it shows a host's.
+#[test]
+fn first_run_reports_claude_code_as_a_row_like_the_hosts() {
+    let payload = FirstRunPayload {
+        active: true,
+        done: false,
+        phase: FirstRunPhase::Installing,
+        sync: StepStatus::Pending,
+        error: None,
+        hosts: vec![
+            FirstRunHostPayload {
+                host_id: "claude-desktop",
+                display_name: "Claude Desktop",
+                status: StepStatus::Generating,
+                error: None,
+            },
+            FirstRunHostPayload {
+                host_id: "claude-code",
+                display_name: "Claude Code",
+                status: StepStatus::Failed,
+                error: Some("settings.json is not valid JSON"),
+            },
+        ],
+    };
+    let v = json_of(&payload);
+    assert_eq!(v["hosts"][1]["host_id"], json!("claude-code"), "{v}");
+    assert_eq!(v["hosts"][1]["status"], json!("failed"));
+    assert_eq!(
+        v["hosts"][1]["error"],
+        json!("settings.json is not valid JSON")
+    );
+    assert_eq!(v["hosts"][0]["status"], json!("generating"));
 }
 
 #[test]

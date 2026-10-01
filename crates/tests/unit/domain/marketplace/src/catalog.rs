@@ -334,6 +334,34 @@ fn load_hooks_dir_with_valid_hook() {
 }
 
 #[test]
+fn load_hooks_carries_the_authored_timeout_to_the_manifest_entry() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    for (name, body) in [
+        ("timed", "event: PreToolUse\ncommand: gate\ntimeout: 30\n"),
+        ("untimed", "event: PreToolUse\ncommand: plain\n"),
+    ] {
+        let hook_dir = dir.path().join("hooks").join(name);
+        fs::create_dir_all(&hook_dir).expect("create hook dir");
+        fs::write(hook_dir.join("config.yaml"), body).expect("write config");
+    }
+
+    let hooks = load_hooks(dir.path()).expect("load hooks");
+    let timed = hooks.iter().find(|h| h.command == "gate").expect("timed");
+    let untimed = hooks
+        .iter()
+        .find(|h| h.command == "plain")
+        .expect("untimed");
+    assert_eq!(timed.timeout, Some(30));
+    assert_eq!(untimed.timeout, None);
+    let wire = serde_json::to_value(untimed).expect("serialise");
+    assert!(wire.get("timeout").is_none(), "{wire}");
+    assert_eq!(
+        serde_json::to_value(timed).expect("serialise")["timeout"],
+        30
+    );
+}
+
+#[test]
 fn load_hooks_disabled_hook_excluded() {
     let dir = tempfile::tempdir().expect("temp dir");
     let hook_dir = dir.path().join("hooks").join("off-hook");

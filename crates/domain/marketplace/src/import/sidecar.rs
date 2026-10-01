@@ -16,7 +16,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 use systemprompt_models::services::marketplace::{
-    ExternalMarketplace, MarketplaceAccess, MarketplaceVisibility,
+    ClaudeCodeMarketplaceConfig, ExternalMarketplace, MarketplaceAccess, MarketplaceVisibility,
 };
 use systemprompt_models::services::plugin::{PluginComponentRef, PluginHooksRef, PluginScript};
 
@@ -69,6 +69,8 @@ pub struct MarketplaceSidecarBody {
     pub artifacts: PluginComponentRef,
     #[serde(default)]
     pub external_marketplaces: Vec<ExternalMarketplace>,
+    #[serde(default)]
+    pub claude_code: Option<ClaudeCodeMarketplaceConfig>,
 }
 
 impl Default for MarketplaceSidecar {
@@ -133,6 +135,7 @@ impl Default for MarketplaceSidecarBody {
             agents: PluginComponentRef::default(),
             artifacts: PluginComponentRef::default(),
             external_marketplaces: Vec::new(),
+            claude_code: None,
         }
     }
 }

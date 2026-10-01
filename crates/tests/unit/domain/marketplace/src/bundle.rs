@@ -40,6 +40,7 @@ fn skill_entry(id: &str, description: &str, instructions: &str) -> SkillEntry {
         instructions: instructions.to_owned(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
@@ -81,7 +82,7 @@ fn agent_entry(id: &str, description: &str, prompt: Option<&str>) -> AgentEntry 
     }
 }
 
-fn explicit(ids: &[&str]) -> PluginComponentRef {
+pub(crate) fn explicit(ids: &[&str]) -> PluginComponentRef {
     PluginComponentRef {
         source: ComponentSource::Explicit,
         include: ids.iter().map(|s| (*s).to_owned()).collect(),
@@ -89,7 +90,11 @@ fn explicit(ids: &[&str]) -> PluginComponentRef {
     }
 }
 
-fn plugin_config(id: &str, skills: PluginComponentRef, agents: PluginComponentRef) -> PluginConfig {
+pub(crate) fn plugin_config(
+    id: &str,
+    skills: PluginComponentRef,
+    agents: PluginComponentRef,
+) -> PluginConfig {
     PluginConfig {
         id: PluginId::new(id),
         name: format!("{id} plugin"),
@@ -551,12 +556,17 @@ fn comparable(
 }
 
 #[test]
-fn skill_md_carries_frontmatter_and_escapes_quotes() {
-    let skills = vec![skill_entry(
-        "quote_skill",
-        "a \"quoted\" desc",
-        "  trim me  ",
-    )];
+fn skill_md_emits_owned_keys_then_authored_frontmatter_and_escapes_quotes() {
+    let mut skill = skill_entry("quote_skill", "a \"quoted\" desc", "  trim me  ");
+    let mut frontmatter = serde_yaml::Mapping::new();
+    frontmatter.insert("disable-model-invocation".into(), true.into());
+    frontmatter.insert("title".into(), "Platform owned, never emitted".into());
+    frontmatter.insert(
+        "allowed-tools".into(),
+        serde_yaml::Value::Sequence(vec!["Read".into(), "Bash(git *)".into()]),
+    );
+    skill.frontmatter = Some(frontmatter);
+    let skills = vec![skill];
     let content = BundleContent {
         skills: &skills,
         rules: &[],
@@ -577,8 +587,10 @@ fn skill_md_carries_frontmatter_and_escapes_quotes() {
     let md = String::from_utf8(bundle["skills/quote-skill/SKILL.md"].bytes.clone())
         .expect("utf8 SKILL.md");
     assert_eq!(
-        md, "---\nname: quote-skill\ndescription: \"a \\\"quoted\\\" desc\"\n---\n\ntrim me\n",
-        "SKILL.md must carry escaped description and trimmed instructions",
+        md,
+        "---\nname: quote-skill\ndescription: \"a \\\"quoted\\\" desc\"\n\
+         disable-model-invocation: true\nallowed-tools:\n- Read\n- Bash(git *)\n---\n\ntrim me\n",
+        "SKILL.md carries name and description, then the authored keys in order, never an owned key",
     );
 }
 
