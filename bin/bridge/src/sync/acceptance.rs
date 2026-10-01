@@ -11,11 +11,6 @@ use super::{
 use crate::config::paths;
 use crate::gateway::manifest::{SignedManifest, decode_payload};
 
-/// How a manifest whose version equals the last applied one is judged.
-///
-/// A full sync applies a manifest, so the version it last applied is a
-/// replay. A registry refresh only republishes the connector list, so the
-/// manifest the last sync applied is still current for it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CurrentVersion {
     Replay,
