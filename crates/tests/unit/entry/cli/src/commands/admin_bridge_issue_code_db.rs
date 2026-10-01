@@ -205,7 +205,7 @@ async fn reissuing_adds_a_second_code_rather_than_replacing_the_first() {
 // normalisation and every rejection — so these assert the part only the
 // command decides: which user the fingerprint ends up attached to.
 mod enroll_cert {
-    use super::{codes_for, ctx, parse, pool, seeded_user};
+    use super::{codes_for, ctx, parse, seeded_user, test_db_pool};
     use chrono::{DateTime, Utc};
     use systemprompt_cli::admin::bridge;
     use systemprompt_database::DbPool;

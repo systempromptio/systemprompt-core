@@ -241,7 +241,7 @@ async fn an_unfiltered_count_spans_users_rather_than_scoping_to_one() {
 // `files show` under a name that promises otherwise, and an operator filtering
 // for generated content sees uploads.
 mod show_and_list {
-    use super::{File, cfg_json, pool, seed_file, seeded_user};
+    use super::{File, cfg_json, seed_file, seeded_user, test_db_pool};
     use systemprompt_cli::core::files::ai::list::{ListArgs, execute_with_pool as list_with_pool};
     use systemprompt_cli::core::files::ai::show::{ShowArgs, execute_with_pool as show_with_pool};
     use systemprompt_database::DbPool;

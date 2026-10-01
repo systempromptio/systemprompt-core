@@ -14,7 +14,7 @@ use systemprompt_content::models::CreateContentParams;
 use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId, SourceId};
-use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 
@@ -380,7 +380,7 @@ async fn featured_set_unlinked_file_errors() {
 // `ContentFilesCommands` and assert the effect in the database, because a
 // variant wired to the wrong arm would still return `Ok(())`.
 mod dispatch {
-    use super::{cfg, link, linked_roles, pool, seed_content, seed_file};
+    use super::{cfg, link, linked_roles, seed_content, seed_file, test_db_pool};
     use systemprompt_cli::core::content::files::{
         ContentFilesCommands, execute, featured, list, unlink,
     };

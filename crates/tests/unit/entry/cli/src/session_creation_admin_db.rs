@@ -204,7 +204,7 @@ async fn the_minted_token_names_its_user_and_is_not_empty() {
 // requires a session email hint. Without that guard, any failed lookup would
 // silently open a session as someone else.
 mod tenant_fallback {
-    use super::{pool, seed, unique};
+    use super::{seed, test_db_pool, unique};
     use systemprompt_cli::session::creation::helpers::resolve_tenant_admin_with_fallback;
     use systemprompt_cloud::CloudCredentials;
     use systemprompt_identifiers::{CloudAuthToken, Email};
@@ -305,7 +305,7 @@ mod tenant_fallback {
 // worth asserting — keyed too loosely, one operator's CLI history surfaces in
 // another's.
 mod cli_context {
-    use super::{pool, seed};
+    use super::{seed, test_db_pool};
     use systemprompt_cli::session::creation::helpers::{create_cli_context, get_or_create_admin};
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::{SessionId, UserId};
