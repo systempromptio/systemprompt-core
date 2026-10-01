@@ -22,9 +22,7 @@ use systemprompt_models::services::bundle::{
 };
 use systemprompt_runtime::RuntimeError;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
-use systemprompt_test_fixtures::{
-    DisposableDb, closed_db_pool, ensure_test_bootstrap, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{DisposableDb, closed_db_pool, ensure_test_bootstrap};
 use tempfile::TempDir;
 
 const SOURCE: &str = "astound";
@@ -218,17 +216,13 @@ async fn a_failed_projection_refuses_the_boot_and_records_nothing() {
 #[tokio::test]
 async fn a_projected_composition_is_recorded_and_not_projected_again() {
     let boot = ensure_test_bootstrap();
-    let Ok(disposable) = DisposableDb::installed("services_reconcile").await else {
-        return;
-    };
+    let disposable = DisposableDb::with_schema("services_reconcile").await;
     let f = fixture(true);
     f.cache
         .write_state(&state_with_source())
         .expect("seed cache state");
     write_manifest(&f.cache, BundleOwnership::default());
-    let db = fixture_db_pool(disposable.url())
-        .await
-        .expect("disposable pool");
+    let db = disposable.test_pool().await;
     let root = ActiveServicesRoot {
         path: boot.services_path.clone(),
         base: boot.services_path.clone(),

@@ -4,14 +4,12 @@
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, TraceId, UserId};
 use systemprompt_marketplace::managed::{GitSyncRequest, ManagedRepository, SourceSpec};
 use systemprompt_runtime::managed::git_sources::GitSourceOrchestrator;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 #[tokio::test]
 async fn missing_private_credentials_fail_initial_import_and_sync_without_launching_git() {
-    let bootstrap = ensure_test_bootstrap();
-    let db = fixture_db_pool(&bootstrap.database_url)
-        .await
-        .expect("database");
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
     let owner = UserId::new(format!("git-credentials-{}", TraceId::generate()));
     seed_user_row(&db, &owner, &format!("{owner}@credentials.invalid"))
         .await

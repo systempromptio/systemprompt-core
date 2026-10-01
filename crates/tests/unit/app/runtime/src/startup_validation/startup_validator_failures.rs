@@ -5,7 +5,7 @@ use crate::boot::{BootOptions, boot};
 
 #[test]
 fn domain_validation_failure_is_aggregated_and_gates_extension_validation() {
-    let fixture = boot(&BootOptions::default()).expect("runtime database/profile fixture");
+    let fixture = boot(&BootOptions::default());
     systemprompt_config::try_init_config(None).expect("initialize config from fixture profile");
     let mut config = Config::get().expect("installed config").clone();
     let blocker = fixture._tmp.path().join("skills-is-a-file");

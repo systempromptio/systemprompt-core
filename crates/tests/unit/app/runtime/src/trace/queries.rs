@@ -12,13 +12,7 @@ use systemprompt_runtime::trace::{
     AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
 };
 use systemprompt_runtime::{AiTraceService, AuditPage, TraceQueryService};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn pool_arc_or_skip() -> Option<std::sync::Arc<sqlx::PgPool>> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
-    db.pool_arc().ok()
-}
+use systemprompt_test_fixtures::test_pg_pool;
 
 fn nonexistent_tag() -> String {
     format!("no-such-{}", uuid::Uuid::new_v4().simple())
@@ -26,9 +20,7 @@ fn nonexistent_tag() -> String {
 
 #[tokio::test]
 async fn trace_service_get_methods_on_empty_trace_id() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
     let svc = TraceQueryService::new(pool);
     let trace_id = TraceId::new(nonexistent_tag());
 
@@ -84,9 +76,7 @@ async fn trace_service_get_methods_on_empty_trace_id() {
 
 #[tokio::test]
 async fn trace_service_list_traces_no_match_filters_yield_empty() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
     let svc = TraceQueryService::new(pool);
 
     let f = TraceListFilter::new(5)
@@ -105,9 +95,7 @@ async fn trace_service_list_traces_no_match_filters_yield_empty() {
 
 #[tokio::test]
 async fn trace_service_list_tool_executions_no_match_filters_yield_empty() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
     let svc = TraceQueryService::new(pool);
     let f = ToolExecutionFilter::new(10)
         .with_name(nonexistent_tag())
@@ -119,9 +107,7 @@ async fn trace_service_list_tool_executions_no_match_filters_yield_empty() {
 
 #[tokio::test]
 async fn trace_service_search_finds_nothing_for_random_pattern() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
     let svc = TraceQueryService::new(pool);
     let pattern = nonexistent_tag();
 
@@ -158,9 +144,7 @@ async fn trace_service_search_finds_nothing_for_random_pattern() {
 
 #[tokio::test]
 async fn trace_service_ai_request_lookups_on_random_ids() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
     let svc = TraceQueryService::new(pool);
     let missing = nonexistent_tag();
 
@@ -229,9 +213,7 @@ async fn trace_service_ai_request_lookups_on_random_ids() {
 
 #[tokio::test]
 async fn trace_service_log_lookups_on_random_ids() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
     let svc = TraceQueryService::new(pool);
     let missing = nonexistent_tag();
 
@@ -256,9 +238,7 @@ async fn trace_service_log_lookups_on_random_ids() {
 
 #[tokio::test]
 async fn trace_service_log_summaries_respect_future_since_bound() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
     let svc = TraceQueryService::new(pool);
     let future = Utc::now() + ChronoDuration::days(1);
 
@@ -294,9 +274,7 @@ async fn trace_service_log_summaries_respect_future_since_bound() {
 
 #[tokio::test]
 async fn ai_trace_service_methods_with_random_ids() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
     let svc = AiTraceService::new(pool);
     let task_id =
         systemprompt_identifiers::TaskId::new(format!("task-{}", uuid::Uuid::new_v4().simple()));
@@ -385,9 +363,7 @@ async fn insert_log(pool: &sqlx::PgPool, trace_id: &str, level: &str) {
 
 #[tokio::test]
 async fn list_traces_derives_status_for_non_agent_traces() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
 
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let tid = |label: &str| format!("t-{label}-{suffix}");

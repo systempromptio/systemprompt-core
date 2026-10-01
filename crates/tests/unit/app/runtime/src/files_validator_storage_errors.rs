@@ -12,12 +12,10 @@ use crate::boot::{BootOptions, boot};
 
 #[test]
 fn broken_storage_root_reports_storage_errors_with_suggestion() {
-    let Some(_fixture) = boot(&BootOptions {
+    let _fixture = boot(&BootOptions {
         broken_storage: true,
-        ..BootOptions::default() // skip-ok: no bootable profile on this machine
-    }) else {
-        return;
-    };
+        ..BootOptions::default()
+    });
     let profile = systemprompt_config::ProfileBootstrap::get().expect("profile installed");
     let app_paths = AppPaths::from_profile(
         &profile.paths,

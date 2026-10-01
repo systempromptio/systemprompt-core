@@ -35,7 +35,8 @@ fn content_config() -> Arc<ContentConfigRaw> {
 
 #[tokio::test]
 async fn plane_debug_impls_flag_optional_members() {
-    let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+    let url = systemprompt_test_fixtures::test_database_url();
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
 
     let analytics_service = Arc::new(AnalyticsService::new(
         None,

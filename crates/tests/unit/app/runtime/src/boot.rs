@@ -19,13 +19,6 @@ pub struct BootFixture {
     pub database_url: String,
 }
 
-pub fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .or_else(|_| std::env::var("TEST_DATABASE_URL"))
-        .ok()
-        .filter(|v| !v.is_empty())
-}
-
 pub struct BootOptions {
     pub admin_username: String,
     pub stream_per_second: u32,
@@ -49,10 +42,8 @@ impl Default for BootOptions {
 }
 
 // Builds the tree and installs ProfileBootstrap + SecretsBootstrap.
-// Returns None when no test database is configured, so suites degrade to
-// a no-op on machines without Postgres.
-pub fn boot(opts: &BootOptions) -> Option<BootFixture> {
-    let database_url = database_url()?;
+pub fn boot(opts: &BootOptions) -> BootFixture {
+    let database_url = systemprompt_test_fixtures::test_database_url();
     let tmp = tempfile::tempdir().expect("create boot tempdir");
     let root = tmp.path();
 
@@ -137,10 +128,10 @@ pub fn boot(opts: &BootOptions) -> Option<BootFixture> {
     ProfileBootstrap::init_from_path(&profile_path).expect("init profile bootstrap");
     systemprompt_test_fixtures::secrets::block_on_secrets_init().expect("init secrets bootstrap");
 
-    Some(BootFixture {
+    BootFixture {
         _tmp: tmp,
         database_url,
-    })
+    }
 }
 
 fn write_signing_key(path: &Path) {

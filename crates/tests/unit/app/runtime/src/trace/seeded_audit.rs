@@ -7,7 +7,7 @@
 use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{AiRequestId, ContextId, TaskId, TraceId};
 use systemprompt_runtime::{AiRequestFilter, AiTraceService, AuditPage, TraceQueryService};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_pg_pool;
 
 struct AuditSeed {
     pool: sqlx::PgPool,
@@ -22,15 +22,7 @@ struct AuditSeed {
 
 impl AuditSeed {
     async fn new() -> Self {
-        let url = fixture_database_url().expect("trace fixture prerequisite");
-        let db = fixture_db_pool(&url)
-            .await
-            .expect("trace fixture prerequisite");
-        let pool = db
-            .pool_arc()
-            .expect("trace fixture prerequisite")
-            .as_ref()
-            .clone();
+        let pool = test_pg_pool().await;
 
         let tag = uuid::Uuid::new_v4().simple().to_string();
         let user_id = format!("audit_user_{tag}");

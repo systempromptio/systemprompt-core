@@ -11,7 +11,7 @@ use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{ContextId, TaskId, TraceId};
 use systemprompt_runtime::trace::{ToolExecutionFilter, TraceListFilter};
 use systemprompt_runtime::{AiTraceService, TraceQueryService};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_pg_pool;
 
 struct Seed {
     pool: sqlx::PgPool,
@@ -25,15 +25,7 @@ struct Seed {
 
 impl Seed {
     async fn new() -> Self {
-        let url = fixture_database_url().expect("trace fixture prerequisite");
-        let db = fixture_db_pool(&url)
-            .await
-            .expect("trace fixture prerequisite");
-        let pool = db
-            .pool_arc()
-            .expect("trace fixture prerequisite")
-            .as_ref()
-            .clone();
+        let pool = test_pg_pool().await;
 
         let tag = uuid::Uuid::new_v4().simple().to_string();
         let user_id = format!("seed_user_{tag}");

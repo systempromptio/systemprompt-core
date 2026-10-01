@@ -14,12 +14,10 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
                package: ghost\n    port: 5055\n    enabled: true\n    display_in_web: false\n    \
                oauth:\n      required: false\n      scopes: []\n      audience: mcp\n      \
                client_id: null\n";
-    let Some(_fixture) = boot(&BootOptions {
+    let _fixture = boot(&BootOptions {
         mcp_servers_yaml: mcp.to_owned(),
-        ..BootOptions::default() // skip-ok: no bootable profile on this machine
-    }) else {
-        return;
-    };
+        ..BootOptions::default()
+    });
     systemprompt_config::try_init_config(None).expect("init config from profile");
     let config = Config::get().expect("config installed").clone();
 
@@ -62,10 +60,7 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
 
 #[test]
 fn skill_missing_content_file_errors_in_verbose_mode() {
-    // skip-ok: no bootable profile on this machine
-    let Some(_fixture) = boot(&BootOptions::default()) else {
-        return;
-    };
+    let _fixture = boot(&BootOptions::default());
     systemprompt_config::try_init_config(None).expect("init config from profile");
     let config = Config::get().expect("config installed").clone();
     systemprompt_logging::set_startup_mode(true);
@@ -97,10 +92,7 @@ fn skill_missing_content_file_errors_in_verbose_mode() {
 
 #[test]
 fn quiet_mode_validate_reports_the_same_extension_failures() {
-    // skip-ok: no bootable profile on this machine
-    let Some(_fixture) = boot(&BootOptions::default()) else {
-        return;
-    };
+    let _fixture = boot(&BootOptions::default());
     systemprompt_config::try_init_config(None).expect("init config from profile");
     let config = Config::get().expect("config installed").clone();
 

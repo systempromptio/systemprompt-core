@@ -3,7 +3,7 @@ use systemprompt_marketplace::inventory::LatestPublicationStatus;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::managed::inventory;
 use systemprompt_test_fixtures::{
-    fixture_app_context_with, fixture_db_pool, init_isolated_bootstrap, seed_user_row,
+    fixture_app_context_with, init_isolated_bootstrap, seed_user_row, test_db_pool,
 };
 
 fn skill(root: &std::path::Path, body: &str) {
@@ -21,7 +21,7 @@ fn skill(root: &std::path::Path, body: &str) {
 async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_republishes_repair()
 {
     let boot = init_isolated_bootstrap("http://127.0.0.1", "{}\n");
-    let pool = fixture_db_pool(&boot.database_url).await.unwrap();
+    let pool = test_db_pool().await;
     let owner = UserId::new(uuid::Uuid::new_v4().to_string());
     seed_user_row(&pool, &owner, &format!("{owner}@inventory.invalid"))
         .await
