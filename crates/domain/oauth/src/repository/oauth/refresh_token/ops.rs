@@ -40,60 +40,6 @@ impl OAuthRepository {
         Ok(())
     }
 
-    pub async fn find_refresh_token_family(
-        &self,
-        token_id: &RefreshTokenId,
-    ) -> OauthResult<Option<String>> {
-        let token_id_hash = hash_at_rest(token_id.as_str())?;
-        let result = sqlx::query_scalar!(
-            "SELECT family_id FROM oauth_refresh_tokens WHERE token_id = $1",
-            token_id_hash
-        )
-        .fetch_optional(self.write_pool_ref())
-        .await?;
-        Ok(result)
-    }
-
-    pub async fn revoke_refresh_token_family(&self, family_id: &str) -> OauthResult<u64> {
-        let result = sqlx::query!(
-            "DELETE FROM oauth_refresh_tokens WHERE family_id = $1",
-            family_id
-        )
-        .execute(self.write_pool_ref())
-        .await?;
-        Ok(result.rows_affected())
-    }
-
-    pub async fn validate_refresh_token(
-        &self,
-        token_id: &RefreshTokenId,
-        client_id: &ClientId,
-    ) -> OauthResult<(UserId, String)> {
-        let now = Utc::now();
-        let token_id_hash = hash_at_rest(token_id.as_str())?;
-        let client_id_str = client_id.as_str();
-
-        let row = sqlx::query!(
-            "SELECT user_id, scope, expires_at, consumed_at FROM oauth_refresh_tokens
-             WHERE token_id = $1 AND client_id = $2",
-            token_id_hash,
-            client_id_str
-        )
-        .fetch_optional(self.write_pool_ref())
-        .await?
-        .ok_or_else(|| OauthError::TokenInvalid("Invalid refresh token".to_owned()))?;
-
-        if row.consumed_at.is_some() {
-            return Err(OauthError::TokenInvalid("Invalid refresh token".to_owned()));
-        }
-
-        if row.expires_at < now {
-            return Err(OauthError::Expired("Refresh token expired".to_owned()));
-        }
-
-        Ok((UserId::new(row.user_id), row.scope))
-    }
-
     pub async fn consume_refresh_token(
         &self,
         token_id: &RefreshTokenId,
@@ -178,19 +124,6 @@ impl OAuthRepository {
         .await?;
 
         Ok(result.rows_affected() > 0)
-    }
-
-    pub async fn cleanup_expired_refresh_tokens(&self) -> OauthResult<u64> {
-        let now = Utc::now();
-
-        let result = sqlx::query!(
-            "DELETE FROM oauth_refresh_tokens WHERE expires_at < $1",
-            now
-        )
-        .execute(self.write_pool_ref())
-        .await?;
-
-        Ok(result.rows_affected())
     }
 
     pub async fn find_client_id_from_refresh_token(

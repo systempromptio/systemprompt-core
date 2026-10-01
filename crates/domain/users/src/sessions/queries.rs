@@ -6,6 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
+use crate::models::UserRole;
 use chrono::{Duration, Utc};
 use sqlx::PgPool;
 use systemprompt_identifiers::{SessionId, UserId};
@@ -97,28 +98,33 @@ pub(super) async fn list_active_by_user(
     .map_err(Into::into)
 }
 
-pub(super) async fn find_recent_by_fingerprint(
+pub(super) async fn find_recent_anonymous_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
     max_age_seconds: i64,
 ) -> Result<Option<SessionRecord>> {
     let cutoff = Utc::now() - Duration::seconds(max_age_seconds);
+    let anonymous_role = UserRole::Anonymous.as_str();
     sqlx::query_as!(
         SessionRecord,
         r#"
         SELECT
-            session_id as "session_id: SessionId",
-            user_id as "user_id: UserId",
-            expires_at
-        FROM user_sessions
-        WHERE fingerprint_hash = $1
-          AND last_activity_at > $2
-          AND ended_at IS NULL
-        ORDER BY last_activity_at DESC
+            s.session_id as "session_id: SessionId",
+            s.user_id as "user_id?: UserId",
+            s.expires_at
+        FROM user_sessions s
+        JOIN users u ON u.id = s.user_id
+        WHERE s.fingerprint_hash = $1
+          AND s.last_activity_at > $2
+          AND s.ended_at IS NULL
+          AND s.revoked_at IS NULL
+          AND $3 = ANY(u.roles)
+        ORDER BY s.last_activity_at DESC
         LIMIT 1
         "#,
         fingerprint_hash,
-        cutoff
+        cutoff,
+        anonymous_role
     )
     .fetch_optional(pool)
     .await

@@ -33,7 +33,7 @@ async fn store_then_get_credentials() {
 
     ctx.repo
         .store_webauthn_credential(
-            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &public_key, 0)
+            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &public_key)
                 .with_display_name("YubiKey")
                 .with_device_type("cross-platform")
                 .with_transports(&transports)
@@ -51,7 +51,6 @@ async fn store_then_get_credentials() {
     assert_eq!(found.user_id, ctx.user_id);
     assert_eq!(found.credential_id, credential_id);
     assert_eq!(found.public_key, public_key);
-    assert_eq!(found.counter, 0);
     assert_eq!(found.display_name, "YubiKey");
     assert_eq!(found.device_type, "cross-platform");
     assert_eq!(found.transports, transports);
@@ -70,14 +69,14 @@ async fn get_credentials_empty_for_unknown_user() {
 }
 
 #[tokio::test]
-async fn update_counter_advances() {
+async fn replace_passkey_swaps_the_blob_and_stamps_last_use() {
     let ctx = setup().await;
     let id = format!("cred-{}", Uuid::new_v4());
     let credential_id = Uuid::new_v4().as_bytes().to_vec();
 
     ctx.repo
         .store_webauthn_credential(
-            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &[9u8, 9, 9], 5)
+            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &[9u8, 9, 9])
                 .with_device_type("platform")
                 .build(),
         )
@@ -85,9 +84,9 @@ async fn update_counter_advances() {
         .expect("store");
 
     ctx.repo
-        .update_webauthn_credential_counter(&credential_id, 42)
+        .replace_webauthn_passkey(&credential_id, &[9u8, 9, 9], &[4u8, 2])
         .await
-        .expect("update counter");
+        .expect("replace passkey");
 
     let creds = ctx
         .repo
@@ -95,35 +94,45 @@ async fn update_counter_advances() {
         .await
         .expect("get");
     let found = creds.iter().find(|c| c.id == id).expect("present");
-    assert_eq!(found.counter, 42);
+    assert_eq!(found.public_key, vec![4u8, 2]);
     found
         .last_used_at
-        .expect("last_used_at set after counter update");
+        .expect("last_used_at set after passkey update");
 }
 
 #[tokio::test]
-async fn store_rejects_counter_exceeding_i32() {
+async fn replace_passkey_refuses_a_stale_previous_blob() {
     let ctx = setup().await;
-    let id = Uuid::new_v4().to_string();
-    let credential_id = Uuid::new_v4().into_bytes().to_vec();
-    let err = ctx
-        .repo
+    let id = format!("cred-{}", Uuid::new_v4());
+    let credential_id = Uuid::new_v4().as_bytes().to_vec();
+
+    ctx.repo
         .store_webauthn_credential(
-            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &[1u8], u32::MAX)
-                .build(),
+            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &[1u8, 1]).build(),
         )
         .await
-        .expect_err("counter beyond i32 must be rejected");
-    assert!(err.to_string().contains("Counter exceeds i32::MAX"));
+        .expect("store");
+
+    ctx.repo
+        .replace_webauthn_passkey(&credential_id, &[7u8, 7], &[2u8, 2])
+        .await
+        .expect_err("a concurrent update must not be overwritten");
+
+    let creds = ctx
+        .repo
+        .list_webauthn_credentials(&ctx.user_id)
+        .await
+        .expect("get");
+    let found = creds.iter().find(|c| c.id == id).expect("present");
+    assert_eq!(found.public_key, vec![1u8, 1]);
+    assert!(found.last_used_at.is_none());
 }
 
 #[tokio::test]
-async fn update_counter_rejects_value_exceeding_i32() {
+async fn touch_rejects_an_unknown_credential() {
     let ctx = setup().await;
-    let err = ctx
-        .repo
-        .update_webauthn_credential_counter(&[1u8, 2, 3], u32::MAX)
+    ctx.repo
+        .touch_webauthn_credential(Uuid::new_v4().as_bytes())
         .await
-        .expect_err("counter beyond i32 must be rejected");
-    assert!(err.to_string().contains("Counter exceeds i32::MAX"));
+        .expect_err("touching an unregistered credential must fail");
 }

@@ -8,13 +8,10 @@ use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
-use std::sync::Arc;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use tracing::instrument;
 
 use crate::routes::oauth::OAuthHttpError;
-use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
 pub struct StartRegisterQuery {
@@ -45,19 +42,15 @@ impl StartRegisterQuery {
     }
 }
 
-#[instrument(skip(state, oauth_repo, params), fields(username = %params.username, email = %params.email))]
+#[instrument(skip(state, params), fields(username = %params.username, email = %params.email))]
 pub async fn start_register(
     Query(params): Query<StartRegisterQuery>,
     State(state): State<OAuthState>,
-    OAuthRepo(oauth_repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
     super::ensure_registration_enabled()?;
     params.validate().map_err(OAuthHttpError::invalid_request)?;
 
-    let user_provider = Arc::clone(state.user_provider());
-
-    let webauthn_service =
-        WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
+    let webauthn_service = state.webauthn()?;
 
     let (challenge, challenge_id) = webauthn_service
         .start_registration(&params.username, &params.email, params.full_name.as_deref())

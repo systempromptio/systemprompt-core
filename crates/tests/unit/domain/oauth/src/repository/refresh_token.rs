@@ -1,5 +1,5 @@
-// DB-backed refresh-token persistence tests (store, validate, rotation,
-// reuse-detection, family revocation, cleanup).
+// DB-backed refresh-token persistence tests (store, consume, rotation,
+// reuse-detection and family revocation through the consume path).
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
@@ -38,7 +38,7 @@ fn future_exp() -> i64 {
     (Utc::now() + Duration::hours(1)).timestamp()
 }
 
-async fn store(ctx: &Ctx, token: &RefreshTokenId, exp: i64) {
+async fn store_in_family(ctx: &Ctx, token: &RefreshTokenId, exp: i64, family: Option<&str>) {
     ctx.repo
         .store_refresh_token(RefreshTokenParams {
             token_id: token,
@@ -46,25 +46,21 @@ async fn store(ctx: &Ctx, token: &RefreshTokenId, exp: i64) {
             user_id: &ctx.user_id,
             scope: "openid",
             expires_at: exp,
-            family_id: None,
+            family_id: family,
         })
         .await
         .expect("store refresh token");
 }
 
+async fn store(ctx: &Ctx, token: &RefreshTokenId, exp: i64) {
+    store_in_family(ctx, token, exp, None).await;
+}
+
 #[tokio::test]
-async fn store_then_validate() {
+async fn store_then_consume() {
     let ctx = setup().await;
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     store(&ctx, &token, future_exp()).await;
-
-    let (user, scope) = ctx
-        .repo
-        .validate_refresh_token(&token, &ctx.client_id)
-        .await
-        .expect("validate");
-    assert_eq!(user, ctx.user_id);
-    assert_eq!(scope, "openid");
 
     let cid = ctx
         .repo
@@ -74,100 +70,13 @@ async fn store_then_validate() {
         .expect("present");
     assert_eq!(cid, ctx.client_id);
 
-    let family = ctx
-        .repo
-        .find_refresh_token_family(&token)
-        .await
-        .expect("family")
-        .expect("present");
-    assert!(!family.is_empty());
-}
-
-#[tokio::test]
-async fn validate_unknown_token_errors() {
-    let ctx = setup().await;
-    let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    assert!(
-        ctx.repo
-            .validate_refresh_token(&token, &ctx.client_id)
-            .await
-            .is_err()
-    );
-    assert!(
-        ctx.repo
-            .find_refresh_token_family(&token)
-            .await
-            .expect("family")
-            .is_none()
-    );
-}
-
-#[tokio::test]
-async fn validate_expired_token_errors() {
-    let ctx = setup().await;
-    let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    let past = (Utc::now() - Duration::hours(1)).timestamp();
-    store(&ctx, &token, past).await;
-    assert!(
-        ctx.repo
-            .validate_refresh_token(&token, &ctx.client_id)
-            .await
-            .is_err()
-    );
-}
-
-#[tokio::test]
-async fn consume_then_replay_revokes_family() {
-    let ctx = setup().await;
-    let exp = future_exp();
-    let parent = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    store(&ctx, &parent, exp).await;
-
-    let family = ctx
-        .repo
-        .find_refresh_token_family(&parent)
-        .await
-        .expect("family")
-        .expect("present");
-
-    // A descendant carries the parent's family forward.
-    let child = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_refresh_token(RefreshTokenParams {
-            token_id: &child,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            scope: "openid",
-            expires_at: exp,
-            family_id: Some(&family),
-        })
-        .await
-        .expect("store child");
-
     let consumed = ctx
         .repo
-        .consume_refresh_token(&parent, &ctx.client_id)
+        .consume_refresh_token(&token, &ctx.client_id)
         .await
         .expect("consume");
     assert_eq!(consumed.user_id, ctx.user_id);
-    assert_eq!(consumed.family_id, family);
-
-    // Replaying the consumed parent revokes the whole family (parent + child).
-    assert!(
-        ctx.repo
-            .consume_refresh_token(&parent, &ctx.client_id)
-            .await
-            .is_err()
-    );
-
-    // Child is now gone too.
-    assert!(
-        ctx.repo
-            .find_refresh_token_family(&child)
-            .await
-            .expect("child family")
-            .is_none()
-    );
+    assert!(!consumed.family_id.is_empty());
 }
 
 #[tokio::test]
@@ -179,6 +88,47 @@ async fn consume_unknown_token_errors() {
             .consume_refresh_token(&token, &ctx.client_id)
             .await
             .is_err()
+    );
+    assert!(
+        ctx.repo
+            .find_client_id_from_refresh_token(&token)
+            .await
+            .expect("lookup")
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn consume_then_replay_revokes_family() {
+    let ctx = setup().await;
+    let exp = future_exp();
+    let family = format!("family-{}", Uuid::new_v4());
+    let parent = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
+    let child = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
+    store_in_family(&ctx, &parent, exp, Some(&family)).await;
+    store_in_family(&ctx, &child, exp, Some(&family)).await;
+
+    let consumed = ctx
+        .repo
+        .consume_refresh_token(&parent, &ctx.client_id)
+        .await
+        .expect("consume");
+    assert_eq!(consumed.user_id, ctx.user_id);
+    assert_eq!(consumed.family_id, family);
+
+    assert!(
+        ctx.repo
+            .consume_refresh_token(&parent, &ctx.client_id)
+            .await
+            .is_err(),
+        "replaying the consumed parent must fail"
+    );
+    assert!(
+        ctx.repo
+            .consume_refresh_token(&child, &ctx.client_id)
+            .await
+            .is_err(),
+        "the replay revokes every token in the family"
     );
 }
 
@@ -197,43 +147,10 @@ async fn revoke_refresh_token_deletes() {
     );
     assert!(
         ctx.repo
-            .validate_refresh_token(&token, &ctx.client_id)
+            .consume_refresh_token(&token, &ctx.client_id)
             .await
             .is_err()
     );
-}
-
-#[tokio::test]
-async fn revoke_refresh_token_family_removes_all() {
-    let ctx = setup().await;
-    let exp = future_exp();
-    let a = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    store(&ctx, &a, exp).await;
-    let family = ctx
-        .repo
-        .find_refresh_token_family(&a)
-        .await
-        .expect("family")
-        .expect("present");
-    let b = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_refresh_token(RefreshTokenParams {
-            token_id: &b,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            scope: "openid",
-            expires_at: exp,
-            family_id: Some(&family),
-        })
-        .await
-        .expect("store b");
-
-    let removed = ctx
-        .repo
-        .revoke_refresh_token_family(&family)
-        .await
-        .expect("revoke family");
-    assert!(removed >= 2);
 }
 
 #[tokio::test]
@@ -252,18 +169,4 @@ async fn consume_expired_unconsumed_token_reports_expired() {
         err.to_string().contains("expired"),
         "expected expiry error, got {err}"
     );
-}
-
-#[tokio::test]
-async fn cleanup_expired_refresh_tokens_removes_past() {
-    let ctx = setup().await;
-    let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    let past = (Utc::now() - Duration::hours(2)).timestamp();
-    store(&ctx, &token, past).await;
-    let removed = ctx
-        .repo
-        .cleanup_expired_refresh_tokens()
-        .await
-        .expect("cleanup");
-    assert!(removed >= 1);
 }

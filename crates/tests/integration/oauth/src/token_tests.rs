@@ -16,6 +16,19 @@ fn test_client_id() -> ClientId {
     ClientId::new(&format!("test_client_{}", Uuid::new_v4()))
 }
 
+fn pkce_pair() -> (String, String) {
+    use base64::Engine;
+    use sha2::{Digest, Sha256};
+    let verifier = format!(
+        "verifier_{}_{}",
+        Uuid::new_v4().simple(),
+        Uuid::new_v4().simple()
+    );
+    let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(Sha256::digest(verifier.as_bytes()));
+    (verifier, challenge)
+}
+
 fn test_token_id() -> RefreshTokenId {
     RefreshTokenId::new(&format!("token_{}", Uuid::new_v4()))
 }
@@ -61,8 +74,17 @@ async fn test_authorization_code_lifecycle() {
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
     let scopes = "openid profile";
+    let (verifier, challenge) = pkce_pair();
 
-    let params = AuthCodeParams::builder(&code, &client_id, &user_id, redirect_uri, scopes).build();
+    let params = AuthCodeParams::builder(
+        &code,
+        &client_id,
+        &user_id,
+        redirect_uri,
+        scopes,
+        &challenge,
+    )
+    .build();
     repo.store_authorization_code(params)
         .await
         .expect("Failed to store authorization code");
@@ -76,7 +98,7 @@ async fn test_authorization_code_lifecycle() {
     assert_eq!(stored_client_id.as_str(), client_id.as_str());
 
     let validation = repo
-        .validate_authorization_code(&code, &client_id, Some(redirect_uri), None)
+        .validate_authorization_code(&code, &client_id, redirect_uri, &verifier)
         .await
         .expect("Failed to validate authorization code");
 
@@ -84,7 +106,7 @@ async fn test_authorization_code_lifecycle() {
     assert_eq!(validation.scope, scopes);
 
     let validation_again = repo
-        .validate_authorization_code(&code, &client_id, Some(redirect_uri), None)
+        .validate_authorization_code(&code, &client_id, redirect_uri, &verifier)
         .await;
 
     let err = validation_again.expect_err("Should not be able to use code twice");
@@ -110,22 +132,23 @@ async fn test_authorization_code_pkce() {
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
 
-    use base64::Engine;
-    use sha2::{Digest, Sha256};
-    let verifier = "test_verifier_string_that_is_long_enough_for_pkce";
-    let mut hasher = Sha256::new();
-    hasher.update(verifier.as_bytes());
-    let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hasher.finalize());
+    let (verifier, challenge) = pkce_pair();
 
-    let params = AuthCodeParams::builder(&code, &client_id, &user_id, redirect_uri, "openid")
-        .with_pkce(&challenge, "S256")
-        .build();
+    let params = AuthCodeParams::builder(
+        &code,
+        &client_id,
+        &user_id,
+        redirect_uri,
+        "openid",
+        &challenge,
+    )
+    .build();
     repo.store_authorization_code(params)
         .await
         .expect("Failed to store PKCE code");
 
     let validation = repo
-        .validate_authorization_code(&code, &client_id, Some(redirect_uri), Some(verifier))
+        .validate_authorization_code(&code, &client_id, redirect_uri, &verifier)
         .await
         .expect("Failed to validate PKCE code");
 
@@ -147,27 +170,23 @@ async fn test_authorization_code_pkce_invalid_verifier() {
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
 
-    use base64::Engine;
-    use sha2::{Digest, Sha256};
-    let verifier = "test_verifier_string_that_is_long_enough_for_pkce";
-    let mut hasher = Sha256::new();
-    hasher.update(verifier.as_bytes());
-    let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hasher.finalize());
+    let (verifier, challenge) = pkce_pair();
 
-    let params = AuthCodeParams::builder(&code, &client_id, &user_id, redirect_uri, "openid")
-        .with_pkce(&challenge, "S256")
-        .build();
+    let params = AuthCodeParams::builder(
+        &code,
+        &client_id,
+        &user_id,
+        redirect_uri,
+        "openid",
+        &challenge,
+    )
+    .build();
     repo.store_authorization_code(params)
         .await
         .expect("Failed to store PKCE code");
 
     let invalid_verifier_result = repo
-        .validate_authorization_code(
-            &code,
-            &client_id,
-            Some(redirect_uri),
-            Some("wrong_verifier"),
-        )
+        .validate_authorization_code(&code, &client_id, redirect_uri, "wrong_verifier")
         .await;
 
     let err = invalid_verifier_result.expect_err("Invalid verifier should fail");
@@ -200,14 +219,6 @@ async fn test_refresh_token_lifecycle() {
         .await
         .expect("Failed to store refresh token");
 
-    let (returned_user_id, returned_scope) = repo
-        .validate_refresh_token(&token_id, &client_id)
-        .await
-        .expect("Failed to validate refresh token");
-
-    assert_eq!(returned_user_id.as_str(), user_id.as_str());
-    assert_eq!(returned_scope, scopes);
-
     let consumed = repo
         .consume_refresh_token(&token_id, &client_id)
         .await
@@ -216,9 +227,9 @@ async fn test_refresh_token_lifecycle() {
     assert_eq!(consumed.user_id.as_str(), user_id.as_str());
     assert_eq!(consumed.scope, scopes);
 
-    let validation_after_consume = repo.validate_refresh_token(&token_id, &client_id).await;
+    let replay = repo.consume_refresh_token(&token_id, &client_id).await;
 
-    let err = validation_after_consume.expect_err("Consumed token should not validate");
+    let err = replay.expect_err("Consumed token should not be consumed again");
     assert!(
         err.to_string().contains("Invalid refresh token"),
         "Expected 'Invalid refresh token' error, got: {}",
@@ -248,9 +259,9 @@ async fn test_refresh_token_expiration() {
         .await
         .expect("Failed to store expired token");
 
-    let validation = repo.validate_refresh_token(&token_id, &client_id).await;
+    let validation = repo.consume_refresh_token(&token_id, &client_id).await;
 
-    let err = validation.expect_err("Expired token should not validate");
+    let err = validation.expect_err("Expired token should not be consumed");
     assert!(
         err.to_string().contains("expired") || err.to_string().contains("Invalid refresh token"),
         "Expected expiration-related error, got: {}",
@@ -287,9 +298,9 @@ async fn test_refresh_token_revocation() {
 
     assert!(revoked, "Token should have been revoked");
 
-    let validation = repo.validate_refresh_token(&token_id, &client_id).await;
+    let validation = repo.consume_refresh_token(&token_id, &client_id).await;
 
-    let err = validation.expect_err("Revoked token should not validate");
+    let err = validation.expect_err("Revoked token should not be consumed");
     assert!(
         err.to_string().contains("Invalid refresh token"),
         "Expected 'Invalid refresh token' error, got: {}",

@@ -25,6 +25,11 @@ pub fn verify_slack_signature(
     body: &[u8],
     now_unix: i64,
 ) -> SlackResult<()> {
+    if signing_secret.is_empty() {
+        return Err(SlackError::Signature(
+            "signing secret is empty; refusing to verify".to_owned(),
+        ));
+    }
     let ts: i64 = timestamp.parse().map_err(|e| {
         SlackError::MalformedRequest(format!("invalid X-Slack-Request-Timestamp: {e}"))
     })?;

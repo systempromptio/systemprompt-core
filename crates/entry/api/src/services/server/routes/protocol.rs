@@ -12,6 +12,7 @@ use std::sync::Arc;
 use systemprompt_extension::LoaderError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as AppContextTrait;
 
@@ -28,14 +29,17 @@ fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     let users = ctx.user_provider()?;
     let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
         Arc::new(ctx.mcp_registry().clone());
-    let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
-        analytics,
-        ctx.session_provider()?,
-        users,
-    )
-    .with_mcp_registry(mcp_registry);
-    Some(state)
+    let oauth_repository = ctx.oauth_repositories().oauth.clone();
+    let webauthn = WebAuthnService::new(oauth_repository.clone(), Arc::clone(&users));
+    let state = OAuthState::new(oauth_repository, analytics, ctx.session_provider()?, users)
+        .with_mcp_registry(mcp_registry);
+    match webauthn {
+        Ok(service) => Some(state.with_webauthn(Arc::new(service))),
+        Err(e) => {
+            tracing::warn!(error = %e, "WebAuthn is not configured; passkey routes will refuse");
+            Some(state)
+        },
+    }
 }
 
 pub(super) struct MountCtx<'a> {

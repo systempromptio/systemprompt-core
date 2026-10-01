@@ -22,7 +22,7 @@ impl Job for OauthCleanupJob {
     }
 
     fn description(&self) -> &'static str {
-        "Deletes expired OAuth refresh tokens, authorization codes, state bindings, JTI revocations and ID-JAG replay markers"
+        "Deletes expired OAuth refresh tokens, authorization codes, state bindings, JTI revocations, ID-JAG replay markers and WebAuthn challenges"
     }
 
     fn schedule(&self) -> &'static str {
@@ -52,6 +52,7 @@ impl Job for OauthCleanupJob {
             oauth_jti_revocations = counts.jti_revocations,
             id_jag_replays = counts.id_jag_replays,
             bridge_exchange_codes = counts.bridge_exchange_codes,
+            webauthn_challenges = counts.webauthn_challenges,
             duration_ms,
             "Job completed"
         );

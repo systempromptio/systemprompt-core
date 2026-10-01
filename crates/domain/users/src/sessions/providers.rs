@@ -27,7 +27,7 @@ impl SessionProvider for SessionRepository {
         max_age_seconds: i64,
     ) -> AnalyticsResult<Option<AnalyticsSession>> {
         let result = self
-            .find_recent_by_fingerprint(fingerprint, max_age_seconds)
+            .find_recent_anonymous_by_fingerprint(fingerprint, max_age_seconds)
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))?;
 

@@ -107,7 +107,8 @@ async fn rendered_skill_md(
 async fn claude_hosts_receive_the_authored_frontmatter_and_other_hosts_do_not() {
     let config: &[u8] = b"id: skill\nname: Skill\ndescription: d\nfile: SKILL.md\n\
         frontmatter:\n  allowed-tools:\n  - Read\n  title: platform owned\n  user-invocable: false\n";
-    let fixture = crate::consumer_fixture::fixture_with_extra_files(&[("config.yaml", config)]).await;
+    let fixture =
+        crate::consumer_fixture::fixture_with_extra_files(&[("config.yaml", config)]).await;
     for host in [EvaluatorClient::ClaudeCode, EvaluatorClient::ClaudeDesktop] {
         assert_eq!(
             rendered_skill_md(&fixture, host).await,
@@ -130,4 +131,22 @@ async fn claude_hosts_receive_the_authored_frontmatter_and_other_hosts_do_not() 
         rendered_skill_md(&bare, EvaluatorClient::ClaudeCode).await,
         "---\nname: \"skill\"\ndescription: \"\"\nargument-hint: '[file]'\n---\n\n# Skill\n"
     );
+}
+
+#[tokio::test]
+async fn malformed_authored_frontmatter_fails_the_plan_instead_of_being_dropped() {
+    let authored: &[u8] = b"---\nallowed-tools: [Read\n---\n# Skill";
+    let fixture =
+        crate::consumer_fixture::fixture_with_extra_files(&[("SKILL.md", authored)]).await;
+    let err = fixture
+        .repo
+        .consumer_installation_plan(
+            &fixture.credential.credential,
+            &fixture.request.resource_id,
+            &fixture.request.publication_id,
+            EvaluatorClient::ClaudeCode,
+        )
+        .await
+        .expect_err("a SKILL.md whose frontmatter does not parse must not ship without it");
+    assert!(matches!(err, ManagedError::Integrity), "{err:?}");
 }

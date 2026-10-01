@@ -198,13 +198,4 @@ impl crate::repository::OAuthRepository {
             oauth_state: row.oauth_state,
         }))
     }
-
-    pub async fn cleanup_expired_webauthn_challenges(&self) -> Result<u64> {
-        let result =
-            sqlx::query!("DELETE FROM webauthn_challenges WHERE expires_at <= CURRENT_TIMESTAMP")
-                .execute(self.write_pool_ref())
-                .await?;
-
-        Ok(result.rows_affected())
-    }
 }

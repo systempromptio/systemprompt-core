@@ -1,15 +1,14 @@
-//! OAuth client repository: queries, mutations, relations, cleanup.
+//! OAuth client repository: queries, mutations, relations, last-use stamping.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod cleanup;
 mod inserts;
+mod last_used;
 mod mutations;
 mod queries;
 mod relations;
 
-use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -59,21 +58,4 @@ pub struct UpdateClientParams {
     pub client_uri: Option<String>,
     pub logo_uri: Option<String>,
     pub contacts: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub struct ClientSummary {
-    pub client_id: ClientId,
-    pub client_name: String,
-    pub created_at: chrono::DateTime<Utc>,
-    pub updated_at: chrono::DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub struct ClientUsageSummary {
-    pub client_id: ClientId,
-    pub client_name: String,
-    pub created_at: chrono::DateTime<Utc>,
-    pub updated_at: chrono::DateTime<Utc>,
-    pub last_used_at: Option<chrono::DateTime<Utc>>,
 }

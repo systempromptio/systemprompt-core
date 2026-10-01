@@ -49,14 +49,6 @@ fn webauthn_challenge_expiry_is_300_seconds() {
 }
 
 #[test]
-fn webauthn_cleanup_interval_equals_challenge_expiry() {
-    assert_eq!(
-        webauthn::CLEANUP_INTERVAL_SECONDS,
-        webauthn::CHALLENGE_EXPIRY_SECONDS
-    );
-}
-
-#[test]
 fn validation_min_sequential_run_is_6() {
     assert_eq!(validation::MIN_SEQUENTIAL_RUN, 6);
 }

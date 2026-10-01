@@ -188,21 +188,25 @@ async fn update_client_missing_errors() {
 }
 
 #[tokio::test]
-async fn update_client_full_and_secret() {
+async fn update_client_and_secret() {
     let ctx = setup().await;
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
-    let mut client = ctx
+    let client = ctx
         .repo
         .create_client(create_params(&client_id, &ctx.owner))
         .await
         .expect("create");
 
-    client.client_name = "full-update".to_owned();
     let updated = ctx
         .repo
-        .update_client_full(&client)
+        .update_client(
+            &client_id,
+            Some("full-update"),
+            Some(&client.redirect_uris),
+            Some(&client.scopes),
+        )
         .await
-        .expect("update_client_full");
+        .expect("update_client");
     assert_eq!(updated.client_name, "full-update");
 
     let with_secret = ctx
@@ -240,14 +244,6 @@ async fn find_client_by_redirect_uri_facade() {
     let mut params = create_params(&client_id, &ctx.owner);
     params.redirect_uris = vec![uri.clone()];
     ctx.repo.create_client(params).await.expect("create");
-
-    let found = ctx
-        .repo
-        .find_client_by_redirect_uri(&uri)
-        .await
-        .expect("find")
-        .expect("present");
-    assert_eq!(found.client_id, client_id);
 
     let scoped = ctx
         .repo

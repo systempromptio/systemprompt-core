@@ -38,10 +38,19 @@ async fn cleanup(pool: &DbPool, session_id: &SessionId) {
 }
 
 async fn seed(pool: &DbPool, session_id: &SessionId, fingerprint: &str) {
+    seed_owned(pool, session_id, fingerprint, None).await;
+}
+
+async fn seed_owned(
+    pool: &DbPool,
+    session_id: &SessionId,
+    fingerprint: &str,
+    user_id: Option<&UserId>,
+) {
     let repo = SessionRepository::new(pool).expect("repo");
     let params = CreateSessionParams {
         session_id,
-        user_id: None,
+        user_id,
         session_source: SessionSource::Web,
         fingerprint_hash: Some(fingerprint),
         ip_address: None,
@@ -227,23 +236,61 @@ mod analytics_provider {
     }
 
     #[tokio::test]
-    async fn find_recent_by_fingerprint_returns_created_session() {
+    async fn find_recent_by_fingerprint_returns_only_anonymous_sessions() {
         ensure_test_bootstrap();
         let pool = test_db_pool().await;
         let service = SessionRepository::new(&pool).expect("sessions");
 
-        let sid = unique_session_id();
         let fp = format!("fp-{}", Uuid::new_v4());
-        seed(&pool, &sid, &fp).await;
+        let anonymous_user = UserId::new(format!("anon-{}", Uuid::new_v4().simple()));
+        let registered_user = UserId::new(format!("reg-{}", Uuid::new_v4().simple()));
+        systemprompt_test_fixtures::seed_user_row_with_roles(
+            &pool,
+            &anonymous_user,
+            &format!("{}@anonymous.invalid", anonymous_user.as_str()),
+            &["anonymous".to_owned()],
+        )
+        .await
+        .expect("seed anonymous user");
+        systemprompt_test_fixtures::seed_user_row(
+            &pool,
+            &registered_user,
+            &format!("{}@registered.invalid", registered_user.as_str()),
+        )
+        .await
+        .expect("seed registered user");
+
+        let ownerless = unique_session_id();
+        let anonymous = unique_session_id();
+        let registered = unique_session_id();
+        seed(&pool, &ownerless, &fp).await;
+        seed_owned(&pool, &anonymous, &fp, Some(&anonymous_user)).await;
 
         let recent = SessionProvider::find_recent_session_by_fingerprint(&service, &fp, 3_600)
             .await
             .expect("recent")
             .expect("present");
-        assert_eq!(recent.session_id.as_str(), sid.as_str());
+        assert_eq!(recent.session_id.as_str(), anonymous.as_str());
+        assert_eq!(
+            recent.user_id.as_ref().map(UserId::as_str),
+            Some(anonymous_user.as_str())
+        );
         assert_eq!(recent.fingerprint.as_deref(), Some(fp.as_str()));
 
-        cleanup(&pool, &sid).await;
+        seed_owned(&pool, &registered, &fp, Some(&registered_user)).await;
+        let after = SessionProvider::find_recent_session_by_fingerprint(&service, &fp, 3_600)
+            .await
+            .expect("recent after registered session")
+            .expect("anonymous session still present");
+        assert_eq!(
+            after.session_id.as_str(),
+            anonymous.as_str(),
+            "a registered user's newer session must never be offered for fingerprint reuse"
+        );
+
+        for sid in [&ownerless, &anonymous, &registered] {
+            cleanup(&pool, sid).await;
+        }
     }
 
     #[tokio::test]

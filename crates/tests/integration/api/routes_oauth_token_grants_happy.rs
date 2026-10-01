@@ -115,12 +115,10 @@ async fn token_app() -> anyhow::Result<Router> {
 struct SeededGrant {
     client: OAuthClientFixture,
     code: AuthorizationCode,
+    verifier: String,
 }
 
-async fn seed_grant(
-    pkce: Option<(&str, &str)>,
-    resource: Option<&str>,
-) -> anyhow::Result<SeededGrant> {
+async fn seed_grant(resource: Option<&str>) -> anyhow::Result<SeededGrant> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
@@ -134,21 +132,25 @@ async fn seed_grant(
 
     let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4().simple()));
+    let pair = pkce_pair();
     let params = AuthCodeParams {
         code: &code,
         client_id: &client.client_id,
         user_id: &user,
         redirect_uri: &client.redirect_uri,
         scope: "user",
-        code_challenge: pkce.map(|(c, _)| c),
-        code_challenge_method: pkce.map(|(_, m)| m),
+        code_challenge: &pair.challenge,
         resource,
     };
     repo.store_authorization_code(params)
         .await
         .map_err(|e| anyhow::anyhow!("store auth code: {e}"))?;
 
-    Ok(SeededGrant { client, code })
+    Ok(SeededGrant {
+        client,
+        code,
+        verifier: pair.verifier,
+    })
 }
 
 fn form_post(body: String) -> Request<Body> {
@@ -199,6 +201,9 @@ async fn redeem(
         ("client_secret", grant.client.client_secret.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
     ];
+    if !extra.iter().any(|(key, _)| *key == "code_verifier") {
+        pairs.push(("code_verifier", grant.verifier.as_str()));
+    }
     pairs.extend_from_slice(extra);
     let resp = app.oneshot(form_post(urlencode(&pairs))).await?;
     let status = resp.status();
@@ -208,7 +213,7 @@ async fn redeem(
 
 #[tokio::test]
 async fn authorization_code_grant_issues_tokens() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let (status, v) = redeem(app, &grant, &[]).await?;
     assert!(status.is_success(), "expected 200, got {status} {v}");
@@ -224,13 +229,14 @@ async fn authorization_code_grant_issues_tokens() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn authorization_code_grant_resolves_client_from_code() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let body = urlencode(&[
         ("grant_type", "authorization_code"),
         ("code", grant.code.as_str()),
         ("client_secret", grant.client.client_secret.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let resp = app.oneshot(form_post(body)).await?;
     let status = resp.status();
@@ -241,20 +247,46 @@ async fn authorization_code_grant_resolves_client_from_code() -> anyhow::Result<
 }
 
 #[tokio::test]
-async fn authorization_code_grant_with_pkce_verifier_succeeds() -> anyhow::Result<()> {
-    let pair = pkce_pair();
-    let grant = seed_grant(Some((&pair.challenge, pair.method)), None).await?;
+async fn authorization_code_grant_without_a_verifier_fails() -> anyhow::Result<()> {
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
-    let (status, v) = redeem(app, &grant, &[("code_verifier", &pair.verifier)]).await?;
-    assert!(status.is_success(), "expected 200, got {status} {v}");
-    assert!(v["access_token"].as_str().is_some(), "{v}");
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", grant.code.as_str()),
+        ("client_id", grant.client.client_id.as_str()),
+        ("client_secret", grant.client.client_secret.as_str()),
+        ("redirect_uri", grant.client.redirect_uri.as_str()),
+    ]);
+    let resp = app.oneshot(form_post(body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_client_error(), "expected 4xx, got {status} {v}");
+    assert!(v["access_token"].as_str().is_none(), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn confidential_client_omitting_redirect_uri_is_refused() -> anyhow::Result<()> {
+    let grant = seed_grant(None).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", grant.code.as_str()),
+        ("client_id", grant.client.client_id.as_str()),
+        ("client_secret", grant.client.client_secret.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
+    ]);
+    let resp = app.oneshot(form_post(body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_client_error(), "expected 4xx, got {status} {v}");
+    assert!(v["access_token"].as_str().is_none(), "{v}");
     Ok(())
 }
 
 #[tokio::test]
 async fn authorization_code_grant_with_wrong_pkce_verifier_fails() -> anyhow::Result<()> {
-    let pair = pkce_pair();
-    let grant = seed_grant(Some((&pair.challenge, pair.method)), None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let (status, v) = redeem(
         app,
@@ -272,7 +304,7 @@ async fn authorization_code_grant_with_wrong_pkce_verifier_fails() -> anyhow::Re
 
 #[tokio::test]
 async fn authorization_code_grant_with_matching_resource_succeeds() -> anyhow::Result<()> {
-    let grant = seed_grant(None, Some("hook")).await?;
+    let grant = seed_grant(Some("hook")).await?;
     let app = token_app().await?;
     let (status, v) = redeem(app, &grant, &[("resource", "hook")]).await?;
     assert!(status.is_success(), "expected 200, got {status} {v}");
@@ -281,7 +313,7 @@ async fn authorization_code_grant_with_matching_resource_succeeds() -> anyhow::R
 
 #[tokio::test]
 async fn authorization_code_grant_with_mismatched_resource_fails() -> anyhow::Result<()> {
-    let grant = seed_grant(None, Some("hook")).await?;
+    let grant = seed_grant(Some("hook")).await?;
     let app = token_app().await?;
     let (status, v) = redeem(app, &grant, &[("resource", "other")]).await?;
     assert!(status.is_client_error(), "expected 4xx, got {status} {v}");
@@ -290,7 +322,7 @@ async fn authorization_code_grant_with_mismatched_resource_fails() -> anyhow::Re
 }
 
 async fn issue_refresh_token() -> anyhow::Result<(OAuthClientFixture, String)> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let (status, v) = redeem(app, &grant, &[]).await?;
     anyhow::ensure!(status.is_success(), "seed grant failed: {status} {v}");
@@ -400,7 +432,7 @@ async fn consumed_refresh_token_cannot_be_replayed() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn authorization_code_cannot_be_redeemed_twice() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let (first, v1) = redeem(app.clone(), &grant, &[]).await?;
     assert!(first.is_success(), "first redemption must succeed: {v1}");
@@ -524,12 +556,13 @@ fn basic_auth(client_id: &str, secret: &str) -> String {
 
 #[tokio::test]
 async fn authorization_code_grant_accepts_http_basic_client_auth() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let body = urlencode(&[
         ("grant_type", "authorization_code"),
         ("code", grant.code.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let req = Request::builder()
         .method(http::Method::POST)
@@ -550,13 +583,14 @@ async fn authorization_code_grant_accepts_http_basic_client_auth() -> anyhow::Re
 
 #[tokio::test]
 async fn http_basic_with_a_conflicting_body_client_id_is_refused() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let body = urlencode(&[
         ("grant_type", "authorization_code"),
         ("code", grant.code.as_str()),
         ("client_id", "someone-else"),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let req = Request::builder()
         .method(http::Method::POST)
@@ -577,12 +611,13 @@ async fn http_basic_with_a_conflicting_body_client_id_is_refused() -> anyhow::Re
 
 #[tokio::test]
 async fn malformed_http_basic_is_refused() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let body = urlencode(&[
         ("grant_type", "authorization_code"),
         ("code", grant.code.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let req = Request::builder()
         .method(http::Method::POST)
@@ -603,7 +638,7 @@ async fn malformed_http_basic_is_refused() -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 async fn seed_public_grant() -> anyhow::Result<SeededGrant> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let p = pool.pool_arc().expect("read pool");
@@ -649,6 +684,7 @@ async fn public_client_with_matching_redirect_uri_redeems() -> anyhow::Result<()
         ("code", grant.code.as_str()),
         ("client_id", grant.client.client_id.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let resp = app.oneshot(form_post(body)).await?;
     let status = resp.status();

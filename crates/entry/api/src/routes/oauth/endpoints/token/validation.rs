@@ -43,14 +43,15 @@ pub struct AuthCodeValidationParams<'a> {
 pub async fn validate_authorization_code(
     params: AuthCodeValidationParams<'_>,
 ) -> Result<AuthCodeValidationResult> {
+    let redirect_uri = params
+        .redirect_uri
+        .ok_or_else(|| anyhow::anyhow!("redirect_uri is required"))?;
+    let code_verifier = params
+        .code_verifier
+        .ok_or_else(|| anyhow::anyhow!("code_verifier is required"))?;
     let result = params
         .repo
-        .validate_authorization_code(
-            params.code,
-            params.client_id,
-            params.redirect_uri,
-            params.code_verifier,
-        )
+        .validate_authorization_code(params.code, params.client_id, redirect_uri, code_verifier)
         .await?;
 
     if let Some(req_resource) = params.request_resource

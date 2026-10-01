@@ -70,7 +70,10 @@ fn test_oauth_client_from_row_with_default_values() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     assert_eq!(client.token_endpoint_auth_method, "client_secret_post");
-    assert!(client.is_active);
+    assert!(
+        !client.is_active,
+        "a client row without an is_active value must be treated as inactive"
+    );
 }
 
 #[test]

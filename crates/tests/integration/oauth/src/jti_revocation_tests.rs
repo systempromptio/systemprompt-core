@@ -2,7 +2,7 @@
 
 use crate::{create_test_user, setup_test_db};
 use chrono::{Duration, Utc};
-use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
+use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository, OauthCleanupRepository};
 use uuid::Uuid;
 
 fn unique_jti() -> String {
@@ -82,7 +82,9 @@ async fn cleanup_expired_drops_only_expired_rows() {
         .await
         .expect("dead revoke");
 
-    repo.cleanup_expired_jti_revocations()
+    OauthCleanupRepository::new(&db)
+        .expect("cleanup repo")
+        .delete_expired_jti_revocations()
         .await
         .expect("cleanup ok");
 

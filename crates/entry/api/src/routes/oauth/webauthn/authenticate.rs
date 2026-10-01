@@ -8,15 +8,12 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use tracing::instrument;
 use webauthn_rs::prelude::*;
 
 use crate::routes::oauth::OAuthHttpError;
-use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
 pub struct StartAuthQuery {
@@ -33,16 +30,12 @@ pub struct StartAuthResponse {
     pub challenge_id: ChallengeId,
 }
 
-#[instrument(skip(state, oauth_repo, params), fields(email = %params.email))]
+#[instrument(skip(state, params), fields(email = %params.email))]
 pub async fn start_auth(
     Query(params): Query<StartAuthQuery>,
     State(state): State<OAuthState>,
-    OAuthRepo(oauth_repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
-    let user_provider = Arc::clone(state.user_provider());
-
-    let webauthn_service =
-        WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
+    let webauthn_service = state.webauthn()?;
 
     let (challenge, challenge_id) = webauthn_service
         .start_authentication(&params.email, params.oauth_state)
@@ -92,16 +85,12 @@ pub struct FinishAuthResponse {
     pub auth_token: Option<String>,
 }
 
-#[instrument(skip(state, oauth_repo, request), fields(challenge_id = %request.challenge_id))]
+#[instrument(skip(state, request), fields(challenge_id = %request.challenge_id))]
 pub async fn finish_auth(
     State(state): State<OAuthState>,
-    OAuthRepo(oauth_repo): OAuthRepo,
     Json(request): Json<FinishAuthRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    let user_provider = Arc::clone(state.user_provider());
-
-    let webauthn_service =
-        WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
+    let webauthn_service = state.webauthn()?;
 
     let (user_id, oauth_state) = webauthn_service
         .finish_authentication(request.challenge_id.as_str(), &request.credential)

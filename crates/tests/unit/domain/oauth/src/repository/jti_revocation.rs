@@ -1,7 +1,7 @@
 // JtiRevocationCache pure-logic tests + DB-backed jti revocation round-trips.
 
 use chrono::{Duration, Utc};
-use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
+use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository, OauthCleanupRepository};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
@@ -111,8 +111,9 @@ async fn cleanup_expired_jti_revocations_removes_past_rows() {
     let jti = format!("jti-{}", Uuid::new_v4());
     let exp = Utc::now() - Duration::hours(2);
     repo.revoke_jti(&jti, uid, exp).await.expect("revoke");
-    let removed = repo
-        .cleanup_expired_jti_revocations()
+    let removed = OauthCleanupRepository::new(&pool)
+        .expect("cleanup repo")
+        .delete_expired_jti_revocations()
         .await
         .expect("cleanup");
     assert!(removed >= 1);

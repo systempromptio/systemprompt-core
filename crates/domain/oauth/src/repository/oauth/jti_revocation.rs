@@ -74,13 +74,6 @@ impl OAuthRepository {
         }
         Ok(inserted)
     }
-
-    pub async fn cleanup_expired_jti_revocations(&self) -> OauthResult<u64> {
-        let result = sqlx::query!("DELETE FROM oauth_jti_revocations WHERE exp < now()")
-            .execute(self.write_pool_ref())
-            .await?;
-        Ok(result.rows_affected())
-    }
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -7,12 +7,12 @@
 //! `api_external_url` from which the relying-party id is derived; the input
 //! validators reject empty/oversized/ill-formed usernames and bad emails before
 //! any challenge is minted. `/webauthn/complete` is driven end to end by
-//! pre-seeding a verified-authentication token directly into the process-wide
-//! `WebAuthnRegistry` singleton — the same instance the handler resolves — so
-//! no live ceremony is required. Completion re-validates the client,
-//! redirect, scope and PKCE against the registration: the passkey ceremony
-//! proves who the user is, not that the request in the query string is the
-//! one `/authorize` admitted.
+//! pre-seeding a verified-authentication token through a `WebAuthnService` —
+//! the token lives in the shared challenge store, so any instance the handler
+//! holds consumes it — and no live ceremony is required. Completion
+//! re-validates the client, redirect, scope and PKCE against the registration:
+//! the passkey ceremony proves who the user is, not that the request in the
+//! query string is the one `/authorize` admitted.
 
 use std::sync::Once;
 
@@ -24,8 +24,7 @@ use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
 use systemprompt_models::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::services::generate_secure_token;
-use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
+use systemprompt_oauth::services::{WebAuthnService, generate_secure_token};
 use systemprompt_test_fixtures::{
     OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key, pkce_pair,
     seed_oauth_client, seed_user_row_with_roles, seed_user_session, test_db_pool,
@@ -57,12 +56,18 @@ async fn webauthn_app() -> anyhow::Result<Router> {
     ensure_config();
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
+    let webauthn = WebAuthnService::new(
+        ctx.oauth_repositories().oauth.clone(),
+        ctx.user_provider().expect("user"),
+    )
+    .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-    );
+    )
+    .with_webauthn(std::sync::Arc::new(webauthn));
     Ok(public_router().with_state(state))
 }
 
@@ -214,8 +219,7 @@ async fn inject_verified_auth(user: &UserId) -> anyhow::Result<String> {
     let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
     let (_pool, ctx) = setup_ctx().await?;
-    let service = WebAuthnRegistry::get_or_create_service(repo, ctx.user_provider().expect("user"))
-        .await
+    let service = WebAuthnService::new(repo, ctx.user_provider().expect("user"))
         .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
     let token = generate_secure_token("webauthn_verified");
     service

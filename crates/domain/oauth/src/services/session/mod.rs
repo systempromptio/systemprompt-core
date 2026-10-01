@@ -182,13 +182,6 @@ impl SessionCreationService {
             .await;
 
         if let Some(session) = self
-            .try_reuse_session_at_limit(&params.fingerprint, params.client_id)
-            .await
-        {
-            return Ok(session);
-        }
-
-        if let Some(session) = self
             .try_find_existing_session(&params.fingerprint, params.client_id)
             .await
         {

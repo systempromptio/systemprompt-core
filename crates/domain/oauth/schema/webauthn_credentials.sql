@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS webauthn_credentials (
     user_id VARCHAR(255) NOT NULL,
     credential_id BYTEA NOT NULL UNIQUE,
     public_key BYTEA NOT NULL,
-    counter INTEGER NOT NULL DEFAULT 0,
     display_name VARCHAR(255) NOT NULL,
     device_type TEXT NOT NULL CHECK(device_type IN ('platform', 'cross-platform')) DEFAULT 'platform',
     transports TEXT NOT NULL DEFAULT '["internal"]',

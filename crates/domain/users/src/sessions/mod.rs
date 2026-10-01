@@ -108,13 +108,17 @@ impl SessionRepository {
     pub async fn create_session(&self, params: &CreateSessionParams<'_>) -> Result<()> {
         mutations::create_session(&self.write_pool, params).await
     }
-    pub async fn find_recent_by_fingerprint(
+    pub async fn find_recent_anonymous_by_fingerprint(
         &self,
         fingerprint_hash: &str,
         max_age_seconds: i64,
     ) -> Result<Option<SessionRecord>> {
-        queries::find_recent_by_fingerprint(&self.write_pool, fingerprint_hash, max_age_seconds)
-            .await
+        queries::find_recent_anonymous_by_fingerprint(
+            &self.write_pool,
+            fingerprint_hash,
+            max_age_seconds,
+        )
+        .await
     }
     pub async fn increment_ai_usage(
         &self,

@@ -167,12 +167,7 @@ async fn exchange_code_for_token(
     };
 
     let validation_result = repo
-        .validate_authorization_code(
-            params.code,
-            params.client_id,
-            Some(params.redirect_uri),
-            None,
-        )
+        .validate_authorization_code(params.code, params.client_id, params.redirect_uri, "")
         .await?;
 
     let user =

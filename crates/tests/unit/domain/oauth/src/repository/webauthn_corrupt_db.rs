@@ -8,7 +8,8 @@ use sqlx::PgPool;
 use std::time::Duration;
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::repository::{
-    OAuthRepository, StoreChallengeParams, WebAuthnChallengeKind, WebAuthnCredentialParams,
+    OAuthRepository, OauthCleanupRepository, StoreChallengeParams, WebAuthnChallengeKind,
+    WebAuthnCredentialParams,
 };
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
@@ -17,6 +18,7 @@ use uuid::Uuid;
 
 struct Ctx {
     repo: OAuthRepository,
+    cleanup: OauthCleanupRepository,
     write: std::sync::Arc<PgPool>,
     user_id: UserId,
 }
@@ -25,6 +27,7 @@ async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
+    let cleanup = OauthCleanupRepository::new(&pool).expect("cleanup repo");
     let write = pool.write_pool_arc().expect("write pool");
     let user_id = unique_user_id(prefix);
     seed_user_row(&pool, &user_id, &format!("{}@wa.invalid", user_id.as_str()))
@@ -32,16 +35,17 @@ async fn setup(prefix: &str) -> Ctx {
         .expect("seed user");
     Ctx {
         repo,
+        cleanup,
         write,
         user_id,
     }
 }
 
-async fn store_credential(ctx: &Ctx, id: &str, counter: u32) -> Vec<u8> {
+async fn store_credential(ctx: &Ctx, id: &str) -> Vec<u8> {
     let credential_id = Uuid::new_v4().as_bytes().to_vec();
     ctx.repo
         .store_webauthn_credential(
-            WebAuthnCredentialParams::builder(id, &ctx.user_id, &credential_id, &[7u8], counter)
+            WebAuthnCredentialParams::builder(id, &ctx.user_id, &credential_id, &[7u8])
                 .with_device_type("platform")
                 .build(),
         )
@@ -51,33 +55,10 @@ async fn store_credential(ctx: &Ctx, id: &str, counter: u32) -> Vec<u8> {
 }
 
 #[tokio::test]
-async fn list_rejects_a_credential_row_with_a_negative_counter() {
-    let ctx = setup("wa-negctr").await;
-    let id = format!("cred-{}", Uuid::new_v4());
-    let credential_id = store_credential(&ctx, &id, 3).await;
-
-    sqlx::query("UPDATE webauthn_credentials SET counter = -1 WHERE credential_id = $1")
-        .bind(&credential_id)
-        .execute(&*ctx.write)
-        .await
-        .expect("corrupt counter");
-
-    let err = ctx
-        .repo
-        .list_webauthn_credentials(&ctx.user_id)
-        .await
-        .expect_err("a negative signature counter must not be handed back as a u32");
-    assert!(
-        err.to_string().contains("Invalid counter value"),
-        "got {err}"
-    );
-}
-
-#[tokio::test]
 async fn list_rejects_a_credential_row_with_malformed_transports() {
     let ctx = setup("wa-badtr").await;
     let id = format!("cred-{}", Uuid::new_v4());
-    let credential_id = store_credential(&ctx, &id, 0).await;
+    let credential_id = store_credential(&ctx, &id).await;
 
     sqlx::query("UPDATE webauthn_credentials SET transports = 'usb' WHERE credential_id = $1")
         .bind(&credential_id)
@@ -99,8 +80,8 @@ async fn list_returns_the_newest_credential_first() {
     let ctx = setup("wa-order").await;
     let older = format!("cred-old-{}", Uuid::new_v4());
     let newer = format!("cred-new-{}", Uuid::new_v4());
-    let older_credential = store_credential(&ctx, &older, 0).await;
-    store_credential(&ctx, &newer, 0).await;
+    let older_credential = store_credential(&ctx, &older).await;
+    store_credential(&ctx, &newer).await;
 
     sqlx::query(
         "UPDATE webauthn_credentials SET created_at = NOW() - INTERVAL '1 day' \
@@ -125,16 +106,16 @@ async fn list_returns_the_newest_credential_first() {
 }
 
 #[tokio::test]
-async fn update_counter_for_an_unknown_credential_changes_nothing() {
+async fn touching_an_unknown_credential_fails_and_changes_nothing() {
     let ctx = setup("wa-noop").await;
     let id = format!("cred-{}", Uuid::new_v4());
-    store_credential(&ctx, &id, 4).await;
+    store_credential(&ctx, &id).await;
     let unknown = Uuid::new_v4();
 
     ctx.repo
-        .update_webauthn_credential_counter(unknown.as_bytes(), 99)
+        .touch_webauthn_credential(unknown.as_bytes())
         .await
-        .expect("update against an unknown credential is not an error");
+        .expect_err("an update that matches no credential must be reported");
 
     let creds = ctx
         .repo
@@ -142,11 +123,10 @@ async fn update_counter_for_an_unknown_credential_changes_nothing() {
         .await
         .expect("list");
     let found = creds.iter().find(|c| c.id == id).expect("present");
-    assert_eq!(
-        found.counter, 4,
+    assert!(
+        found.last_used_at.is_none(),
         "an unrelated credential must be untouched"
     );
-    assert!(found.last_used_at.is_none());
 }
 
 #[tokio::test]
@@ -205,8 +185,8 @@ async fn cleanup_physically_deletes_expired_challenges_and_spares_live_ones() {
         .await
         .expect("age the stale challenge");
 
-    ctx.repo
-        .cleanup_expired_webauthn_challenges()
+    ctx.cleanup
+        .delete_expired_webauthn_challenges()
         .await
         .expect("cleanup");
 

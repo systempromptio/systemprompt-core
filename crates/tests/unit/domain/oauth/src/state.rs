@@ -182,6 +182,13 @@ async fn new_state_has_no_optional_providers() {
 
     assert!(state.fingerprint_provider().is_none());
     assert!(state.mcp_registry().is_none());
+    assert!(
+        matches!(
+            state.webauthn(),
+            Err(systemprompt_oauth::error::OauthError::WebAuthnConfig(_))
+        ),
+        "a state built without a WebAuthn service refuses passkey use"
+    );
 
     let debug = format!("{state:?}");
     assert!(debug.contains("OAuthState"));
