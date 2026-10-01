@@ -23,8 +23,11 @@ use systemprompt_marketplace::managed::ResourceKind;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
-    #[arg(help = "Skill ID to show details (optional)")]
-    pub name: Option<String>,
+    #[arg(
+        help = "Skill ID to show details (optional)",
+        value_parser = crate::shared::parse_skill_id
+    )]
+    pub name: Option<SkillId>,
 
     #[arg(long, help = "Show only enabled skills")]
     pub enabled: bool,
@@ -147,13 +150,13 @@ async fn managed_context(
     ))
 }
 
-pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn show_resolved_skill(skill_id: &SkillId, ctx: &CommandContext) -> Result<CommandOutput> {
     if let Some((resolver, owner)) = managed_context(ctx).await {
-        match resolver.resolve_skill(&owner, skill_name).await? {
+        match resolver.resolve_skill(&owner, skill_id.as_str()).await? {
             ManagedSkillResolution::Withheld(reason) => {
                 return Err(anyhow!(
                     "Skill '{}' is managed but withheld ({})",
-                    skill_name,
+                    skill_id,
                     reason.as_str()
                 ));
             },
@@ -175,13 +178,13 @@ pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Resu
                     instructions_preview: truncate_with_ellipsis(&skill.instructions, 200),
                 };
                 return Ok(CommandOutput::card_value(
-                    format!("Skill: {skill_name}"),
+                    format!("Skill: {skill_id}"),
                     &output,
                 ));
             },
         }
     }
-    show_skill_detail(skill_name, &get_skills_path()?)
+    show_skill_detail(skill_id, &get_skills_path()?)
 }
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
@@ -192,11 +195,11 @@ fn get_skills_path() -> Result<std::path::PathBuf> {
     ))
 }
 
-pub fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandOutput> {
-    let skill_dir = skills_path.join(skill_name);
+pub fn show_skill_detail(skill_id: &SkillId, skills_path: &Path) -> Result<CommandOutput> {
+    let skill_dir = skills_path.join(skill_id.as_str());
 
     if !skill_dir.exists() {
-        return Err(anyhow!("Skill '{}' not found", skill_name));
+        return Err(anyhow!("Skill '{}' not found", skill_id));
     }
 
     let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
@@ -204,7 +207,7 @@ pub fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<Command
     if !config_path.exists() {
         return Err(anyhow!(
             "Skill '{}' has no {} file",
-            skill_name,
+            skill_id,
             SKILL_CONFIG_FILENAME
         ));
     }
@@ -214,7 +217,7 @@ pub fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<Command
     let instructions_preview = truncate_with_ellipsis(&parsed.instructions, 200);
 
     let output = SkillDetailOutput {
-        skill_id: SkillId::new(skill_name),
+        skill_id: skill_id.clone(),
         name: parsed.name.clone(),
         display_name: parsed.name,
         description: parsed.description,
@@ -226,7 +229,7 @@ pub fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<Command
     };
 
     Ok(CommandOutput::card_value(
-        format!("Skill: {}", skill_name),
+        format!("Skill: {}", skill_id),
         &output,
     ))
 }

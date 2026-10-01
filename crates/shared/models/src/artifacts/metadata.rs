@@ -16,7 +16,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{
-    AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, SkillId, TaskId, TraceId, UserId,
+    AgentName, ArtifactId, ContextId, McpExecutionId, McpToolName, SessionId, SkillId, SkillName,
+    TaskId, TraceId, UserId,
 };
 
 use crate::execution::context::RequestContext;
@@ -48,14 +49,16 @@ pub struct ExecutionMetadata {
     pub task_id: Option<TaskId>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_name: Option<String>,
+    #[schemars(with = "Option<String>")]
+    pub tool_name: Option<McpToolName>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(with = "Option<String>")]
     pub skill_id: Option<SkillId>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub skill_name: Option<String>,
+    #[schemars(with = "Option<String>")]
+    pub skill_name: Option<SkillName>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_id: Option<String>,
@@ -70,9 +73,9 @@ pub struct ExecutionMetadataBuilder {
     agent_name: AgentName,
     timestamp: DateTime<Utc>,
     task_id: Option<TaskId>,
-    tool_name: Option<String>,
+    tool_name: Option<McpToolName>,
     skill_id: Option<SkillId>,
-    skill_name: Option<String>,
+    skill_name: Option<SkillName>,
     execution_id: Option<String>,
 }
 
@@ -93,14 +96,14 @@ impl ExecutionMetadataBuilder {
         }
     }
 
-    pub fn with_tool(mut self, name: impl Into<String>) -> Self {
-        self.tool_name = Some(name.into());
+    pub fn with_tool(mut self, name: McpToolName) -> Self {
+        self.tool_name = Some(name);
         self
     }
 
-    pub fn with_skill(mut self, id: impl Into<SkillId>, name: impl Into<String>) -> Self {
-        self.skill_id = Some(id.into());
-        self.skill_name = Some(name.into());
+    pub fn with_skill(mut self, id: SkillId, name: SkillName) -> Self {
+        self.skill_id = Some(id);
+        self.skill_name = Some(name);
         self
     }
 
@@ -135,14 +138,14 @@ impl ExecutionMetadata {
         Self::builder(ctx).build()
     }
 
-    pub fn with_tool(mut self, name: impl Into<String>) -> Self {
-        self.tool_name = Some(name.into());
+    pub fn with_tool(mut self, name: McpToolName) -> Self {
+        self.tool_name = Some(name);
         self
     }
 
-    pub fn with_skill(mut self, id: impl Into<SkillId>, name: impl Into<String>) -> Self {
-        self.skill_id = Some(id.into());
-        self.skill_name = Some(name.into());
+    pub fn with_skill(mut self, id: SkillId, name: SkillName) -> Self {
+        self.skill_id = Some(id);
+        self.skill_name = Some(name);
         self
     }
 
@@ -181,7 +184,7 @@ impl ExecutionMetadata {
 pub struct ArtifactProvenance {
     request: Option<ExecutionMetadata>,
     execution_id: Option<String>,
-    skill: Option<(SkillId, String)>,
+    skill: Option<(SkillId, SkillName)>,
 }
 
 impl ArtifactProvenance {
@@ -197,7 +200,7 @@ impl ArtifactProvenance {
         self.execution_id = Some(id.into());
     }
 
-    pub fn set_skill(&mut self, id: SkillId, name: String) {
+    pub fn set_skill(&mut self, id: SkillId, name: SkillName) {
         self.skill = Some((id, name));
     }
 

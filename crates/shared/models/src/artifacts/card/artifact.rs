@@ -6,7 +6,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::SkillId;
+use systemprompt_identifiers::{SkillId, SkillName};
 
 use super::{CardCta, CardSection, CardTheme};
 use crate::artifacts::metadata::ArtifactProvenance;
@@ -32,7 +32,7 @@ pub struct PresentationCardArtifact {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_id: Option<SkillId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub skill_name: Option<String>,
+    pub skill_name: Option<SkillName>,
     #[serde(skip)]
     #[schemars(skip)]
     metadata: ArtifactProvenance,
@@ -105,14 +105,12 @@ impl PresentationCardArtifact {
 
     pub fn with_skill(
         mut self,
-        skill_id: impl Into<SkillId>,
-        skill_name: impl Into<String>,
+        skill_id: SkillId,
+        skill_name: SkillName,
     ) -> Self {
-        let id = skill_id.into();
-        let name = skill_name.into();
-        self.skill_id = Some(id.clone());
-        self.skill_name = Some(name.clone());
-        self.metadata.set_skill(id, name);
+        self.skill_id = Some(skill_id.clone());
+        self.skill_name = Some(skill_name.clone());
+        self.metadata.set_skill(skill_id, skill_name);
         self
     }
 }

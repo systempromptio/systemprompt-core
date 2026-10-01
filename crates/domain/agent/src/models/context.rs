@@ -7,7 +7,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, MessageId, SkillId, TaskId,
+    AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, MessageId, SkillId, SkillName,
+    TaskId,
 };
 
 pub use systemprompt_models::{
@@ -56,7 +57,7 @@ pub enum ContextStateEvent {
     },
     SkillLoaded {
         skill_id: SkillId,
-        skill_name: String,
+        skill_name: SkillName,
         description: String,
         request_context: systemprompt_models::execution::context::RequestContext,
         tool_name: Option<McpToolName>,

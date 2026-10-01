@@ -5,7 +5,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{JobName, PluginId};
+use systemprompt_identifiers::{JobName, McpToolName, PluginId};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilitySummary {
@@ -128,7 +128,7 @@ pub struct SchemasListOutput {
 pub struct ToolWithExtension {
     pub extension_id: PluginId,
     pub extension_name: String,
-    pub tool_name: String,
+    pub tool_name: McpToolName,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

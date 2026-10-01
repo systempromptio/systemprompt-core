@@ -11,7 +11,7 @@ use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{
     AgentName, AiRequestId, CampaignId, CategoryId, Email, JobName, LinkClickId, LinkId,
     McpServerId, McpToolName, ModelId, PluginId, ProfileName, ProviderId, SecretName, ServiceName,
-    TenantId, TraceId,
+    SkillId, TenantId, TraceId,
 };
 
 macro_rules! id_parsers {
@@ -43,4 +43,5 @@ id_parsers! {
     parse_provider_id => ProviderId,
     parse_model_id => ModelId,
     parse_secret_name => SecretName,
+    parse_skill_id => SkillId,
 }

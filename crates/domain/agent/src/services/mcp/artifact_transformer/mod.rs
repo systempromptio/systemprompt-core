@@ -22,7 +22,7 @@ use rmcp::model::CallToolResult;
 use serde::Deserialize;
 use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::{
-    ArtifactId, ContextId, McpExecutionId, McpToolName, SkillId, TaskId,
+    ArtifactId, ContextId, McpExecutionId, McpToolName, SkillId, SkillName, TaskId,
 };
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 
@@ -34,7 +34,7 @@ pub use type_inference::infer_type;
 #[derive(Debug, Deserialize)]
 pub struct ParsedMetadata {
     pub skill_id: Option<SkillId>,
-    pub skill_name: Option<String>,
+    pub skill_name: Option<SkillName>,
     pub execution_id: Option<McpExecutionId>,
 }
 
@@ -53,7 +53,7 @@ struct WireExecutionMeta {
     artifact_id: ArtifactId,
     mcp_execution_id: McpExecutionId,
     skill_id: Option<SkillId>,
-    skill_name: Option<String>,
+    skill_name: Option<SkillName>,
     execution_id: Option<McpExecutionId>,
 }
 

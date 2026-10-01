@@ -30,7 +30,9 @@ pub fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandOutput {
                 .map(|(i, _provider)| ToolWithExtension {
                     extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
                     extension_name: ext.name().to_owned(),
-                    tool_name: format!("tool_provider_{}", i),
+                    tool_name: systemprompt_identifiers::McpToolName::new(format!(
+                        "tool_provider_{i}"
+                    )),
                 })
                 .collect::<Vec<_>>()
         })

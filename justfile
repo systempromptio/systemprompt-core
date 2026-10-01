@@ -9,16 +9,12 @@ default:
 # BUILD & TEST
 # =============================================================================
 
-# Lint: enforce typed identifiers (no raw String/&str for known ID field names)
+# Lint: typed identifiers. Names derive from crates/shared/identifiers; fields
+# and fn arguments typed String/&str/Uuid fail unless listed as boundary values.
 lint-raw-ids:
     ./scripts/lint-raw-ids.sh
 
-# Strict raw-ID lint: names derived from systemprompt_identifiers, fields and fn
-# arguments, String/&str/Uuid. Not in check-gates until the wave-3 lanes land.
-lint-raw-ids-strict:
-    ./scripts/lint-raw-ids.sh --strict
-
-# Per-crate and per-name counts for the strict raw-ID lint (always exits 0).
+# Per-crate and per-name counts for lint-raw-ids (always exits 0).
 lint-raw-ids-report:
     ./scripts/lint-raw-ids.sh --report
 

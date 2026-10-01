@@ -14,7 +14,7 @@ use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::SkillId;
+use systemprompt_identifiers::{SkillId, SkillName};
 
 fn default_artifact_type() -> String {
     "text".to_owned()
@@ -62,10 +62,10 @@ impl TextArtifact {
 
     pub fn with_skill(
         mut self,
-        skill_id: impl Into<SkillId>,
-        skill_name: impl Into<String>,
+        skill_id: SkillId,
+        skill_name: SkillName,
     ) -> Self {
-        self.metadata.set_skill(skill_id.into(), skill_name.into());
+        self.metadata.set_skill(skill_id, skill_name);
         self
     }
 }
