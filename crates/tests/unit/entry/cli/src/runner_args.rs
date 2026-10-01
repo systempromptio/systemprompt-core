@@ -1,12 +1,11 @@
 //! The argument plane: config assembly, argv reconstruction, and the
 //! export-flag check.
 //!
-//! `reconstruct_args` is what a profile-routed command sends to the subprocess
-//! it re-invokes, so a flag lost or duplicated here changes what actually runs
-//! on the far side. The reconstruction used to read `std::env::args()` inside
-//! itself, which meant its branches were reachable only through however the
-//! test binary happened to be invoked; it now takes the original argv, and
-//! these drive it directly.
+//! `reconstruct_args` is what a profile-routed command sends to the remote
+//! tenant, so a token lost or duplicated here changes what actually runs on
+//! the far side. It edits the original argv by position; it used to drop any
+//! token already emitted, which collapsed `admin agents show admin` and
+//! `--limit 10 --offset 10`.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -111,82 +110,106 @@ fn the_profile_override_is_carried_through() {
     assert_eq!(cfg.profile_override.as_deref(), Some("staging"));
 }
 
-// Why: the reconstructed argv is what the re-invoked subprocess receives. A
-// global flag appearing twice would be passed twice, and clap rejects a
-// repeated flag — so the deduplication is what keeps profile routing working
-// at all.
-#[test]
-fn a_global_flag_is_not_repeated_when_it_was_already_on_the_command_line() {
-    let parsed = cli(&["--json", "--debug"]);
-    let out = reconstruct_args_from(&parsed, &owned(&["--json", "--debug", "admin", "users"]));
-
-    assert_eq!(
-        out.iter().filter(|a| *a == "--json").count(),
-        1,
-        "--json must appear once, got {out:?}"
-    );
-    assert_eq!(
-        out.iter().filter(|a| *a == "--debug").count(),
-        1,
-        "--debug must appear once, got {out:?}"
-    );
-    assert!(out.contains(&"admin".to_owned()));
-    assert!(out.contains(&"users".to_owned()));
+fn forwarded(args: &[&str]) -> Vec<String> {
+    reconstruct_args_from(&owned(args))
 }
 
-// Why: the subprocess is being routed to a *different* profile, so carrying
-// the original `--profile` through would send it back to the one it came from.
-// Both spellings have to be dropped.
 #[test]
-fn the_original_profile_flag_is_dropped_in_both_spellings() {
-    let parsed = cli(&["--profile", "prod"]);
-
-    let spaced = reconstruct_args_from(
-        &parsed,
-        &owned(&["--profile", "prod", "core", "skills", "list"]),
+fn global_flags_typed_first_follow_the_top_level_group() {
+    assert_eq!(
+        forwarded(&["--json", "--debug", "admin", "users", "list"]),
+        vec!["admin", "--json", "--debug", "users", "list"],
+        "the gateway requires a subcommand first; globals stay valid after the group"
     );
-    let equals = reconstruct_args_from(
-        &parsed,
-        &owned(&["--profile=prod", "core", "skills", "list"]),
-    );
+}
 
-    for out in [&spaced, &equals] {
+#[test]
+fn global_flags_after_the_subcommand_stay_where_they_were() {
+    assert_eq!(
+        forwarded(&["infra", "logs", "show", "abc", "--json", "-v"]),
+        vec!["infra", "logs", "show", "abc", "--json", "-v"],
+        "a flag after the leaf may be the leaf's own `--json`; it must reach the leaf"
+    );
+}
+
+#[test]
+fn the_profile_flag_is_dropped_in_both_spellings_wherever_it_appears() {
+    for args in [
+        vec!["--profile", "prod", "core", "skills", "list"],
+        vec!["--profile=prod", "core", "skills", "list"],
+        vec!["core", "skills", "list", "--profile", "prod"],
+        vec!["core", "skills", "--profile=prod", "list"],
+    ] {
         assert_eq!(
-            out.iter().filter(|a| *a == "prod").count(),
-            1,
-            "the profile value should survive exactly once, from the parsed \
-             flag rather than the raw argv: {out:?}"
+            forwarded(&args),
+            vec!["core", "skills", "list"],
+            "{args:?}: the local profile name means nothing on the tenant"
         );
-        assert_eq!(
-            out.iter().filter(|a| a.starts_with("--profile")).count(),
-            1,
-            "exactly one --profile flag should be emitted; the raw argv's copy, \
-             in either spelling, must not be carried through: {out:?}"
-        );
-        assert!(out.contains(&"core".to_owned()));
-        assert!(out.contains(&"skills".to_owned()));
-        assert!(out.contains(&"list".to_owned()));
     }
 }
 
 #[test]
-fn short_verbosity_spellings_are_not_passed_through_raw() {
-    let parsed = cli(&["-v"]);
-    let out = reconstruct_args_from(&parsed, &owned(&["-v", "core", "skills", "list"]));
+fn the_database_url_flag_is_never_forwarded() {
+    for args in [
+        vec![
+            "--database-url",
+            "postgres://u:p@h/db",
+            "admin",
+            "users",
+            "list",
+        ],
+        vec![
+            "admin",
+            "users",
+            "list",
+            "--database-url=postgres://u:p@h/db",
+        ],
+    ] {
+        let out = forwarded(&args);
+        assert_eq!(out, vec!["admin", "users", "list"], "{args:?}");
+        assert!(!out.iter().any(|a| a.contains("postgres://")), "{out:?}");
+    }
+}
 
-    assert!(
-        !out.contains(&"-v".to_owned()),
-        "the short form should be re-emitted as its long form, not duplicated: {out:?}"
+#[test]
+fn a_positional_equal_to_a_subcommand_word_survives() {
+    assert_eq!(
+        forwarded(&["admin", "agents", "show", "admin"]),
+        vec!["admin", "agents", "show", "admin"]
     );
-    assert!(out.contains(&"--verbose".to_owned()));
+}
+
+#[test]
+fn repeated_values_are_forwarded_once_each_in_order() {
+    assert_eq!(
+        forwarded(&[
+            "infra", "db", "query", "SELECT 1", "--limit", "10", "--offset", "10"
+        ]),
+        vec![
+            "infra", "db", "query", "SELECT 1", "--limit", "10", "--offset", "10"
+        ]
+    );
+    assert_eq!(
+        forwarded(&["--profile", "prod", "cloud", "tenant", "show", "prod"]),
+        vec!["cloud", "tenant", "show", "prod"],
+        "only the profile flag's own value is dropped, not an equal positional"
+    );
+}
+
+#[test]
+fn tokens_after_a_terminator_are_never_edited() {
+    assert_eq!(
+        forwarded(&["plugins", "run", "ext", "--", "--profile", "x"]),
+        vec!["plugins", "run", "ext", "--", "--profile", "x"]
+    );
 }
 
 #[test]
 fn positional_arguments_survive_in_order() {
-    let parsed = cli(&["core", "skills", "list"]);
-    let out = reconstruct_args_from(&parsed, &owned(&["core", "skills", "list"]));
-
-    assert_eq!(out, vec!["core", "skills", "list"]);
+    assert_eq!(
+        forwarded(&["core", "skills", "list"]),
+        vec!["core", "skills", "list"]
+    );
 }
 
 // Why: the export flag only means anything for `analytics`. Treating it as

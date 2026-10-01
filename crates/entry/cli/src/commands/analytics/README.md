@@ -1285,19 +1285,3 @@ sp --json analytics costs breakdown | jq '.items | sort_by(.cost_microdollars) |
 sp --json analytics agents list | jq '.agents[] | select(.success_rate < 95)'
 sp --json analytics tools list | jq '.tools[] | select(.success_rate < 90)'
 ```
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] JSON output supported via `--json` flag
-- [x] CSV export supported via `--export` flag
-- [x] Common time range flags (`--since`, `--until`) across all commands
-
-
----

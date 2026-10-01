@@ -53,7 +53,6 @@ pub struct CreateArgs {
 
     #[arg(
         long = "tenant-id",
-        env = "SYSTEMPROMPT_TENANT_ID",
         help = "Tenant ID (required in non-interactive mode)"
     )]
     pub tenant: Option<String>,

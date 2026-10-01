@@ -639,19 +639,3 @@ sp --json admin config rate-limits show
 sp admin config rate-limits reset --dry-run
 sp admin config rate-limits reset --yes
 ```
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] JSON output supported via `--json` flag
-- [x] Destructive operations (`reset`) require `--yes` in non-interactive mode
-- [x] `--dry-run` supported for preview
-
-
----

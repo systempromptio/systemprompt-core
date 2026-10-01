@@ -26,9 +26,6 @@ pub struct EnvOverrides {
     pub rust_log: Option<String>,
     pub is_deployment_host: bool,
     pub is_remote_cli: bool,
-    pub editor: Option<String>,
-    pub database_url: Option<String>,
-    pub services_path: Option<String>,
     pub session: SessionEnv,
 }
 
@@ -70,9 +67,6 @@ impl EnvOverrides {
             rust_log: lookup("RUST_LOG"),
             is_deployment_host: systemprompt_models::subprocess::is_deployment_host(&lookup),
             is_remote_cli: lookup("SYSTEMPROMPT_CLI_REMOTE").is_some(),
-            editor: lookup("VISUAL").or_else(|| lookup("EDITOR")),
-            database_url: lookup("DATABASE_URL"),
-            services_path: lookup("SYSTEMPROMPT_SERVICES_PATH"),
             session: SessionEnv {
                 user_id: lookup("SYSTEMPROMPT_USER_ID").map(UserId::new),
                 session_id: lookup("SYSTEMPROMPT_SESSION_ID").map(SessionId::new),

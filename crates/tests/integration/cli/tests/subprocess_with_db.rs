@@ -381,7 +381,7 @@ fn db_query_reject_write() {
 
 #[test]
 fn db_execute_noop() {
-    run_db(&["infra", "db", "execute", "SELECT 1"]);
+    run_db(&["infra", "db", "execute", "SELECT 1", "--yes"]);
 }
 
 #[test]
@@ -392,6 +392,7 @@ fn db_execute_invalid_sql() {
             "db",
             "execute",
             "DELETE FROM nonexistent_table_xyz",
+            "--yes",
         ],
         "does not exist",
     );
@@ -399,7 +400,9 @@ fn db_execute_invalid_sql() {
 
 #[test]
 fn db_execute_with_format() {
-    run_db(&["infra", "db", "execute", "SELECT 1", "--format", "json"]);
+    run_db(&[
+        "infra", "db", "execute", "SELECT 1", "--yes", "--format", "json",
+    ]);
 }
 
 // ============================================================================
@@ -593,11 +596,6 @@ fn analytics_content_trends() {
 #[test]
 fn analytics_content_top() {
     run_db_with_format(&["analytics", "content", "top"]);
-}
-
-#[test]
-fn analytics_content_popular_alias() {
-    run_db_with_format(&["analytics", "content", "popular"]);
 }
 
 // ============================================================================

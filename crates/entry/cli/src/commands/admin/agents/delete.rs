@@ -16,7 +16,7 @@ use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
-use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::ConfigLoader;
@@ -56,46 +56,34 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let authoring = AgentConfigAuthoringService::new(Path::new(&profile.paths.services));
 
-    let orchestrator = match build_orchestrator(ctx).await {
-        Ok(orchestrator) => orchestrator,
-        Err(message) => {
-            return Ok(CommandOutput::card_value(
-                "Delete Failed",
-                &AgentDeleteOutput {
-                    deleted: vec![],
-                    message,
-                },
-            ));
-        },
-    };
+    let orchestrator = build_orchestrator(ctx)
+        .await
+        .context("Cannot stop agents safely without the orchestrator")?;
 
     let mut deleted = Vec::new();
     let mut errors = Vec::new();
 
     for agent_name in &agents_to_delete {
         let agent_port = services_config.agents.get(agent_name).map(|c| c.port);
-        let result = delete_single_agent(
-            agent_name,
-            agent_port,
-            orchestrator.as_ref(),
-            &authoring,
-            args.force,
-        )
-        .await;
-        match result {
+        let process_stopped = stop_agent_process(agent_name, agent_port, &orchestrator).await;
+        match delete_single_agent(agent_name, process_stopped, &authoring, args.force) {
             Ok(()) => deleted.push(agent_name.clone()),
             Err(msg) => errors.push(msg),
         }
-    }
-
-    if !errors.is_empty() && deleted.is_empty() {
-        return Err(anyhow!("Failed to delete agents:\n{}", errors.join("\n")));
     }
 
     if !deleted.is_empty() {
         ConfigLoader::reload().with_context(|| {
             "Agent(s) deleted but configuration validation failed. Please check the configuration."
         })?;
+    }
+
+    if !errors.is_empty() {
+        return Err(anyhow!(
+            "{}\nFailed to delete:\n{}",
+            delete_success_message(&deleted),
+            errors.join("\n")
+        ));
     }
 
     let message = delete_success_message(&deleted);
@@ -164,51 +152,34 @@ pub fn delete_success_message(deleted: &[String]) -> String {
     }
 }
 
-async fn build_orchestrator(ctx: &CommandContext) -> Result<Option<AgentOrchestrator>, String> {
-    let app = match ctx.app_context().await {
-        Ok(app) => app,
-        Err(e) => {
-            tracing::debug!(error = %e, "Failed to create AppContext for agent deletion");
-            return Ok(None);
-        },
-    };
-
-    let jwt_provider = match JwtValidationProviderImpl::from_config() {
-        Ok(p) => Arc::new(p),
-        Err(e) => {
-            tracing::debug!(error = %e, "Failed to create JWT provider");
-            return Err(format!("Failed to initialize: {e}"));
-        },
-    };
+async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
+    let app = ctx.app_context().await?;
+    let jwt_provider = Arc::new(
+        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
+    );
+    let broadcaster = HttpWebhookBroadcaster::from_config(app.config())
+        .context("Failed to initialize webhook broadcaster")?;
 
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(app.db_pool()),
         Arc::new(app.config().clone()),
         jwt_provider,
         Arc::clone(app.a2a_repositories()),
-        Arc::new(
-            HttpWebhookBroadcaster::from_config(app.config())
-                .map_err(|e| format!("Failed to initialize: {e}"))?,
-        ),
+        Arc::new(broadcaster),
     ));
 
-    Ok(
-        AgentOrchestrator::new(agent_state, Arc::clone(app.app_paths_arc()), None)
-            .await
-            .ok(),
-    )
+    AgentOrchestrator::new(agent_state, Arc::clone(app.app_paths_arc()), None)
+        .await
+        .context("Failed to initialize agent orchestrator")
 }
 
-pub async fn delete_single_agent(
+pub fn delete_single_agent(
     agent_name: &str,
-    agent_port: Option<u16>,
-    orchestrator: Option<&AgentOrchestrator>,
+    process_stopped: bool,
     authoring: &AgentConfigAuthoringService,
     force: bool,
 ) -> Result<(), String> {
     CliService::info(&format!("Deleting agent '{}'...", agent_name));
-
-    let process_stopped = stop_agent_process(agent_name, agent_port, orchestrator).await;
 
     if !process_stopped && !force {
         let msg = format!(
@@ -219,7 +190,7 @@ pub async fn delete_single_agent(
         return Err(msg);
     }
 
-    if !process_stopped && force {
+    if !process_stopped {
         CliService::warning(&format!(
             "Force deleting agent '{}' (process may still be running)",
             agent_name
@@ -241,49 +212,66 @@ pub async fn delete_single_agent(
 pub async fn stop_agent_process(
     agent_name: &str,
     agent_port: Option<u16>,
-    orchestrator: Option<&AgentOrchestrator>,
+    orchestrator: &AgentOrchestrator,
 ) -> bool {
-    if let Some(orch) = orchestrator {
-        match orch.delete_agent(agent_name).await {
-            Ok(()) => {
-                tracing::debug!(agent = %agent_name, "Agent stopped via orchestrator");
-                return true;
-            },
-            Err(e) => {
-                tracing::debug!(
-                    agent = %agent_name,
-                    error = %e,
-                    "Orchestrator termination failed, trying port-based cleanup"
-                );
-            },
-        }
-    }
+    let recorded_pid = match orchestrator.get_status(agent_name).await {
+        Ok(AgentStatus::Running { pid, .. }) => Some(pid),
+        Ok(AgentStatus::Failed { .. }) => None,
+        Err(e) => {
+            tracing::warn!(
+                agent = %agent_name,
+                error = %e,
+                "Could not read the agent's recorded process"
+            );
+            return false;
+        },
+    };
 
+    match orchestrator.delete_agent(agent_name).await {
+        Ok(()) => {
+            tracing::debug!(agent = %agent_name, "Agent stopped via orchestrator");
+            true
+        },
+        Err(e) => {
+            tracing::warn!(
+                agent = %agent_name,
+                error = %e,
+                "Orchestrator termination failed; stopping only a verified agent process"
+            );
+            stop_verified_port_holder(agent_name, agent_port, recorded_pid)
+        },
+    }
+}
+
+pub fn stop_verified_port_holder(
+    agent_name: &str,
+    agent_port: Option<u16>,
+    recorded_pid: Option<u32>,
+) -> bool {
     let Some(port) = agent_port else {
-        tracing::debug!(agent = %agent_name, "No port configured, assuming not running");
+        return recorded_pid.is_none();
+    };
+
+    let Some(holder) = ProcessCleanup::check_port(port) else {
+        tracing::debug!(agent = %agent_name, port, "No process on port; agent is stopped");
         return true;
     };
 
-    if ProcessCleanup::check_port(port).is_none() {
-        tracing::debug!(agent = %agent_name, port, "No process on port, assuming stopped");
-        return true;
+    if recorded_pid != Some(holder) {
+        CliService::warning(&format!(
+            "Process {holder} holds port {port} but is not the recorded process of agent \
+             '{agent_name}'; refusing to kill it"
+        ));
+        return false;
     }
 
     CliService::info(&format!(
-        "Stopping agent '{}' on port {}...",
-        agent_name, port
+        "Stopping agent '{}' (pid {}) on port {}...",
+        agent_name, holder, port
     ));
-
-    let Some(pid) = ProcessCleanup::check_port(port) else {
-        tracing::warn!(agent = %agent_name, port, "No process found on port to stop");
-        return false;
-    };
-
-    if !ProcessCleanup::kill_process(pid) {
-        tracing::warn!(agent = %agent_name, port, pid, "Failed to kill process on port");
+    if !ProcessCleanup::kill_process(holder) {
+        tracing::warn!(agent = %agent_name, port, pid = holder, "Failed to kill agent process");
         return false;
     }
-
-    tracing::debug!(agent = %agent_name, port, pid, "Killed process on port");
     true
 }

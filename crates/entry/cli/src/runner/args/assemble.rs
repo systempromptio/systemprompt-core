@@ -5,6 +5,12 @@
 //! reconstruction that decides what a profile-routed subprocess actually
 //! receives.
 //!
+//! The forwarded argv is the operator's argv edited by position: `--profile`
+//! and `--database-url` (both spellings) name local targets and are dropped,
+//! global flags typed before the subcommand move to just after the top-level
+//! group (the remote gateway requires a subcommand first), and every other
+//! token is kept verbatim and in order — a repeated value is never collapsed.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -42,73 +48,74 @@ pub fn build_cli_config(cli: &Cli, env: &EnvOverrides) -> CliConfig {
     cfg
 }
 
-pub fn reconstruct_args(cli: &Cli) -> Vec<String> {
+pub fn reconstruct_args() -> Vec<String> {
     let original: Vec<String> = std::env::args().skip(1).collect();
-    reconstruct_args_from(cli, &original)
+    reconstruct_args_from(&original)
 }
 
-pub fn reconstruct_args_from(cli: &Cli, original_args: &[String]) -> Vec<String> {
-    let mut args = Vec::new();
+pub fn reconstruct_args_from(original_args: &[String]) -> Vec<String> {
+    let mut leading_globals = Vec::new();
+    let mut tokens = original_args.iter();
+    let mut subcommand = None;
 
-    if cli.verbosity.debug {
-        args.push("--debug".to_owned());
-    } else if cli.verbosity.verbose {
-        args.push("--verbose".to_owned());
-    } else if cli.verbosity.quiet {
-        args.push("--quiet".to_owned());
-    }
-
-    if cli.output.json {
-        args.push("--json".to_owned());
-    } else if cli.output.yaml {
-        args.push("--yaml".to_owned());
-    }
-
-    if cli.display.no_color {
-        args.push("--no-color".to_owned());
-    }
-
-    if cli.display.non_interactive {
-        args.push("--non-interactive".to_owned());
-    }
-
-    if let Some(ref profile) = cli.profile_opts.profile {
-        args.push("--profile".to_owned());
-        args.push(profile.clone());
-    }
-
-    let mut skip_next = false;
-    for arg in original_args {
-        if skip_next {
-            skip_next = false;
+    while let Some(arg) = tokens.next() {
+        if is_local_only_flag(arg) {
+            if takes_separate_value(arg) {
+                tokens.next();
+            }
             continue;
         }
-        if arg == "--profile" {
-            skip_next = true;
+        if arg.starts_with('-') {
+            leading_globals.push(arg.clone());
             continue;
         }
-        if arg.starts_with("--profile=") {
-            continue;
-        }
-        if !args.contains(arg)
-            && !matches!(
-                arg.as_str(),
-                "--debug"
-                    | "--verbose"
-                    | "-v"
-                    | "--quiet"
-                    | "-q"
-                    | "--json"
-                    | "--yaml"
-                    | "--no-color"
-                    | "--non-interactive"
-            )
-        {
-            args.push(arg.clone());
-        }
+        subcommand = Some(arg.clone());
+        break;
     }
 
-    args
+    let Some(subcommand) = subcommand else {
+        return leading_globals;
+    };
+
+    let mut forwarded = vec![subcommand];
+    forwarded.extend(leading_globals);
+
+    let mut after_terminator = false;
+    while let Some(arg) = tokens.next() {
+        if after_terminator {
+            forwarded.push(arg.clone());
+            continue;
+        }
+        if arg == "--" {
+            after_terminator = true;
+            forwarded.push(arg.clone());
+            continue;
+        }
+        if is_local_only_flag(arg) {
+            if takes_separate_value(arg) {
+                tokens.next();
+            }
+            continue;
+        }
+        forwarded.push(arg.clone());
+    }
+
+    forwarded
+}
+
+const LOCAL_ONLY_FLAGS: [&str; 2] = ["--profile", "--database-url"];
+
+fn takes_separate_value(arg: &str) -> bool {
+    LOCAL_ONLY_FLAGS.contains(&arg)
+}
+
+fn is_local_only_flag(arg: &str) -> bool {
+    LOCAL_ONLY_FLAGS.iter().any(|flag| {
+        arg == *flag
+            || arg
+                .strip_prefix(flag)
+                .is_some_and(|rest| rest.starts_with('='))
+    })
 }
 
 pub fn has_local_export_flag(command: Option<&Commands>) -> bool {

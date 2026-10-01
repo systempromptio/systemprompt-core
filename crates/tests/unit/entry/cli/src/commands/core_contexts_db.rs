@@ -495,3 +495,50 @@ async fn use_execute_resolved_switches_to_named_context() {
     .await;
     assert!(missing.is_err());
 }
+
+// Why: without a terminal the prompt was skipped and the delete ran
+// unconfirmed.
+#[tokio::test]
+async fn non_interactive_delete_without_yes_is_refused_and_keeps_the_context() {
+    let pool = test_db_pool().await;
+    let (user_id, session_id) = seeded_identity(&pool, "ctxnoyes").await;
+    let repo = ContextRepository::new(&pool).unwrap();
+    let active = repo
+        .get_or_create_cli_context(&user_id, &session_id, "noyes-active")
+        .await
+        .unwrap();
+    let victim = repo
+        .create_context(
+            &user_id,
+            Some(&session_id),
+            "noyes-victim",
+            systemprompt_agent::models::context::ContextKind::User,
+        )
+        .await
+        .unwrap();
+    let session = session_for(&user_id, session_id, active);
+    let prompter = ScriptedPrompter::new(std::iter::empty::<String>());
+
+    let err = delete::execute_with_pool(
+        delete::DeleteArgs {
+            context: victim.as_str().to_owned(),
+            yes: false,
+        },
+        &session,
+        &pool,
+        &cfg(),
+        &prompter,
+    )
+    .await
+    .expect_err("an unconfirmed non-interactive delete must be refused");
+    assert!(format!("{err:#}").contains("--yes"), "{err:#}");
+
+    let remaining: Vec<ContextId> = repo
+        .list_contexts_basic(&user_id)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|c| c.context_id)
+        .collect();
+    assert!(remaining.contains(&victim), "{remaining:?}");
+}

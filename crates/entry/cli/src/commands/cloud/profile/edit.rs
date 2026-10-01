@@ -10,11 +10,11 @@ use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 
 use super::EditArgs;
+use super::edit_document::ProfileDocument;
 use super::edit_secrets::edit_api_keys;
 use super::edit_settings::{edit_runtime_settings, edit_security_settings, edit_server_settings};
-use super::templates::save_profile;
 use crate::context::CommandContext;
-use crate::shared::resolve_profile_path;
+use crate::shared::{resolve_profile_path, write_private_atomic};
 
 pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
     let profile_path =
@@ -39,7 +39,9 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
 
     CliService::section(&format!("Edit Profile: {}", profile_path.display()));
 
-    let mut profile = ProfileLoader::load_from_path(&profile_path)?;
+    let mut document = ProfileDocument::open(&profile_path)?;
+    let original = ProfileLoader::load_from_path(&profile_path)?;
+    let mut profile = original.clone();
     let prompter = ctx.prompter();
 
     let edit_options: Vec<String> = [
@@ -66,7 +68,8 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
         }
     }
 
-    save_profile(&profile, &profile_path)?;
+    document.apply_changes(&original, &profile)?;
+    document.save()?;
     CliService::success(&format!("Profile saved: {}", profile_path.display()));
 
     Ok(())
@@ -75,7 +78,8 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
 fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Result<()> {
     CliService::section(&format!("Updating Profile: {}", profile_path.display()));
 
-    let mut profile = ProfileLoader::load_from_path(profile_path)?;
+    let original = ProfileLoader::load_from_path(profile_path)?;
+    let mut profile = original.clone();
     let mut profile_changed = false;
     let mut secrets_changed = false;
 
@@ -137,16 +141,13 @@ fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Re
 
     if secrets_changed {
         let content = serde_json::to_string_pretty(&secrets)?;
-        std::fs::write(&secrets_path, content)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&secrets_path, std::fs::Permissions::from_mode(0o600))?;
-        }
+        write_private_atomic(&secrets_path, &content)?;
     }
 
     if profile_changed {
-        save_profile(&profile, profile_path)?;
+        let mut document = ProfileDocument::open(profile_path)?;
+        document.apply_changes(&original, &profile)?;
+        document.save()?;
     }
 
     CliService::success(&format!("Profile saved: {}", profile_path.display()));

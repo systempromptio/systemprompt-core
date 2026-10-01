@@ -36,7 +36,10 @@ pub struct ValidateArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: ValidateArgs,
+    ctx: &CommandContext,
+) -> Result<(CommandOutput, bool)> {
     let prompter = ctx.prompter();
     let config = &ctx.cli;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
@@ -78,6 +81,7 @@ pub(super) async fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<
     }
 
     let valid_count = results.iter().filter(|r| r.valid).count();
+    let all_valid = valid_count == results.len();
     let healthy_count = results
         .iter()
         .filter(|r| r.health_status == "healthy")
@@ -105,7 +109,7 @@ pub(super) async fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<
         )
     };
 
-    Ok(CommandOutput::card_value(title, &output))
+    Ok((CommandOutput::card_value(title, &output), all_valid))
 }
 
 async fn validate_single_service(

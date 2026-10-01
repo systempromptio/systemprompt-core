@@ -23,7 +23,7 @@ pub struct ValidateArgs {
     pub id: Option<String>,
 }
 
-pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let plugins_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "plugins");
     let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
@@ -46,13 +46,17 @@ pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<Command
         results.push(result);
     }
 
+    let valid = results.iter().all(|result| result.valid);
     let output = PluginValidateAllOutput { results };
 
-    Ok(CommandOutput::table_of(
-        vec!["plugin_id", "valid", "errors", "warnings"],
-        &output.results,
-    )
-    .with_title("Plugin Validation Results"))
+    Ok((
+        CommandOutput::table_of(
+            vec!["plugin_id", "valid", "errors", "warnings"],
+            &output.results,
+        )
+        .with_title("Plugin Validation Results"),
+        valid,
+    ))
 }
 
 pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {

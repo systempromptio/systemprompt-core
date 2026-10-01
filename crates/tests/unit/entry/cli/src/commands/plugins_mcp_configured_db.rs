@@ -201,9 +201,14 @@ async fn listing_configured_servers_reads_the_same_config() {
 
 #[tokio::test]
 async fn the_service_alias_selects_the_same_server_as_the_positional_name() {
-    run(&["validate", "--service", ENABLED, "--timeout", "1"])
+    let err = run(&["validate", "--service", ENABLED, "--timeout", "1"])
         .await
-        .expect("--service is an alias for the positional server name");
+        .expect_err("the stopped server resolves but does not validate");
+    assert!(
+        message(&err).contains("MCP server validation failed"),
+        "--service must resolve the configured server, got: {}",
+        message(&err)
+    );
 }
 
 #[tokio::test]
@@ -278,7 +283,7 @@ async fn validate_running_external_helper() {
     println!("BEGIN_VALIDATE_EXTERNAL");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
         .await
-        .expect("validation reports a structured configuration failure");
+        .expect_err("an invalid server renders its report and exits non-zero");
     println!("END_VALIDATE_EXTERNAL");
 
     drop(context);
@@ -426,7 +431,7 @@ async fn validate_closed_database_helper() {
     println!("BEGIN_VALIDATE_CLOSED_DATABASE");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app))
         .await
-        .expect("database lookup failure renders structured validation output");
+        .expect_err("database lookup failure renders its report and exits non-zero");
     println!("END_VALIDATE_CLOSED_DATABASE");
     drop(app);
     database.drop_now().await;
@@ -478,12 +483,12 @@ async fn validate_stopped_outputs_helper() {
     println!("BEGIN_VALIDATE_NAMED_STOPPED");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
         .await
-        .expect("named stopped validation renders structured output");
+        .expect_err("a stopped server renders its report and exits non-zero");
     println!("END_VALIDATE_NAMED_STOPPED");
     println!("BEGIN_VALIDATE_BATCH_STOPPED");
     mcp::execute(parse(&["validate", "--all", "--timeout", "1"]), &context)
         .await
-        .expect("batch stopped validation renders structured output");
+        .expect_err("a stopped batch renders its report and exits non-zero");
     println!("END_VALIDATE_BATCH_STOPPED");
     drop(context);
     drop(app);

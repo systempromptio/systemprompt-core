@@ -1,25 +1,7 @@
-//! Shared db-command helpers: known tables, byte formatting.
+//! Shared db-command helpers: table-name suggestions, byte formatting.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-const KNOWN_TABLES: &[&str] = &[
-    "logs",
-    "ai_requests",
-    "mcp_tool_executions",
-    "agent_tasks",
-    "users",
-    "tenants",
-    "sessions",
-    "agent_execution_steps",
-    "agent_artifacts",
-    "credentials",
-    "mcp_servers",
-    "workflow_states",
-    "blog_posts",
-    "categories",
-    "sources",
-];
 
 pub fn format_bytes(bytes: i64) -> String {
     const KB: i64 = 1024;
@@ -46,13 +28,13 @@ pub fn extract_relation_name(msg: &str) -> String {
     "unknown".to_owned()
 }
 
-pub fn suggest_table_name(input: &str) -> Option<String> {
+pub fn suggest_table_name(input: &str, tables: &[String]) -> Option<String> {
     let input_lower = input.to_lowercase();
     let input_parts: Vec<&str> = input_lower.split('_').collect();
 
-    KNOWN_TABLES
+    tables
         .iter()
-        .filter(|&&table| {
+        .filter(|table| {
             let table_lower = table.to_lowercase();
             let table_parts: Vec<&str> = table_lower.split('_').collect();
 
@@ -61,8 +43,8 @@ pub fn suggest_table_name(input: &str) -> Option<String> {
                 || levenshtein_distance(&input_lower, &table_lower) <= 4
                 || shares_prefix_parts(&input_parts, &table_parts, 2)
         })
-        .min_by_key(|&&table| levenshtein_distance(&input_lower, &table.to_lowercase()))
-        .map(|&s| s.to_owned())
+        .min_by_key(|table| levenshtein_distance(&input_lower, &table.to_lowercase()))
+        .cloned()
 }
 
 fn shares_prefix_parts(a: &[&str], b: &[&str], min_shared: usize) -> bool {

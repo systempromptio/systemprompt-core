@@ -32,10 +32,11 @@ mod task;
 mod tools;
 pub mod validate;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
 use crate::context::CommandContext;
+use crate::descriptor::DataImpact;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -89,7 +90,13 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
             show::execute(args, ctx.prompter(), &ctx.cli).context("Failed to show agent")?
         },
         AgentsCommands::Validate(args) => {
-            validate::execute(&args, &ctx.cli).context("Failed to validate agents")?
+            let (result, valid) =
+                validate::execute(&args, &ctx.cli).context("Failed to validate agents")?;
+            render_result(&result, &ctx.cli);
+            if !valid {
+                bail!("Agent validation failed");
+            }
+            return Ok(());
         },
         AgentsCommands::Create(args) => {
             create::execute(args, ctx.prompter(), &ctx.cli).context("Failed to create agent")?
@@ -124,4 +131,24 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
     };
     render_result(&result, &ctx.cli);
     Ok(())
+}
+
+impl AgentsCommands {
+    pub const fn data_impact(&self) -> DataImpact {
+        match self {
+            Self::Delete(_) => DataImpact::Destructive,
+            Self::List(_)
+            | Self::Show(_)
+            | Self::Validate(_)
+            | Self::Create(_)
+            | Self::Edit(_)
+            | Self::Status(_)
+            | Self::Logs(_)
+            | Self::Registry(_)
+            | Self::Message(_)
+            | Self::Task(_)
+            | Self::Tools(_)
+            | Self::Run(_) => DataImpact::Preserving,
+        }
+    }
 }

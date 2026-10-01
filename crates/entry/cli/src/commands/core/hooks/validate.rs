@@ -19,17 +19,19 @@ const PLUGIN_ROOT_VAR: &str = "${CLAUDE_PLUGIN_ROOT}";
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ValidateArgs;
 
-pub(super) fn execute(_args: ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(_args: ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let hooks_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "hooks");
 
     let results = validate_all_hooks(&hooks_path)?;
+    let valid = results.iter().all(|entry| entry.valid);
     let output = HookValidateOutput { results };
 
-    Ok(
+    Ok((
         CommandOutput::table_of(vec!["plugin_id", "valid", "errors"], &output.results)
             .with_title("Hook Validation Results"),
-    )
+        valid,
+    ))
 }
 
 pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
@@ -56,8 +58,16 @@ pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
             continue;
         }
 
-        let Ok(content) = std::fs::read_to_string(&config_path) else {
-            continue;
+        let content = match std::fs::read_to_string(&config_path) {
+            Ok(content) => content,
+            Err(e) => {
+                results.push(HookValidateEntry {
+                    plugin_id: dir_name,
+                    valid: false,
+                    errors: vec![format!("Failed to read {HOOK_CONFIG_FILENAME}: {e}")],
+                });
+                continue;
+            },
         };
 
         let config: DiskHookConfig = match serde_yaml::from_str(&content) {

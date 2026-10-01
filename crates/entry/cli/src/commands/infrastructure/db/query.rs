@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
-use systemprompt_database::QueryExecutor;
+use systemprompt_database::{DatabaseAdminService, QueryExecutor};
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
@@ -20,6 +20,7 @@ pub(super) struct QueryParams<'a> {
 
 pub(super) async fn execute_query(
     executor: &QueryExecutor,
+    admin_service: &DatabaseAdminService,
     params: &QueryParams<'_>,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
@@ -37,25 +38,29 @@ pub(super) async fn execute_query(
         },
     };
 
-    let result = executor
-        .execute_readonly(&final_sql, None)
-        .await
-        .map_err(|e| {
-            let msg = e.to_string();
-            if msg.contains("does not exist") {
-                let table_name = extract_relation_name(&msg);
-                suggest_table_name(&table_name).map_or_else(
-                    || anyhow!("{}", msg),
-                    |suggestion| anyhow!("{}\nHint: Did you mean '{}'?", msg, suggestion),
-                )
-            } else {
-                anyhow!("{}", msg)
-            }
-        })?;
+    let result = match executor.execute_readonly(&final_sql, None).await {
+        Ok(result) => result,
+        Err(e) => return Err(explain_query_error(&e.to_string(), admin_service).await),
+    };
 
     let columns = result.columns.clone();
 
     Ok(CommandOutput::table_of(columns, &result.rows).with_title("Query Results"))
+}
+
+async fn explain_query_error(msg: &str, admin_service: &DatabaseAdminService) -> anyhow::Error {
+    if !msg.contains("does not exist") {
+        return anyhow!("{}", msg);
+    }
+    let tables: Vec<String> = match admin_service.list_tables().await {
+        Ok(tables) => tables.into_iter().map(|table| table.name).collect(),
+        Err(e) => return anyhow!("{msg}\n(table suggestions unavailable: {e})"),
+    };
+    let table_name = extract_relation_name(msg);
+    suggest_table_name(&table_name, &tables).map_or_else(
+        || anyhow!("{}", msg),
+        |suggestion| anyhow!("{}\nHint: Did you mean '{}'?", msg, suggestion),
+    )
 }
 
 pub(super) async fn execute_write(

@@ -41,6 +41,20 @@ fn unparseable_config_reports_parse_error_under_dir_name() {
     assert!(results[0].errors[0].contains("Failed to parse config.yaml"));
 }
 
+// Why: an unreadable config used to be skipped, so `hooks validate` reported
+// a clean run over a hook it never checked.
+#[test]
+fn unreadable_config_is_reported_invalid_not_skipped() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::create_dir_all(tmp.path().join("unreadable/config.yaml")).unwrap();
+
+    let results = validate_all_hooks(tmp.path()).unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].plugin_id, "unreadable");
+    assert!(!results[0].valid);
+    assert!(results[0].errors[0].contains("Failed to read config.yaml"));
+}
+
 #[test]
 fn empty_command_is_an_error_and_config_id_wins_over_dir_name() {
     let tmp = tempfile::tempdir().unwrap();

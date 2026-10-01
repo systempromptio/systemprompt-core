@@ -58,10 +58,6 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<()> {
         cmd.env("OAUTH_AT_REST_PEPPER", pepper);
     }
 
-    if let Some(database_url) = &ctx.env.database_url {
-        cmd.env("DATABASE_URL", database_url);
-    }
-
     if ctx.cli.is_json_output() && extension.supports_json_output() {
         cmd.arg("--json");
     }

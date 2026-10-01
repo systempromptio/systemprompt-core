@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::{DockerCli, ProjectContext};
 use systemprompt_logging::CliService;
@@ -44,19 +44,8 @@ pub async fn handle_local_tenant_setup(
 
         let run_migrations = prompter.confirm("Run database migrations?", true)?;
 
-        let migrations_succeeded = if run_migrations {
-            match run_migrations_cmd(profile_path) {
-                Ok(()) => true,
-                Err(e) => {
-                    CliService::warning(&format!("Migration failed: {}", e));
-                    false
-                },
-            }
-        } else {
-            false
-        };
-
-        if migrations_succeeded {
+        if run_migrations {
+            run_migrations_cmd(profile_path).context("Database migrations failed")?;
             CliService::info(
                 "Run 'systemprompt admin bootstrap' to ensure the profile's system-admin user \
                  exists.",

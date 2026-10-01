@@ -626,20 +626,3 @@ sp --json infra db info | jq '.table_count'
 # Query and process results
 sp --json infra db query "SELECT * FROM users LIMIT 5" | jq '.rows[].email'
 ```
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` entry points accept `ctx: &CommandContext`
-- [x] All output types derive `Serialize`, `Deserialize`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] JSON output supported via `--json` flag
-- [x] No destructive operations (reset removed for safety)
-- [x] User-friendly error messages
-- [x] Schema reconciliation against extension declarations via `infra db doctor`
-- [x] Table sizes and index information included
-
-
----

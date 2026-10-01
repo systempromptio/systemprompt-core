@@ -13,6 +13,7 @@ pub mod command_result;
 pub mod disk_logs;
 pub mod identity;
 pub mod parsers;
+pub mod private_file;
 pub mod profile;
 pub mod project;
 pub mod text;
@@ -23,6 +24,7 @@ pub use command_result::{
 };
 pub use identity::{IdentityBundle, generate_identity};
 pub use parsers::{parse_email, parse_profile_name};
+pub use private_file::write_private_atomic;
 pub use profile::{
     ProfileResolutionError, ProfileSource, ResolvedProfile, is_path_input,
     resolve_profile_from_path, resolve_profile_path, resolve_profile_with_data,

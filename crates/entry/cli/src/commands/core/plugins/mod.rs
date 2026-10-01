@@ -14,7 +14,7 @@ pub mod list;
 pub mod show;
 pub mod validate;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
 use crate::context::CommandContext;
@@ -48,8 +48,12 @@ pub fn execute(command: PluginsCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         PluginsCommands::Validate(args) => {
-            let result = validate::execute(args, &ctx.cli).context("Failed to validate plugins")?;
+            let (result, valid) =
+                validate::execute(args, &ctx.cli).context("Failed to validate plugins")?;
             render_result(&result, &ctx.cli);
+            if !valid {
+                bail!("Plugin validation failed");
+            }
             Ok(())
         },
         PluginsCommands::Generate(args) => {

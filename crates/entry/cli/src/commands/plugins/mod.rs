@@ -24,7 +24,7 @@ use clap::Subcommand;
 use systemprompt_extension::ExtensionRegistry;
 
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use crate::shared::render_result;
 
 fn discover_registry() -> ExtensionRegistry {
@@ -99,5 +99,27 @@ pub async fn execute(cmd: PluginsCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         PluginsCommands::Mcp(cmd) => Box::pin(mcp::execute(cmd, ctx)).await,
+    }
+}
+
+impl PluginsCommands {
+    pub const fn data_impact(&self) -> DataImpact {
+        match self {
+            Self::List(_)
+            | Self::Show(_)
+            | Self::Run(_)
+            | Self::Validate(_)
+            | Self::Config(_)
+            | Self::Capabilities(_)
+            | Self::Mcp(
+                mcp::McpCommands::List(_)
+                | mcp::McpCommands::Status(_)
+                | mcp::McpCommands::Validate(_)
+                | mcp::McpCommands::Logs(_)
+                | mcp::McpCommands::ListPackages(_)
+                | mcp::McpCommands::Tools(_)
+                | mcp::McpCommands::Call(_),
+            ) => DataImpact::Preserving,
+        }
     }
 }

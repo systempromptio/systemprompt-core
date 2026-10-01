@@ -10,14 +10,16 @@
 
 use clap::Parser;
 use systemprompt_cli::args::Cli;
-use systemprompt_cli::descriptor::RoutingClass;
+use systemprompt_cli::descriptor::{DataImpact, RoutingClass};
 use systemprompt_cli::runner::profile_routing::{
-    BootstrapOutcome, RoutingDecision, allow_local_execution, confirm_remote_job_run,
-    decide_routing, is_cloud_bypass_command, remediation_for,
+    BootstrapOutcome, confirm_remote_job_run, is_cloud_bypass_command,
 };
 use systemprompt_cli::runner::routing::{
     ExecutionTarget, determine_execution_target, execute_remote, load_session_for_key,
     resolve_tenant,
+};
+use systemprompt_cli::runner::routing_decision::{
+    RoutingDecision, allow_local_execution, decide_routing, remediation_for,
 };
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_cloud::SessionKey;
@@ -246,6 +248,7 @@ fn a_remote_target_is_executed_remotely_and_nowhere_else() {
         }),
         &cloud_profile(),
         RoutingClass::Mutating,
+        DataImpact::Preserving,
     )
     .expect("a resolved remote target is a decision, not an error");
 
@@ -266,6 +269,7 @@ fn a_cloud_profile_with_no_tenant_lets_a_read_only_command_continue_locally() {
         Ok(ExecutionTarget::Local),
         &cloud_profile(),
         RoutingClass::ReadOnly,
+        DataImpact::Preserving,
     )
     .expect("read-only work may fall back to local data");
 
@@ -278,6 +282,7 @@ fn a_cloud_profile_that_cannot_route_refuses_a_mutating_command() {
         Err(anyhow::anyhow!("no session")),
         &cloud_profile(),
         RoutingClass::Mutating,
+        DataImpact::Preserving,
     )
     .expect_err("a mutating command must not run against an unknown database");
 
@@ -293,8 +298,33 @@ fn a_local_profile_continues_locally_whatever_the_target_says() {
         Err(anyhow::anyhow!("irrelevant")),
         &fixture_profile(),
         RoutingClass::Mutating,
+        DataImpact::Preserving,
     )
     .expect("a local profile never routes");
 
+    assert_eq!(decision, RoutingDecision::ContinueLocal);
+}
+
+#[test]
+fn a_failed_route_never_falls_back_to_direct_database_access_for_a_destructive_command() {
+    let mut profile = cloud_profile();
+    profile.database.external_db_access = true;
+
+    let err = decide_routing(
+        Err(anyhow::anyhow!("connection refused")),
+        &profile,
+        RoutingClass::Mutating,
+        DataImpact::Destructive,
+    )
+    .expect_err("external_db_access must not turn a failed route into a direct cloud write");
+    assert!(message(&err).contains("destructive"), "{err:#}");
+
+    let decision = decide_routing(
+        Err(anyhow::anyhow!("connection refused")),
+        &profile,
+        RoutingClass::Mutating,
+        DataImpact::Preserving,
+    )
+    .expect("a non-destructive command keeps the external_db_access escape hatch");
     assert_eq!(decision, RoutingDecision::ContinueLocal);
 }
