@@ -7,7 +7,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod health;
-pub mod health_monitor;
 pub mod proxy_health;
 pub mod status;
 

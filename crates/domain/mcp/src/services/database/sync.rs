@@ -1,9 +1,9 @@
 //! Reconciliation between recorded MCP service state and live processes.
 //!
 //! Functions here compare the `mcp_services` table against actual port
-//! liveness and process existence, marking crashed services, pruning disabled
-//! or duplicate rows, and reporting discrepancies so the orchestrator can
-//! converge the database on reality at startup.
+//! liveness and process existence, marking crashed services and pruning
+//! disabled rows so the orchestrator can converge the database on reality at
+//! startup.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -77,57 +77,6 @@ pub async fn sync_database_state(
             if !is_service_healthy(port, pid).await {
                 repository.mark_service_crashed(&server.name).await?;
             }
-        }
-    }
-
-    Ok(())
-}
-
-pub async fn reconcile_running_processes(
-    repository: &ServiceRepository,
-) -> McpDomainResult<Vec<String>> {
-    let mut discrepancies = Vec::new();
-
-    let running_services = repository.list_mcp_services().await?;
-
-    for service in running_services {
-        if service.status == RUNNING {
-            let port = service.port as u16;
-            let pid = service.pid;
-
-            if !is_service_healthy(port, pid).await {
-                let reason = if pid.is_none() {
-                    "no PID recorded".to_owned()
-                } else if !is_port_listening(port).await {
-                    format!("port {port} not responding")
-                } else {
-                    "process not alive".to_owned()
-                };
-                discrepancies.push(format!("{} ({})", service.name, reason));
-            }
-        }
-    }
-
-    Ok(discrepancies)
-}
-
-pub async fn repair_database_inconsistencies(
-    repository: &ServiceRepository,
-) -> McpDomainResult<()> {
-    let services = repository.list_mcp_services().await?;
-    for service in services {
-        if service.status == RUNNING && service.pid.is_none() {
-            repository
-                .update_service_status(&service.name, STOPPED)
-                .await?;
-        }
-    }
-
-    let all_services = repository.list_mcp_services().await?;
-    let mut seen_names = std::collections::HashSet::new();
-    for service in all_services {
-        if !seen_names.insert(service.name.clone()) {
-            repository.delete_service(&service.name).await?;
         }
     }
 

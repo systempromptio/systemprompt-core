@@ -56,7 +56,6 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
     ));
     let ai_service = Arc::new(
         AiService::new(
-            &db_pool,
             &services_config.providers,
             &services_config.ai,
             AiServiceProviders {

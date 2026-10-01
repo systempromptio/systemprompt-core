@@ -29,8 +29,9 @@ pub use route_selector::{
     RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
 };
 pub use safety::{
-    Finding, HeuristicScanner, NullScanner, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE,
-    SafetyScanner, SafetyScannerRegistration, ScannerFactory, Severity,
+    CATEGORY_SCANNER_FAILURE, Finding, HeuristicScanner, NullScanner, PHASE_REQUEST,
+    PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyScanner, SafetyScannerRegistration, ScanError,
+    ScannerFactory, Severity,
 };
 pub use spec::{
     GatewayPolicySpec, HeuristicConfig, QuotaMode, QuotaWindow, SafetyConfig, SafetyHistoryMode,

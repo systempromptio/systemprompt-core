@@ -172,8 +172,6 @@ impl<'a> SearchGenerationParams<'a> {
 pub trait AiProvider: Send + Sync {
     fn name(&self) -> &str;
 
-    fn as_any(&self) -> &dyn std::any::Any;
-
     fn capabilities(&self) -> ProviderCapabilities;
 
     fn supports_model(&self, model: &str) -> bool;
@@ -256,7 +254,7 @@ pub trait AiProvider: Send + Sync {
     }
 
     fn supports_structured_output(&self) -> bool {
-        true
+        false
     }
 
     async fn generate_stream(

@@ -52,8 +52,7 @@ async fn new_runs_startup_reconciliation() {
     let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool).await;
-    // Subscribing returns a live receiver; the event bus was wired.
-    let _rx = orchestrator.subscribe_events();
+    orchestrator.list_all().await.expect("reconciled orchestrator lists agents");
 }
 
 #[tokio::test]
@@ -99,27 +98,6 @@ async fn list_agents_includes_registered() {
 }
 
 #[tokio::test]
-async fn cleanup_crashed_agents_reaps_dead_pid() {
-    let pool = test_db_pool().await;
-    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let orchestrator = make_orchestrator(&pool).await;
-
-    let name = unique_name("orchclean");
-    db_service(&pool)
-        .register_agent(&name, DEAD_PID, 9402)
-        .await
-        .expect("register");
-
-    let cleaned = orchestrator
-        .cleanup_crashed_agents()
-        .await
-        .expect("cleanup");
-    assert!(cleaned >= 1);
-
-    db_service(&pool).remove_agent_service(&name).await.ok();
-}
-
-#[tokio::test]
 async fn delete_agent_removes_service_row() {
     let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -137,7 +115,7 @@ async fn delete_agent_removes_service_row() {
     let status = orchestrator.get_status(&name).await.expect("status");
     match status {
         AgentStatus::Failed { reason, .. } => {
-            assert!(reason.contains("No service record") || reason.contains("Status"));
+            assert!(reason.contains("No service record"));
         },
         other => panic!("expected Failed, got {other:?}"),
     }

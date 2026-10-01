@@ -67,7 +67,7 @@ async fn construct_task_from_row(
     let artifacts = load_task_artifacts(constructor, &task_id).await?;
     let execution_steps = load_execution_steps(constructor, &task_id).await?;
 
-    let mut metadata = converters::construct_metadata(row);
+    let mut metadata = converters::construct_metadata(row)?;
     if let Some(steps) = execution_steps {
         metadata.execution_steps = Some(steps);
     }

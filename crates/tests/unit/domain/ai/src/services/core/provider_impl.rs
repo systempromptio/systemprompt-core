@@ -91,7 +91,6 @@ async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
         .retry_attempts = 1;
     let service = Arc::new(
         AiService::new(
-            &pool,
             &registry,
             &config,
             systemprompt_ai::AiServiceProviders {

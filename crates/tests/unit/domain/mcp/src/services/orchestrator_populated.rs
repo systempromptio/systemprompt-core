@@ -15,8 +15,8 @@ use wiremock::MockServer;
 
 use crate::harness::{
     ExternalServerSpec, bootstrap_with_services, config_with_servers, default_tools_json,
-    external_server_block, external_server_block_with_accessor, install_stub_binary,
-    installed_bootstrap, internal_server_block, mount_mcp_endpoint, register_internal_extension,
+    external_server_block, external_server_block_with_accessor, internal_server_block,
+    mount_mcp_endpoint, register_internal_extension,
 };
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
@@ -274,18 +274,18 @@ async fn reconcile_external_only_registry_starts_nothing() {
 }
 
 #[tokio::test]
-async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
+async fn restart_services_missing_binary_reports_a_failed_outcome() {
     let port = free_port();
     let name = unique("restart");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
-    let err = o
-        .restart_services_sync(Some("all".to_owned()))
+    let outcomes = o
+        .restart_services(Some("all".to_owned()))
         .await
-        .map(|()| String::new());
+        .expect("listing the DB running set succeeds");
     assert!(
-        err.is_ok(),
-        "restart of 'all' over the DB running set is empty and succeeds"
+        outcomes.iter().all(|o| o.service_name != name),
+        "restart of 'all' covers only the DB running set, which lacks {name}"
     );
 
     let db = test_db_pool().await;
@@ -304,52 +304,18 @@ async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
     .await
     .unwrap();
 
-    let result = o.restart_services_sync(None).await;
+    let result = o.restart_services(Some(name.clone())).await;
     repo.delete_service(&name).await.ok();
-    let err = result.expect_err("restart start-phase fails on a missing binary");
+    let outcomes = result.expect("target listing succeeds");
+    assert_eq!(outcomes.len(), 1);
+    let outcome = &outcomes[0];
+    assert_eq!(outcome.service_name, name);
+    assert!(!outcome.is_restarted(), "a missing binary is not reported as restarted");
+    let err = outcome.result.as_ref().expect_err("start phase fails");
     assert!(
         err.to_string().contains("Binary not found") || err.to_string().contains(&name),
         "unexpected error: {err}"
     );
-}
-
-#[tokio::test]
-async fn restart_services_publishes_restart_requested_event() {
-    let port = free_port();
-    let name = unique("restartreq");
-    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
-    install_stub_binary(installed_bootstrap(), &name);
-    let db = test_db_pool().await;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
-        port: port,
-        binary_mtime: None,
-    })
-    .await
-    .unwrap();
-
-    let mut rx = o.subscribe_events();
-    let result = o.restart_services(None).await;
-    let _ = o.stop_services(Some(name.clone())).await;
-    repo.delete_service(&name).await.ok();
-    result.expect("restart of a running service succeeds");
-
-    let mut saw_restart = false;
-    while let Ok(event) = rx.try_recv() {
-        if let McpEvent::ServiceRestartRequested { service_name, .. } = event
-            && service_name == name
-        {
-            saw_restart = true;
-        }
-    }
-    assert!(saw_restart, "ServiceRestartRequested published for {name}");
 }
 
 #[tokio::test]

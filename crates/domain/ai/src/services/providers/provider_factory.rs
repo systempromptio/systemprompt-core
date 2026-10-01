@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
 use systemprompt_models::services::{ProviderModel, ResilienceSettings, WireProtocol};
 
 use crate::services::upstream::UpstreamTarget;
@@ -37,10 +36,7 @@ pub struct ProviderClientParams<'a> {
 pub struct ProviderFactory;
 
 impl ProviderFactory {
-    pub fn create(
-        params: &ProviderClientParams<'_>,
-        db_pool: Option<DbPool>,
-    ) -> Result<Arc<dyn AiProvider>> {
+    pub fn create(params: &ProviderClientParams<'_>) -> Result<Arc<dyn AiProvider>> {
         let inner: Arc<dyn AiProvider> = match params.target.wire() {
             WireProtocol::Anthropic => {
                 let provider = AnthropicProvider::with_target(params.target.clone())
@@ -70,9 +66,6 @@ impl ProviderFactory {
                     .with_default_model(params.default_model.map(str::to_owned));
                 if params.google_search_enabled {
                     provider = provider.with_google_search();
-                }
-                if let Some(pool) = db_pool {
-                    provider = provider.with_db_pool(pool);
                 }
                 Arc::new(provider)
             },

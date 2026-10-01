@@ -35,12 +35,6 @@ impl EventHandler for MonitoringHandler {
             } => {
                 tracing::info!(service_name = %service_name, exit_code = ?exit_code, "MCP service stopped");
             },
-            McpEvent::HealthCheckFailed {
-                service_name,
-                reason,
-            } => {
-                tracing::warn!(service_name = %service_name, reason = %reason, "Health check failed");
-            },
             _ => {},
         }
         Ok(())

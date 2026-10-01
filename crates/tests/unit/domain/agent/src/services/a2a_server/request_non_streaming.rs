@@ -258,7 +258,7 @@ async fn cancel_task_for_an_unknown_id_is_a_jsonrpc_error() {
 }
 
 #[tokio::test]
-async fn an_extended_card_request_falls_through_to_unsupported() {
+async fn an_extended_card_request_is_refused_as_an_unsupported_operation() {
     let pool = test_db_pool().await;
     let f = fixture(&pool).await;
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
@@ -274,11 +274,28 @@ async fn an_extended_card_request_falls_through_to_unsupported() {
     let (status, body) = body_json(response).await;
 
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["error"]["code"], json!(-32601), "{body}");
-    assert!(
-        body["error"]["data"]
-            .as_str()
-            .is_some_and(|d| d.contains("Unsupported request type")),
-        "a parseable but unhandled request type is refused, got {body}"
-    );
+    assert_eq!(body["error"]["code"], json!(-32004), "{body}");
+    assert_eq!(body["error"]["data"], json!("GetExtendedAgentCard"), "{body}");
+}
+
+#[tokio::test]
+async fn a_task_subscription_is_refused_as_an_unsupported_operation() {
+    let pool = test_db_pool().await;
+    let f = fixture(&pool).await;
+    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
+    let ctx = request_context(&f.context_id, &f.session_id, &f.user_id, "test_agent");
+
+    let payload = json!({
+        "jsonrpc": "2.0",
+        "method": "SubscribeToTask",
+        "params": {"task_id": "task-subscribe-unsupported"},
+        "id": 17
+    });
+    let response = call(state, ctx, &payload).await;
+    let (status, body) = body_json(response).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["error"]["code"], json!(-32004), "{body}");
+    assert_eq!(body["error"]["data"], json!("SubscribeToTask"), "{body}");
+    assert!(body["result"].is_null(), "an unsupported call is never accepted, got {body}");
 }

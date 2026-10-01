@@ -72,7 +72,6 @@ let response = ai_service.generate(&request).await?;
 | `services/gateway/` | Governance policy ingestion, safety scanning, route selection, and system-prompt overrides. Re-exported at the crate root. |
 | `services/schema/` | Tool-schema transformation, including discriminated-union splitting for providers that reject `anyOf`. |
 | `services/tooled/` | Tool-execution orchestration: runs calls through the injected `ToolProvider` and synthesizes responses. |
-| `services/structured_output/` | JSON extraction and schema validation for structured output. |
 | `services/storage/` | `ImageStorage` local blob storage for generated images. |
 | `services/config/` | `ConfigValidator` for AI configuration. |
 

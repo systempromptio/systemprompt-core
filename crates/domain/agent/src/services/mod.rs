@@ -25,8 +25,7 @@ pub mod skills;
 pub use a2a_server::{AgentHandlerState, Server as AgentServer};
 
 pub use agent_orchestration::{
-    AgentEvent, AgentEventBus, AgentOrchestrator, AgentStatus, OrchestrationError,
-    OrchestrationResult,
+    AgentOrchestrator, AgentStatus, OrchestrationError, OrchestrationResult,
 };
 
 pub use registry::AgentRegistry;

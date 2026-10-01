@@ -138,7 +138,6 @@ async fn a_disabled_provider_entry_is_not_built() {
     );
 
     let svc = AiService::new(
-        &pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {
@@ -178,7 +177,6 @@ async fn an_enabled_provider_with_no_registry_entry_is_skipped_rather_than_fatal
     );
 
     let svc = AiService::new(
-        &pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {
@@ -212,7 +210,6 @@ async fn a_default_provider_that_was_never_built_fails_construction() {
         ..AiConfig::default()
     };
     let err = AiService::new(
-        &pool,
         &registry,
         &empty,
         systemprompt_ai::AiServiceProviders {
@@ -232,7 +229,6 @@ async fn a_default_provider_that_was_never_built_fails_construction() {
     let mut mismatched = ai_config(ANTHROPIC);
     mismatched.default_provider = "phantom-provider".to_owned();
     let err = AiService::new(
-        &pool,
         &registry,
         &mismatched,
         systemprompt_ai::AiServiceProviders {

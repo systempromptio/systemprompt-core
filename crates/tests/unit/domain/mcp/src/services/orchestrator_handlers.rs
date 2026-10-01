@@ -7,7 +7,7 @@ use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::network::NetworkService;
 use systemprompt_mcp::services::orchestrator::{
-    DatabaseSyncHandler, EventBus, HealthCheckHandler, LifecycleHandler, MonitoringHandler,
+    DatabaseSyncHandler, EventBus, LifecycleHandler, MonitoringHandler,
 };
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::registry::RegistryService;
@@ -64,13 +64,6 @@ fn monitoring_handler_construction() {
     let _ = format!("{h:?}");
 }
 
-#[test]
-fn health_check_handler_new_and_with_restart_sender() {
-    let bus = EventBus::new(10);
-    let h = HealthCheckHandler::new().with_restart_sender(bus.sender());
-    let _ = format!("{h:?}");
-}
-
 #[tokio::test]
 async fn database_sync_handler_construction() {
     let (_lifecycle, database, _registry) = make_dependencies().await;
@@ -79,9 +72,8 @@ async fn database_sync_handler_construction() {
 }
 
 #[test]
-fn event_bus_construct_and_sender() {
+fn event_bus_construct_and_subscribe() {
     let bus = EventBus::new(10);
-    let _ = bus.sender();
     let mut rx = bus.subscribe();
     drop(rx.try_recv());
 }

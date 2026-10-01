@@ -71,7 +71,7 @@ impl AgentRegistry {
                   registry_provider.rs"
     )]
     pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
-        let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
+        let is_cloud = is_cloud_deployment()?;
         Ok(self
             .config
             .agents
@@ -88,7 +88,7 @@ impl AgentRegistry {
                   registry_provider.rs"
     )]
     pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
-        let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
+        let is_cloud = is_cloud_deployment()?;
         self.config
             .agents
             .values()
@@ -183,6 +183,12 @@ impl AgentRegistry {
             "No available ports in range {BASE_PORT}-{MAX_PORT}"
         )))
     }
+}
+
+fn is_cloud_deployment() -> AgentResult<bool> {
+    systemprompt_models::Config::get()
+        .map(|config| config.is_cloud)
+        .map_err(|e| AgentError::Config(format!("cannot resolve dev_only agents: {e}")))
 }
 
 fn build_extensions(

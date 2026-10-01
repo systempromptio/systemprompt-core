@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use systemprompt_traits::{AgentInfo, AgentRegistryProvider, RegistryError, ServiceOAuthConfig};
 
 use super::registry::AgentRegistry;
+use crate::error::AgentError;
 
 #[derive(Debug, Clone)]
 pub struct AgentRegistryProviderService {
@@ -33,7 +34,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
             .registry
             .get_agent(name)
             .await
-            .map_err(|e| RegistryError::NotFound(e.to_string()))?;
+            .map_err(registry_error)?;
 
         Ok(AgentInfo {
             name: agent.name,
@@ -53,7 +54,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
             .registry
             .list_enabled_agents()
             .await
-            .map_err(|e| RegistryError::Unavailable(e.to_string()))?;
+            .map_err(registry_error)?;
 
         Ok(agents
             .into_iter()
@@ -76,7 +77,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
             .registry
             .get_default_agent()
             .await
-            .map_err(|e| RegistryError::NotFound(e.to_string()))?;
+            .map_err(registry_error)?;
 
         Ok(AgentInfo {
             name: agent.name,
@@ -89,5 +90,15 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
                 ema: false,
             },
         })
+    }
+}
+
+fn registry_error(error: AgentError) -> RegistryError {
+    match error {
+        AgentError::NotFound(name) => RegistryError::NotFound(name),
+        AgentError::Config(_) | AgentError::ServicesConfig(_) => {
+            RegistryError::Configuration(error.to_string())
+        },
+        other => RegistryError::Unavailable(other.to_string()),
     }
 }

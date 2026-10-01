@@ -46,6 +46,7 @@ async fn get_agent_unknown_maps_to_not_found() {
 
 #[tokio::test]
 async fn list_enabled_agents_excludes_disabled() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     let mut disabled = agent_config("rp_disabled");
     disabled.enabled = false;
     let provider = provider(vec![agent_config("rp_on"), disabled]);
@@ -57,6 +58,7 @@ async fn list_enabled_agents_excludes_disabled() {
 
 #[tokio::test]
 async fn default_agent_resolution_follows_default_flag() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     let provider_without = provider(vec![agent_config("rp_plain")]);
     let err = provider_without
         .get_default_agent()

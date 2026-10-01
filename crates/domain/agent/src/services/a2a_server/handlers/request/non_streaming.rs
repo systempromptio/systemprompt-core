@@ -12,6 +12,7 @@ use std::sync::Arc;
 use serde_json::json;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::RequestContext;
+use systemprompt_models::a2a::methods;
 
 use crate::models::a2a::jsonrpc::{JsonRpcResponse, NumberOrString};
 use crate::models::a2a::{A2aRequestParams, Task, TaskState};
@@ -30,7 +31,7 @@ pub(super) enum RequestFailure {
     InvalidParams(String),
     TaskNotFound(TaskId),
     TaskNotCancelable(TaskId),
-    Unsupported,
+    Unsupported(&'static str),
     Internal(String),
 }
 
@@ -51,9 +52,9 @@ impl RequestFailure {
                     .log_warn(format!("A2A task not cancelable: {task_id}"))
                     .build_as(request_id)
             },
-            Self::Unsupported => JsonRpcErrorBuilder::method_not_found()
-                .with_data(json!("Unsupported request type"))
-                .log_warn("Unsupported A2A request type")
+            Self::Unsupported(operation) => JsonRpcErrorBuilder::unsupported_operation()
+                .with_data(json!(operation))
+                .log_warn(format!("Unsupported A2A operation: {operation}"))
                 .build_as(request_id),
             Self::Internal(message) => JsonRpcErrorBuilder::internal_error()
                 .with_data(json!(format!("Request handling failed: {message}")))
@@ -105,9 +106,11 @@ pub(super) async fn handle_non_streaming_request(
             tracing::info!(task_id = %params.id, "Handling CancelTask request");
             cancel_task(&params.id, state, context).await
         },
-        _ => {
-            tracing::warn!(request = ?request, "Unsupported A2A request type");
-            Err(RequestFailure::Unsupported)
+        A2aRequestParams::GetAuthenticatedExtendedCard(_) => {
+            Err(RequestFailure::Unsupported(methods::GET_EXTENDED_AGENT_CARD))
+        },
+        A2aRequestParams::TaskResubscription(_) => {
+            Err(RequestFailure::Unsupported(methods::SUBSCRIBE_TO_TASK))
         },
     }
 }

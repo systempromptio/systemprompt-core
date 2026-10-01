@@ -129,9 +129,15 @@ pub async fn execute_mcp(
             .build_and_restart_services(Some(server_name.to_owned()))
             .await?;
     } else {
-        manager
-            .restart_services_sync(Some(server_name.to_owned()))
+        let outcomes = manager
+            .restart_services(Some(server_name.to_owned()))
             .await?;
+        if outcomes.is_empty() {
+            anyhow::bail!("{server_name} is not a managed MCP server");
+        }
+        for outcome in outcomes {
+            outcome.result?;
+        }
     }
 
     let message = format!("MCP server {} restarted successfully", server_name);

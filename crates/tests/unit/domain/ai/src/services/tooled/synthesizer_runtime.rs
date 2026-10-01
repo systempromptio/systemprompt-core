@@ -7,7 +7,6 @@
 use async_trait::async_trait;
 use rmcp::model::ContentBlock;
 use serde_json::json;
-use std::any::Any;
 use std::sync::Mutex;
 use systemprompt_ai::error::{AiError, Result};
 use systemprompt_ai::models::ai::{AiMessage, AiResponse, MessageRole};
@@ -64,10 +63,6 @@ impl StubProvider {
 impl AiProvider for StubProvider {
     fn name(&self) -> &str {
         "stub"
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 
     fn capabilities(&self) -> ProviderCapabilities {

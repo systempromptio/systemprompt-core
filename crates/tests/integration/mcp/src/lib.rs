@@ -13,7 +13,6 @@ mod client_live;
 #[cfg(test)]
 mod fd_handling;
 #[cfg(test)]
-mod health_check_circuit_breaker;
 #[cfg(test)]
 mod orphaned_children;
 #[cfg(test)]

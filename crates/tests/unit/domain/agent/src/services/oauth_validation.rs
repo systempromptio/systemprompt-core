@@ -176,3 +176,14 @@ async fn validate_oauth_string_id_compatible() {
     let value = result.expect("ok").expect("Some");
     assert_eq!(value.username, "admin");
 }
+
+#[tokio::test]
+async fn validate_oauth_empty_required_scopes_refuses_a_non_admin() {
+    let headers = bearer("token");
+    let id = NumberOrString::Number(1);
+    let provider = StubJwtProvider::ok(claims_user(&["admin"]));
+    let err = validate_oauth_for_request(&headers, &id, &[], Some(&provider))
+        .await
+        .expect_err("an empty requirement list is unsatisfiable");
+    assert_eq!(err.0, axum::http::StatusCode::FORBIDDEN);
+}

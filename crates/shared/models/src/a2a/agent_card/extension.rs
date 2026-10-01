@@ -24,7 +24,7 @@ impl Default for AgentCapabilities {
     fn default() -> Self {
         Self {
             streaming: Some(true),
-            push_notifications: Some(true),
+            push_notifications: Some(false),
             state_transition_history: Some(true),
             extensions: None,
         }

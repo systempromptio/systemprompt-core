@@ -40,12 +40,6 @@ pub fn bootstrap_with_services(yaml: &str) -> &'static TestBootstrap {
     BOOTSTRAP.get_or_init(|| init_services_bootstrap(yaml))
 }
 
-pub fn installed_bootstrap() -> &'static TestBootstrap {
-    BOOTSTRAP
-        .get()
-        .expect("bootstrap_with_services must run before the bootstrap paths are read")
-}
-
 pub struct ExternalServerSpec<'a> {
     pub name: &'a str,
     pub endpoint: &'a str,

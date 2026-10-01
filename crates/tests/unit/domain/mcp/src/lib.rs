@@ -9,8 +9,6 @@
 //! - Orchestrator: McpEvent, EventBus
 //! - Middleware: AuthenticatedRequestContext, AuthResult
 //! - Error: McpError, McpResult
-//! - Orchestration: McpServerConnectionInfo, ServerStatus, SkillLoadingResult,
-//!   McpServiceState
 
 #![allow(clippy::all)]
 
@@ -56,8 +54,6 @@ mod lib_smoke;
 mod middleware;
 #[cfg(test)]
 mod models;
-#[cfg(test)]
-mod orchestration;
 #[cfg(test)]
 mod owner_reassignment_db;
 #[cfg(test)]

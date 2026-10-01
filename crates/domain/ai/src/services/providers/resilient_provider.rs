@@ -111,10 +111,6 @@ impl AiProvider for ResilientProvider {
         self.inner.name()
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self.inner.as_any()
-    }
-
     fn capabilities(&self) -> ProviderCapabilities {
         self.inner.capabilities()
     }

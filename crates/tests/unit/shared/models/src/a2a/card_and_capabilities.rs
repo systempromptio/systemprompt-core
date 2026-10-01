@@ -144,7 +144,7 @@ fn test_agent_capabilities_default() {
     let caps = AgentCapabilities::default();
 
     assert_eq!(caps.streaming, Some(true));
-    assert_eq!(caps.push_notifications, Some(true));
+    assert_eq!(caps.push_notifications, Some(false));
     assert_eq!(caps.state_transition_history, Some(true));
     assert!(caps.extensions.is_none());
 }

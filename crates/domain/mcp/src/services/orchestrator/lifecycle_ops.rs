@@ -13,6 +13,20 @@ use super::McpOrchestrator;
 use super::events::McpEvent;
 use crate::services::database::stored_pid;
 
+/// Result of restarting one MCP server: the stop/start pipeline either
+/// completed or failed with the error it returned.
+#[derive(Debug)]
+pub struct McpRestartOutcome {
+    pub service_name: String,
+    pub result: McpDomainResult<()>,
+}
+
+impl McpRestartOutcome {
+    pub const fn is_restarted(&self) -> bool {
+        self.result.is_ok()
+    }
+}
+
 impl McpOrchestrator {
     pub async fn start_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
         self.start_services_with_events(service_name, None).await
@@ -111,32 +125,26 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    pub async fn restart_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
+    pub async fn restart_services(
+        &self,
+        service_name: Option<String>,
+    ) -> McpDomainResult<Vec<McpRestartOutcome>> {
         let servers = self.list_target_servers(service_name, false).await?;
+        let mut outcomes = Vec::with_capacity(servers.len());
 
         for server in servers {
             tracing::info!(service = %server.name, "Restarting MCP service");
-
-            self.event_bus()
-                .publish(McpEvent::ServiceRestartRequested {
-                    service_name: server.name,
-                    reason: "Manual restart".to_owned(),
-                })
-                .await?;
+            let result = self.lifecycle().restart_server(&server).await;
+            if let Err(e) = &result {
+                tracing::error!(service = %server.name, error = %e, "MCP service restart failed");
+            }
+            outcomes.push(McpRestartOutcome {
+                service_name: server.name,
+                result,
+            });
         }
 
-        Ok(())
-    }
-
-    pub async fn restart_services_sync(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers = self.list_target_servers(service_name, false).await?;
-
-        for server in servers {
-            tracing::info!(service = %server.name, "Restarting MCP service");
-            self.lifecycle().restart_server(&server).await?;
-        }
-
-        Ok(())
+        Ok(outcomes)
     }
 
     pub async fn build_and_restart_services(

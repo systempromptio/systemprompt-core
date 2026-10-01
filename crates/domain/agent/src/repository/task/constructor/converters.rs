@@ -53,19 +53,23 @@ pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
     }
 }
 
-pub(super) fn construct_metadata(row: &TaskRow) -> TaskMetadata {
-    let metadata_json = row
-        .metadata
-        .as_ref()
-        .map_or_else(|| "{}".to_owned(), ToString::to_string);
+pub(super) fn construct_metadata(row: &TaskRow) -> Result<TaskMetadata, RepositoryError> {
+    let agent_name = row.agent_name.as_ref().map(ToString::to_string).ok_or_else(|| {
+        RepositoryError::InvalidData(format!("task {} has no agent_name", row.task_id))
+    })?;
 
-    let agent_name = row
-        .agent_name
-        .as_ref()
-        .map_or_else(String::new, ToString::to_string);
-
-    let mut metadata = serde_json::from_str::<TaskMetadata>(&metadata_json)
-        .unwrap_or_else(|_| TaskMetadata::new_agent_message(agent_name.clone()));
+    let mut metadata = match row.metadata.as_ref() {
+        None => TaskMetadata::new_agent_message(agent_name.clone()),
+        Some(value) if value.as_object().is_some_and(serde_json::Map::is_empty) => {
+            TaskMetadata::new_agent_message(agent_name.clone())
+        },
+        Some(value) => serde_json::from_value::<TaskMetadata>(value.clone()).map_err(|e| {
+            RepositoryError::InvalidData(format!(
+                "task {} has unreadable metadata: {e}",
+                row.task_id
+            ))
+        })?,
+    };
 
     metadata.agent_name = agent_name;
     metadata.created_at = row.created_at.to_rfc3339();
@@ -74,5 +78,5 @@ pub(super) fn construct_metadata(row: &TaskRow) -> TaskMetadata {
     metadata.completed_at = row.completed_at.map(|dt| dt.to_rfc3339());
     metadata.execution_time_ms = row.execution_time_ms.map(i64::from);
 
-    metadata
+    Ok(metadata)
 }

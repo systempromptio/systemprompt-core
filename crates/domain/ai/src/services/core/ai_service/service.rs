@@ -19,7 +19,6 @@ use crate::services::upstream::UpstreamTarget;
 use super::super::request_storage::{RequestStorage, StoreParams};
 
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_database::DbPool;
 use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderEntry, ProviderRegistry};
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 use tokio_util::task::TaskTracker;
@@ -59,7 +58,6 @@ impl std::fmt::Debug for AiServiceProviders {
 
 impl AiService {
     pub fn new(
-        db_pool: &DbPool,
         registry: &ProviderRegistry,
         ai_config: &AiConfig,
         providers: AiServiceProviders,
@@ -70,7 +68,7 @@ impl AiService {
             sessions: session_provider,
         } = providers;
         let mut missing_env_vars = Vec::new();
-        let providers = Self::build_providers(registry, ai_config, db_pool, &mut missing_env_vars)?;
+        let providers = Self::build_providers(registry, ai_config, &mut missing_env_vars)?;
         ConfigValidator::validate(ai_config, &providers, &missing_env_vars)?;
 
         let default_provider = ai_config.default_provider.clone();
@@ -133,7 +131,6 @@ impl AiService {
     fn build_providers(
         registry: &ProviderRegistry,
         ai_config: &AiConfig,
-        db_pool: &DbPool,
         missing_env_vars: &mut Vec<String>,
     ) -> Result<HashMap<String, Arc<dyn AiProvider>>> {
         SecretsBootstrap::get()?;
@@ -168,7 +165,7 @@ impl AiService {
                 },
             };
 
-            let provider = Self::build_one(entry, policy, target, db_pool)?;
+            let provider = Self::build_one(entry, policy, target)?;
             providers.insert(name.clone(), provider);
         }
 
@@ -179,7 +176,6 @@ impl AiService {
         entry: &ProviderEntry,
         policy: &AiProviderConfig,
         target: UpstreamTarget,
-        db_pool: &DbPool,
     ) -> Result<Arc<dyn AiProvider>> {
         let params = ProviderClientParams {
             name: entry.name.as_str(),
@@ -190,7 +186,7 @@ impl AiService {
             default_model: (!policy.default_model.is_empty())
                 .then_some(policy.default_model.as_str()),
         };
-        ProviderFactory::create(&params, Some(Arc::clone(db_pool)))
+        ProviderFactory::create(&params)
     }
 
     pub fn default_provider(&self) -> &str {

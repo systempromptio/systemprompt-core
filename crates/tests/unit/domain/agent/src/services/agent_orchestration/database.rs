@@ -1,5 +1,5 @@
 // DB-backed tests for AgentDatabaseService: status reconciliation, lifecycle
-// transitions, listing, and orphan cleanup. Each test early-returns when no
+// transitions, and listing. Each test early-returns when no
 // test database is configured (mirrors the repository test guard).
 //
 // PIDs above i32::MAX are non-signalable, so `process::process_exists` returns
@@ -50,7 +50,7 @@ async fn register_then_status_reconciles_dead_pid_to_failed() {
     let status = svc.get_status(&name).await.expect("status");
     match status {
         AgentStatus::Failed { reason, .. } => {
-            assert!(reason.contains("died") || reason.contains("Status"));
+            assert!(reason.contains("died"));
         },
         other => panic!("expected Failed, got {other:?}"),
     }
@@ -107,33 +107,6 @@ async fn status_stopped_is_failed() {
 }
 
 #[tokio::test]
-async fn mark_failed_and_error_message() {
-    let pool = test_db_pool().await;
-    let svc = service(&pool).await;
-    let name = unique_name("orch-markfail");
-    svc.register_agent(&name, DEAD_PID, 9303)
-        .await
-        .expect("register");
-
-    svc.mark_failed(&name).await.expect("mark failed");
-    let msg = svc.get_error_message(&name).await.expect("err msg");
-    assert!(msg.starts_with("Status:"));
-
-    svc.remove_agent_service(&name).await.ok();
-}
-
-#[tokio::test]
-async fn error_message_no_record() {
-    let pool = test_db_pool().await;
-    let svc = service(&pool).await;
-    let msg = svc
-        .get_error_message(&unique_name("orch-noerr"))
-        .await
-        .expect("err msg");
-    assert_eq!(msg, "No service record");
-}
-
-#[tokio::test]
 async fn list_running_agents_includes_registered() {
     let pool = test_db_pool().await;
     let svc = service(&pool).await;
@@ -144,25 +117,6 @@ async fn list_running_agents_includes_registered() {
 
     let running = svc.list_running_agents().await.expect("list");
     assert!(running.iter().any(|n| n == &name));
-
-    svc.remove_agent_service(&name).await.ok();
-}
-
-#[tokio::test]
-async fn cleanup_orphaned_services_marks_dead_pids() {
-    let pool = test_db_pool().await;
-    let svc = service(&pool).await;
-    let name = unique_name("orch-orphan");
-    svc.register_agent(&name, DEAD_PID, 9305)
-        .await
-        .expect("register");
-
-    let cleaned = svc.cleanup_orphaned_services().await.expect("cleanup");
-    // At least our orphan should be reaped.
-    assert!(cleaned >= 1);
-
-    let status = svc.get_status(&name).await.expect("status");
-    assert!(matches!(status, AgentStatus::Failed { .. }));
 
     svc.remove_agent_service(&name).await.ok();
 }
@@ -181,9 +135,6 @@ async fn lifecycle_register_starting_mark_running_then_stopped() {
     svc.update_agent_running(&name, DEAD_PID, 9307)
         .await
         .expect("update running");
-    svc.update_health_status(&name, "degraded")
-        .await
-        .expect("health");
     svc.update_agent_stopped(&name).await.expect("stopped");
 
     let status = svc.get_status(&name).await.expect("status");
@@ -192,20 +143,82 @@ async fn lifecycle_register_starting_mark_running_then_stopped() {
     svc.remove_agent_service(&name).await.ok();
 }
 
+async fn status_and_stamp(raw: &sqlx::PgPool, name: &str) -> (String, String) {
+    sqlx::query_as::<_, (String, String)>(
+        "SELECT status, updated_at::text FROM services WHERE instance_id = $1 AND name = $2",
+    )
+    .bind("test-instance")
+    .bind(name)
+    .fetch_one(raw)
+    .await
+    .expect("row")
+}
+
 #[tokio::test]
-async fn mark_failed_writes_the_error_state_once() {
+async fn error_row_reads_as_failed_without_rewriting_it() {
     let pool = test_db_pool().await;
     let svc = service(&pool).await;
+    let raw = pool.pool_arc().expect("raw database pool");
     let name = unique_name("orch-crash");
     svc.register_agent(&name, DEAD_PID, 9308)
         .await
         .expect("register");
     svc.mark_failed(&name).await.expect("mark failed");
 
-    let status = svc.get_status(&name).await.expect("status");
-    assert!(matches!(status, AgentStatus::Failed { .. }));
+    let before = status_and_stamp(raw.as_ref(), &name).await;
+    assert_eq!(before.0, "error");
+
+    for _ in 0..2 {
+        match svc.get_status(&name).await.expect("status") {
+            AgentStatus::Failed { reason, .. } => assert_eq!(reason, "Agent process failed"),
+            other => panic!("expected Failed, got {other:?}"),
+        }
+    }
+    assert_eq!(
+        status_and_stamp(raw.as_ref(), &name).await,
+        before,
+        "reading an error row must not write it"
+    );
 
     svc.remove_agent_service(&name).await.ok();
+}
+
+#[tokio::test]
+async fn mcp_rows_are_invisible_to_agent_supervision() {
+    let pool = test_db_pool().await;
+    let svc = service(&pool).await;
+    let services = systemprompt_database::ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .expect("services repo");
+    let name = unique_name("orch-mcp-row");
+    services
+        .upsert_service_process(systemprompt_database::UpsertServiceProcessInput {
+            name: &name,
+            module_name: "mcp",
+            pid: i32::try_from(DEAD_PID).expect("pid fits"),
+            port: 9310,
+            status: "running",
+        })
+        .await
+        .expect("seed mcp row");
+
+    let running = svc.list_running_agents().await.expect("list");
+    assert!(!running.iter().any(|n| n == &name));
+
+    match svc.get_status(&name).await.expect("status") {
+        AgentStatus::Failed { reason, .. } => assert!(reason.contains("No service record")),
+        other => panic!("expected Failed, got {other:?}"),
+    }
+    let row = services
+        .find_service_by_name(&name)
+        .await
+        .expect("find")
+        .expect("mcp row");
+    assert_eq!(row.status, "running", "agent reads must not mark MCP rows");
+
+    services.delete_service(&name).await.ok();
 }
 
 #[tokio::test]

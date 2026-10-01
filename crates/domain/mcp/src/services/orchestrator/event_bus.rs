@@ -46,10 +46,6 @@ impl EventBus {
     pub fn subscribe(&self) -> broadcast::Receiver<McpEvent> {
         self.sender.subscribe()
     }
-
-    pub fn sender(&self) -> broadcast::Sender<McpEvent> {
-        self.sender.clone()
-    }
 }
 
 impl std::fmt::Debug for EventBus {

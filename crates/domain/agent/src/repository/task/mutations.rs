@@ -49,15 +49,10 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
         trace_id,
         agent_name,
     } = params;
-    let metadata_json = task.metadata.as_ref().map_or_else(
-        || serde_json::json!({}),
-        |m| {
-            serde_json::to_value(m).unwrap_or_else(|e| {
-                tracing::warn!(error = %e, task_id = %task.id, "Failed to serialize task metadata");
-                serde_json::json!({})
-            })
-        },
-    );
+    let metadata_json = match task.metadata.as_ref() {
+        Some(m) => serde_json::to_value(m)?,
+        None => serde_json::json!({}),
+    };
 
     let status = task_state_to_db_string(task.status.state);
     let task_id_str = task.id.as_str();

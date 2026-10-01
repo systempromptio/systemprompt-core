@@ -429,16 +429,13 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
 
     let status = repos.agent_services.get_agent_status(&name).await?;
     assert!(status.is_some());
-    assert_eq!(status.unwrap().status, "running");
+    assert_eq!(
+        status.unwrap().status,
+        systemprompt_agent::repository::agent_service::AgentServiceStatus::Running
+    );
 
-    repos
-        .agent_services
-        .update_health_status(&name, "running")
-        .await?;
     let running = repos.agent_services.list_running_agents().await?;
     assert!(running.iter().any(|r| r.name == name));
-    let running_pids = repos.agent_services.list_running_agent_pids().await?;
-    assert!(running_pids.iter().any(|r| r.name == name));
 
     repos.agent_services.mark_error(&name).await?;
     repos.agent_services.mark_stopped(&name).await?;

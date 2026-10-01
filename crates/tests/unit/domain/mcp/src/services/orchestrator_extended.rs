@@ -122,29 +122,27 @@ async fn stop_services_specific_missing_ok() {
 }
 
 #[tokio::test]
-async fn restart_services_none_ok() {
+async fn restart_services_none_over_empty_registry_restarts_nothing() {
     let o = make_orchestrator().await;
-    o.restart_services(None).await.unwrap();
+    let outcomes = o.restart_services(None).await.unwrap();
+    assert!(outcomes.is_empty());
 }
 
 #[tokio::test]
-async fn restart_services_all_keyword_publishes_no_events() {
+async fn restart_services_all_keyword_over_empty_registry_restarts_nothing() {
     let o = make_orchestrator().await;
-    o.restart_services(Some("all".to_string())).await.unwrap();
+    let outcomes = o.restart_services(Some("all".to_string())).await.unwrap();
+    assert!(outcomes.is_empty());
 }
 
 #[tokio::test]
-async fn restart_services_sync_none_ok() {
+async fn restart_services_specific_missing_reports_no_outcome() {
     let o = make_orchestrator().await;
-    o.restart_services_sync(None).await.unwrap();
-}
-
-#[tokio::test]
-async fn restart_services_sync_specific_missing_ok() {
-    let o = make_orchestrator().await;
-    o.restart_services_sync(Some(format!("x-{}", uuid::Uuid::new_v4().simple())))
+    let outcomes = o
+        .restart_services(Some(format!("x-{}", uuid::Uuid::new_v4().simple())))
         .await
         .unwrap();
+    assert!(outcomes.is_empty());
 }
 
 #[tokio::test]

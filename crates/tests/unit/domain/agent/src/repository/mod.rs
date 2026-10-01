@@ -11,6 +11,7 @@ mod execution;
 mod execution_mutation_faults;
 mod message;
 mod task;
+mod task_corruption;
 
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::A2ARepositories;

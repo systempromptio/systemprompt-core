@@ -211,6 +211,28 @@ impl ServiceRepository {
         Ok(rows)
     }
 
+    pub async fn list_running_services_by_module(
+        &self,
+        module_name: &str,
+    ) -> DatabaseResult<Vec<ServiceConfig>> {
+        let rows = sqlx::query_as!(
+            ServiceConfig,
+            r#"
+            SELECT instance_id, name, module_name, status, pid, port, binary_mtime,
+                   heartbeat_at::text as "heartbeat_at!",
+                   created_at::text as "created_at!", updated_at::text as "updated_at!"
+            FROM services
+            WHERE instance_id = $1 AND module_name = $2 AND status = 'running'
+            ORDER BY name
+            "#,
+            self.instance_id.as_str(),
+            module_name
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        Ok(rows)
+    }
+
     pub async fn count_running_services(&self, module_name: &str) -> DatabaseResult<usize> {
         let row = sqlx::query!(
             r#"SELECT COUNT(*) as "count!" FROM services

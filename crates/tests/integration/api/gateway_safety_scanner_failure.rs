@@ -1,0 +1,145 @@
+//! A safety scanner that fails is never read as clean: an enforcing policy
+//! blocks the request and persists a `scanner_failure` finding.
+
+use std::time::Duration;
+
+use systemprompt_ai::{
+    CATEGORY_SCANNER_FAILURE, Finding, SafetyScanner, ScanError, register_safety_scanner,
+};
+use systemprompt_api::services::gateway::protocol::CanonicalContent;
+use systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest;
+use systemprompt_api::services::gateway::protocol::canonical_response::CanonicalResponse;
+use systemprompt_api::services::gateway::service::{DispatchError, GatewayService, SafetyBlocked};
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::AiRequestId;
+use systemprompt_models::services::{ApiSurface, WireProtocol};
+use systemprompt_test_fixtures::seed_admin_credential;
+use uuid::Uuid;
+
+use super::common::setup_ctx;
+use super::gateway_pipeline::{
+    MODEL, PROVIDER, canonical_request, gateway_config, gw_repos, inputs, install_provider_api_key,
+    provider_registry,
+};
+
+const SCANNER: &str = "test_failing_on_marker";
+const MARKER: &str = "scanner-failure-marker";
+
+#[derive(Default)]
+struct FailingOnMarkerScanner;
+
+#[async_trait::async_trait]
+impl SafetyScanner for FailingOnMarkerScanner {
+    fn name(&self) -> &'static str {
+        SCANNER
+    }
+
+    async fn scan_request(&self, req: &CanonicalRequest) -> Result<Vec<Finding>, ScanError> {
+        let carries_marker = req
+            .safety_parts(false)
+            .into_iter()
+            .any(|(_, text)| text.contains(MARKER));
+        if carries_marker {
+            return Err(ScanError::Failed {
+                scanner: SCANNER,
+                reason: "backend unreachable".to_owned(),
+            });
+        }
+        Ok(Vec::new())
+    }
+
+    async fn scan_response_final(
+        &self,
+        _response: &CanonicalResponse,
+    ) -> Result<Vec<Finding>, ScanError> {
+        Ok(Vec::new())
+    }
+}
+
+register_safety_scanner!(FailingOnMarkerScanner::default, name = SCANNER);
+
+async fn install_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
+    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    sqlx::query(
+        "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
+         TRUE, 100)",
+    )
+    .bind(format!("gwpol_{}", Uuid::new_v4().simple()))
+    .bind(name)
+    .bind(serde_json::json!({ "safety": { "scanners": [SCANNER] } }))
+    .execute(pg.as_ref())
+    .await?;
+    Ok(())
+}
+
+async fn remove_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
+    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    sqlx::query("DELETE FROM ai_gateway_policies WHERE name = $1")
+        .bind(name)
+        .execute(pg.as_ref())
+        .await?;
+    Ok(())
+}
+
+async fn poll_categories(pool: &DbPool, id: &AiRequestId) -> Vec<String> {
+    let pg = pool.pool_arc().expect("read pool");
+    for _ in 0..100 {
+        let rows: Vec<(String,)> =
+            sqlx::query_as("SELECT category FROM ai_safety_findings WHERE ai_request_id = $1")
+                .bind(id.as_str())
+                .fetch_all(pg.as_ref())
+                .await
+                .expect("query findings");
+        if !rows.is_empty() {
+            return rows.into_iter().map(|(c,)| c).collect();
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    Vec::new()
+}
+
+#[tokio::test]
+async fn a_failing_scanner_blocks_the_request_under_an_enforcing_policy() -> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(
+        &pool,
+        &format!("gw-scan-fail-{}@example.invalid", Uuid::new_v4().simple()),
+    )
+    .await?;
+    let policy_name = format!("gw-scan-fail-{}", Uuid::new_v4().simple());
+    install_policy(&pool, &policy_name).await?;
+
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(
+        "http://127.0.0.1:1",
+        PROVIDER,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    let mut request = canonical_request(MODEL, false);
+    request.messages[0].content = vec![CanonicalContent::text(format!(
+        "an ordinary question carrying the {MARKER}"
+    ))];
+    let di = inputs(&cred, request, false);
+    let request_id = di.ctx.ai_request_id.clone();
+
+    let outcome = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di).await;
+    let categories = poll_categories(&pool, &request_id).await;
+    remove_policy(&pool, &policy_name).await?;
+
+    match outcome.expect_err("a failed scan must not be treated as clean") {
+        DispatchError::Recorded(inner) => {
+            let blocked = inner
+                .downcast_ref::<SafetyBlocked>()
+                .expect("SafetyBlocked error");
+            assert_eq!(blocked.category, CATEGORY_SCANNER_FAILURE);
+        },
+        other => panic!("expected Recorded(SafetyBlocked), got {other:?}"),
+    }
+    assert!(
+        categories.iter().any(|c| c == CATEGORY_SCANNER_FAILURE),
+        "the scanner failure is persisted as a finding; got {categories:?}"
+    );
+    Ok(())
+}

@@ -52,28 +52,10 @@ fn test_mcp_event_service_stopped_service_name() {
 }
 
 #[test]
-fn test_mcp_event_health_check_failed_service_name() {
-    let event = McpEvent::HealthCheckFailed {
-        service_name: "test-service".to_string(),
-        reason: "Timeout".to_string(),
-    };
-    assert_eq!(event.service_name(), "test-service");
-}
-
-#[test]
 fn test_mcp_event_schema_updated_service_name() {
     let event = McpEvent::SchemaUpdated {
         service_name: "test-service".to_string(),
         tool_count: 5,
-    };
-    assert_eq!(event.service_name(), "test-service");
-}
-
-#[test]
-fn test_mcp_event_service_restart_requested_service_name() {
-    let event = McpEvent::ServiceRestartRequested {
-        service_name: "test-service".to_string(),
-        reason: "Manual restart".to_string(),
     };
     assert_eq!(event.service_name(), "test-service");
 }
@@ -144,30 +126,12 @@ fn test_mcp_event_service_stopped_event_type() {
 }
 
 #[test]
-fn test_mcp_event_health_check_failed_event_type() {
-    let event = McpEvent::HealthCheckFailed {
-        service_name: "test".to_string(),
-        reason: "Timeout".to_string(),
-    };
-    assert_eq!(event.event_type(), "health_check_failed");
-}
-
-#[test]
 fn test_mcp_event_schema_updated_event_type() {
     let event = McpEvent::SchemaUpdated {
         service_name: "test".to_string(),
         tool_count: 5,
     };
     assert_eq!(event.event_type(), "schema_updated");
-}
-
-#[test]
-fn test_mcp_event_service_restart_requested_event_type() {
-    let event = McpEvent::ServiceRestartRequested {
-        service_name: "test".to_string(),
-        reason: "Manual".to_string(),
-    };
-    assert_eq!(event.event_type(), "service_restart_requested");
 }
 
 #[test]

@@ -6,7 +6,6 @@ mod gateway;
 mod providers;
 mod schema;
 mod storage;
-mod structured_output;
 mod tooled;
 mod tools;
 mod upstream;

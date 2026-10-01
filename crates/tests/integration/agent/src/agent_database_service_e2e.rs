@@ -17,7 +17,6 @@ async fn cleanup_agent(pool: &sqlx::PgPool, name: &str) {
         .await;
 }
 
-
 #[tokio::test]
 async fn agent_database_service_register_and_get_status() -> Result<()> {
     ensure_test_bootstrap();
@@ -46,22 +45,6 @@ async fn agent_database_service_mark_failed_persists() -> Result<()> {
     let name = unique_name("failed");
     svc.register_agent(&name, 333, 9101).await?;
     svc.mark_failed(&name).await?;
-    cleanup_agent(&fx.pool, &name).await;
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn agent_database_service_get_error_message_empty_for_no_error() -> Result<()> {
-    ensure_test_bootstrap();
-    let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let name = unique_name("noerr");
-    svc.register_agent(&name, 1, 9104).await?;
-    let msg = svc.get_error_message(&name).await?;
-    assert!(msg.is_empty() || !msg.is_empty()); // exercises the path
-    let _ = msg;
     cleanup_agent(&fx.pool, &name).await;
     fx.cleanup().await?;
     Ok(())
@@ -100,7 +83,6 @@ async fn agent_database_service_remove_and_update_state() -> Result<()> {
     let svc = AgentDatabaseService::new(repo).expect("svc");
     let name = unique_name("rm-up");
     svc.register_agent(&name, 4, 9107).await?;
-    svc.update_health_status(&name, "degraded").await?;
     svc.update_agent_running(&name, 5, 9110).await?;
     svc.update_agent_stopped(&name).await?;
     svc.remove_agent_service(&name).await?;
@@ -135,18 +117,3 @@ async fn agent_database_service_get_agent_config_unknown_errors() -> Result<()> 
     Ok(())
 }
 
-#[tokio::test]
-async fn agent_database_service_cleanup_orphaned_services_returns_count() -> Result<()> {
-    ensure_test_bootstrap();
-    let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let name = unique_name("orphan");
-    svc.register_agent(&name, i32::MAX.unsigned_abs(), 9107)
-        .await?;
-    let cleaned = svc.cleanup_orphaned_services().await?;
-    assert_eq!(cleaned, 1);
-    cleanup_agent(&fx.pool, &name).await;
-    fx.cleanup().await?;
-    Ok(())
-}
