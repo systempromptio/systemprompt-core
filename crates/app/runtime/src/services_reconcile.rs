@@ -84,12 +84,19 @@ pub async fn reconcile_fetched_services(
 
     let mut signed: Vec<(String, SignedBundleManifest)> = Vec::new();
     for name in names {
-        let fetched = state.sources.get(name).ok_or_else(|| {
-            RuntimeError::Internal(format!("services bundle {name} has no cached fetch state"))
-        })?;
+        let fetched =
+            state
+                .sources
+                .get(name)
+                .ok_or_else(|| RuntimeError::ServicesBundleNotCached {
+                    name: name.to_owned(),
+                })?;
         let manifest = cache.read_manifest(name, &fetched.content_hash).map_err(|err| {
             tracing::error!(source = %name, error = %err, "Cached services bundle manifest is unreadable");
-            RuntimeError::Internal(format!("services bundle {name} manifest: {err}"))
+            RuntimeError::ServicesBundleManifest {
+                name: name.to_owned(),
+                source: err,
+            }
         })?;
         signed.push((name.to_owned(), manifest));
     }
@@ -107,7 +114,7 @@ pub async fn reconcile_fetched_services(
                 error = %err,
                 "Refused to boot on a fetched services composition that could not be reconciled"
             );
-            RuntimeError::Internal(format!("services authz reconcile: {err}"))
+            RuntimeError::ServicesReconcile(err)
         })?;
 
     state.last_reconciled_hash = Some(composed_hash.clone());
@@ -117,7 +124,7 @@ pub async fn reconcile_fetched_services(
             error = %err,
             "Reconciled a fetched services composition but could not record it"
         );
-        RuntimeError::Internal(format!("services reconcile state: {err}"))
+        RuntimeError::ServicesReconcileState(err)
     })?;
 
     tracing::info!(

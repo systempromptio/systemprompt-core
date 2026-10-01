@@ -65,7 +65,10 @@ fn test_build_orchestrator_with_different_modes() {
 
 #[test]
 fn test_build_error_css_organization_failed() {
-    let error = BuildError::CssOrganizationFailed("Failed to copy CSS".to_string());
+    let error = BuildError::CssOrganizationFailed {
+        context: "Failed to copy CSS".to_string(),
+        source: std::io::Error::other("denied"),
+    };
     let error_msg = format!("{}", error);
     assert!(error_msg.contains("CSS organization failed"));
 }

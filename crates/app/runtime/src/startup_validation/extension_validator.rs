@@ -6,14 +6,14 @@
 use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::{ExtensionConfigError, ExtensionRegistry, LoaderError};
 use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
 use systemprompt_models::Config;
 use systemprompt_traits::validation_report::ValidationIssue;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
-use super::config_loaders::load_extension_config;
+use super::config_loaders::{ConfigFileError, load_extension_config};
 
 pub(super) fn validate_extensions(
     config: &Config,
@@ -54,26 +54,24 @@ pub(super) fn validate_extensions(
         validate_single_extension(config, ext.as_ref(), report, verbose);
     }
 
-    let paths_result = ProfileBootstrap::get()
-        .map_err(|e| e.to_string())
-        .and_then(|p| {
-            AppPaths::from_profile(
-                &p.paths,
-                p.path_resolution(),
-                systemprompt_loader::ServicesRootBootstrap::get().map(|r| r.path.as_path()),
-            )
-            .map_err(|e| e.to_string())
-        });
+    let paths = ProfileBootstrap::get().ok().and_then(|p| {
+        AppPaths::from_profile(
+            &p.paths,
+            p.path_resolution(),
+            systemprompt_loader::ServicesRootBootstrap::get().map(|r| r.path.as_path()),
+        )
+        .ok()
+    });
 
-    match paths_result {
-        Ok(paths) => validate_extension_assets(&extensions, &paths, report, verbose),
-        Err(_) if verbose => {
+    match paths {
+        Some(paths) => validate_extension_assets(&extensions, &paths, report, verbose),
+        None if verbose => {
             CliService::output(&format!(
                 "  {} Asset validation skipped (profile not loaded)",
                 BrandColors::dim("○")
             ));
         },
-        Err(_) => {},
+        None => {},
     }
 }
 
@@ -127,17 +125,12 @@ pub struct ExtensionConfigOutcome {
     pub error: Option<String>,
 }
 
+#[derive(Debug, thiserror::Error)]
 enum ExtConfigError {
-    Load(String),
-    Validate(String),
-}
-
-impl ExtConfigError {
-    fn message(&self) -> &str {
-        match self {
-            Self::Load(m) | Self::Validate(m) => m,
-        }
-    }
+    #[error("{0}")]
+    Load(#[source] ConfigFileError),
+    #[error("{0}")]
+    Validate(#[source] ExtensionConfigError),
 }
 
 fn evaluate_extension_config(
@@ -159,13 +152,13 @@ fn evaluate_extension_config(
     };
 
     ext.validate_config(&config_json)
-        .map_err(|e| ExtConfigError::Validate(e.to_string()))
+        .map_err(ExtConfigError::Validate)
 }
 
 pub fn validate_extension_configs(
     services_path: &Path,
-) -> Result<Vec<ExtensionConfigOutcome>, String> {
-    let extensions = ExtensionRegistry::discover().map_err(|e| e.to_string())?;
+) -> Result<Vec<ExtensionConfigOutcome>, LoaderError> {
+    let extensions = ExtensionRegistry::discover()?;
 
     Ok(extensions
         .config_extensions()
@@ -174,7 +167,7 @@ pub fn validate_extension_configs(
             let prefix = ext.config_prefix()?;
             let error = evaluate_extension_config(ext.as_ref(), services_path)
                 .err()
-                .map(|e| e.message().to_owned());
+                .map(|e| e.to_string());
             Some(ExtensionConfigOutcome {
                 extension_id: ext.id().to_owned(),
                 config_key: format!("{}.config", prefix),
@@ -203,8 +196,8 @@ fn validate_single_extension(
         },
         Err(e) => {
             let report_message = match &e {
-                ExtConfigError::Load(m) => format!("Failed to load config: {}", m),
-                ExtConfigError::Validate(m) => m.clone(),
+                ExtConfigError::Load(cause) => format!("Failed to load config: {cause}"),
+                ExtConfigError::Validate(cause) => cause.to_string(),
             };
             let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
             ext_report.add_error(ValidationIssue::new(
@@ -216,7 +209,7 @@ fn validate_single_extension(
                 "  {} [ext:{}] {}",
                 BrandColors::stopped("✗"),
                 ext_id,
-                e.message()
+                e
             ));
         },
     }

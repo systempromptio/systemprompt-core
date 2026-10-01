@@ -132,7 +132,7 @@ async fn render_prerenderer_page(
     let render_spec = prerenderer
         .prepare(prepare_ctx)
         .await
-        .map_err(|e| PublishError::page_prerenderer_failed(page_type, e.to_string()))?;
+        .map_err(|e| PublishError::page_prerenderer_failed(page_type, e))?;
 
     let Some(spec) = render_spec else {
         tracing::debug!(page_type = %page_type, locale = %locale, "Prerenderer returned None, skipping");
@@ -153,7 +153,7 @@ async fn render_prerenderer_page(
     let html = ctx
         .template_registry
         .render(&spec.template_name, &page_data)
-        .map_err(|e| PublishError::render_failed(&spec.template_name, None, e.to_string()))?;
+        .map_err(|e| PublishError::render_failed(&spec.template_name, None, e))?;
 
     let prefixed_output = if locale_prefix.is_empty() {
         spec.output_path.clone()
@@ -213,7 +213,7 @@ async fn collect_page_data(
         let data = provider
             .provide_page_data(&page_ctx)
             .await
-            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
+            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e))?;
         merge_json_data(&mut page_data, &data);
     }
 

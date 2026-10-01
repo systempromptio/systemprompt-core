@@ -47,7 +47,7 @@ pub(super) fn load_geoip_database(
         Ok(reader) => Ok(Some(Arc::new(reader))),
         Err(e) => Err(RuntimeError::GeoIpUnreadable {
             path: geoip_path.clone(),
-            message: e.to_string(),
+            source: Box::new(e),
         }),
     }
 }

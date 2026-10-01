@@ -72,17 +72,24 @@ fn system_admin_missing_role_message_contains_username() {
 }
 
 #[test]
-fn internal_error_message_contains_detail() {
-    let err = RuntimeError::Internal("socket closed".to_string());
+fn services_bundle_not_cached_names_the_source() {
+    let err = RuntimeError::ServicesBundleNotCached {
+        name: "acme".to_string(),
+    };
     let msg = err.to_string();
-    assert!(msg.contains("socket closed"), "got: {msg}");
+    assert!(
+        msg.contains("acme") && msg.contains("no cached fetch state"),
+        "got: {msg}"
+    );
 }
 
 #[test]
-fn internal_error_message_has_internal_prefix() {
-    let err = RuntimeError::Internal("test detail".to_string());
+fn storage_read_back_names_the_root() {
+    let err = RuntimeError::StorageReadBack {
+        path: std::path::PathBuf::from("/srv/storage"),
+    };
     let msg = err.to_string();
-    assert!(msg.contains("internal"), "got: {msg}");
+    assert!(msg.contains("/srv/storage"), "got: {msg}");
 }
 
 #[test]
@@ -117,7 +124,6 @@ fn all_plain_variants_format_without_panic() {
             },
             "'admin' role",
         ),
-        (RuntimeError::Internal("msg".to_string()), "internal: msg"),
     ];
 
     for (v, marker) in variants {

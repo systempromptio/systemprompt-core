@@ -1,4 +1,6 @@
+use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::SchedulerError;
+use systemprompt_traits::RepositoryError;
 
 mod additional_variants {
     use super::*;
@@ -32,17 +34,25 @@ mod additional_variants {
 
     #[test]
     fn distributed_lock_message() {
-        let err = SchedulerError::DistributedLock("connection refused".to_string());
+        let err = SchedulerError::DistributedLock(RepositoryError::internal("connection refused"));
         assert_eq!(
             err.to_string(),
-            "Distributed lock error: connection refused"
+            "Distributed lock error: internal repository error: connection refused"
         );
     }
 
     #[test]
-    fn internal_message() {
-        let err = SchedulerError::Internal("unexpected state".to_string());
-        assert_eq!(err.to_string(), "internal: unexpected state");
+    fn unknown_otlp_signal_names_the_signal() {
+        let err = SchedulerError::UnknownOtlpSignal {
+            signal: "metrics".to_string(),
+        };
+        assert_eq!(err.to_string(), "Unknown OTLP export signal 'metrics'");
+    }
+
+    #[test]
+    fn sqlx_row_not_found_is_classified_as_repository_not_found() {
+        let err = SchedulerError::from(sqlx::Error::RowNotFound);
+        assert!(matches!(err, SchedulerError::Repository(ref e) if e.is_not_found()));
     }
 
     #[test]
@@ -82,10 +92,9 @@ mod additional_variants {
             (SchedulerError::missing_context("ctx"), "MissingContext"),
             (SchedulerError::panic("boom"), "Panic"),
             (
-                SchedulerError::DistributedLock("lock err".to_string()),
+                SchedulerError::DistributedLock(RepositoryError::internal("lock err")),
                 "DistributedLock",
             ),
-            (SchedulerError::Internal("internal".to_string()), "Internal"),
             (SchedulerError::AlreadyRunning, "AlreadyRunning"),
             (SchedulerError::NotInitialized, "NotInitialized"),
         ];
@@ -99,18 +108,6 @@ mod additional_variants {
     fn missing_context_empty_string() {
         let err = SchedulerError::missing_context("");
         assert_eq!(err.to_string(), "Job context missing dependency: ");
-    }
-
-    #[test]
-    fn internal_empty_string() {
-        let err = SchedulerError::Internal(String::new());
-        assert_eq!(err.to_string(), "internal: ");
-    }
-
-    #[test]
-    fn distributed_lock_empty_string() {
-        let err = SchedulerError::DistributedLock(String::new());
-        assert_eq!(err.to_string(), "Distributed lock error: ");
     }
 }
 
@@ -127,14 +124,21 @@ mod error_source_chain {
     }
 
     #[test]
-    fn string_carve_out_variants_have_no_source() {
-        // The stringified carve-outs wrap no typed cause, so source() is None.
-        assert!(SchedulerError::Internal("x".to_string()).source().is_none());
+    fn typed_cause_variants_expose_their_source() {
         assert!(
-            SchedulerError::DistributedLock("x".to_string())
+            SchedulerError::DistributedLock(RepositoryError::internal("x"))
                 .source()
-                .is_none()
+                .is_some()
         );
+        assert!(
+            SchedulerError::job_execution_failed("j", ProviderError::InvalidInput("e".to_owned()))
+                .source()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn caller_authored_variants_have_no_source() {
         assert!(SchedulerError::panic("x").source().is_none());
         assert!(SchedulerError::missing_context("x").source().is_none());
     }
@@ -145,11 +149,6 @@ mod error_source_chain {
         assert!(SchedulerError::NotInitialized.source().is_none());
         assert!(SchedulerError::job_not_found("j").source().is_none());
         assert!(SchedulerError::invalid_schedule("s").source().is_none());
-        assert!(
-            SchedulerError::job_execution_failed("j", "e")
-                .source()
-                .is_none()
-        );
         assert!(SchedulerError::config_error("c").source().is_none());
     }
 }
@@ -179,10 +178,12 @@ mod error_constructor_round_trips {
 
     #[test]
     fn job_execution_failed_constructor_matches_struct_variant() {
-        let via_ctor = SchedulerError::job_execution_failed("j", "boom").to_string();
+        let via_ctor =
+            SchedulerError::job_execution_failed("j", ProviderError::InvalidInput("boom".into()))
+                .to_string();
         let via_struct = SchedulerError::JobExecutionFailed {
             job_name: "j".to_string(),
-            error: "boom".to_string(),
+            source: ProviderError::InvalidInput("boom".into()),
         }
         .to_string();
         assert_eq!(via_ctor, via_struct);

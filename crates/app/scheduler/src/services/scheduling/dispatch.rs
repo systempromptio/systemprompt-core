@@ -122,9 +122,7 @@ async fn find_and_execute_job(
     })?;
 
     match AssertUnwindSafe(job.execute(ctx)).catch_unwind().await {
-        Ok(result) => {
-            result.map_err(|e| SchedulerError::job_execution_failed(job_name, e.to_string()))
-        },
+        Ok(result) => result.map_err(|e| SchedulerError::job_execution_failed(job_name, e)),
         Err(payload) => {
             let msg = payload
                 .downcast_ref::<&'static str>()

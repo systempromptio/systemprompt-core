@@ -104,7 +104,7 @@ async fn collect_source_urls(
         base_url: &ctx.base_url,
     })
     .await
-    .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
+    .map_err(|e| PublishError::fetch_failed(source_name, e))?;
 
     urls.extend(build_parent_urls(
         sitemap_config,

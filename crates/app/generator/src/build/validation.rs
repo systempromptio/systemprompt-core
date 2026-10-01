@@ -66,10 +66,9 @@ pub(super) async fn validate_sitemap(dist_dir: &Path, sitemap_path: &Path) -> Re
 
     let sitemap_xml = fs::read_to_string(sitemap_path)
         .await
-        .map_err(|e| BuildError::ValidationFailed(format!("Failed to read sitemap: {e}")))?;
+        .map_err(BuildError::SitemapRead)?;
 
-    let urlset: Urlset = from_str(&sitemap_xml)
-        .map_err(|e| BuildError::ValidationFailed(format!("Failed to parse sitemap XML: {e}")))?;
+    let urlset: Urlset = from_str(&sitemap_xml).map_err(BuildError::SitemapParse)?;
 
     let (valid_count, missing_count, errors) = validate_urls(&urlset.url, dist_dir);
     check_validation_results(urlset.url.len(), valid_count, missing_count, &errors)?;

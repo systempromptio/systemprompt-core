@@ -16,6 +16,7 @@
 
 use sqlx::pool::PoolConnection;
 use sqlx::{PgPool, Postgres};
+use systemprompt_traits::RepositoryError;
 use tracing::warn;
 
 use crate::error::{SchedulerError, SchedulerResult};
@@ -74,20 +75,17 @@ pub(super) async fn try_acquire_job_lock(
     write_pool: &PgPool,
     job_name: &str,
 ) -> SchedulerResult<Option<JobLockGuard>> {
-    let mut conn = write_pool
-        .acquire()
-        .await
-        .map_err(|e| SchedulerError::DistributedLock(e.to_string()))?;
+    let mut conn = write_pool.acquire().await.map_err(lock_error)?;
 
     let key = sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, job_name)
         .fetch_one(conn.as_mut())
         .await
-        .map_err(|e| SchedulerError::DistributedLock(e.to_string()))?;
+        .map_err(lock_error)?;
 
     let acquired = sqlx::query_scalar!(r#"SELECT pg_try_advisory_lock($1) AS "acquired!""#, key)
         .fetch_one(conn.as_mut())
         .await
-        .map_err(|e| SchedulerError::DistributedLock(e.to_string()))?;
+        .map_err(lock_error)?;
 
     if acquired {
         Ok(Some(JobLockGuard {
@@ -98,4 +96,8 @@ pub(super) async fn try_acquire_job_lock(
     } else {
         Ok(None)
     }
+}
+
+fn lock_error(err: sqlx::Error) -> SchedulerError {
+    SchedulerError::DistributedLock(RepositoryError::from(err))
 }

@@ -19,15 +19,14 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
 
 use super::composition::RepositoryBundles;
-use crate::error::{RuntimeError, RuntimeResult};
+use crate::error::RuntimeResult;
 
 pub(super) fn build_ai_service(
     database: &DbPool,
     repositories: &RepositoryBundles,
     mcp_registry: &RegistryService,
 ) -> RuntimeResult<Option<Arc<AiService>>> {
-    let services = systemprompt_loader::ServicesBootstrap::get()
-        .map_err(|err| RuntimeError::Internal(format!("services config: {err}")))?;
+    let services = systemprompt_loader::ServicesBootstrap::get()?;
     let tool_provider = Arc::new(McpToolProvider::new(
         Arc::clone(database),
         mcp_registry.clone(),

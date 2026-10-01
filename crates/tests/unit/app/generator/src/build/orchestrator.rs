@@ -63,10 +63,13 @@ fn test_build_mode_as_str_docker() {
 
 #[test]
 fn test_build_error_css_organization_failed() {
-    let error = BuildError::CssOrganizationFailed("permission denied".to_string());
+    let error = BuildError::CssOrganizationFailed {
+        context: "Failed to copy content.css to css/".to_string(),
+        source: std::io::Error::other("permission denied"),
+    };
     assert_eq!(
         error.to_string(),
-        "CSS organization failed: permission denied"
+        "CSS organization failed: Failed to copy content.css to css/: permission denied"
     );
 }
 
@@ -122,7 +125,10 @@ fn test_build_error_empty_message() {
 #[test]
 fn test_build_error_long_message() {
     let long_message = "x".repeat(10000);
-    let error = BuildError::CssOrganizationFailed(long_message.clone());
+    let error = BuildError::CssOrganizationFailed {
+        context: long_message.clone(),
+        source: std::io::Error::other("io"),
+    };
     assert!(error.to_string().contains(&long_message));
 }
 

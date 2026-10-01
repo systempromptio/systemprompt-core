@@ -42,26 +42,19 @@ impl GitSourceOrchestrator {
                 credential_reference: Some(reference),
                 ..
             } => {
-                let secrets = SecretsBootstrap::get().map_err(|error| {
-                    OrchestrationError::Source(format!("Git credentials are unavailable: {error}"))
-                })?;
+                let secrets =
+                    SecretsBootstrap::get().map_err(OrchestrationError::CredentialsUnavailable)?;
                 let credential = secrets
                     .get(&reference)
                     .filter(|value| !value.is_empty())
-                    .ok_or_else(|| {
-                        OrchestrationError::Source(
-                            "Git credential reference is unresolved".to_owned(),
-                        )
-                    })?;
+                    .ok_or(OrchestrationError::CredentialUnresolved)?;
                 Ok(Some(credential.clone()))
             },
             SourceSpec::Git {
                 credential_reference: None,
                 ..
             } => Ok(None),
-            _ => Err(OrchestrationError::Source(
-                "Operation requires a registered Git source".to_owned(),
-            )),
+            _ => Err(OrchestrationError::NotGitSource),
         }
     }
 }

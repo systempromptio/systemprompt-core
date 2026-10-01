@@ -5,7 +5,7 @@
 
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandOutput;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_logging::CliService;
@@ -180,19 +180,19 @@ async fn restart_mcp_target(
     failed: &mut usize,
     quiet: bool,
 ) {
-    let results: Vec<(String, Result<(), String>)> =
+    let results: Vec<(String, Result<()>)> =
         match orchestrator.restart_services(Some(target.id.clone())).await {
             Ok(outcomes) if outcomes.is_empty() => {
                 vec![(
                     target.name.clone(),
-                    Err("not a managed MCP server".to_owned()),
+                    Err(anyhow!("not a managed MCP server")),
                 )]
             },
             Ok(outcomes) => outcomes
                 .into_iter()
-                .map(|o| (o.service_name, o.result.map_err(|e| e.to_string())))
+                .map(|o| (o.service_name, o.result.map_err(anyhow::Error::from)))
                 .collect(),
-            Err(e) => vec![(target.name.clone(), Err(e.to_string()))],
+            Err(e) => vec![(target.name.clone(), Err(e.into()))],
         };
     for (name, result) in results {
         match result {
@@ -205,7 +205,7 @@ async fn restart_mcp_target(
             Err(e) => {
                 *failed += 1;
                 if !quiet {
-                    CliService::error(&format!("  Failed to restart {name}: {e}"));
+                    CliService::error(&format!("  Failed to restart {name}: {e:#}"));
                 }
             },
         }

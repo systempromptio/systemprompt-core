@@ -4,12 +4,30 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use indicatif::{ProgressBar, ProgressStyle};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use systemprompt_logging::CliService;
 use systemprompt_models::validators::{ValidationConfigProvider, WebConfigRaw, WebMetadataRaw};
 use systemprompt_models::{Config, ContentConfigRaw};
 use systemprompt_traits::ConfigProvider;
+
+#[derive(Debug, thiserror::Error)]
+pub(super) enum ConfigFileError {
+    #[error("Cannot read {}: {source}", .path.display())]
+    Read {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("Cannot parse {}: {source}", .path.display())]
+    Parse {
+        path: PathBuf,
+        #[source]
+        source: serde_yaml::Error,
+    },
+    #[error("Cannot convert to JSON: {0}")]
+    Json(#[from] serde_json::Error),
+}
 
 pub(super) fn load_content_config(
     config: &Config,
@@ -37,7 +55,7 @@ pub(super) fn load_content_config(
                     s.finish_and_clear();
                 }
                 if verbose {
-                    CliService::phase_warning("Content config", Some(&e));
+                    CliService::phase_warning("Content config", Some(&e.to_string()));
                 }
             },
         }
@@ -71,7 +89,7 @@ pub(super) fn load_web_config(
                     s.finish_and_clear();
                 }
                 if verbose {
-                    CliService::phase_warning("Web config", Some(&e));
+                    CliService::phase_warning("Web config", Some(&e.to_string()));
                 }
             },
         }
@@ -105,7 +123,7 @@ pub(super) fn load_web_metadata(
                     s.finish_and_clear();
                 }
                 if verbose {
-                    CliService::phase_warning("Web metadata", Some(&e));
+                    CliService::phase_warning("Web metadata", Some(&e.to_string()));
                 }
             },
         }
@@ -126,17 +144,31 @@ pub(super) fn create_spinner(message: &str) -> ProgressBar {
     spinner
 }
 
-pub(super) fn load_yaml_config<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
-    serde_yaml::from_str(&content).map_err(|e| format!("Cannot parse {}: {}", path.display(), e))
+fn read_config_file(path: &Path) -> Result<String, ConfigFileError> {
+    std::fs::read_to_string(path).map_err(|source| ConfigFileError::Read {
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+fn parse_yaml<T: serde::de::DeserializeOwned>(
+    path: &Path,
+    content: &str,
+) -> Result<T, ConfigFileError> {
+    serde_yaml::from_str(content).map_err(|source| ConfigFileError::Parse {
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+pub(super) fn load_yaml_config<T: serde::de::DeserializeOwned>(
+    path: &Path,
+) -> Result<T, ConfigFileError> {
+    parse_yaml(path, &read_config_file(path)?)
 }
 
 // JSON: Extension config block from the profile YAML; the extension owns it.
-pub(super) fn load_extension_config(path: &Path) -> Result<serde_json::Value, String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
-    let yaml: serde_yaml::Value = serde_yaml::from_str(&content)
-        .map_err(|e| format!("Cannot parse {}: {}", path.display(), e))?;
-    serde_json::to_value(yaml).map_err(|e| format!("Cannot convert to JSON: {}", e))
+pub(super) fn load_extension_config(path: &Path) -> Result<serde_json::Value, ConfigFileError> {
+    let yaml: serde_yaml::Value = parse_yaml(path, &read_config_file(path)?)?;
+    Ok(serde_json::to_value(yaml)?)
 }

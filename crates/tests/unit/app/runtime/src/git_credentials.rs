@@ -3,6 +3,7 @@
 
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, TraceId, UserId};
 use systemprompt_marketplace::managed::{GitSyncRequest, ManagedRepository, SourceSpec};
+use systemprompt_runtime::managed::OrchestrationError;
 use systemprompt_runtime::managed::git_sources::GitSourceOrchestrator;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
@@ -44,9 +45,12 @@ async fn missing_private_credentials_fail_initial_import_and_sync_without_launch
         )
         .await
         .expect("credential rejection before import/sync")
-        .expect_err("unresolved reference")
-        .to_string();
-        assert!(error.contains("Git credential"));
-        assert!(!error.contains(&reference));
+        .expect_err("unresolved reference");
+        assert!(matches!(
+            error,
+            OrchestrationError::CredentialUnresolved
+                | OrchestrationError::CredentialsUnavailable(_)
+        ));
+        assert!(!error.to_string().contains(&reference));
     }
 }

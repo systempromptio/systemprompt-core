@@ -205,8 +205,10 @@ async fn export_signal(
     instance_id: Option<&str>,
 ) -> SchedulerResult<u64> {
     let after = state.watermark();
-    let signal = OtlpSignal::parse(&state.signal)
-        .ok_or_else(|| SchedulerError::Internal(format!("unknown signal {}", state.signal)))?;
+    let signal =
+        OtlpSignal::parse(&state.signal).ok_or_else(|| SchedulerError::UnknownOtlpSignal {
+            signal: state.signal.clone(),
+        })?;
     let (rows, next) = match signal {
         OtlpSignal::Traces => {
             let batch = load_trace_batch(pool, &after).await?;
@@ -268,5 +270,8 @@ async fn post<M: prost::Message>(
 ) -> SchedulerResult<()> {
     transport::post_signal(config, signal, envelope)
         .await
-        .map_err(|e| SchedulerError::Internal(e.to_string()))
+        .map_err(|source| SchedulerError::OtlpExport {
+            signal,
+            source: Box::new(source),
+        })
 }

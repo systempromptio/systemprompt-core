@@ -18,9 +18,12 @@ pub(super) async fn organize_css(web_dir: &Path) -> Result<()> {
     let dist_dir = web_dir.join("dist");
     let css_dir = dist_dir.join("css");
 
-    fs::create_dir_all(&css_dir).await.map_err(|e| {
-        BuildError::CssOrganizationFailed(format!("Failed to create css directory: {e}"))
-    })?;
+    fs::create_dir_all(&css_dir)
+        .await
+        .map_err(|source| BuildError::CssOrganizationFailed {
+            context: "Failed to create css directory".to_owned(),
+            source,
+        })?;
 
     for file_name in CSS_FILES {
         copy_css_file(&dist_dir, &css_dir, file_name).await?;
@@ -38,9 +41,12 @@ async fn copy_css_file(dist_dir: &Path, css_dir: &Path, file_name: &str) -> Resu
 }
 
 async fn do_copy_css(source: &Path, dest: &Path, file_name: &str) -> Result<()> {
-    fs::copy(source, dest).await.map_err(|e| {
-        BuildError::CssOrganizationFailed(format!("Failed to copy {file_name} to css/: {e}"))
-    })?;
+    fs::copy(source, dest)
+        .await
+        .map_err(|cause| BuildError::CssOrganizationFailed {
+            context: format!("Failed to copy {file_name} to css/"),
+            source: cause,
+        })?;
     tracing::debug!(file = %file_name, "Copied CSS file to css/");
     Ok(())
 }

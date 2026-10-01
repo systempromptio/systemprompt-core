@@ -1,5 +1,6 @@
 //! Tests for scheduler models
 
+use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{JobStatus, SchedulerError};
 
 mod job_status_tests {
@@ -77,7 +78,10 @@ mod scheduler_error_tests {
 
     #[test]
     fn job_execution_failed_contains_job_name_and_error() {
-        let error = SchedulerError::job_execution_failed("my_job", "timeout");
+        let error = SchedulerError::job_execution_failed(
+            "my_job",
+            ProviderError::InvalidInput("timeout".to_owned()),
+        );
         let message = error.to_string();
         assert!(message.contains("my_job"));
         assert!(message.contains("timeout"));
@@ -104,8 +108,10 @@ mod scheduler_error_tests {
 
     #[test]
     fn job_execution_failed_accepts_strings() {
-        let error =
-            SchedulerError::job_execution_failed(String::from("job1"), String::from("error msg"));
+        let error = SchedulerError::job_execution_failed(
+            String::from("job1"),
+            ProviderError::InvalidInput(String::from("error msg")),
+        );
         let message = error.to_string();
         assert!(message.contains("job1"));
         assert!(message.contains("error msg"));
