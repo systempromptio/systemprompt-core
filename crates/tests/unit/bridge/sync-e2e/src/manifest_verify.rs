@@ -912,4 +912,3 @@ fn tofu_pubkey_unauthorized_preserves_unpinned_state_then_retry_pins_and_syncs()
     assert_eq!(trust.gateway.as_str(), server.uri());
     assert!(resolved_last_sync_path(&dirs).is_file());
 }
-

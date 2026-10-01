@@ -20,8 +20,8 @@ use crate::ids::PinnedPubKey;
 mod policy;
 mod record;
 
-use policy::policy_trust;
 pub use policy::parse_policy_trust;
+use policy::policy_trust;
 pub use record::{GatewayIdentity, PinSource, PinnedPubkeyState, SyncConfig, TrustRecord};
 
 #[derive(Debug, thiserror::Error)]

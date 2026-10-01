@@ -71,9 +71,7 @@ fn read_bytes(path: &Path) -> io::Result<Vec<u8>> {
     Ok(bytes)
 }
 
-pub fn facts_from_entries(
-    entries: &[(String, String)],
-) -> Result<RequestFacts, PolicyWriterError> {
+pub fn facts_from_entries(entries: &[(String, String)]) -> Result<RequestFacts, PolicyWriterError> {
     let headers = entry_value(entries, "inferenceCustomHeaders")
         .map(|raw| serde_json::from_str(&raw))
         .transpose()

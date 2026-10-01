@@ -8,7 +8,9 @@ fn a_refusal_survives_the_io_error_it_travels_in() {
     assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
     assert_eq!(ApprovalRefusal::of(&err), Some(ApprovalRefusal::Declined));
 
-    let needs = ApprovalRefusal::NeedsPrompt { reason: "use Repair" };
+    let needs = ApprovalRefusal::NeedsPrompt {
+        reason: "use Repair",
+    };
     let err: io::Error = needs.into();
     assert_eq!(ApprovalRefusal::of(&err), Some(needs));
     assert_eq!(err.to_string(), "use Repair");

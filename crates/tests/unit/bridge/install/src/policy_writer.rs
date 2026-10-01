@@ -339,7 +339,10 @@ fn a_staged_profile_yields_the_loopback_and_the_inference_facts() {
     );
     let malformed = [("inferenceCustomHeaders".to_owned(), "{ not json".to_owned())];
     assert!(
-        matches!(facts_from_entries(&malformed), Err(PolicyWriterError::Io { .. })),
+        matches!(
+            facts_from_entries(&malformed),
+            Err(PolicyWriterError::Io { .. })
+        ),
         "malformed headers are an error, never an empty header map"
     );
 }

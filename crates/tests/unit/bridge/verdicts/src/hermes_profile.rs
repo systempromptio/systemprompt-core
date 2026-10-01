@@ -214,8 +214,15 @@ fn the_env_file_holding_the_host_token_is_private_even_when_it_existed_world_rea
 
     install_into(&home);
 
-    let mode = std::fs::metadata(&env).expect("stat .env").permissions().mode() & 0o777;
-    assert_eq!(mode, 0o600, "the host token is never left readable by other accounts");
+    let mode = std::fs::metadata(&env)
+        .expect("stat .env")
+        .permissions()
+        .mode()
+        & 0o777;
+    assert_eq!(
+        mode, 0o600,
+        "the host token is never left readable by other accounts"
+    );
     let body = std::fs::read_to_string(&env).expect("read .env");
     assert!(body.contains("OTHER=kept"), "foreign lines survive: {body}");
     std::fs::remove_dir_all(&home).ok();
