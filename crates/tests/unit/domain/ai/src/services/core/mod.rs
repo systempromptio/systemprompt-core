@@ -101,7 +101,6 @@ pub(crate) fn service(pool: &DbPool, provider: &str, endpoint: String) -> AiServ
     let registry = registry_with_endpoint(provider, endpoint);
     let config = ai_config(provider);
     AiService::new(
-        pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {

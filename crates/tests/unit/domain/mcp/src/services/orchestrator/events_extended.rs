@@ -48,17 +48,6 @@ fn mcp_event_deserialize_service_stopped_null_exit_code() {
 }
 
 #[test]
-fn mcp_event_deserialize_health_check_failed() {
-    let json = r#"{"type":"health_check_failed","service_name":"svc","reason":"timeout"}"#;
-    let event: McpEvent = serde_json::from_str(json).unwrap();
-    assert_eq!(event.event_type(), "health_check_failed");
-    match &event {
-        McpEvent::HealthCheckFailed { reason, .. } => assert_eq!(reason, "timeout"),
-        _ => panic!("Expected HealthCheckFailed"),
-    }
-}
-
-#[test]
 fn mcp_event_deserialize_schema_updated() {
     let json = r#"{"type":"schema_updated","service_name":"svc","tool_count":7}"#;
     let event: McpEvent = serde_json::from_str(json).unwrap();
@@ -142,18 +131,6 @@ fn mcp_event_deserialize_service_start_completed_failure() {
 }
 
 #[test]
-fn mcp_event_roundtrip_service_restart_requested() {
-    let event = McpEvent::ServiceRestartRequested {
-        service_name: "roundtrip-svc".to_string(),
-        reason: "config change".to_string(),
-    };
-    let json = serde_json::to_string(&event).unwrap();
-    let deserialized: McpEvent = serde_json::from_str(&json).unwrap();
-    assert_eq!(deserialized.service_name(), "roundtrip-svc");
-    assert_eq!(deserialized.event_type(), "service_restart_requested");
-}
-
-#[test]
 fn mcp_event_roundtrip_all_variants() {
     let events = vec![
         McpEvent::ServiceStartRequested {
@@ -174,17 +151,9 @@ fn mcp_event_roundtrip_all_variants() {
             service_name: "s".to_string(),
             exit_code: Some(0),
         },
-        McpEvent::HealthCheckFailed {
-            service_name: "s".to_string(),
-            reason: "r".to_string(),
-        },
         McpEvent::SchemaUpdated {
             service_name: "s".to_string(),
             tool_count: 1,
-        },
-        McpEvent::ServiceRestartRequested {
-            service_name: "s".to_string(),
-            reason: "r".to_string(),
         },
         McpEvent::ReconciliationStarted { service_count: 1 },
         McpEvent::ReconciliationCompleted {

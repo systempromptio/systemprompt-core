@@ -50,6 +50,14 @@ pub fn validate_scopes_for_permissions(
 ) -> Result<(), McpError> {
     let required_scopes = &oauth_config.scopes;
 
+    if required_scopes.is_empty() {
+        tracing::error!(server = %server_name, "OAuth required but no scopes are declared");
+        return Err(McpError::invalid_request(
+            format!("MCP server {server_name} requires OAuth but declares no scopes"),
+            None,
+        ));
+    }
+
     let has_required_scope = required_scopes.iter().any(|required| {
         user_permissions
             .iter()

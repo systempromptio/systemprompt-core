@@ -134,6 +134,10 @@ impl JsonRpcErrorBuilder {
         Self::new(-32700, "Parse error")
     }
 
+    pub fn unsupported_operation() -> Self {
+        Self::new(-32004, "This operation is not supported")
+    }
+
     pub fn unauthorized(reason: impl Into<String>) -> Self {
         Self::new(-32600, "Unauthorized").with_data(json!({
             "reason": reason.into()

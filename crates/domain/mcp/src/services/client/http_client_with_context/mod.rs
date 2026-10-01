@@ -12,6 +12,7 @@ pub mod metadata;
 mod transport;
 
 use crate::services::client::challenge::{AuthChallenge, McpTransportError};
+use http::header::AUTHORIZATION;
 use http::{HeaderName, HeaderValue};
 use rmcp::model::ClientCapabilities;
 use std::collections::HashMap;
@@ -160,17 +161,18 @@ impl HttpClientWithContext {
         })
     }
 
-    fn add_context_headers(&self, builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    fn add_context_headers(
+        &self,
+        builder: reqwest::RequestBuilder,
+        auth_token: Option<String>,
+    ) -> reqwest::RequestBuilder {
         let mut builder = builder;
 
         if self.forward_context {
             for (key, value) in &self.context.to_headers() {
-                builder = builder.header(key, value);
-            }
-
-            if !self.context.auth_token().as_str().is_empty() {
-                let auth_header = format!("Bearer {}", self.context.auth_token().as_str());
-                builder = builder.header("Authorization", &auth_header);
+                if *key != AUTHORIZATION {
+                    builder = builder.header(key, value);
+                }
             }
         }
 
@@ -178,6 +180,13 @@ impl HttpClientWithContext {
             builder = builder.header(key, value);
         }
 
-        builder
+        let context_token = self.context.auth_token().as_str();
+        match auth_token {
+            Some(token) => builder.bearer_auth(token),
+            None if self.forward_context && !context_token.is_empty() => {
+                builder.bearer_auth(context_token)
+            },
+            None => builder,
+        }
     }
 }

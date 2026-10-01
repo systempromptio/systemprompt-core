@@ -33,5 +33,5 @@ pub use process::ProcessService;
 pub use registry::RegistryService;
 pub use spawn_target::SpawnTarget;
 
-pub use orchestrator::{EventBus, McpEvent};
+pub use orchestrator::{EventBus, McpEvent, McpRestartOutcome};
 pub use tool_provider::McpToolProvider;

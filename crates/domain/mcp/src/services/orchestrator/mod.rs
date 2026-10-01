@@ -12,7 +12,6 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
 use systemprompt_traits::StartupEventSender;
 
-mod daemon;
 pub mod event_bus;
 pub mod events;
 pub mod handlers;
@@ -25,7 +24,8 @@ mod target_resolution;
 
 pub use event_bus::EventBus;
 pub use events::McpEvent;
-pub use handlers::{DatabaseSyncHandler, HealthCheckHandler, LifecycleHandler, MonitoringHandler};
+pub use handlers::{DatabaseSyncHandler, LifecycleHandler, MonitoringHandler};
+pub use lifecycle_ops::McpRestartOutcome;
 pub use reconciliation::ReconcileParams;
 
 use super::database::DatabaseService;
@@ -77,9 +77,6 @@ impl McpOrchestrator {
         event_bus.register_handler(Arc::new(MonitoringHandler));
 
         event_bus.register_handler(Arc::new(DatabaseSyncHandler::new(database.clone())));
-
-        let health_handler = HealthCheckHandler::new().with_restart_sender(event_bus.sender());
-        event_bus.register_handler(Arc::new(health_handler));
 
         Ok(Self {
             event_bus: Arc::new(event_bus),
@@ -190,16 +187,6 @@ impl McpOrchestrator {
         service_name: &str,
     ) -> McpDomainResult<Option<super::database::ServiceInfo>> {
         self.database.get_service_by_name(service_name).await
-    }
-
-    pub async fn run_daemon(&self) -> McpDomainResult<()> {
-        daemon::run_daemon(
-            &self.event_bus,
-            &self.lifecycle,
-            &self.database,
-            &self.registry,
-        )
-        .await
     }
 
     pub fn subscribe_events(&self) -> tokio::sync::broadcast::Receiver<McpEvent> {

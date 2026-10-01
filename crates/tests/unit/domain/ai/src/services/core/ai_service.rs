@@ -535,7 +535,6 @@ async fn build_fails_when_default_provider_not_enabled() {
     let mut config = super::ai_config(ANTHROPIC);
     config.default_provider = "gemini".to_owned();
     let result = systemprompt_ai::AiService::new(
-        &pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {
@@ -581,7 +580,6 @@ async fn google_search_uses_search_capable_provider_and_surfaces_sources() {
         .expect("gemini policy entry")
         .google_search_enabled = true;
     let svc = systemprompt_ai::AiService::new(
-        &pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {

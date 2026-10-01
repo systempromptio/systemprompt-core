@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_agent::repository::agent_service::AgentServiceRepository;
+use systemprompt_agent::repository::agent_service::{AgentServiceRepository, AgentServiceStatus};
 use uuid::Uuid;
 
 use crate::common::Fixture;
@@ -24,7 +24,7 @@ async fn register_and_get_agent_status_running() -> Result<()> {
     repo.register_agent(&name, 12345, 9001).await?;
 
     let row = repo.get_agent_status(&name).await?.expect("row");
-    assert_eq!(row.status, "running");
+    assert_eq!(row.status, AgentServiceStatus::Running);
     assert_eq!(row.pid, Some(12345));
     assert_eq!(row.port, 9001);
 
@@ -41,7 +41,7 @@ async fn register_agent_starting_status() -> Result<()> {
 
     repo.register_agent_starting(&name, 22222, 9002).await?;
     let row = repo.get_agent_status(&name).await?.expect("row");
-    assert_eq!(row.status, "starting");
+    assert_eq!(row.status, AgentServiceStatus::Starting);
 
     cleanup_agent(&fx.pool, &name).await;
     fx.cleanup().await?;
@@ -56,7 +56,7 @@ async fn mark_running_transitions_status() -> Result<()> {
     repo.register_agent_starting(&name, 11, 9003).await?;
     repo.mark_running(&name).await?;
     let row = repo.get_agent_status(&name).await?.unwrap();
-    assert_eq!(row.status, "running");
+    assert_eq!(row.status, AgentServiceStatus::Running);
     cleanup_agent(&fx.pool, &name).await;
     fx.cleanup().await?;
     Ok(())
@@ -70,7 +70,7 @@ async fn mark_stopped_clears_pid() -> Result<()> {
     repo.register_agent(&name, 44, 9005).await?;
     repo.mark_stopped(&name).await?;
     let row = repo.get_agent_status(&name).await?.unwrap();
-    assert_eq!(row.status, "stopped");
+    assert_eq!(row.status, AgentServiceStatus::Stopped);
     assert!(row.pid.is_none());
     cleanup_agent(&fx.pool, &name).await;
     fx.cleanup().await?;
@@ -85,7 +85,7 @@ async fn mark_error_sets_error_status() -> Result<()> {
     repo.register_agent(&name, 55, 9006).await?;
     repo.mark_error(&name).await?;
     let row = repo.get_agent_status(&name).await?.unwrap();
-    assert_eq!(row.status, "error");
+    assert_eq!(row.status, AgentServiceStatus::Error);
     cleanup_agent(&fx.pool, &name).await;
     fx.cleanup().await?;
     Ok(())
@@ -115,20 +115,6 @@ async fn list_running_agents_includes_registered() -> Result<()> {
 }
 
 #[tokio::test]
-async fn list_running_agent_pids_includes_registered_with_pid() -> Result<()> {
-    let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
-    let name = unique_agent_name("listpid");
-    repo.register_agent(&name, 7777, 9008).await?;
-    let list = repo.list_running_agent_pids().await?;
-    let found = list.iter().find(|r| r.name == name).expect("found");
-    assert_eq!(found.pid, 7777);
-    cleanup_agent(&fx.pool, &name).await;
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
 async fn remove_agent_service_removes_entry() -> Result<()> {
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
@@ -137,20 +123,6 @@ async fn remove_agent_service_removes_entry() -> Result<()> {
     repo.remove_agent_service(&name).await?;
     let row = repo.get_agent_status(&name).await?;
     assert!(row.is_none());
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn update_health_status_changes_status() -> Result<()> {
-    let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
-    let name = unique_agent_name("hth");
-    repo.register_agent(&name, 11, 9010).await?;
-    repo.update_health_status(&name, "degraded").await?;
-    let row = repo.get_agent_status(&name).await?.unwrap();
-    assert_eq!(row.status, "degraded");
-    cleanup_agent(&fx.pool, &name).await;
     fx.cleanup().await?;
     Ok(())
 }

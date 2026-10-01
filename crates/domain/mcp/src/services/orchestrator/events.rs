@@ -32,17 +32,9 @@ pub enum McpEvent {
         service_name: String,
         exit_code: Option<i32>,
     },
-    HealthCheckFailed {
-        service_name: String,
-        reason: String,
-    },
     SchemaUpdated {
         service_name: String,
         tool_count: usize,
-    },
-    ServiceRestartRequested {
-        service_name: String,
-        reason: String,
     },
     ReconciliationStarted {
         service_count: usize,
@@ -62,9 +54,7 @@ impl McpEvent {
             | Self::ServiceStarted { service_name, .. }
             | Self::ServiceFailed { service_name, .. }
             | Self::ServiceStopped { service_name, .. }
-            | Self::HealthCheckFailed { service_name, .. }
-            | Self::SchemaUpdated { service_name, .. }
-            | Self::ServiceRestartRequested { service_name, .. } => service_name,
+            | Self::SchemaUpdated { service_name, .. } => service_name,
             Self::ReconciliationStarted { .. } | Self::ReconciliationCompleted { .. } => "",
         }
     }
@@ -76,9 +66,7 @@ impl McpEvent {
             Self::ServiceStarted { .. } => "service_started",
             Self::ServiceFailed { .. } => "service_failed",
             Self::ServiceStopped { .. } => "service_stopped",
-            Self::HealthCheckFailed { .. } => "health_check_failed",
             Self::SchemaUpdated { .. } => "schema_updated",
-            Self::ServiceRestartRequested { .. } => "service_restart_requested",
             Self::ReconciliationStarted { .. } => "reconciliation_started",
             Self::ReconciliationCompleted { .. } => "reconciliation_completed",
         }

@@ -75,20 +75,7 @@ pub async fn execute_all_mcp(ctx: &Arc<AppContext>, config: &CliConfig) -> Resul
         if !quiet {
             CliService::info(&format!("Restarting MCP server: {}", target.name));
         }
-        match mcp_manager.restart_services(Some(target.id.clone())).await {
-            Ok(()) => {
-                restarted += 1;
-                if !quiet {
-                    CliService::success(&format!("  {} restarted", target.name));
-                }
-            },
-            Err(e) => {
-                failed += 1;
-                if !quiet {
-                    CliService::error(&format!("  Failed to restart {}: {}", target.name, e));
-                }
-            },
-        }
+        restart_mcp_target(&mcp_manager, target, &mut restarted, &mut failed, quiet).await;
     }
 
     let message = super::format_batch_message("MCP servers", restarted, failed, quiet);
@@ -197,19 +184,32 @@ async fn restart_mcp_target(
     failed: &mut usize,
     quiet: bool,
 ) {
-    match orchestrator.restart_services(Some(target.id.clone())).await {
-        Ok(()) => {
-            *restarted += 1;
-            if !quiet {
-                CliService::success(&format!("  {} restarted", target.name));
-            }
-        },
-        Err(e) => {
-            *failed += 1;
-            if !quiet {
-                CliService::error(&format!("  Failed to restart {}: {}", target.name, e));
-            }
-        },
+    let results: Vec<(String, Result<(), String>)> =
+        match orchestrator.restart_services(Some(target.id.clone())).await {
+            Ok(outcomes) if outcomes.is_empty() => {
+                vec![(target.name.clone(), Err("not a managed MCP server".to_owned()))]
+            },
+            Ok(outcomes) => outcomes
+                .into_iter()
+                .map(|o| (o.service_name, o.result.map_err(|e| e.to_string())))
+                .collect(),
+            Err(e) => vec![(target.name.clone(), Err(e.to_string()))],
+        };
+    for (name, result) in results {
+        match result {
+            Ok(()) => {
+                *restarted += 1;
+                if !quiet {
+                    CliService::success(&format!("  {name} restarted"));
+                }
+            },
+            Err(e) => {
+                *failed += 1;
+                if !quiet {
+                    CliService::error(&format!("  Failed to restart {name}: {e}"));
+                }
+            },
+        }
     }
 }
 

@@ -28,16 +28,6 @@ impl EventHandler for LifecycleHandler {
                     "Service stopped"
                 );
             },
-            McpEvent::ServiceRestartRequested {
-                service_name,
-                reason,
-            } => {
-                tracing::info!(
-                    service = %service_name,
-                    reason = %reason,
-                    "Service restart requested"
-                );
-            },
             _ => {},
         }
         Ok(())
@@ -50,9 +40,7 @@ impl EventHandler for LifecycleHandler {
     fn handles(&self, event: &McpEvent) -> bool {
         matches!(
             event,
-            McpEvent::ServiceStartRequested { .. }
-                | McpEvent::ServiceStopped { .. }
-                | McpEvent::ServiceRestartRequested { .. }
+            McpEvent::ServiceStartRequested { .. } | McpEvent::ServiceStopped { .. }
         )
     }
 }

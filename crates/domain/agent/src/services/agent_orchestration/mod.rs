@@ -4,16 +4,14 @@
 //! This module groups the services that keep the database's view of running
 //! agents consistent with the OS process table. [`AgentOrchestrator`] is the
 //! top-level facade; the submodules cover process lifecycle, health
-//! monitoring, drift reconciliation, port allocation, the event bus, and the
-//! low-level process primitives. [`AgentStatus`] is the shared status model and
+//! checks, drift reconciliation, port allocation, and the low-level process
+//! primitives. [`AgentStatus`] is the shared status model and
 //! [`OrchestrationError`] the unified error type.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod database;
-pub mod event_bus;
-pub mod events;
 pub mod lifecycle;
 pub mod monitor;
 pub mod orchestrator;
@@ -23,8 +21,6 @@ pub mod reconciler;
 
 use systemprompt_identifiers::AgentId;
 
-pub use event_bus::AgentEventBus;
-pub use events::AgentEvent;
 pub use orchestrator::{AgentInfo, AgentOrchestrator};
 pub use port_service::PortService;
 

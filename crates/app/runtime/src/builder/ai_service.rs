@@ -41,7 +41,6 @@ pub(super) fn build_ai_service(
         repositories.a2a.contexts.clone(),
     ));
     match AiService::new(
-        database,
         &services.providers,
         &services.ai,
         AiServiceProviders {

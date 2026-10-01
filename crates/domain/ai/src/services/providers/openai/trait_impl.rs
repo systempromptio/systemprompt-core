@@ -28,10 +28,6 @@ impl AiProvider for OpenAiProvider {
         "openai"
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities::openai()
     }

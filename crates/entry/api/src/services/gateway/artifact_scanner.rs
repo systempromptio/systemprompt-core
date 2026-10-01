@@ -3,7 +3,8 @@
 //! An artifact is scanned with the same scanners the installation's global
 //! gateway policy declares, so a tool result is held to the same bar as a
 //! model response. The policy is resolved fail-closed: if it cannot be read,
-//! the ingest is refused rather than stored unscanned. Every finding is
+//! the ingest is refused rather than stored unscanned, and a scanner that
+//! fails refuses the ingest the same way. Every finding is
 //! recorded against the artifact; nothing here blocks, because the result
 //! has already reached the model — blocking is the gateway's job on the next
 //! turn, where the same text is scanned again as request history.
@@ -73,7 +74,12 @@ impl ArtifactScanner for GatewayArtifactScanner {
         let mut findings: Vec<Finding> = Vec::new();
         for name in &policy.safety.scanners {
             match registry.create(name, &policy.safety) {
-                Some(scanner) => findings.extend(scanner.scan_response_final(&response).await),
+                Some(scanner) => findings.extend(
+                    scanner
+                        .scan_response_final(&response)
+                        .await
+                        .map_err(|e| e.to_string())?,
+                ),
                 None => {
                     tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped for artifact");
                 },

@@ -1,15 +1,9 @@
 //! Unit tests for agent orchestration services
 
 mod database;
-mod event_bus;
-mod events;
-mod events_extended;
 mod lifecycle;
 mod lifecycle_verification;
-mod monitor_cleanup;
 mod monitor_db;
-mod monitor_functions;
-mod monitor_probes_live;
 mod monitor_types;
 mod orchestrator;
 mod orchestrator_reconcile;

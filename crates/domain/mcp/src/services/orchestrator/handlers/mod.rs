@@ -1,8 +1,8 @@
 //! Event handlers for the MCP orchestrator's [`EventBus`](super::EventBus).
 //!
 //! Each [`EventHandler`] reacts to a class of [`McpEvent`] — lifecycle,
-//! health-check, monitoring, and database-sync — and is registered as a
-//! trait object on the bus.
+//! monitoring, and database-sync — and is registered as a trait object on the
+//! bus.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,11 +26,9 @@ pub trait EventHandler: Send + Sync {
 }
 
 pub mod database_sync;
-pub mod health_check;
 pub mod lifecycle;
 pub mod monitoring;
 
 pub use database_sync::DatabaseSyncHandler;
-pub use health_check::HealthCheckHandler;
 pub use lifecycle::LifecycleHandler;
 pub use monitoring::MonitoringHandler;

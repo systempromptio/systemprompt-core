@@ -372,6 +372,37 @@ async fn forwarding_client_sends_context_and_bearer_headers() {
         headers.get("x-static-extra").and_then(|v| v.to_str().ok()),
         Some("extra")
     );
+    assert_eq!(headers.get_all("authorization").iter().count(), 1);
+}
+
+#[tokio::test]
+async fn forwarding_client_with_transport_token_sends_one_authorization_header() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(202))
+        .mount(&server)
+        .await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    client
+        .post_message(
+            uri(&server),
+            ping(),
+            None,
+            Some("jwt-token".to_owned()),
+            HashMap::new(),
+        )
+        .await
+        .expect("accepted");
+
+    let requests = server.received_requests().await.expect("recorded");
+    let values: Vec<&str> = requests[0]
+        .headers
+        .get_all("authorization")
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .collect();
+    assert_eq!(values, vec!["Bearer jwt-token"]);
 }
 
 #[tokio::test]

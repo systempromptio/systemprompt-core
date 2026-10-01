@@ -60,14 +60,10 @@ async fn start_agent_unknown_agent_fails_before_spawn() {
 }
 
 #[tokio::test]
-async fn start_agent_unknown_agent_emits_request_without_creating_service_state() {
+async fn start_agent_unknown_agent_creates_no_service_state() {
     let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let bus = Arc::new(
-        systemprompt_agent::services::agent_orchestration::event_bus::AgentEventBus::new(8),
-    );
-    let mut events = bus.subscribe();
-    let lifecycle = lifecycle(&pool).with_event_bus(bus);
+    let lifecycle = lifecycle(&pool);
     let db = db_service(&pool);
     let name = unique_name("lc_unknown_event");
 
@@ -77,15 +73,12 @@ async fn start_agent_unknown_agent_emits_request_without_creating_service_state(
         .expect_err("an unknown agent cannot start");
     assert!(err.to_string().contains(&name));
     assert!(!db.agent_exists(&name).await.expect("service lookup"));
-
-    let event = events.try_recv().expect("start request event");
-    assert!(matches!(
-        event,
-        systemprompt_agent::services::agent_orchestration::events::AgentEvent::AgentStartRequested { agent_id }
-            if agent_id.as_str() == name
-    ));
     assert!(
-        events.try_recv().is_err(),
+        db.repository
+            .get_agent_status(&name)
+            .await
+            .expect("row lookup")
+            .is_none(),
         "config lookup fails before a process transition"
     );
 }
@@ -190,14 +183,10 @@ async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
 }
 
 #[tokio::test]
-async fn disable_with_event_bus_publishes_agent_disabled() {
+async fn disable_removes_the_service_row() {
     let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let bus = Arc::new(
-        systemprompt_agent::services::agent_orchestration::event_bus::AgentEventBus::new(16),
-    );
-    let mut events = bus.subscribe();
-    let lifecycle = lifecycle(&pool).with_event_bus(Arc::clone(&bus));
+    let lifecycle = lifecycle(&pool);
     let db = db_service(&pool);
 
     let name = unique_name("lc_bus_dis");
@@ -207,40 +196,24 @@ async fn disable_with_event_bus_publishes_agent_disabled() {
 
     lifecycle.disable_agent(&name).await.expect("disable");
 
-    let event = events.try_recv().expect("disable must publish an event");
-    match event {
-        systemprompt_agent::services::agent_orchestration::events::AgentEvent::AgentDisabled {
-            agent_id,
-        } => assert_eq!(agent_id.as_str(), name),
-        other => panic!("expected AgentDisabled, got {other:?}"),
-    }
+    assert!(
+        db.repository
+            .get_agent_status(&name)
+            .await
+            .expect("row lookup")
+            .is_none()
+    );
 }
 
 #[tokio::test]
-async fn restart_with_event_bus_publishes_restart_requested_before_failing() {
+async fn restart_unconfigured_agent_fails() {
     let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let bus = Arc::new(
-        systemprompt_agent::services::agent_orchestration::event_bus::AgentEventBus::new(16),
-    );
-    let mut events = bus.subscribe();
-    let lifecycle = lifecycle(&pool).with_event_bus(bus);
+    let lifecycle = lifecycle(&pool);
 
-    let name = unique_name("lc_bus_restart");
+    let name = unique_name("lc_restart_missing");
     let result = lifecycle.restart_agent(&name, None).await;
     assert!(result.is_err(), "unconfigured agent must not restart");
-
-    let event = events.try_recv().expect("restart must publish an event");
-    match event {
-        systemprompt_agent::services::agent_orchestration::events::AgentEvent::AgentRestartRequested {
-            agent_id,
-            reason,
-        } => {
-            assert_eq!(agent_id.as_str(), name);
-            assert!(reason.to_lowercase().contains("restart"));
-        },
-        other => panic!("expected AgentRestartRequested, got {other:?}"),
-    }
 }
 
 #[tokio::test]

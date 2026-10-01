@@ -46,9 +46,6 @@ mod artifact_publishing_e2e;
 mod agent_database_service_e2e;
 
 #[cfg(test)]
-mod agent_monitor_e2e;
-
-#[cfg(test)]
 #[cfg(test)]
 #[cfg(test)]
 mod a2a_streaming_harness;

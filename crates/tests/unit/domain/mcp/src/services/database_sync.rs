@@ -7,8 +7,7 @@
 use crate::harness::internal_mcp_config;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_mcp::services::database::sync::{
-    cleanup_stale_services, delete_crashed_services, delete_disabled_services,
-    reconcile_running_processes, repair_database_inconsistencies, sync_database_state,
+    cleanup_stale_services, delete_crashed_services, delete_disabled_services, sync_database_state,
 };
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -43,50 +42,6 @@ async fn sync_database_state_empty_servers_returns_ok() {
     )
     .unwrap();
     sync_database_state(&svc_repo, &[]).await.unwrap();
-}
-
-#[tokio::test]
-async fn reconcile_running_processes_reports_a_pidless_running_service() {
-    let db = test_db_pool().await;
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    let name = format!("sync-rec-{}", uuid::Uuid::new_v4().simple());
-    let port = 65515;
-    repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
-        port,
-        binary_mtime: None,
-    })
-    .await
-    .unwrap();
-
-    let discrepancies = reconcile_running_processes(&svc_repo).await.unwrap();
-    assert!(
-        discrepancies.iter().any(|d| d.contains(&name)),
-        "a running service with no live process is reported as a discrepancy"
-    );
-    repo.delete_service(&name).await.unwrap();
-}
-
-#[tokio::test]
-async fn repair_database_inconsistencies_runs() {
-    let db = test_db_pool().await;
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    repair_database_inconsistencies(&svc_repo).await.unwrap();
 }
 
 #[tokio::test]

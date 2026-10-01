@@ -49,6 +49,8 @@ pub const PHASE_REQUEST_HISTORY: &str = "request_history";
 
 pub const PHASE_RESPONSE: &str = "response";
 
+pub const CATEGORY_SCANNER_FAILURE: &str = "scanner_failure";
+
 #[derive(Debug, Clone)]
 pub struct Finding {
     pub phase: &'static str,
@@ -58,19 +60,54 @@ pub struct Finding {
     pub scanner: &'static str,
 }
 
+impl Finding {
+    #[must_use]
+    pub fn scanner_failure(phase: &'static str, scanner: &'static str, error: &ScanError) -> Self {
+        Self {
+            phase,
+            severity: Severity::High,
+            category: CATEGORY_SCANNER_FAILURE.to_owned(),
+            excerpt: Some(error.to_string()),
+            scanner,
+        }
+    }
+
+    #[must_use]
+    pub fn is_scanner_failure(&self) -> bool {
+        self.category == CATEGORY_SCANNER_FAILURE
+    }
+}
+
+/// Why a [`SafetyScanner`] could not produce a verdict. A failed scan is never
+/// read as clean: callers record it as a [`CATEGORY_SCANNER_FAILURE`] finding.
+#[derive(Debug, thiserror::Error)]
+pub enum ScanError {
+    #[error("safety scanner {scanner} failed: {reason}")]
+    Failed {
+        scanner: &'static str,
+        reason: String,
+    },
+}
+
 /// Built by the scanner registry as `Arc<dyn SafetyScanner>` and fanned out
 /// per request; `#[async_trait]` keeps it object-safe.
 #[async_trait]
 pub trait SafetyScanner: Send + Sync {
     fn name(&self) -> &'static str;
 
-    async fn scan_request(&self, req: &CanonicalRequest) -> Vec<Finding>;
+    async fn scan_request(&self, req: &CanonicalRequest) -> Result<Vec<Finding>, ScanError>;
 
-    async fn scan_request_history(&self, _req: &CanonicalRequest) -> Vec<Finding> {
-        Vec::new()
+    async fn scan_request_history(
+        &self,
+        _req: &CanonicalRequest,
+    ) -> Result<Vec<Finding>, ScanError> {
+        Ok(Vec::new())
     }
 
-    async fn scan_response_final(&self, response: &CanonicalResponse) -> Vec<Finding>;
+    async fn scan_response_final(
+        &self,
+        response: &CanonicalResponse,
+    ) -> Result<Vec<Finding>, ScanError>;
 }
 
 /// Constructs a scanner for one policy's [`SafetyConfig`], so per-policy

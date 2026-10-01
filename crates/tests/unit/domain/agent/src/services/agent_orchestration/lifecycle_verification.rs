@@ -103,7 +103,7 @@ async fn verify_startup_succeeds_against_live_listener() {
 }
 
 #[tokio::test]
-async fn verify_startup_times_out_and_marks_error() {
+async fn verify_startup_times_out_without_clearing_the_pid() {
     let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
@@ -122,6 +122,18 @@ async fn verify_startup_times_out_and_marks_error() {
         .await
         .expect_err("nothing listens on the probed port");
     assert!(err.to_string().contains(&name));
+
+    let row = db
+        .repository
+        .get_agent_status(&name)
+        .await
+        .expect("status")
+        .expect("row");
+    assert_eq!(
+        row.pid,
+        Some(i32::try_from(DEAD_PID).expect("pid fits")),
+        "the caller reaps the spawned process before the PID is cleared"
+    );
 
     db.remove_agent_service(&name).await.ok();
 }

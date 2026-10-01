@@ -24,6 +24,7 @@ fn registry_with(agents: Vec<AgentConfig>) -> AgentRegistry {
 
 #[tokio::test]
 async fn get_and_list_reflect_injected_config() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     let mut disabled = agent_config("beta");
     disabled.enabled = false;
     let registry = registry_with(vec![agent_config("alpha"), disabled]);
@@ -41,6 +42,7 @@ async fn get_and_list_reflect_injected_config() {
 
 #[tokio::test]
 async fn default_agent_resolution() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     let mut default_agent = agent_config("primary");
     default_agent.default = true;
     let registry = registry_with(vec![agent_config("other"), default_agent]);

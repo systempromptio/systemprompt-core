@@ -116,6 +116,14 @@ fn missing_scopes_reason(
     claims: &AgentJwtClaims,
     required_scopes: &[Permission],
 ) -> Option<String> {
+    if required_scopes.is_empty() {
+        tracing::warn!(
+            username = %claims.username,
+            "Access denied: agent requires OAuth but declares no scopes"
+        );
+        return Some("Agent requires OAuth but declares no scopes".to_owned());
+    }
+
     let has_required_scope = required_scopes.iter().any(|required_scope| {
         claims.permissions.iter().any(|user_perm| {
             Permission::from_str(user_perm).is_ok_and(|p| p.implies(required_scope))

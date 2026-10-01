@@ -7,7 +7,6 @@ fn test_consistency_report_new() {
     assert!(report.consistent_running.is_empty());
     assert!(report.inconsistent_running.is_empty());
     assert!(report.failed.is_empty());
-    assert!(report.orphaned_processes.is_empty());
 }
 
 #[test]
@@ -17,7 +16,6 @@ fn test_consistency_report_default() {
     assert!(report.consistent_running.is_empty());
     assert!(report.inconsistent_running.is_empty());
     assert!(report.failed.is_empty());
-    assert!(report.orphaned_processes.is_empty());
 }
 
 #[test]
@@ -41,29 +39,6 @@ fn test_consistency_report_has_inconsistencies_with_inconsistent_running() {
     report
         .inconsistent_running
         .push(("agent-1".to_string(), 1234));
-
-    assert!(report.has_inconsistencies());
-}
-
-#[test]
-fn test_consistency_report_has_inconsistencies_with_orphaned_processes() {
-    let mut report = ConsistencyReport::new();
-    report
-        .orphaned_processes
-        .push(("agent-1".to_string(), 5678));
-
-    assert!(report.has_inconsistencies());
-}
-
-#[test]
-fn test_consistency_report_has_inconsistencies_with_both() {
-    let mut report = ConsistencyReport::new();
-    report
-        .inconsistent_running
-        .push(("agent-1".to_string(), 1234));
-    report
-        .orphaned_processes
-        .push(("agent-2".to_string(), 5678));
 
     assert!(report.has_inconsistencies());
 }
@@ -95,15 +70,6 @@ fn test_consistency_report_total_agents_mixed() {
 }
 
 #[test]
-fn test_consistency_report_total_agents_excludes_orphaned() {
-    let mut report = ConsistencyReport::new();
-    report.consistent_running.push("a".to_string());
-    report.orphaned_processes.push(("orphan".to_string(), 999));
-
-    assert_eq!(report.total_agents(), 1);
-}
-
-#[test]
 fn test_consistency_report_total_agents_only_consistent() {
     let mut report = ConsistencyReport::new();
     report.consistent_running.push("a".to_string());
@@ -121,7 +87,6 @@ fn test_consistency_report_total_agents_only_inconsistent() {
 
     assert_eq!(report.total_agents(), 2);
 }
-
 
 #[test]
 fn test_consistency_report_log_summary_no_inconsistencies() {

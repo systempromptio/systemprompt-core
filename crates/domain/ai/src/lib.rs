@@ -59,14 +59,15 @@ pub use extension::AiExtension;
 pub use services::core::{AiService, AiServiceProviders, ImageService, ImageServiceParts};
 
 pub use services::gateway::{
-    Finding, GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry,
-    GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicConfig, HeuristicScanner,
-    IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
-    NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
-    OverrideError, OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY,
-    PHASE_RESPONSE, QuotaMode, QuotaWindow, RouteSelector, RouteSelectorEngine, RouteSelectorError,
-    RouteSelectorRegistration, SafetyConfig, SafetyHistoryMode, SafetyMode, SafetyScanner,
-    SafetyScannerRegistration, ScannerFactory, Severity, SystemPromptOverride,
+    CATEGORY_SCANNER_FAILURE, Finding, GATEWAY_POLICIES_FILE, GatewayPolicyConfig,
+    GatewayPolicyEntry, GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicConfig,
+    HeuristicScanner, IngestOptions as GatewayPolicyIngestOptions,
+    IngestReport as GatewayPolicyIngestReport, NullScanner, OverrideAction, OverrideContext,
+    OverrideContextBuilder, OverrideEngine, OverrideError, OverrideResolution, OverrideSource,
+    PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, QuotaMode, QuotaWindow, RouteSelector,
+    RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration, SafetyConfig,
+    SafetyHistoryMode, SafetyMode, SafetyScanner, SafetyScannerRegistration, ScanError,
+    ScannerFactory, Severity, SystemPromptOverride,
     SystemPromptOverrideRegistration, USER_QUOTA_SUBJECT,
     load_from_yaml as load_gateway_policies_from_yaml,
 };

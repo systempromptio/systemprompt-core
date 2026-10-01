@@ -14,7 +14,6 @@
 //! - [`services::tool_provider::McpToolProvider`] — tool-discovery + execution
 //!   facade.
 //! - [`middleware::rbac`] — JWT/proxy-verified RBAC layer.
-//! - [`orchestration`] — multi-server lifecycle/state management.
 //! - [`repository`] — Postgres persistence for sessions, artifacts, tool usage.
 //!
 //! # Feature matrix
@@ -41,7 +40,6 @@ pub(crate) mod extension;
 pub(crate) mod jobs;
 pub mod middleware;
 pub mod models;
-pub mod orchestration;
 pub(crate) mod progress;
 pub mod repository;
 pub(crate) mod resources;
@@ -99,12 +97,7 @@ pub use services::monitoring::status::McpServiceStatus;
 pub use services::registry::RegistryService;
 pub use services::registry::trait_impl::McpDeploymentProviderImpl;
 pub use services::tool_provider::McpToolProvider;
-pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator};
-
-pub use orchestration::{
-    McpServerConnectionInfo, McpServerMetadata, McpServiceState, McpToolLoader, ServerStatus,
-    ServiceStateService, SkillLoadingResult,
-};
+pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator, McpRestartOutcome};
 
 pub use systemprompt_models::mcp::{
     DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,

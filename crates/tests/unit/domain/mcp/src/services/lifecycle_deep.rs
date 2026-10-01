@@ -11,8 +11,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::database::sync::{
-    cleanup_stale_services, delete_crashed_services, reconcile_running_processes,
-    repair_database_inconsistencies, sync_database_state,
+    cleanup_stale_services, delete_crashed_services, sync_database_state,
 };
 use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
 use systemprompt_mcp::services::monitoring::MonitoringService;
@@ -196,57 +195,6 @@ async fn sync_database_state_marks_unhealthy_crashed() {
 
     let config = make_config(&name, port);
     sync_database_state(&repo, &[config]).await.unwrap();
-    repo.delete_service(&name).await.unwrap();
-}
-
-#[tokio::test]
-async fn reconcile_running_processes_reports_dead_ports() {
-    let (_, db) = make_lifecycle().await;
-    let name = format!("rec-{}", uuid::Uuid::new_v4().simple());
-    let port = 65524;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
-        port: port,
-        binary_mtime: None,
-    })
-    .await
-    .unwrap();
-
-    let discrepancies = reconcile_running_processes(&repo).await.unwrap();
-    assert!(
-        discrepancies.iter().any(|d| d.contains(&name)),
-        "a running service on a dead port is reported as a discrepancy"
-    );
-    repo.delete_service(&name).await.unwrap();
-}
-
-#[tokio::test]
-async fn repair_inconsistencies_marks_pidless_running_as_stopped() {
-    let (_, db) = make_lifecycle().await;
-    let name = format!("repair-{}", uuid::Uuid::new_v4().simple());
-    let port = 65523;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
-        port: port,
-        binary_mtime: None,
-    })
-    .await
-    .unwrap();
-    repair_database_inconsistencies(&repo).await.unwrap();
     repo.delete_service(&name).await.unwrap();
 }
 

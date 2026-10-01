@@ -10,7 +10,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::repository::agent_service::AgentServiceRepository;
+use crate::error::AgentError;
+use crate::repository::agent_service::{AgentServiceRepository, AgentServiceStatus};
 use crate::services::agent_orchestration::{
     AgentStatus, OrchestrationError, OrchestrationResult, process,
 };
@@ -60,51 +61,27 @@ impl AgentDatabaseService {
             .await
             .map_err(|e| OrchestrationError::Database(e.to_string()))?;
 
-        match row {
-            Some(r) => match (r.pid, r.status.as_str()) {
-                (Some(pid), "running") => {
-                    let (pid, port) = stored_process(pid, r.port)?;
-                    if process::process_exists(pid) {
-                        Ok(AgentStatus::Running { pid, port })
-                    } else {
-                        self.mark_failed(agent_name).await?;
-                        Ok(AgentStatus::Failed {
-                            reason: "Process died unexpectedly".to_owned(),
-                            last_attempt: None,
-                            retry_count: 0,
-                        })
-                    }
-                },
-                (_, "starting") => Ok(AgentStatus::Failed {
-                    reason: "Agent is starting".to_owned(),
-                    last_attempt: None,
-                    retry_count: 0,
-                }),
-                (_, "failed" | "crashed" | "stopped") => {
-                    let error_msg = self
-                        .get_error_message(agent_name)
-                        .await
-                        .unwrap_or_else(|_| "Unknown failure".to_owned());
-                    Ok(AgentStatus::Failed {
-                        reason: error_msg,
-                        last_attempt: None,
-                        retry_count: 0,
-                    })
-                },
-                _ => {
+        let Some(row) = row else {
+            return Ok(failed_status("No service record found"));
+        };
+
+        match row.status {
+            AgentServiceStatus::Running => {
+                let Some(pid) = row.pid else {
                     self.mark_failed(agent_name).await?;
-                    Ok(AgentStatus::Failed {
-                        reason: "Invalid database state".to_owned(),
-                        last_attempt: None,
-                        retry_count: 0,
-                    })
-                },
+                    return Ok(failed_status("Running row has no recorded process id"));
+                };
+                let (pid, port) = stored_process(pid, row.port)?;
+                if process::process_exists(pid) {
+                    Ok(AgentStatus::Running { pid, port })
+                } else {
+                    self.mark_failed(agent_name).await?;
+                    Ok(failed_status("Process died unexpectedly"))
+                }
             },
-            None => Ok(AgentStatus::Failed {
-                reason: "No service record found".to_owned(),
-                last_attempt: None,
-                retry_count: 0,
-            }),
+            AgentServiceStatus::Starting => Ok(failed_status("Agent is starting")),
+            AgentServiceStatus::Stopped => Ok(failed_status("Agent is stopped")),
+            AgentServiceStatus::Error => Ok(failed_status("Agent process failed")),
         }
     }
 
@@ -113,19 +90,6 @@ impl AgentDatabaseService {
             .mark_error(agent_name)
             .await
             .map_err(|e| OrchestrationError::Database(e.to_string()))
-    }
-
-    pub async fn get_error_message(&self, agent_name: &str) -> OrchestrationResult<String> {
-        let row = self
-            .repository
-            .get_agent_status(agent_name)
-            .await
-            .map_err(|e| OrchestrationError::Database(e.to_string()))?;
-
-        match row {
-            Some(r) => Ok(format!("Status: {}", r.status)),
-            None => Ok("No service record".to_owned()),
-        }
     }
 
     pub async fn list_running_agents(&self) -> OrchestrationResult<Vec<String>> {
@@ -157,11 +121,11 @@ impl AgentDatabaseService {
     }
 
     pub async fn agent_exists(&self, agent_name: &str) -> OrchestrationResult<bool> {
-        self.registry
-            .get_agent(agent_name)
-            .await
-            .map(|_| true)
-            .or_else(|_| Ok(false))
+        match self.registry.get_agent(agent_name).await {
+            Ok(_) => Ok(true),
+            Err(AgentError::NotFound(_)) => Ok(false),
+            Err(e) => Err(e.into()),
+        }
     }
 
     pub async fn get_agent_config(&self, agent_name: &str) -> OrchestrationResult<AgentConfig> {
@@ -175,42 +139,9 @@ impl AgentDatabaseService {
         Ok(agent_config)
     }
 
-    pub async fn cleanup_orphaned_services(&self) -> OrchestrationResult<u64> {
-        let rows = self
-            .repository
-            .list_running_agent_pids()
-            .await
-            .map_err(|e| OrchestrationError::Database(e.to_string()))?;
-
-        let mut cleaned = 0u64;
-
-        for row in rows {
-            let pid = u32::try_from(row.pid).map_err(|_negative| {
-                OrchestrationError::Database(format!("stored pid {} is not a process id", row.pid))
-            })?;
-            if !process::process_exists(pid) {
-                self.mark_failed(&row.name).await?;
-                cleaned += 1;
-            }
-        }
-
-        Ok(cleaned)
-    }
-
     pub async fn remove_agent_service(&self, agent_name: &str) -> OrchestrationResult<()> {
         self.repository
             .remove_agent_service(agent_name)
-            .await
-            .map_err(|e| OrchestrationError::Database(e.to_string()))
-    }
-
-    pub async fn update_health_status(
-        &self,
-        agent_name: &str,
-        health_status: &str,
-    ) -> OrchestrationResult<()> {
-        self.repository
-            .update_health_status(agent_name, health_status)
             .await
             .map_err(|e| OrchestrationError::Database(e.to_string()))
     }
@@ -252,24 +183,13 @@ impl AgentDatabaseService {
             .await
             .map_err(|e| OrchestrationError::Database(e.to_string()))
     }
+}
 
-    pub async fn get_unresponsive_agents(&self) -> OrchestrationResult<Vec<(String, Option<u32>)>> {
-        use crate::services::agent_orchestration::monitor::check_a2a_agent_health;
-
-        let agents = self.list_all_agents().await?;
-
-        let mut unresponsive = Vec::new();
-        for (agent_name, status) in agents {
-            if let AgentStatus::Running { pid, port, .. } = status {
-                let is_healthy = check_a2a_agent_health(port, 10).await.unwrap_or(false);
-
-                if !is_healthy {
-                    unresponsive.push((agent_name, Some(pid)));
-                }
-            }
-        }
-
-        Ok(unresponsive)
+fn failed_status(reason: &str) -> AgentStatus {
+    AgentStatus::Failed {
+        reason: reason.to_owned(),
+        last_attempt: None,
+        retry_count: 0,
     }
 }
 

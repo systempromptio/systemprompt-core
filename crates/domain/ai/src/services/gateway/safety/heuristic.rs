@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse};
 
 use super::{
-    Finding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyScanner, Severity,
+    Finding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyScanner, ScanError,
+    Severity,
 };
 use crate::services::gateway::spec::HeuristicConfig;
 
@@ -62,28 +63,34 @@ impl SafetyScanner for HeuristicScanner {
         "heuristic"
     }
 
-    async fn scan_request(&self, req: &CanonicalRequest) -> Vec<Finding> {
+    async fn scan_request(&self, req: &CanonicalRequest) -> Result<Vec<Finding>, ScanError> {
         let mut findings = Vec::new();
         for (_, text) in req.safety_parts(false) {
             scan_text(&self.phrases, PHASE_REQUEST, &text, &mut findings);
         }
-        findings
+        Ok(findings)
     }
 
-    async fn scan_request_history(&self, req: &CanonicalRequest) -> Vec<Finding> {
+    async fn scan_request_history(
+        &self,
+        req: &CanonicalRequest,
+    ) -> Result<Vec<Finding>, ScanError> {
         let mut findings = Vec::new();
         for (_, unit) in req.safety_parts(true) {
             scan_text(&self.phrases, PHASE_REQUEST_HISTORY, &unit, &mut findings);
         }
-        findings
+        Ok(findings)
     }
 
-    async fn scan_response_final(&self, response: &CanonicalResponse) -> Vec<Finding> {
+    async fn scan_response_final(
+        &self,
+        response: &CanonicalResponse,
+    ) -> Result<Vec<Finding>, ScanError> {
         let mut findings = Vec::new();
         for unit in response.content_units() {
             scan_text(&self.phrases, PHASE_RESPONSE, &unit, &mut findings);
         }
-        findings
+        Ok(findings)
     }
 }
 

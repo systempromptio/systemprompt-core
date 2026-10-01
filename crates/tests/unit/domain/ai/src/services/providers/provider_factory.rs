@@ -29,7 +29,7 @@ fn create(
         models: &models,
         default_model: None,
     };
-    ProviderFactory::create(&params, None).expect("factory creates the provider")
+    ProviderFactory::create(&params).expect("factory creates the provider")
 }
 
 mod create_tests {

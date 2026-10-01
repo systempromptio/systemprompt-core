@@ -1,7 +1,5 @@
-// DB-backed tests for AgentMonitor and
-// AgentDatabaseService::get_unresponsive_agents over an injected registry,
-// using a bound TcpListener as a live healthy port, a closed port as an
-// unhealthy one, and wiremock as an A2A card endpoint.
+// DB-backed tests for AgentMonitor over an injected registry, using a bound
+// TcpListener as a live healthy port and a closed port as an unhealthy one.
 
 use std::collections::HashMap;
 
@@ -11,13 +9,9 @@ use systemprompt_agent::services::agent_orchestration::monitor::AgentMonitor;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_models::ServicesConfig;
 use uuid::Uuid;
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::super::a2a_server::a2a_helpers::agent_config;
 use systemprompt_test_fixtures::test_db_pool;
-
-const DEAD_PID: u32 = 2_000_000_002;
 
 fn unique_name(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4().simple())
@@ -120,92 +114,3 @@ async fn health_check_fails_for_live_process_with_closed_port() {
     svc.remove_agent_service(&name).await.ok();
 }
 
-#[tokio::test]
-async fn monitor_all_agents_buckets_healthy_and_failed() {
-    let pool = test_db_pool().await;
-    let (listener, port) = free_port_listener().await;
-    let accept_loop = tokio::spawn(async move {
-        loop {
-            let _ = listener.accept().await;
-        }
-    });
-
-    let healthy = unique_name("mon_all_h");
-    let dead = unique_name("mon_all_d");
-    let svc = db_service_with(&pool, &[(&healthy, port), (&dead, 9421)]);
-    svc.register_agent(&healthy, std::process::id(), port)
-        .await
-        .expect("register healthy");
-    svc.register_agent(&dead, DEAD_PID, 9421)
-        .await
-        .expect("register dead");
-
-    let monitor =
-        AgentMonitor::with_db_service(db_service_with(&pool, &[(&healthy, port), (&dead, 9421)]));
-    let report = monitor.monitor_all_agents().await.expect("monitor all");
-    assert!(report.healthy.iter().any(|agent| agent == &healthy));
-    assert!(report.failed.iter().any(|agent| agent == &dead));
-    assert_eq!(report.total_agents(), 2);
-
-    accept_loop.abort();
-    svc.remove_agent_service(&healthy).await.ok();
-    svc.remove_agent_service(&dead).await.ok();
-}
-
-#[tokio::test]
-async fn unresponsive_agents_include_running_agent_without_card_endpoint() {
-    let pool = test_db_pool().await;
-    let (listener, port) = free_port_listener().await;
-    drop(listener);
-
-    let name = unique_name("mon_unresp");
-    let svc = db_service_with(&pool, &[(&name, port)]);
-    svc.register_agent(&name, std::process::id(), port)
-        .await
-        .expect("register");
-
-    let unresponsive = svc.get_unresponsive_agents().await.expect("unresponsive");
-    let entry = unresponsive
-        .iter()
-        .find(|(agent, _)| agent == &name)
-        .expect("agent listed unresponsive");
-    assert_eq!(entry.1, Some(std::process::id()));
-
-    svc.remove_agent_service(&name).await.ok();
-}
-
-#[tokio::test]
-async fn unresponsive_agents_skip_agent_serving_valid_card() {
-    let pool = test_db_pool().await;
-    let server = MockServer::start().await;
-    Mock::given(method("GET"))
-        .and(path("/.well-known/agent-card.json"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "name": "mock-agent",
-            "description": "mock",
-            "supportedInterfaces": [{
-                "url": "http://localhost/a2a",
-                "protocolBinding": "JSONRPC",
-                "protocolVersion": "0.3.0"
-            }],
-            "version": "1.0.0",
-            "capabilities": {},
-            "defaultInputModes": [],
-            "defaultOutputModes": [],
-            "skills": []
-        })))
-        .mount(&server)
-        .await;
-    let port = server.address().port();
-
-    let name = unique_name("mon_resp");
-    let svc = db_service_with(&pool, &[(&name, port)]);
-    svc.register_agent(&name, std::process::id(), port)
-        .await
-        .expect("register");
-
-    let unresponsive = svc.get_unresponsive_agents().await.expect("unresponsive");
-    assert!(!unresponsive.iter().any(|(agent, _)| agent == &name));
-
-    svc.remove_agent_service(&name).await.ok();
-}

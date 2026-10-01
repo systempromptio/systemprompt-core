@@ -73,12 +73,9 @@ fn the_gemini_trait_accessors_report_its_capabilities() {
         "anyOf is the one composition keyword Gemini does accept"
     );
     assert!(
-        provider.as_any().downcast_ref::<GeminiProvider>().is_some(),
-        "as_any must round-trip to the concrete provider"
-    );
-    assert!(
-        provider.as_any().downcast_ref::<OpenAiProvider>().is_none(),
-        "as_any must not succeed for a different provider type"
+        !provider.supports_structured_output(),
+        "Gemini's generate_structured does not honour the response format, so it must not \
+         advertise structured output"
     );
 }
 
@@ -117,16 +114,8 @@ fn the_openai_trait_accessors_report_its_capabilities_without_a_network_call() {
         "the OpenAI schema profile must accept allOf composition"
     );
     assert!(
-        provider.as_any().downcast_ref::<OpenAiProvider>().is_some(),
-        "as_any must round-trip to the concrete provider so callers can reach \
-         provider-specific behaviour"
-    );
-    assert!(
-        provider
-            .as_any()
-            .downcast_ref::<AnthropicProvider>()
-            .is_none(),
-        "as_any must not succeed for a different provider type"
+        provider.supports_structured_output(),
+        "OpenAI's generate_structured honours the response format"
     );
 }
 
@@ -140,9 +129,8 @@ fn the_anthropic_trait_accessors_report_its_capabilities() {
         "the Anthropic schema profile accepts oneOf composition"
     );
     assert!(
-        provider
-            .as_any()
-            .downcast_ref::<AnthropicProvider>()
-            .is_some()
+        !provider.supports_structured_output(),
+        "Anthropic's generate_structured does not honour the response format, so it must not \
+         advertise structured output"
     );
 }

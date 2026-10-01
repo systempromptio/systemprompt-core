@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use futures::{StreamExt, stream};
-use std::any::Any;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -68,7 +67,6 @@ async fn delegates_metadata() {
     let _ = r.supports_structured_output();
     let _ = r.supports_google_search();
     let _ = r.supports_sampling(None);
-    let _ = r.as_any();
 }
 
 #[tokio::test]
@@ -314,9 +312,6 @@ struct SequencedStreamProvider {
 impl AiProvider for SequencedStreamProvider {
     fn name(&self) -> &str {
         "sequenced"
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities::anthropic()

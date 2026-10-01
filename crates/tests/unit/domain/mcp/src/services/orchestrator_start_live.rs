@@ -246,3 +246,49 @@ async fn stop_services_terminates_a_running_server_and_publishes_stopped() {
     }
     assert!(saw_stopped, "stopping publishes ServiceStopped");
 }
+
+#[tokio::test]
+async fn restart_services_replaces_the_running_process_and_reports_it() {
+    let live = live_server("restartlive").await;
+
+    live.orchestrator
+        .start_services(Some(live.name.clone()))
+        .await
+        .expect("stub starts");
+    let first_pid = live
+        .repo
+        .find_service_by_name(&live.name)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|r| r.pid);
+
+    let outcomes = live
+        .orchestrator
+        .restart_services(Some(live.name.clone()))
+        .await;
+    let second_pid = live
+        .repo
+        .find_service_by_name(&live.name)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|r| r.pid);
+    live.teardown().await;
+
+    let outcomes = outcomes.expect("target listing succeeds");
+    assert_eq!(outcomes.len(), 1, "one outcome per targeted server");
+    assert_eq!(outcomes[0].service_name, live.name);
+    assert!(
+        outcomes[0].is_restarted(),
+        "restart failed: {:?}",
+        outcomes[0].result
+    );
+
+    let first_pid = first_pid.expect("first start registered a pid");
+    let second_pid = second_pid.expect("restart registered a pid");
+    assert_ne!(
+        first_pid, second_pid,
+        "restart replaces the process instead of only announcing it"
+    );
+}
