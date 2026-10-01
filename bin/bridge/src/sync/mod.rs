@@ -78,8 +78,15 @@ async fn ensure_device_enrolled(
     if crate::feedback::credentials::Enrollment::load(&root, fetch.client.base_url_str()).is_ok() {
         return;
     }
+    let Some(install_id) = bridge.durable_install_id() else {
+        tracing::warn!(
+            "install identity is not durable; device self-enrolment skipped so a throwaway \
+             identity is never enrolled"
+        );
+        return;
+    };
     let enrolment = crate::feedback::enrol::SelfEnrolment {
-        install_id: bridge.install_id().as_str(),
+        install_id: install_id.as_str(),
         user_id,
         label: crate::sysproc::host_name(),
         force_rotate: false,

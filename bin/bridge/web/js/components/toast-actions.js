@@ -2,12 +2,10 @@ import { bridge } from "/assets/js/bridge.js";
 import { repairHost } from "/assets/js/utils/host-actions.js";
 import { notifyErr, notifyOk } from "/assets/js/utils/notify.js";
 import { t } from "/assets/js/i18n.js";
+import { activateRailTab } from "/assets/js/utils/rail-tabs.js";
 
 function gotoStatus() {
-  const rail = document.querySelector("sp-rail");
-  if (rail && typeof rail.activateTab === "function") {
-    rail.activateTab("status");
-  }
+  activateRailTab("status");
 }
 
 function repairLabel() {

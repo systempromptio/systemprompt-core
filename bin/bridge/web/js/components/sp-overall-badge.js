@@ -24,9 +24,8 @@ function classify(snap, scope) {
   const fleets = snap.agent_fleet || {};
   const fleet = scope === "set-up" ? fleets.set_up : fleets.all;
   if (!fleet || fleet.total === 0) {
-    return scope === "set-up"
-      ? { text: "no agents set up", cls: "sp-badge--muted" }
-      : { text: "no agents enabled", cls: "sp-badge--muted" };
+    const key = scope === "set-up" ? "agents-fleet-none-set-up" : "agents-fleet-none-enabled";
+    return { text: t(key) || "", cls: "sp-badge--muted" };
   }
   return {
     text: fleetHeadline(fleet.headline) || "checking…",

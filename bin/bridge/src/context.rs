@@ -31,6 +31,7 @@ pub enum ProxyMode {
 pub struct BridgeContext {
     tasks: crate::tasks::TaskOwner,
     runtime: OwnedRuntime,
+    install_id_durable: bool,
     pub proxy: ProxyHandle,
     pub mcp_registry: Arc<McpRegistrySlot>,
     pub activity: ActivityLog,
@@ -92,11 +93,11 @@ impl BridgeContext {
         }
         let http = crate::gateway::build_http_client();
         let plugin_tokens = Arc::new(PluginTokenCache::default());
-        let install_id = match InstallId::establish() {
-            Ok(id) => id,
+        let (install_id, install_id_durable) = match InstallId::establish() {
+            Ok(id) => (id, true),
             Err(e) => {
                 faults.push(StartupFault::new("install identity", e));
-                InstallId::ephemeral()
+                (InstallId::ephemeral(), false)
             },
         };
         let deps = ProxyDeps {
@@ -113,6 +114,7 @@ impl BridgeContext {
         Ok(Arc::new(Self {
             tasks: crate::tasks::TaskOwner::new(runtime.handle(), activity.clone()),
             runtime,
+            install_id_durable,
             proxy,
             mcp_registry,
             activity,
@@ -136,6 +138,11 @@ impl BridgeContext {
     #[must_use]
     pub const fn install_id(&self) -> &InstallId {
         self.proxy.install_id()
+    }
+
+    #[must_use]
+    pub fn durable_install_id(&self) -> Option<&InstallId> {
+        self.install_id_durable.then(|| self.install_id())
     }
 
     #[must_use]

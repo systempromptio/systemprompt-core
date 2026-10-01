@@ -242,6 +242,7 @@ agents-fleet-needs-attention = needs attention
 agents-fleet-not-working = not working
 agents-fleet-checking = checking…
 agents-fleet-none-enabled = no agents enabled
+agents-fleet-none-set-up = no agents set up
 
 # Settings tab ----------------------------------------------------------------
 settings-heading = Settings
