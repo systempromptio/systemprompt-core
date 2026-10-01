@@ -26,6 +26,9 @@ pub(crate) fn policy_summary() -> Vec<String> {
         "source: {}",
         read.source_path.as_deref().unwrap_or("<no managed policy>")
     )];
+    if let Some(error) = read.probe_error.as_deref() {
+        lines.push(format!("read error: {error}"));
+    }
     if let Some(fp) = read.api_key_fp.as_deref() {
         lines.push(format!("api key fingerprint: {fp}"));
     }
