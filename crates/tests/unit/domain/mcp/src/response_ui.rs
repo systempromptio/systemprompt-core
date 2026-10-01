@@ -4,7 +4,9 @@
 //! `CallToolResult` out carrying server-rendered HTML for the host to mount.
 
 use rmcp::model::{CallToolResult, ResourceContents};
-use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::{ArtifactIngest, ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
@@ -26,6 +28,7 @@ fn ctx() -> RequestContext {
         TraceId::new("t"),
         ContextId::generate(),
         AgentName::try_new("a").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

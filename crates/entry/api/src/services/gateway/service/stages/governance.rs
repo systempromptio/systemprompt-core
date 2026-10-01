@@ -6,7 +6,7 @@
 use std::borrow::Cow;
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{CallId, PolicyId, SessionId};
+use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{
     AgentScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
@@ -42,7 +42,7 @@ pub(super) async fn record_governance_decision(
             client_id: ctx.client_id.clone(),
         },
         target: AuditTarget {
-            tool_name: GovernedTarget::Prompt.as_str().to_owned(),
+            tool_name: McpToolName::new(GovernedTarget::Prompt.as_str()),
             plugin_id: None,
             tool_use_id: None,
         },
@@ -50,7 +50,7 @@ pub(super) async fn record_governance_decision(
         approver: None,
         act_chain: Vec::new(),
         context_id: Some(ctx.context_id.clone()),
-        trace_id: ctx.trace_id.as_ref().map(|t| t.as_str().to_owned()),
+        trace_id: ctx.trace_id.clone(),
     };
     let pool = db.write_pool();
     record_decision(&pool, &decision_audit).await?;

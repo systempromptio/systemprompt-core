@@ -225,7 +225,7 @@ async fn build_domain_layer(
     let mut repositories = build_repositories(
         database,
         analytics_repositories,
-        systemprompt_identifiers::InstanceId::new(&config.instance_id),
+        config.instance_id.clone(),
     );
     let user_service = Arc::new(
         UserService::new(Arc::clone(&repositories.users))

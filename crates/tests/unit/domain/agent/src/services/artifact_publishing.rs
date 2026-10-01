@@ -13,7 +13,7 @@ use systemprompt_agent::services::artifact_publishing::{
     ArtifactPublishingService, PublishFromMcpParams,
 };
 use systemprompt_identifiers::{
-    Actor, AgentName, ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId,
+    Actor, AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::execution::CallSource;
 use systemprompt_models::execution::context::RequestContext;
@@ -54,7 +54,7 @@ fn artifact(
 ) -> Artifact {
     let mut metadata = ArtifactMetadata::new("text".to_owned(), ctx.clone(), tid.clone());
     if let Some(exec) = mcp_execution_id {
-        metadata = metadata.with_mcp_execution_id(exec.to_owned());
+        metadata = metadata.with_mcp_execution_id(McpExecutionId::new(exec));
     }
     Artifact {
         id: id.clone(),
@@ -74,6 +74,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
         TraceId::generate(),
         ctx.clone(),
         AgentName::try_new("pub-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     rc.auth.actor = Actor::user(user.clone());
     rc
@@ -163,7 +164,7 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
         .expect("get")
         .expect("present");
     assert_eq!(
-        fetched.metadata.mcp_execution_id.as_deref(),
+        fetched.metadata.mcp_execution_id.as_ref().map(|id| id.as_str()),
         Some(exec_id.as_str())
     );
 

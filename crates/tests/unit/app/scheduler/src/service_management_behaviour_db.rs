@@ -9,7 +9,10 @@
 //! reaps during teardown. Assertions cover both durable service state and
 //! cleanup dispositions.
 
-use systemprompt_database::{CreateServiceInput, ServiceConfig, ServiceRepository};
+use systemprompt_database::{
+    CreateServiceInput, ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus,
+};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_scheduler::{OrphanDisposition, ServiceManagementService};
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -72,19 +75,24 @@ impl Drop for PkillShim {
     }
 }
 
-fn unique_name(prefix: &str) -> String {
+fn unique_name(prefix: &str) -> ServiceName {
     use std::sync::atomic::{AtomicU64, Ordering};
     static SEQ: AtomicU64 = AtomicU64::new(0);
     let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    format!("{prefix}-{}-{}", std::process::id(), n)
+    ServiceName::new(format!("{prefix}-{}-{}", std::process::id(), n))
 }
 
-fn config_with_pid(name: &str, module: &str, port: i32, pid: Option<i32>) -> ServiceConfig {
+fn config_with_pid(
+    name: &ServiceName,
+    module: ServiceModule,
+    port: i32,
+    pid: Option<i32>,
+) -> ServiceConfig {
     ServiceConfig {
         instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: name.to_owned(),
-        module_name: module.to_owned(),
-        status: "running".to_owned(),
+        name: name.clone(),
+        module_name: module,
+        status: ServiceStatus::Running,
         pid,
         port,
         binary_mtime: None,
@@ -96,15 +104,15 @@ fn config_with_pid(name: &str, module: &str, port: i32, pid: Option<i32>) -> Ser
 
 async fn seed_running_row(
     repo: &ServiceRepository,
-    name: &str,
-    module: &str,
+    name: &ServiceName,
+    module: ServiceModule,
     port: u16,
     pid: Option<i32>,
 ) {
     repo.create_service(CreateServiceInput {
         name,
         module_name: module,
-        status: "running",
+        status: ServiceStatus::Running,
         port,
         binary_mtime: None,
     })
@@ -133,9 +141,9 @@ mod service_management_behaviour_db {
         );
 
         let name = unique_name("stop-no-pid");
-        seed_running_row(&repo, &name, "mcp", 0, None).await;
+        seed_running_row(&repo, &name, ServiceModule::Mcp, 0, None).await;
 
-        let config = config_with_pid(&name, "mcp", 0, None);
+        let config = config_with_pid(&name, ServiceModule::Mcp, 0, None);
         svc.stop_service(&config, false)
             .await
             .expect("stop_service must succeed for a pid-less service");
@@ -146,7 +154,8 @@ mod service_management_behaviour_db {
             .expect("read back")
             .expect("row must still exist");
         assert_eq!(
-            row.status, "stopped",
+            row.status,
+            ServiceStatus::Stopped,
             "stop_service must mark a pid-less service stopped"
         );
 
@@ -166,11 +175,11 @@ mod service_management_behaviour_db {
         );
 
         let name = unique_name("stop-dead-pid");
-        seed_running_row(&repo, &name, "mcp", 0, Some(DEAD_PID)).await;
+        seed_running_row(&repo, &name, ServiceModule::Mcp, 0, Some(DEAD_PID)).await;
 
         // DEAD_PID does not exist → process_exists short-circuits, no signal is
         // sent, and the row is still transitioned to stopped.
-        let config = config_with_pid(&name, "mcp", 0, Some(DEAD_PID));
+        let config = config_with_pid(&name, ServiceModule::Mcp, 0, Some(DEAD_PID));
         svc.stop_service(&config, true)
             .await
             .expect("stop_service must succeed even with force and a dead pid");
@@ -180,42 +189,7 @@ mod service_management_behaviour_db {
             .await
             .expect("read back")
             .expect("row exists");
-        assert_eq!(row.status, "stopped");
-
-        repo.delete_service(&name).await.expect("cleanup");
-    }
-
-    #[tokio::test]
-    async fn stop_service_unknown_module_does_not_signal_and_marks_stopped() {
-        let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
-
-        // module "worker" has no subprocess identity marker → pid_is_our_service
-        // returns false → the stored PID is cleared without signalling. We use
-        // our OWN live PID to prove the unknown-module guard, not pid liveness,
-        // is what suppresses the signal: the process must survive.
-        let name = unique_name("stop-unknown-mod");
-        let own_pid = i32::try_from(std::process::id()).expect("pid fits i32");
-        seed_running_row(&repo, &name, "worker", 0, Some(own_pid)).await;
-
-        let config = config_with_pid(&name, "worker", 0, Some(own_pid));
-        svc.stop_service(&config, true)
-            .await
-            .expect("stop_service must succeed for an unknown module type");
-
-        let row = repo
-            .find_service_by_name(&name)
-            .await
-            .expect("read back")
-            .expect("row exists");
-        assert_eq!(row.status, "stopped");
+        assert_eq!(row.status, ServiceStatus::Stopped);
 
         repo.delete_service(&name).await.expect("cleanup");
     }
@@ -228,7 +202,12 @@ mod service_management_behaviour_db {
             systemprompt_identifiers::InstanceId::new("test-instance"),
         ));
 
-        let config = config_with_pid("orphan-no-pid-never-seeded", "mcp", 0, None);
+        let config = config_with_pid(
+            &ServiceName::new("orphan-no-pid-never-seeded"),
+            ServiceModule::Mcp,
+            0,
+            None,
+        );
         let cleaned = svc
             .cleanup_orphaned_service(&config)
             .await
@@ -253,9 +232,9 @@ mod service_management_behaviour_db {
         );
 
         let name = unique_name("orphan-dead-pid");
-        seed_running_row(&repo, &name, "agent", 0, Some(DEAD_PID)).await;
+        seed_running_row(&repo, &name, ServiceModule::Agent, 0, Some(DEAD_PID)).await;
 
-        let config = config_with_pid(&name, "agent", 0, Some(DEAD_PID));
+        let config = config_with_pid(&name, ServiceModule::Agent, 0, Some(DEAD_PID));
         let cleaned = svc
             .cleanup_orphaned_service(&config)
             .await
@@ -270,7 +249,7 @@ mod service_management_behaviour_db {
             .await
             .expect("read back")
             .expect("row exists");
-        assert_eq!(row.status, "stopped");
+        assert_eq!(row.status, ServiceStatus::Stopped);
 
         repo.delete_service(&name).await.expect("cleanup");
     }
@@ -292,7 +271,7 @@ mod service_management_behaviour_db {
         );
 
         let name = unique_name("orphans-stale");
-        seed_running_row(&repo, &name, "mcp", 0, Some(DEAD_PID)).await;
+        seed_running_row(&repo, &name, ServiceModule::Mcp, 0, Some(DEAD_PID)).await;
 
         // Sweep on a port nothing in this test holds; the seeded row has a dead
         // stored PID so it is classified as a StaleEntry and marked stopped.
@@ -305,7 +284,7 @@ mod service_management_behaviour_db {
         let outcome = report
             .outcomes
             .iter()
-            .find(|o| o.name == name)
+            .find(|o| o.name == name.as_str())
             .expect("our seeded running row must appear in the orphan outcomes");
         assert_eq!(
             outcome.disposition,
@@ -320,7 +299,8 @@ mod service_management_behaviour_db {
             .expect("read back")
             .expect("row exists");
         assert_eq!(
-            row.status, "stopped",
+            row.status,
+            ServiceStatus::Stopped,
             "cleanup_all_orphans must mark the stale running row stopped"
         );
 
@@ -412,13 +392,12 @@ mod live_child_stop_paths {
         );
 
         let name = unique_name("smb-live-graceful");
-        let mut child = spawn_marked_sleep(&name);
+        let mut child = spawn_marked_sleep(name.as_str());
         let pid = child.id() as i32;
-        seed_running_row(&repo, &name, "agent", 27201, Some(pid)).await;
+        seed_running_row(&repo, &name, ServiceModule::Agent, 27201, Some(pid)).await;
 
-        svc.stop_service(&config_with_pid(&name, "agent", 27201, Some(pid)), false)
-            .await
-            .expect("stop_service");
+        let config = config_with_pid(&name, ServiceModule::Agent, 27201, Some(pid));
+        svc.stop_service(&config, false).await.expect("stop_service");
 
         wait_until_dead(&mut child).await;
 
@@ -427,7 +406,7 @@ mod live_child_stop_paths {
             .await
             .expect("find service")
             .expect("row present");
-        assert_eq!(row.status, "stopped");
+        assert_eq!(row.status, ServiceStatus::Stopped);
 
         repo.delete_service(&name).await.expect("cleanup row");
     }
@@ -445,11 +424,12 @@ mod live_child_stop_paths {
         );
 
         let name = unique_name("smb-live-force");
-        let mut child = spawn_marked_sleep(&name);
+        let mut child = spawn_marked_sleep(name.as_str());
         let pid = child.id() as i32;
-        seed_running_row(&repo, &name, "agent", 27202, Some(pid)).await;
+        seed_running_row(&repo, &name, ServiceModule::Agent, 27202, Some(pid)).await;
 
-        svc.stop_service(&config_with_pid(&name, "agent", 27202, Some(pid)), true)
+        let config = config_with_pid(&name, ServiceModule::Agent, 27202, Some(pid));
+        svc.stop_service(&config, true)
             .await
             .expect("stop_service force");
 
@@ -460,7 +440,7 @@ mod live_child_stop_paths {
             .await
             .expect("find service")
             .expect("row present");
-        assert_eq!(row.status, "stopped");
+        assert_eq!(row.status, ServiceStatus::Stopped);
 
         repo.delete_service(&name).await.expect("cleanup row");
     }
@@ -480,11 +460,10 @@ mod live_child_stop_paths {
         let name = unique_name("smb-live-unmarked");
         let mut child = spawn_unmarked_sleep();
         let pid = child.id() as i32;
-        seed_running_row(&repo, &name, "agent", 27203, Some(pid)).await;
+        seed_running_row(&repo, &name, ServiceModule::Agent, 27203, Some(pid)).await;
 
-        svc.stop_service(&config_with_pid(&name, "agent", 27203, Some(pid)), false)
-            .await
-            .expect("stop_service");
+        let config = config_with_pid(&name, ServiceModule::Agent, 27203, Some(pid));
+        svc.stop_service(&config, false).await.expect("stop_service");
 
         assert!(
             ProcessCleanup::process_exists(pid as u32),
@@ -495,7 +474,11 @@ mod live_child_stop_paths {
             .await
             .expect("find service")
             .expect("row present");
-        assert_eq!(row.status, "stopped", "the row is still marked stopped");
+        assert_eq!(
+            row.status,
+            ServiceStatus::Stopped,
+            "the row is still marked stopped"
+        );
 
         child.kill().ok();
         let _ = child.wait();
@@ -515,12 +498,13 @@ mod live_child_stop_paths {
         );
 
         let name = unique_name("smb-live-orphan");
-        let mut child = spawn_marked_sleep(&name);
+        let mut child = spawn_marked_sleep(name.as_str());
         let pid = child.id() as i32;
-        seed_running_row(&repo, &name, "agent", 27204, Some(pid)).await;
+        seed_running_row(&repo, &name, ServiceModule::Agent, 27204, Some(pid)).await;
 
+        let config = config_with_pid(&name, ServiceModule::Agent, 27204, Some(pid));
         let acted = svc
-            .cleanup_orphaned_service(&config_with_pid(&name, "agent", 27204, Some(pid)))
+            .cleanup_orphaned_service(&config)
             .await
             .expect("cleanup_orphaned_service");
         assert!(acted, "a live orphan must be reported as acted upon");
@@ -532,7 +516,7 @@ mod live_child_stop_paths {
             .await
             .expect("find service")
             .expect("row present");
-        assert_eq!(row.status, "stopped");
+        assert_eq!(row.status, ServiceStatus::Stopped);
 
         repo.delete_service(&name).await.expect("cleanup row");
     }
@@ -553,9 +537,9 @@ mod live_child_stop_paths {
         );
 
         let name = unique_name("smb-live-sweep");
-        let mut child = spawn_marked_sleep(&name);
+        let mut child = spawn_marked_sleep(name.as_str());
         let pid = child.id() as i32;
-        seed_running_row(&repo, &name, "agent", 27205, Some(pid)).await;
+        seed_running_row(&repo, &name, ServiceModule::Agent, 27205, Some(pid)).await;
 
         let report = svc
             .cleanup_all_orphans(0)
@@ -566,7 +550,7 @@ mod live_child_stop_paths {
         let outcome = report
             .outcomes
             .iter()
-            .find(|o| o.name == name)
+            .find(|o| o.name == name.as_str())
             .expect("the live-pid row must appear in the report");
         assert_eq!(
             outcome.disposition,
@@ -650,7 +634,12 @@ mod dead_pool_degradation {
         ));
 
         svc.stop_service(
-            &config_with_pid("smb-dead-pool-stop", "agent", 27301, None),
+            &config_with_pid(
+                &ServiceName::new("smb-dead-pool-stop"),
+                ServiceModule::Agent,
+                27301,
+                None,
+            ),
             false,
         )
         .await
@@ -667,8 +656,8 @@ mod dead_pool_degradation {
 
         let acted = svc
             .cleanup_orphaned_service(&config_with_pid(
-                "smb-dead-pool-orphan",
-                "agent",
+                &ServiceName::new("smb-dead-pool-orphan"),
+                ServiceModule::Agent,
                 27302,
                 Some(DEAD_PID),
             ))

@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::AiToolCallId;
+use systemprompt_identifiers::JwtToken;
 use systemprompt_models::RequestContext;
 use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_traits::{
@@ -44,7 +44,7 @@ pub fn definition_to_mcp_tool(def: &ToolDefinition) -> McpTool {
 
 pub fn tool_call_to_request(call: &ToolCall) -> ToolCallRequest {
     ToolCallRequest {
-        tool_call_id: call.ai_tool_call_id.to_string(),
+        tool_call_id: call.ai_tool_call_id.clone(),
         name: call.name.clone(),
         arguments: call.arguments.clone(),
     }
@@ -52,7 +52,7 @@ pub fn tool_call_to_request(call: &ToolCall) -> ToolCallRequest {
 
 pub fn request_to_tool_call(request: &ToolCallRequest) -> ToolCall {
     ToolCall {
-        ai_tool_call_id: AiToolCallId::new(request.tool_call_id.clone()),
+        ai_tool_call_id: request.tool_call_id.clone(),
         name: request.name.clone(),
         arguments: request.arguments.clone(),
     }
@@ -135,7 +135,8 @@ pub fn trait_result_to_rmcp_result(result: &TraitToolCallResult) -> CallToolResu
 }
 
 pub fn request_context_to_tool_context(ctx: &RequestContext) -> ToolContext {
-    let mut tool_ctx = ToolContext::new(ctx.actor().clone(), ctx.auth_token().as_str())
+    let auth_token = ctx.auth_token().map_or("", JwtToken::as_str);
+    let mut tool_ctx = ToolContext::new(ctx.actor().clone(), auth_token)
         .with_session_id(ctx.session_id().clone())
         .with_trace_id(ctx.trace_id().clone())
         .with_header("x-context-id", ctx.context_id().as_str())

@@ -1010,7 +1010,7 @@ fn a_tracked_native_hook_replaces_caller_evidence_and_persists_its_session() {
             let enrollment = systemprompt_bridge::feedback::credentials::Enrollment::new(
                 &gateway.uri(),
                 systemprompt_identifiers::DeviceId::try_new("hook-device").unwrap(),
-                systemprompt_identifiers::UserId::new("hook-consumer"),
+                systemprompt_identifiers::UserId::new("00000000-0000-4000-8000-00000000400c"),
                 systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
             )
             .unwrap();

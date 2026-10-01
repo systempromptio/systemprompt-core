@@ -12,7 +12,7 @@
 
 use uuid::Uuid;
 
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 
 use super::generation::{JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt};
@@ -44,7 +44,7 @@ impl PluginTokenService {
     ) -> OauthResult<IssuedPluginToken> {
         let permissions = vec![Permission::HookGovern, Permission::HookTrack];
         let authenticated = AuthenticatedUser::new_with_roles(
-            subject.id,
+            UserId::from_uuid(subject.id),
             subject.username,
             subject.email,
             permissions.clone(),

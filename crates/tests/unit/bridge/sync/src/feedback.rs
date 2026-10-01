@@ -58,7 +58,7 @@ fn plan(host: EvaluatorClient) -> ConsumerInstallationPlan {
 fn scope(device: &str) -> OutboxScope {
     OutboxScope {
         gateway: GatewayOrigin::parse("https://example.invalid").unwrap(),
-        consumer_id: UserId::new("consumer"),
+        consumer_id: UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         device_id: DeviceId::try_new(device).expect("nonempty fixture device"),
     }
 }

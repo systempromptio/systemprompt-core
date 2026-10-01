@@ -20,7 +20,7 @@ use axum::http::{Request, Response, header};
 use axum::middleware::{self, Next};
 use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_api::routes::oauth::public_router;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::profile::TrustedIssuer;
@@ -80,6 +80,7 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
         TraceId::new("token-exchange-oidc"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     ));
     next.run(req).await
 }

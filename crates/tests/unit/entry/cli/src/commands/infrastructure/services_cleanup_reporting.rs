@@ -8,15 +8,15 @@ use systemprompt_cli::infrastructure::services::cleanup::{
     dry_run_result, format_cleanup_message, no_services_result,
 };
 use systemprompt_cli::shared::CommandOutput;
-use systemprompt_database::ServiceConfig;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_database::{ServiceConfig, ServiceModule, ServiceStatus};
+use systemprompt_identifiers::{InstanceId, ServiceName};
 
 fn service(name: &str, pid: Option<i32>, port: i32) -> ServiceConfig {
     ServiceConfig {
         instance_id: InstanceId::new(format!("instance_{}", uuid::Uuid::new_v4().simple())),
-        name: name.to_owned(),
-        module_name: "mcp".to_owned(),
-        status: "running".to_owned(),
+        name: ServiceName::new(name),
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         pid,
         port,
         binary_mtime: None,

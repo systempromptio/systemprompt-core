@@ -12,7 +12,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{PgExecutor, PgPool};
-use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentId, ClientId, ContextId, PluginId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::errors::RepositoryError;
 
 use crate::authz::types::DecisionTag;
@@ -24,9 +26,9 @@ pub const AUDIT_WRITE_FAILED_TOTAL: &str = "governance_audit_write_failed_total"
 pub struct GovernanceDecisionRecord<'a> {
     pub id: &'a str,
     pub actor: &'a Actor,
-    pub session_id: &'a str,
+    pub session_id: Option<&'a SessionId>,
     pub tool_name: &'a str,
-    pub agent_id: Option<&'a str>,
+    pub agent_id: Option<&'a AgentId>,
     pub agent_scope: Option<AccessScope>,
     pub decision: DecisionTag,
     pub policy: &'a str,
@@ -34,12 +36,12 @@ pub struct GovernanceDecisionRecord<'a> {
     // JSON: governance audit blob — typed `DecisionAudit` on the writing side;
     // payload shape is documented in CHANGELOG and rendered by the dashboard.
     pub evaluated_rules: &'a serde_json::Value,
-    pub plugin_id: Option<&'a str>,
+    pub plugin_id: Option<&'a PluginId>,
     pub act_chain: &'a [Actor],
-    pub context_id: &'a str,
-    pub task_id: Option<&'a str>,
-    pub trace_id: Option<&'a str>,
-    pub client_id: Option<&'a str>,
+    pub context_id: &'a ContextId,
+    pub task_id: Option<&'a TaskId>,
+    pub trace_id: Option<&'a TraceId>,
+    pub client_id: Option<&'a ClientId>,
     pub tool_use_id: Option<&'a str>,
 }
 
@@ -76,6 +78,10 @@ where
     let actor_id = record.actor.kind.actor_id(&record.actor.user_id);
     let act_chain =
         serde_json::to_value(record.act_chain).unwrap_or_else(|_| serde_json::json!([]));
+    // Why: `governance_decisions.session_id` is NOT NULL; a decision taken
+    // outside any session is stored as the empty string the column has always
+    // carried for that case.
+    let session_id = record.session_id.map_or("", SessionId::as_str);
     let result = sqlx::query!(
         "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, agent_id, \
          agent_scope, decision, policy, reason, evaluated_rules, plugin_id, actor_kind, actor_id, \
@@ -83,22 +89,22 @@ where
          $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)",
         record.id,
         record.actor.user_id.as_str(),
-        record.session_id,
+        session_id,
         record.tool_name,
-        record.agent_id,
+        record.agent_id.map(AgentId::as_str),
         record.agent_scope.map(AccessScope::as_str),
         record.decision.as_str(),
         record.policy,
         record.reason,
         record.evaluated_rules,
-        record.plugin_id,
+        record.plugin_id.map(PluginId::as_str),
         actor_kind.as_str(),
         actor_id,
         act_chain,
-        record.context_id,
-        record.task_id,
-        record.trace_id,
-        record.client_id,
+        record.context_id.as_str(),
+        record.task_id.map(TaskId::as_str),
+        record.trace_id.map(TraceId::as_str),
+        record.client_id.map(ClientId::as_str),
         record.tool_use_id,
     )
     .execute(executor)
@@ -110,7 +116,7 @@ where
             actor_id,
             policy = record.policy,
             decision = record.decision.as_str(),
-            session_id = record.session_id,
+            session_id,
             "governance_decisions insert failed; audit row dropped"
         );
         metrics::counter!(

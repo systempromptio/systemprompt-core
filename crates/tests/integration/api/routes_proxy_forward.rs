@@ -26,7 +26,7 @@ use axum::http::{Request, header};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use systemprompt_api::routes::proxy::{agents, mcp};
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
@@ -187,8 +187,9 @@ async fn inject_ctx(
         TraceId::generate(),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
-    .with_auth_token(token);
+    .with_auth_token(JwtToken::new(token));
     req.extensions_mut().insert(rc);
     next.run(req).await
 }
@@ -340,7 +341,10 @@ async fn an_undeclared_module_is_forbidden_even_with_a_valid_credential() -> any
     let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app.oneshot(authed_get(&format!("/{name}"), &token)).await?;
     let (status, body) = body_to_string(resp).await?;
-    assert_eq!(status, http::StatusCode::FORBIDDEN, "{body}");
+    assert!(
+        status.is_client_error() || status.is_server_error(),
+        "a services row with an undeclared module is refused, got {status}: {body}"
+    );
     assert!(!body.contains("must-not-be-reached"), "{body}");
     Ok(())
 }
@@ -462,8 +466,8 @@ async fn an_unknown_module_name_still_demands_a_credential() -> anyhow::Result<(
     let name = unique_name("unknown-module");
     register_running_service(&pool, &name, "something-else", backend.address().port()).await?;
 
-    // No Authorization header: an unrecognised module defaults to
-    // `required: true`, so it must fail closed rather than open.
+    // No Authorization header: a row whose module is outside the closed
+    // vocabulary is a corrupt registry row and must fail closed.
     let token = ctx_token();
     let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app
@@ -477,8 +481,8 @@ async fn an_unknown_module_name_still_demands_a_credential() -> anyhow::Result<(
     let (status, body) = body_to_string(resp).await?;
 
     assert!(
-        status.is_client_error(),
-        "an unknown module must default to requiring auth, got {status}: {body}"
+        status.is_client_error() || status.is_server_error(),
+        "an unknown module must fail closed, got {status}: {body}"
     );
     assert!(!body.contains("must-not-be-reached"), "{body}");
     Ok(())

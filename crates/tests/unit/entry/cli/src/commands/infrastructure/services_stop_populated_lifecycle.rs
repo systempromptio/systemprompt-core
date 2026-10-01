@@ -9,7 +9,8 @@ use clap::Parser;
 use serde_json::Value;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_database::CreateServiceInput;
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
 };
@@ -52,21 +53,28 @@ async fn populated_stop_helper() {
     let app = test_app_context(&pool, database.url());
     let repository = app.service_repository().clone();
     for (name, module, port) in [
-        ("owned-stop-agent", "agent", 9311),
-        ("owned-stop-mcp", "mcp", 9312),
-        ("owned-stop-control", "api-control", 9313),
+        ("owned-stop-agent", ServiceModule::Agent, 9311),
+        ("owned-stop-mcp", ServiceModule::Mcp, 9312),
     ] {
         repository
             .create_service(CreateServiceInput {
-                name,
+                name: &ServiceName::new(name),
                 module_name: module,
-                status: "running",
+                status: ServiceStatus::Running,
                 port,
                 binary_mtime: None,
             })
             .await
             .expect("seed scoped running service");
     }
+    sqlx::query(
+        "INSERT INTO services (instance_id, name, module_name, status, port) VALUES ($1, \
+         'owned-stop-control', 'api-control', 'running', 9313)",
+    )
+    .bind(repository.instance_id().as_str())
+    .execute(pool.write_pool().as_ref())
+    .await
+    .expect("seed a row of a module the grouped stop does not select");
     let ctx = CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)

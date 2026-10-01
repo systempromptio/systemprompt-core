@@ -132,6 +132,7 @@ scripts/*
 !scripts/lint-schema.sh
 !scripts/lint-extensions.sh
 !scripts/lint-raw-ids.sh
+!scripts/lint-raw-ids-strict.sh
 !scripts/lint-authoritative-reads.sh
 !scripts/lint-field-copy-from.py
 !scripts/check-sqlx.sh

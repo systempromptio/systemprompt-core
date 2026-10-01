@@ -16,7 +16,7 @@ use axum::middleware::from_fn;
 use axum::routing::any;
 use http::Method;
 use systemprompt_api::services::middleware::{AuthzPolicy, authz_gate};
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use tower::ServiceExt;
@@ -27,6 +27,7 @@ fn anon_context() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("test").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -36,9 +37,9 @@ fn user_context(kind: UserType) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("test").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new("u")),
     )
     .with_user_type(kind)
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new("u")))
 }
 
 fn gate_app(policy: AuthzPolicy, ctx: Option<RequestContext>) -> Router {

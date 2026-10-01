@@ -29,7 +29,7 @@ pub async fn agent_oauth_middleware(
         StatusCode::UNAUTHORIZED
     })?;
 
-    let has_auth_token = !context.auth_token().as_str().is_empty();
+    let has_auth_token = context.auth_token().is_some();
     tracing::debug!(
         has_auth_header = has_auth_header,
         has_auth_token = has_auth_token,

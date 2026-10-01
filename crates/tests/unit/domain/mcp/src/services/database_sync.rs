@@ -5,7 +5,8 @@
 //! without spawning real processes.
 
 use crate::harness::internal_mcp_config;
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::sync::{
     cleanup_stale_services, delete_crashed_services, delete_disabled_services, sync_database_state,
 };
@@ -48,13 +49,13 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
-    let keep = format!("sync-keep-{}", uuid::Uuid::new_v4().simple());
-    let drop_name = format!("sync-drop-{}", uuid::Uuid::new_v4().simple());
+    let keep = ServiceName::new(format!("sync-keep-{}", uuid::Uuid::new_v4().simple()));
+    let drop_name = ServiceName::new(format!("sync-drop-{}", uuid::Uuid::new_v4().simple()));
     for (name, port) in [(&keep, 65514u16), (&drop_name, 65513u16)] {
         repo.create_service(CreateServiceInput {
             name,
-            module_name: "mcp",
-            status: "stopped",
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Stopped,
             port,
             binary_mtime: None,
         })
@@ -62,7 +63,7 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
         .unwrap();
     }
 
-    let enabled = [internal_mcp_config(&keep, 65514)];
+    let enabled = [internal_mcp_config(keep.as_str(), 65514)];
     let deleted = delete_disabled_services(
         &ServiceRepository::new(
             &db,

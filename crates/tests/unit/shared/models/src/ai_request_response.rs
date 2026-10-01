@@ -4,7 +4,9 @@
 //! nested-path resolution.
 
 use serde_json::{Value, json};
-use systemprompt_identifiers::{AgentName, ContextId, McpServerId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpServerId, SessionId, TraceId, UserId,
+};
 use systemprompt_models::ai::execution_plan::ToolCallResult;
 use systemprompt_models::ai::{
     AiContentPart, AiMessage, AiRequest, AiResponse, McpTool, MessageRole, SamplingParams,
@@ -19,6 +21,7 @@ fn request_context() -> RequestContext {
         TraceId::new("trace-air"),
         ContextId::try_new("00000000-0000-4000-8000-0000000000aa").expect("valid ContextId"),
         AgentName::try_new("air-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -147,7 +150,13 @@ fn response_builders_populate_fields() {
 
 #[test]
 fn response_default_omits_optional_fields_on_the_wire() {
-    let wire = serde_json::to_value(AiResponse::default()).expect("serialize");
+    let response = AiResponse::new(
+        uuid::Uuid::new_v4(),
+        String::new(),
+        String::new(),
+        String::new(),
+    );
+    let wire = serde_json::to_value(response).expect("serialize");
     let obj = wire.as_object().expect("object");
 
     assert!(!obj.contains_key("tokens_used"));

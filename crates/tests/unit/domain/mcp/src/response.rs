@@ -2,7 +2,9 @@
 //! Full `build()` exercises the artifact repository, which requires a live
 //! database — only the pure helpers are covered here.
 
-use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::{ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
@@ -13,6 +15,7 @@ fn test_request_context() -> RequestContext {
         TraceId::new("t"),
         ContextId::try_new("00000000-0000-4000-8000-000000000001").expect("valid ContextId"),
         AgentName::try_new("a").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

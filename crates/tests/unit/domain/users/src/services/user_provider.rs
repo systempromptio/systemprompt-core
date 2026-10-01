@@ -6,7 +6,7 @@
 //! - is_active logic in conversion
 
 use chrono::Utc;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 use systemprompt_traits::AuthUser;
 use systemprompt_users::User;
 
@@ -36,7 +36,7 @@ mod auth_user_conversion_tests {
         let user = create_test_user();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "test-user");
+        assert_eq!(auth_user.id, FIXTURE_USER_ID);
     }
 
     #[test]
@@ -167,7 +167,7 @@ mod auth_user_conversion_tests {
         user.id = fixture_user_id();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "test-user");
+        assert_eq!(auth_user.id, FIXTURE_USER_ID);
     }
 
     #[test]
@@ -176,7 +176,7 @@ mod auth_user_conversion_tests {
         user.id = fixture_user_id();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "test-user");
+        assert_eq!(auth_user.id, FIXTURE_USER_ID);
     }
 }
 
@@ -220,7 +220,7 @@ mod edge_case_tests {
 
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "test-user");
+        assert_eq!(auth_user.id, FIXTURE_USER_ID);
         assert_eq!(auth_user.name, "");
         assert_eq!(auth_user.email, "");
         assert!(auth_user.is_active);

@@ -136,8 +136,8 @@ pub fn authenticate(
 }
 
 fn presenting_host(presented: &str, secret: &ProxySecret) -> Option<HostId> {
-    systemprompt_models::bridge::profile::KNOWN_HOSTS
+    systemprompt_models::bridge::host::HostKind::ALL
         .iter()
-        .map(|id| HostId::new(*id))
+        .map(|kind| HostId::new(kind.as_str()))
         .find(|host| scoped_token::verify(presented, secret, &TokenScope::Host(host.clone())))
 }

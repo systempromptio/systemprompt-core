@@ -7,6 +7,7 @@
 use std::future::Future;
 
 use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_identifiers::ServiceName;
 
 use super::process_cleanup::ProcessCleanup;
 use super::service_records::ServiceConfig;
@@ -188,12 +189,14 @@ impl ServiceReconciler {
     }
 
     async fn cleanup_db_entry(&self, name: &str) -> SchedulerResult<()> {
-        self.services.delete_service(name).await?;
+        self.services.delete_service(&ServiceName::new(name)).await?;
         Ok(())
     }
 
     async fn update_service_stopped(&self, name: &str) -> SchedulerResult<()> {
-        self.services.update_service_stopped(name).await?;
+        self.services
+            .update_service_stopped(&ServiceName::new(name))
+            .await?;
         Ok(())
     }
 }

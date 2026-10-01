@@ -14,7 +14,8 @@ use std::time::Duration;
 use systemprompt_api::services::health::{
     HealthChecker, HealthSummary, ModuleHealth, ProcessMonitor,
 };
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -28,23 +29,24 @@ fn unique_name(prefix: &str) -> String {
 async fn register_running(
     pool: &systemprompt_database::DbPool,
     name: &str,
-    module: &str,
+    module: ServiceModule,
     pid: Option<i32>,
 ) -> anyhow::Result<()> {
     let repo = ServiceRepository::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
+    let name = ServiceName::new(name);
     repo.create_service(CreateServiceInput {
-        name,
+        name: &name,
         module_name: module,
-        status: "running",
+        status: ServiceStatus::Running,
         port: 0,
         binary_mtime: None,
     })
     .await?;
     if let Some(pid) = pid {
-        repo.update_service_pid(name, pid).await?;
+        repo.update_service_pid(&name, pid).await?;
     }
     Ok(())
 }
@@ -104,7 +106,7 @@ async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let name = unique_name("hc-live");
     let own_pid = std::process::id() as i32;
-    register_running(&pool, &name, "custom", Some(own_pid)).await?;
+    register_running(&pool, &name, ServiceModule::Agent, Some(own_pid)).await?;
 
     let monitor = ProcessMonitor::new(ServiceRepository::new(
         &pool,
@@ -114,8 +116,8 @@ async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
 
     assert!(summary.total_healthy() >= 1, "own PID should be healthy");
     assert!(
-        summary.modules.contains_key("custom"),
-        "custom module present in summary"
+        summary.modules.contains_key("agent"),
+        "agent module present in summary"
     );
     Ok(())
 }
@@ -123,9 +125,8 @@ async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
 #[tokio::test]
 async fn health_check_all_counts_dead_pid_as_crashed() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let module = unique_name("mod-dead");
     let name = unique_name("hc-dead");
-    register_running(&pool, &name, &module, Some(dead_pid())).await?;
+    register_running(&pool, &name, ServiceModule::Mcp, Some(dead_pid())).await?;
 
     let monitor = ProcessMonitor::new(ServiceRepository::new(
         &pool,
@@ -133,9 +134,11 @@ async fn health_check_all_counts_dead_pid_as_crashed() -> anyhow::Result<()> {
     ));
     let summary = monitor.health_check_all().await?;
 
-    let health = summary.modules.get(&module).copied().unwrap_or_default();
-    assert_eq!(health.crashed, 1, "dead PID marked crashed for its module");
-    assert_eq!(health.healthy, 0);
+    let health = summary.modules.get("mcp").copied().unwrap_or_default();
+    assert!(
+        health.crashed >= 1,
+        "dead PID marked crashed for its module"
+    );
     Ok(())
 }
 
@@ -143,7 +146,7 @@ async fn health_check_all_counts_dead_pid_as_crashed() -> anyhow::Result<()> {
 async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let name = unique_name("loop-dead");
-    register_running(&pool, &name, "custom", Some(dead_pid())).await?;
+    register_running(&pool, &name, ServiceModule::Agent, Some(dead_pid())).await?;
 
     let mut monitor = ProcessMonitor::with_interval(
         ServiceRepository::new(
@@ -158,12 +161,13 @@ async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
-    let mut status = String::new();
+    let name = ServiceName::new(name);
+    let mut status = None;
     for _ in 0..40 {
         tokio::time::sleep(Duration::from_millis(50)).await;
         if let Some(svc) = repo.find_service_by_name(&name).await? {
-            status = svc.status;
-            if status == "error" {
+            status = Some(svc.status);
+            if svc.status == ServiceStatus::Error {
                 break;
             }
         }
@@ -171,7 +175,8 @@ async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
     monitor.stop();
 
     assert_eq!(
-        status, "error",
+        status,
+        Some(ServiceStatus::Error),
         "monitor loop should mark vanished PID error"
     );
     Ok(())

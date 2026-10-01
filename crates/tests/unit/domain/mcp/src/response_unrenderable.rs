@@ -38,10 +38,8 @@ fn test_ctx() -> RequestContext {
         TraceId::new("t-unrender"),
         ContextId::generate(),
         AgentName::try_new("agent-unrender").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new("user-unrender")),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "user-unrender",
-    )))
 }
 
 #[tokio::test]

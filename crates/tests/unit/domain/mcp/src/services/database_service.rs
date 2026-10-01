@@ -3,10 +3,10 @@
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_mcp::services::ServiceLifecycleStatus;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
+use systemprompt_models::services::ServiceStatus;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
 async fn make_db_service() -> (DatabaseService, systemprompt_database::DbPool) {
@@ -70,20 +70,21 @@ async fn sync_state_empty_runs() {
 #[tokio::test]
 async fn delete_disabled_services_removes_only_the_disabled_service() {
     use crate::harness::internal_mcp_config;
-    use systemprompt_database::{CreateServiceInput, ServiceRepository};
+    use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository};
+    use systemprompt_identifiers::ServiceName;
 
     let (svc, _db) = make_db_service().await;
     let repo = ServiceRepository::new(
         &_db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
-    let keep = format!("dbsvc-keep-{}", uuid::Uuid::new_v4().simple());
-    let drop_name = format!("dbsvc-drop-{}", uuid::Uuid::new_v4().simple());
+    let keep = ServiceName::new(format!("dbsvc-keep-{}", uuid::Uuid::new_v4().simple()));
+    let drop_name = ServiceName::new(format!("dbsvc-drop-{}", uuid::Uuid::new_v4().simple()));
     for (name, port) in [(&keep, 65512u16), (&drop_name, 65511u16)] {
         repo.create_service(CreateServiceInput {
             name,
-            module_name: "mcp",
-            status: "stopped",
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Stopped,
             port,
             binary_mtime: None,
         })
@@ -91,7 +92,7 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
         .unwrap();
     }
 
-    let enabled = [internal_mcp_config(&keep, 65512)];
+    let enabled = [internal_mcp_config(keep.as_str(), 65512)];
     let deleted = svc.delete_disabled_services(&enabled).await.unwrap();
     assert!(deleted >= 1, "at least the disabled service is deleted");
     assert!(
@@ -121,7 +122,7 @@ async fn update_service_status_missing_no_panic() {
     let (svc, _db) = make_db_service().await;
     svc.update_service_status(
         &format!("missing-{}", uuid::Uuid::new_v4().simple()),
-        ServiceLifecycleStatus::Stopped,
+        ServiceStatus::Stopped,
     )
     .await
     .unwrap();

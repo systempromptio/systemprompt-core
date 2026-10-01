@@ -71,7 +71,7 @@ pub(crate) fn artifact_from_row(row: ArtifactRow, parts: Vec<Part>) -> Artifact 
             task_id: row.task_id,
             rendering_hints,
             source: row.source,
-            mcp_execution_id: row.mcp_execution_id.map(|id| id.as_str().to_owned()),
+            mcp_execution_id: row.mcp_execution_id,
             mcp_schema,
             is_internal,
             fingerprint: row.fingerprint,

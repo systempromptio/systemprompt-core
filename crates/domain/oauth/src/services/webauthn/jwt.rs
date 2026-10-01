@@ -5,8 +5,8 @@
 
 use crate::TokenValidator;
 use crate::error::OauthError;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::{AuthError, AuthenticatedUser, JwtAudience};
-use uuid::Uuid;
 
 use crate::services::validation::jwt;
 
@@ -56,7 +56,7 @@ impl TokenValidator for JwtTokenValidator {
             })?;
 
         let user_id =
-            Uuid::parse_str(&claims.sub).map_err(|_invalid| AuthError::InvalidTokenFormat)?;
+            UserId::try_new(claims.sub.as_str()).map_err(|_invalid| AuthError::InvalidTokenFormat)?;
 
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();

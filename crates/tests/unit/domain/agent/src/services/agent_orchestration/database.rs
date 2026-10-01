@@ -192,13 +192,14 @@ async fn mcp_rows_are_invisible_to_agent_supervision() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let name = unique_name("orch-mcp-row");
+    let name_id = systemprompt_identifiers::ServiceName::new(name.as_str());
     services
         .upsert_service_process(systemprompt_database::UpsertServiceProcessInput {
-            name: &name,
-            module_name: "mcp",
+            name: &name_id,
+            module_name: systemprompt_database::ServiceModule::Mcp,
             pid: i32::try_from(DEAD_PID).expect("pid fits"),
             port: 9310,
-            status: "running",
+            status: systemprompt_database::ServiceStatus::Running,
         })
         .await
         .expect("seed mcp row");
@@ -211,13 +212,17 @@ async fn mcp_rows_are_invisible_to_agent_supervision() {
         other => panic!("expected Failed, got {other:?}"),
     }
     let row = services
-        .find_service_by_name(&name)
+        .find_service_by_name(&name_id)
         .await
         .expect("find")
         .expect("mcp row");
-    assert_eq!(row.status, "running", "agent reads must not mark MCP rows");
+    assert_eq!(
+        row.status,
+        systemprompt_database::ServiceStatus::Running,
+        "agent reads must not mark MCP rows"
+    );
 
-    services.delete_service(&name).await.ok();
+    services.delete_service(&name_id).await.ok();
 }
 
 #[tokio::test]

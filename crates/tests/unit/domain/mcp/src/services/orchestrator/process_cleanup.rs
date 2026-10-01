@@ -11,7 +11,8 @@ use std::net::TcpListener;
 use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::orchestrator::process_cleanup::{
     detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
@@ -98,8 +99,8 @@ fn write_binary(bootstrap: &TestBootstrap, name: &str) -> i64 {
 }
 
 struct RowSpec<'a> {
-    name: &'a str,
-    status: &'a str,
+    name: &'a ServiceName,
+    status: ServiceStatus,
     binary_mtime: Option<i64>,
     port: u16,
     pid: u32,
@@ -108,7 +109,7 @@ struct RowSpec<'a> {
 async fn seed_row(repo: &ServiceRepository, spec: &RowSpec<'_>) {
     repo.create_service(CreateServiceInput {
         name: spec.name,
-        module_name: "mcp",
+        module_name: ServiceModule::Mcp,
         status: spec.status,
         port: spec.port,
         binary_mtime: spec.binary_mtime,
@@ -120,10 +121,10 @@ async fn seed_row(repo: &ServiceRepository, spec: &RowSpec<'_>) {
         .expect("set pid");
 }
 
-fn running_row<'a>(name: &'a str, binary_mtime: Option<i64>, pid: u32) -> RowSpec<'a> {
+fn running_row(name: &ServiceName, binary_mtime: Option<i64>, pid: u32) -> RowSpec<'_> {
     RowSpec {
         name,
-        status: "running",
+        status: ServiceStatus::Running,
         binary_mtime,
         port: FIXTURE_PORT,
         pid,
@@ -149,19 +150,20 @@ fn marker_helper() {
 async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
     let fx = fixture().await;
     let name = unique("stalebin");
+    let id = ServiceName::new(name.as_str());
     let current = write_binary(fx.bootstrap, &name);
 
     let mut marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
     seed_row(
         &fx.repo,
-        &running_row(&name, Some(current - 3600), marked.pid()),
+        &running_row(&id, Some(current - 3600), marked.pid()),
     )
     .await;
 
     let restarted = sweep_stale(&internal_mcp_config(&name, FIXTURE_PORT), &fx.database).await;
 
-    let row = fx.repo.find_service_by_name(&name).await.expect("lookup");
-    fx.repo.delete_service(&name).await.ok();
+    let row = fx.repo.find_service_by_name(&id).await.expect("lookup");
+    fx.repo.delete_service(&id).await.ok();
 
     assert_eq!(
         restarted, 1,
@@ -178,17 +180,18 @@ async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
 async fn unchanged_binary_leaves_the_service_registered() {
     let fx = fixture().await;
     let name = unique("freshbin");
+    let id = ServiceName::new(name.as_str());
     let current = write_binary(fx.bootstrap, &name);
     seed_row(
         &fx.repo,
-        &running_row(&name, Some(current), std::process::id()),
+        &running_row(&id, Some(current), std::process::id()),
     )
     .await;
 
     let restarted = sweep_stale(&internal_mcp_config(&name, FIXTURE_PORT), &fx.database).await;
 
-    let row = fx.repo.find_service_by_name(&name).await.expect("lookup");
-    fx.repo.delete_service(&name).await.ok();
+    let row = fx.repo.find_service_by_name(&id).await.expect("lookup");
+    fx.repo.delete_service(&id).await.ok();
 
     assert_eq!(restarted, 0);
     assert!(row.is_some(), "a matching mtime must not unregister");
@@ -198,13 +201,14 @@ async fn unchanged_binary_leaves_the_service_registered() {
 async fn service_without_a_recorded_mtime_is_never_stale() {
     let fx = fixture().await;
     let name = unique("nomtime");
+    let id = ServiceName::new(name.as_str());
     write_binary(fx.bootstrap, &name);
-    seed_row(&fx.repo, &running_row(&name, None, std::process::id())).await;
+    seed_row(&fx.repo, &running_row(&id, None, std::process::id())).await;
 
     let restarted = sweep_stale(&internal_mcp_config(&name, FIXTURE_PORT), &fx.database).await;
 
-    let row = fx.repo.find_service_by_name(&name).await.expect("lookup");
-    fx.repo.delete_service(&name).await.ok();
+    let row = fx.repo.find_service_by_name(&id).await.expect("lookup");
+    fx.repo.delete_service(&id).await.ok();
 
     assert_eq!(restarted, 0);
     assert!(row.is_some());
@@ -214,12 +218,13 @@ async fn service_without_a_recorded_mtime_is_never_stale() {
 async fn unresolvable_binary_is_never_stale() {
     let fx = fixture().await;
     let name = unique("gonebin");
-    seed_row(&fx.repo, &running_row(&name, Some(1), std::process::id())).await;
+    let id = ServiceName::new(name.as_str());
+    seed_row(&fx.repo, &running_row(&id, Some(1), std::process::id())).await;
 
     let restarted = sweep_stale(&internal_mcp_config(&name, FIXTURE_PORT), &fx.database).await;
 
-    let row = fx.repo.find_service_by_name(&name).await.expect("lookup");
-    fx.repo.delete_service(&name).await.ok();
+    let row = fx.repo.find_service_by_name(&id).await.expect("lookup");
+    fx.repo.delete_service(&id).await.ok();
 
     assert_eq!(
         restarted, 0,
@@ -232,12 +237,13 @@ async fn unresolvable_binary_is_never_stale() {
 async fn stopped_service_is_never_stale() {
     let fx = fixture().await;
     let name = unique("stopped");
+    let id = ServiceName::new(name.as_str());
     let current = write_binary(fx.bootstrap, &name);
     seed_row(
         &fx.repo,
         &RowSpec {
-            name: &name,
-            status: "stopped",
+            name: &id,
+            status: ServiceStatus::Stopped,
             binary_mtime: Some(current - 3600),
             port: FIXTURE_PORT,
             pid: std::process::id(),
@@ -247,8 +253,8 @@ async fn stopped_service_is_never_stale() {
 
     let restarted = sweep_stale(&internal_mcp_config(&name, FIXTURE_PORT), &fx.database).await;
 
-    let row = fx.repo.find_service_by_name(&name).await.expect("lookup");
-    fx.repo.delete_service(&name).await.ok();
+    let row = fx.repo.find_service_by_name(&id).await.expect("lookup");
+    fx.repo.delete_service(&id).await.ok();
 
     assert_eq!(restarted, 0, "only running services are restarted");
     assert!(row.is_some());
@@ -287,6 +293,7 @@ async fn port_holder_is_an_orphan_only_while_unregistered_and_is_never_signalled
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("addr").port();
     let config = internal_mcp_config(&self_name, port);
+    let self_id = ServiceName::new(self_name.as_str());
 
     let orphaned =
         detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database)
@@ -296,8 +303,8 @@ async fn port_holder_is_an_orphan_only_while_unregistered_and_is_never_signalled
     seed_row(
         &fx.repo,
         &RowSpec {
-            name: &self_name,
-            status: "running",
+            name: &self_id,
+            status: ServiceStatus::Running,
             binary_mtime: None,
             port,
             pid: std::process::id(),
@@ -310,7 +317,7 @@ async fn port_holder_is_an_orphan_only_while_unregistered_and_is_never_signalled
             .await
             .expect("registered sweep");
 
-    fx.repo.delete_service(&self_name).await.ok();
+    fx.repo.delete_service(&self_id).await.ok();
 
     assert_eq!(
         orphaned, 1,

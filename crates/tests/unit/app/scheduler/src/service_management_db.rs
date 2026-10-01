@@ -5,6 +5,7 @@
 //! a well-formed result against the freshly-migrated DB. Tests fail when
 //! `DATABASE_URL` is unset.
 
+use systemprompt_database::ServiceModule;
 use systemprompt_scheduler::ServiceManagementService;
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -20,7 +21,7 @@ mod service_management_db {
         ));
 
         let rows = svc
-            .get_services_by_type("mcp")
+            .get_services_by_type(ServiceModule::Mcp)
             .await
             .expect("get_services_by_type('mcp') must succeed");
 
@@ -37,7 +38,7 @@ mod service_management_db {
         ));
 
         let rows = svc
-            .get_services_by_type("agent")
+            .get_services_by_type(ServiceModule::Agent)
             .await
             .expect("get_services_by_type('agent') must succeed");
 

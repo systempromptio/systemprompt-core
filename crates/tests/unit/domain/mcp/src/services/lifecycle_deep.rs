@@ -8,7 +8,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::database::sync::{
     cleanup_stale_services, delete_crashed_services, sync_database_state,
@@ -99,15 +100,16 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
 async fn stop_server_cleans_up_stale_db_row() {
     let (life, db) = make_lifecycle().await;
     let name = format!("stop-stale-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65528;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
@@ -124,15 +126,16 @@ async fn stop_server_cleans_up_stale_db_row() {
 async fn health_check_dead_port_returns_false_and_updates_status() {
     let (life, db) = make_lifecycle().await;
     let name = format!("health-dead-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65527;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
@@ -143,22 +146,23 @@ async fn health_check_dead_port_returns_false_and_updates_status() {
     let r = life.health_check(&config).await.unwrap();
     assert!(!r);
 
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 }
 
 #[tokio::test]
 async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
     let (_, db) = make_lifecycle().await;
     let name = format!("clean-stale-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65526;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
@@ -166,22 +170,23 @@ async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
     .unwrap();
 
     cleanup_stale_services(&repo).await.unwrap();
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 }
 
 #[tokio::test]
 async fn sync_database_state_marks_unhealthy_crashed() {
     let (_, db) = make_lifecycle().await;
     let name = format!("sync-crash-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65525;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
@@ -190,22 +195,23 @@ async fn sync_database_state_marks_unhealthy_crashed() {
 
     let config = make_config(&name, port);
     sync_database_state(&repo, &[config]).await.unwrap();
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 }
 
 #[tokio::test]
 async fn delete_crashed_services_runs() {
     let (_, db) = make_lifecycle().await;
     let name = format!("crash-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65522;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "crashed",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Error,
         port: port,
         binary_mtime: None,
     })
@@ -218,48 +224,50 @@ async fn delete_crashed_services_runs() {
 async fn health_check_with_stale_pid_marks_stopped() {
     let (life, db) = make_lifecycle().await;
     let name = format!("health-pid-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65521;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
     .await
     .unwrap();
-    repo.update_service_pid(&name, 999_999).await.unwrap();
+    repo.update_service_pid(&name_id, 999_999).await.unwrap();
 
     let config = make_config(&name, port);
     let r = life.health_check(&config).await.unwrap();
     assert!(!r);
 
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 }
 
 #[tokio::test]
 async fn stop_server_with_stale_db_pid_goes_through_stale_cleanup() {
     let (life, db) = make_lifecycle().await;
     let name = format!("stop-pid-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65520;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
     .await
     .unwrap();
-    repo.update_service_pid(&name, 999_998).await.unwrap();
+    repo.update_service_pid(&name_id, 999_998).await.unwrap();
 
     let config = make_config(&name, port);
     life.stop_server(&config).await.unwrap();

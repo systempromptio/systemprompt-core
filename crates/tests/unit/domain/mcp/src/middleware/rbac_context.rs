@@ -1,7 +1,7 @@
 //! Tests for `AuthResult::context`, `context_mut`, and the `Deref` impl on
 //! `AuthenticatedRequestContext`.
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
 use systemprompt_models::RequestContext;
 
@@ -11,6 +11,7 @@ fn ctx(tag: &str) -> RequestContext {
         TraceId::new(format!("trace-{tag}")),
         ContextId::try_new("00000000-0000-4000-8000-000000000001").expect("valid ContextId"),
         AgentName::try_new(format!("agent-{tag}")).expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

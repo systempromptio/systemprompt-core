@@ -263,7 +263,8 @@ const VALIDATE_EXTERNAL_HELPER: &str =
 #[tokio::test]
 #[ignore = "re-executed by running_external_validation_reports_its_configuration_error"]
 async fn validate_running_external_helper() {
-    use systemprompt_database::CreateServiceInput;
+    use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+    use systemprompt_identifiers::ServiceName;
     use systemprompt_test_fixtures::DisposableDb;
 
     boot();
@@ -273,9 +274,9 @@ async fn validate_running_external_helper() {
     let app = test_app_context(&pool, database.url());
     app.service_repository()
         .create_service(CreateServiceInput {
-            name: ENABLED,
-            module_name: "mcp",
-            status: "running",
+            name: &ServiceName::new(ENABLED),
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Running,
             port: 1,
             binary_mtime: None,
         })

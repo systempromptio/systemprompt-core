@@ -12,7 +12,7 @@ use systemprompt_bridge::proxy::forward::headers::{
 };
 use systemprompt_identifiers::SessionId;
 use systemprompt_identifiers::headers::{CLIENT_ATTESTATION, CLIENT_KIND};
-use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::wire::origin::ClientKind;
 
 fn inbound(client: Option<&str>, attestation: Option<&str>) -> HeaderMap {
@@ -47,9 +47,9 @@ fn a_host_token_stamps_host_token_and_overwrites_the_declared_client() {
 
 #[test]
 fn every_known_host_maps_onto_the_canonical_wire_vocabulary() {
-    for host in KNOWN_HOSTS {
+    for host in HostKind::ALL.map(HostKind::as_str) {
         let mut headers = HeaderMap::new();
-        let credential = LoopbackCredential::Host(HostId::new(*host));
+        let credential = LoopbackCredential::Host(HostId::new(host));
         stamp_attestation(&mut headers, Some(&credential)).unwrap();
         let expected = ClientKind::from_bridge_host_id(host).unwrap().as_str();
         assert_eq!(value(&headers, CLIENT_KIND), Some(expected), "{host}");

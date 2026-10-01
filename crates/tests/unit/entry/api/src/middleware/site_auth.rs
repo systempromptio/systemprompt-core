@@ -78,7 +78,7 @@ mod gate {
         install_test_signing_key();
         let config = fixture_config("postgres://unused/unused");
         mint_admin_jwt(
-            &UserId::new("site-auth-admin"),
+            &UserId::new("00000000-0000-4000-8000-00000000517e"),
             "site-auth@example.invalid",
             &config.jwt_issuer,
         )

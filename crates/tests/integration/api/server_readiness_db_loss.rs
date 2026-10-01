@@ -26,7 +26,7 @@ async fn readyz_withdraws_readiness_when_its_owned_database_disappears() -> Resu
     let body: serde_json::Value = serde_json::from_slice(&body)?;
     assert_eq!(body["status"], "unready");
     assert_eq!(body["database"], "unreachable");
-    assert_eq!(body["instance"], ctx.config().instance_id);
+    assert_eq!(body["instance"], ctx.config().instance_id.as_str());
     assert!(
         body["version"]
             .as_str()

@@ -9,7 +9,7 @@ use rmcp::transport::streamable_http_client::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_mcp::services::client::{HttpClientWithContext, McpTransportError};
 use systemprompt_models::RequestContext;
 use wiremock::matchers::{method, path};
@@ -21,9 +21,9 @@ fn ctx() -> RequestContext {
         TraceId::new("t-http"),
         ContextId::generate(),
         AgentName::try_new("agent-http").expect("valid AgentName"),
+        Actor::user(UserId::new("user-http")),
     )
-    .with_actor(Actor::user(UserId::new("user-http")))
-    .with_auth_token("jwt-token")
+    .with_auth_token(JwtToken::new("jwt-token"))
 }
 
 fn ping() -> ClientJsonRpcMessage {

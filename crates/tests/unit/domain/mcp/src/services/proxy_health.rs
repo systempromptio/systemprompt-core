@@ -19,7 +19,10 @@ async fn can_route_traffic_missing_service_returns_false() {
 
 #[tokio::test]
 async fn list_routable_services_excludes_service_with_unresponsive_port() {
-    use systemprompt_database::{CreateServiceInput, ServiceRepository};
+    use systemprompt_database::{
+        CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus,
+    };
+    use systemprompt_identifiers::ServiceName;
     let db = test_db_pool().await;
     let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
         &db,
@@ -30,11 +33,12 @@ async fn list_routable_services_excludes_service_with_unresponsive_port() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let name = format!("ph-list-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65510;
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port,
         binary_mtime: None,
     })
@@ -46,17 +50,21 @@ async fn list_routable_services_excludes_service_with_unresponsive_port() {
         !routable.iter().any(|s| s.name == name),
         "a running service on an unresponsive port is not routable"
     );
-    let after = repo.find_service_by_name(&name).await.unwrap().unwrap();
+    let after = repo.find_service_by_name(&name_id).await.unwrap().unwrap();
     assert_eq!(
-        after.status, "stopped",
+        after.status,
+        ServiceStatus::Stopped,
         "an unroutable running service is marked stopped"
     );
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 }
 
 #[tokio::test]
 async fn can_route_traffic_running_service_unreachable_port_returns_false() {
-    use systemprompt_database::{CreateServiceInput, ServiceRepository};
+    use systemprompt_database::{
+        CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus,
+    };
+    use systemprompt_identifiers::ServiceName;
     let db = test_db_pool().await;
     let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
         &db,
@@ -67,11 +75,12 @@ async fn can_route_traffic_running_service_unreachable_port_returns_false() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let name = format!("ph-run-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65519;
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port,
         binary_mtime: None,
     })
@@ -79,12 +88,15 @@ async fn can_route_traffic_running_service_unreachable_port_returns_false() {
     .unwrap();
     let r = p.can_route_traffic(&name, port).await.unwrap();
     assert!(!r);
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 }
 
 #[tokio::test]
 async fn can_route_traffic_stopped_service_returns_false() {
-    use systemprompt_database::{CreateServiceInput, ServiceRepository};
+    use systemprompt_database::{
+        CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus,
+    };
+    use systemprompt_identifiers::ServiceName;
     let db = test_db_pool().await;
     let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
         &db,
@@ -95,11 +107,12 @@ async fn can_route_traffic_stopped_service_returns_false() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let name = format!("ph-stop-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65518;
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "stopped",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Stopped,
         port,
         binary_mtime: None,
     })
@@ -107,7 +120,7 @@ async fn can_route_traffic_stopped_service_returns_false() {
     .unwrap();
     let r = p.can_route_traffic(&name, port).await.unwrap();
     assert!(!r);
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 }
 
 #[test]

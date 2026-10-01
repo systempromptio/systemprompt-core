@@ -5,6 +5,19 @@
 //! row), so there is no infallible constructor to panic on it. Identifiers
 //! minted from a UUID or a hash construct `Self(..)` inside this crate.
 //!
+//! The `checked` and `uuid` arms are for identities that have a shape but
+//! are mostly read back from trusted storage: `try_new` validates (the edge
+//! constructor for headers, path segments, CLI arguments, JSON bodies),
+//! `new` accepts a value already known to be valid (a decoded database row,
+//! a configuration key validated at load). Neither arm implements
+//! `From<String>`/`From<&str>`, so an unchecked `.into()` does not compile,
+//! and `Deserialize` and `FromStr` validate.
+//!
+//! The plain and `schema` arms are unvalidated: `new` and `From<String>`
+//! accept anything. They also carry a non-empty `try_new` so edge code can
+//! parse fallibly today; each type moves to the arm its storage shape calls
+//! for (`uuid`, `checked`, `non_empty`) as its call sites are converted.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -20,6 +33,12 @@ macro_rules! define_id {
         impl $name {
             pub fn new(id: impl Into<String>) -> Self {
                 Self(id.into())
+            }
+
+            pub fn try_new(value: impl Into<String>) -> Result<Self, $crate::error::IdValidationError> {
+                let value = value.into();
+                $crate::macros::validate_non_empty(stringify!($name), &value)?;
+                Ok(Self(value))
             }
 
             pub fn as_str(&self) -> &str {
@@ -115,6 +134,14 @@ macro_rules! define_id {
         $crate::__define_id_common!($name);
     };
 
+    ($name:ident, checked, $validator:expr) => {
+        $crate::__define_id_checked!($name, $validator);
+    };
+
+    ($name:ident, uuid) => {
+        $crate::__define_id_uuid!($name);
+    };
+
     ($name:ident, generate) => {
         $crate::define_id!($name);
 
@@ -161,6 +188,12 @@ macro_rules! define_id {
                 Self(id.into())
             }
 
+            pub fn try_new(value: impl Into<String>) -> Result<Self, $crate::error::IdValidationError> {
+                let value = value.into();
+                $crate::macros::validate_non_empty(stringify!($name), &value)?;
+                Ok(Self(value))
+            }
+
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -201,6 +234,12 @@ macro_rules! define_id {
         impl $name {
             pub fn new(id: impl Into<String>) -> Self {
                 Self(id.into())
+            }
+
+            pub fn try_new(value: impl Into<String>) -> Result<Self, $crate::error::IdValidationError> {
+                let value = value.into();
+                $crate::macros::validate_non_empty(stringify!($name), &value)?;
+                Ok(Self(value))
             }
 
             pub fn as_str(&self) -> &str {

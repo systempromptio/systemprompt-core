@@ -4,9 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
-use crate::{ERROR, STOPPED};
 use std::time::Duration;
 use systemprompt_database::ServiceRepository;
+use systemprompt_identifiers::ServiceName;
+use systemprompt_models::services::ServiceStatus;
 use tokio::net::TcpStream;
 
 #[derive(Debug)]
@@ -20,24 +21,25 @@ impl ProxyHealthCheck {
     }
 
     pub async fn can_route_traffic(&self, service_name: &str, port: u16) -> McpDomainResult<bool> {
-        let Some(service) = self.service_repo.find_service_by_name(service_name).await? else {
+        let name = ServiceName::new(service_name);
+        let Some(service) = self.service_repo.find_service_by_name(&name).await? else {
             return Ok(false);
         };
 
-        if service.status != "running" {
+        if service.status != ServiceStatus::Running {
             return Ok(false);
         }
 
         if !Self::is_port_responsive(port).await {
             self.service_repo
-                .update_service_status(service_name, STOPPED)
+                .update_service_status(&name, ServiceStatus::Stopped)
                 .await?;
             return Ok(false);
         }
 
         if !Self::can_connect_mcp(port).await {
             self.service_repo
-                .update_service_status(service_name, ERROR)
+                .update_service_status(&name, ServiceStatus::Error)
                 .await?;
             return Ok(false);
         }
@@ -75,14 +77,14 @@ impl ProxyHealthCheck {
             let port = Self::parse_port_from_service(&service);
             if Self::is_port_responsive(port).await {
                 routable.push(RoutableService {
-                    name: service.name.clone(),
+                    name: service.name.as_str().to_owned(),
                     port,
                     pid: service.pid,
                     health: "healthy".to_owned(),
                 });
             } else {
                 self.service_repo
-                    .update_service_status(&service.name, STOPPED)
+                    .update_service_status(&service.name, ServiceStatus::Stopped)
                     .await?;
             }
         }

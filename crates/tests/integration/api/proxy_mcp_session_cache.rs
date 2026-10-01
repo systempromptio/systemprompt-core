@@ -5,7 +5,7 @@
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::engine::external::{map_resolve_error, outbound_headers};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{JwtToken, SessionId};
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
@@ -72,7 +72,7 @@ async fn enrich_with_cached_session_adopts_cached_identity() {
     let rc = request_context("session-hit");
     let enriched = enrich_with_cached_identity(&cache, &headers, rc, "svc").await;
     assert_eq!(enriched.user_id().to_string(), user.to_string());
-    assert_eq!(enriched.auth_token().as_str(), "cached-token");
+    assert_eq!(enriched.auth_token().map(JwtToken::as_str), Some("cached-token"));
 }
 
 #[tokio::test]
@@ -85,7 +85,7 @@ async fn successful_response_with_session_header_caches_identity() {
     .await;
     let user_uuid = Uuid::new_v4();
     let user = AuthenticatedUser::new(
-        user_uuid,
+        systemprompt_identifiers::UserId::from_uuid(user_uuid),
         "cache-user".to_owned(),
         "cache@test.invalid".to_owned(),
         vec![Permission::User],

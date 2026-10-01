@@ -89,9 +89,9 @@ fn request_context(ctx: &GatewayRequestContext) -> Option<RequestContext> {
             session_id,
             trace_id,
             ctx.context_id.clone(),
-            AgentName::unset(),
+            AgentName::system(),
+            Actor::user(ctx.user_id.clone()),
         )
-        .with_actor(Actor::user(ctx.user_id.clone()))
         .with_user_type(UserType::User),
     )
 }

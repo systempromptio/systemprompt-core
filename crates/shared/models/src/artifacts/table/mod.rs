@@ -13,7 +13,7 @@ pub mod hints;
 pub use column::Column;
 pub use hints::TableHints;
 
-use crate::artifacts::metadata::ExecutionMetadata;
+use crate::artifacts::metadata::{ArtifactProvenance, ExecutionMetadata};
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;
 use crate::execution::context::RequestContext;
@@ -59,7 +59,7 @@ pub struct TableArtifact {
     hints_builder: TableHints,
     #[serde(skip)]
     #[schemars(skip)]
-    metadata: ExecutionMetadata,
+    metadata: ArtifactProvenance,
 }
 
 fn default_artifact_type() -> String {
@@ -77,12 +77,12 @@ impl TableArtifact {
             items: Vec::new(),
             hints: None,
             hints_builder: TableHints::default(),
-            metadata: ExecutionMetadata::default(),
+            metadata: ArtifactProvenance::default(),
         }
     }
 
     pub fn with_request(mut self, ctx: &RequestContext) -> Self {
-        self.metadata = ExecutionMetadata::with_request(ctx);
+        self.metadata.set_request(ctx);
         self
     }
 
@@ -106,12 +106,12 @@ impl TableArtifact {
     }
 
     pub fn with_metadata(mut self, metadata: ExecutionMetadata) -> Self {
-        self.metadata = metadata;
+        self.metadata.set_metadata(metadata);
         self
     }
 
     pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
-        self.metadata.execution_id = Some(id.into());
+        self.metadata.set_execution_id(id);
         self
     }
 
@@ -120,8 +120,7 @@ impl TableArtifact {
         skill_id: impl Into<SkillId>,
         skill_name: impl Into<String>,
     ) -> Self {
-        self.metadata.skill_id = Some(skill_id.into());
-        self.metadata.skill_name = Some(skill_name.into());
+        self.metadata.set_skill(skill_id.into(), skill_name.into());
         self
     }
 
@@ -135,7 +134,7 @@ impl TableArtifact {
             columns: self.columns.clone(),
             items: self.items.clone(),
             count: self.items.len(),
-            execution_id: self.metadata.execution_id.clone(),
+            execution_id: self.metadata.execution_id().map(str::to_owned),
             hints: Some(self.hints_builder.generate_schema()),
         };
         match serde_json::to_value(response) {

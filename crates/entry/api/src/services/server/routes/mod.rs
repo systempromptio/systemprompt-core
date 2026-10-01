@@ -40,7 +40,7 @@ pub(super) fn configure_routes(
 ) -> Result<Router, RouteMountError> {
     let mut router = Router::new();
 
-    super::metrics::install_recorder(&ctx.config().instance_id)
+    super::metrics::install_recorder(ctx.config().instance_id.as_str())
         .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
 
     let jwt_extractor = build_jwt_extractor(ctx)?;

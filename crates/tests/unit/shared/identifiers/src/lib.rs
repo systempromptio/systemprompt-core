@@ -87,4 +87,7 @@ mod trace_tests;
 mod url_tests;
 
 #[cfg(test)]
+mod service_tests;
+
+#[cfg(test)]
 mod user_tests;

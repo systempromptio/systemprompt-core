@@ -50,8 +50,8 @@ fn client_for(gateway: &str) -> GatewayClient {
 #[test]
 fn fingerprint_is_stable_lowercase_sha256_and_differs_per_user() {
     let install = ephemeral_install();
-    let alice = UserId::new("alice");
-    let bob = UserId::new("bob");
+    let alice = UserId::new("00000000-0000-4000-8000-00000000a11c");
+    let bob = UserId::new("00000000-0000-4000-8000-000000000b0b");
 
     let first = device_fingerprint(&install, &alice);
     assert!(is_lower_hex_64(&first), "{first}");
@@ -64,11 +64,11 @@ fn fingerprint_is_stable_lowercase_sha256_and_differs_per_user() {
 async fn enrolment_saves_device_json_and_sends_the_fingerprint() {
     let dir = tempfile::tempdir().unwrap();
     let install = ephemeral_install();
-    let user = UserId::new("consumer");
+    let user = UserId::new("00000000-0000-4000-8000-00000000c0c0");
     let (gateway, server) = mock_server(vec![(
         200,
         String::new(),
-        enrolment_body("device-1", "consumer", "sp_device_first"),
+        enrolment_body("device-1", "00000000-0000-4000-8000-00000000c0c0", "sp_device_first"),
     )]);
     let client = client_for(&gateway);
     let bearer = BearerToken::new("per-user-bridge-secret");
@@ -105,11 +105,11 @@ async fn enrolment_saves_device_json_and_sends_the_fingerprint() {
 async fn existing_enrolment_for_the_user_is_reused_without_a_request() {
     let dir = tempfile::tempdir().unwrap();
     let install = ephemeral_install();
-    let user = UserId::new("consumer");
+    let user = UserId::new("00000000-0000-4000-8000-00000000c0c0");
     let (gateway, server) = mock_server(vec![(
         200,
         String::new(),
-        enrolment_body("device-1", "consumer", "sp_device_first"),
+        enrolment_body("device-1", "00000000-0000-4000-8000-00000000c0c0", "sp_device_first"),
     )]);
     let client = client_for(&gateway);
     let bearer = BearerToken::new("per-user-bridge-secret");
@@ -139,17 +139,17 @@ async fn existing_enrolment_for_the_user_is_reused_without_a_request() {
 async fn forced_rotation_keeps_the_installation_id_for_the_same_device() {
     let dir = tempfile::tempdir().unwrap();
     let install = ephemeral_install();
-    let user = UserId::new("consumer");
+    let user = UserId::new("00000000-0000-4000-8000-00000000c0c0");
     let (gateway, server) = mock_server(vec![
         (
             200,
             String::new(),
-            enrolment_body("device-1", "consumer", "sp_device_first"),
+            enrolment_body("device-1", "00000000-0000-4000-8000-00000000c0c0", "sp_device_first"),
         ),
         (
             200,
             String::new(),
-            enrolment_body("device-1", "consumer", "sp_device_second"),
+            enrolment_body("device-1", "00000000-0000-4000-8000-00000000c0c0", "sp_device_second"),
         ),
     ]);
     let client = client_for(&gateway);
@@ -188,12 +188,12 @@ async fn a_different_user_re_enrols_with_a_fresh_installation_id() {
         (
             200,
             String::new(),
-            enrolment_body("device-1", "alice", "sp_device_alice"),
+            enrolment_body("device-1", "00000000-0000-4000-8000-00000000a11c", "sp_device_alice"),
         ),
         (
             200,
             String::new(),
-            enrolment_body("device-2", "bob", "sp_device_bob"),
+            enrolment_body("device-2", "00000000-0000-4000-8000-000000000b0b", "sp_device_bob"),
         ),
     ]);
     let client = client_for(&gateway);
@@ -203,7 +203,7 @@ async fn a_different_user_re_enrols_with_a_fresh_installation_id() {
         dir.path(),
         &client,
         &bearer,
-        &enrolment(&install, &UserId::new("alice"), false),
+        &enrolment(&install, &UserId::new("00000000-0000-4000-8000-00000000a11c"), false),
     )
     .await
     .expect("alice");
@@ -211,12 +211,12 @@ async fn a_different_user_re_enrols_with_a_fresh_installation_id() {
         dir.path(),
         &client,
         &bearer,
-        &enrolment(&install, &UserId::new("bob"), false),
+        &enrolment(&install, &UserId::new("00000000-0000-4000-8000-000000000b0b"), false),
     )
     .await
     .expect("bob replaces alice's enrolment");
     assert_ne!(bob.installation_id, alice.installation_id);
-    assert_eq!(bob.consumer_id.as_str(), "bob");
+    assert_eq!(bob.consumer_id.as_str(), "00000000-0000-4000-8000-000000000b0b");
     assert_eq!(server.join().unwrap().len(), 2);
 }
 
@@ -231,7 +231,11 @@ async fn gateway_refusal_leaves_no_enrolment_behind() {
         dir.path(),
         &client,
         &bearer,
-        &enrolment(&ephemeral_install(), &UserId::new("consumer"), false),
+        &enrolment(
+            &ephemeral_install(),
+            &UserId::new("00000000-0000-4000-8000-00000000c0c0"),
+            false,
+        ),
     )
     .await
     .expect_err("409 must surface");

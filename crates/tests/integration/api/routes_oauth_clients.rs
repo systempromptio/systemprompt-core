@@ -46,8 +46,8 @@ fn ctx_for(user: &UserId) -> RequestContext {
         TraceId::new("oauth-clients"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
 }
 
 async fn clients_app(user: UserId) -> anyhow::Result<Router> {

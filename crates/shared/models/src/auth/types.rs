@@ -9,8 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use systemprompt_identifiers::ClientId;
-use uuid::Uuid;
+use systemprompt_identifiers::{ClientId, UserId};
 
 use super::enums::UserType;
 use super::permission::Permission;
@@ -19,7 +18,7 @@ pub const BEARER_PREFIX: &str = "Bearer ";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthenticatedUser {
-    pub id: Uuid,
+    pub id: UserId,
     pub username: String,
     pub email: String,
     pub permissions: Vec<Permission>,
@@ -32,7 +31,7 @@ pub struct AuthenticatedUser {
 
 impl AuthenticatedUser {
     pub const fn new(
-        id: Uuid,
+        id: UserId,
         username: String,
         email: String,
         permissions: Vec<Permission>,
@@ -48,7 +47,7 @@ impl AuthenticatedUser {
     }
 
     pub const fn new_with_roles(
-        id: Uuid,
+        id: UserId,
         username: String,
         email: String,
         permissions: Vec<Permission>,

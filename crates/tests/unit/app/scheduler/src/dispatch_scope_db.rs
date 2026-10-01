@@ -22,7 +22,7 @@ static SERIALIZE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn context_for_instance(pool: &DbPool, url: &str, instance_id: &str) -> Arc<AppContext> {
     let mut config = fixture_config(url);
-    config.instance_id = instance_id.to_owned();
+    config.instance_id = systemprompt_identifiers::InstanceId::new(instance_id);
     fixture_app_context_with_config(pool, config).expect("fixture AppContext")
 }
 

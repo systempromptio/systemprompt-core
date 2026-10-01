@@ -146,7 +146,7 @@ async fn rejects_a_self_issued_token_with_an_unknown_kid() {
 #[tokio::test]
 async fn accepts_a_self_issued_token_and_returns_its_scope() {
     let config = config();
-    let user = UserId::new("token-exchange-subject");
+    let user = UserId::new("00000000-0000-4000-8000-0000000007e5");
     let token = mint_admin_jwt(&user, "subject@exchange.invalid", &config.jwt_issuer);
 
     let identity = validate_subject_token(token.as_str(), ACCESS_TOKEN_TYPE, &config)

@@ -15,7 +15,7 @@ mod request_to_tool_call_tests {
     #[test]
     fn converts_basic_request() {
         let request = ToolCallRequest {
-            tool_call_id: "call-abc".to_string(),
+            tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-abc"),
             name: "search".to_string(),
             arguments: json!({"query": "rust"}),
         };
@@ -30,7 +30,7 @@ mod request_to_tool_call_tests {
     #[test]
     fn preserves_empty_arguments() {
         let request = ToolCallRequest {
-            tool_call_id: "call-empty".to_string(),
+            tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-empty"),
             name: "no_args_tool".to_string(),
             arguments: json!({}),
         };
@@ -44,7 +44,7 @@ mod request_to_tool_call_tests {
     #[test]
     fn preserves_nested_arguments() {
         let request = ToolCallRequest {
-            tool_call_id: "call-nested".to_string(),
+            tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-nested"),
             name: "complex".to_string(),
             arguments: json!({
                 "level1": {
@@ -65,7 +65,7 @@ mod request_to_tool_call_tests {
     #[test]
     fn preserves_special_characters_in_name() {
         let request = ToolCallRequest {
-            tool_call_id: "call-special".to_string(),
+            tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-special"),
             name: "mcp-server:tool.action/v2".to_string(),
             arguments: json!({}),
         };

@@ -18,6 +18,8 @@ use systemprompt_api::services::server::lifecycle::reconciliation::{
 };
 use systemprompt_api::services::server::{handle_health, readiness, scheduler_health, shutdown};
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_models::services::{ServiceModule, ServiceStatus};
 use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
 use systemprompt_runtime::AppContext;
 use tower::ServiceExt;
@@ -39,23 +41,24 @@ fn dead_pid() -> i32 {
 async fn seed_mcp_service(
     ctx: &AppContext,
     name: &str,
-    status: &str,
+    status: ServiceStatus,
     pid: Option<i32>,
 ) -> anyhow::Result<()> {
     let repo = ServiceRepository::new(
         ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
+    let name = ServiceName::new(name);
     repo.create_service(CreateServiceInput {
-        name,
-        module_name: "mcp",
+        name: &name,
+        module_name: ServiceModule::Mcp,
         status,
         port: 0,
         binary_mtime: None,
     })
     .await?;
     if let Some(pid) = pid {
-        repo.update_service_pid(name, pid).await?;
+        repo.update_service_pid(&name, pid).await?;
     }
     Ok(())
 }
@@ -63,23 +66,24 @@ async fn seed_mcp_service(
 async fn seed_agent_service(
     ctx: &AppContext,
     name: &str,
-    status: &str,
+    status: ServiceStatus,
     pid: Option<i32>,
 ) -> anyhow::Result<()> {
     let repo = ServiceRepository::new(
         ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
+    let name = ServiceName::new(name);
     repo.create_service(CreateServiceInput {
-        name,
-        module_name: "agent",
+        name: &name,
+        module_name: ServiceModule::Agent,
         status,
         port: 0,
         binary_mtime: None,
     })
     .await?;
     if let Some(pid) = pid {
-        repo.update_service_pid(name, pid).await?;
+        repo.update_service_pid(&name, pid).await?;
     }
     Ok(())
 }
@@ -101,34 +105,34 @@ fn scheduler_health_records() {
 #[test]
 fn service_row_is_stale_across_statuses() {
     assert!(service_row_is_stale(
-        "error",
+        ServiceStatus::Error,
         None,
         MCP_SERVICE_ID_ENV,
         "svc"
     ));
     assert!(service_row_is_stale(
-        "stopped",
+        ServiceStatus::Stopped,
         Some(1),
         MCP_SERVICE_ID_ENV,
         "svc"
     ));
     assert!(!service_row_is_stale(
-        "unknown",
+        ServiceStatus::Starting,
         None,
         MCP_SERVICE_ID_ENV,
         "svc"
     ));
     assert!(
-        service_row_is_stale("running", None, MCP_SERVICE_ID_ENV, "svc"),
+        service_row_is_stale(ServiceStatus::Running, None, MCP_SERVICE_ID_ENV, "svc"),
         "running with no pid is stale"
     );
     assert!(
-        service_row_is_stale("running", Some(dead_pid()), MCP_SERVICE_ID_ENV, "svc"),
+        service_row_is_stale(ServiceStatus::Running, Some(dead_pid()), MCP_SERVICE_ID_ENV, "svc"),
         "running with a dead pid is stale"
     );
     assert!(
         service_row_is_stale(
-            "running",
+            ServiceStatus::Running,
             Some(std::process::id() as i32),
             MCP_SERVICE_ID_ENV,
             "not-our-child"
@@ -141,7 +145,7 @@ fn service_row_is_stale_across_statuses() {
 async fn cleanup_removes_stale_mcp_rows() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let name = format!("stale-mcp-{}", Uuid::new_v4().simple());
-    seed_mcp_service(&ctx, &name, "error", None).await?;
+    seed_mcp_service(&ctx, &name, ServiceStatus::Error, None).await?;
 
     let deleted = cleanup_stale_service_entries(&ctx, None).await?;
     assert!(deleted >= 1, "the error-status row must be swept");
@@ -151,7 +155,9 @@ async fn cleanup_removes_stale_mcp_rows() -> anyhow::Result<()> {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     assert!(
-        repo.find_service_by_name(&name).await?.is_none(),
+        repo.find_service_by_name(&ServiceName::new(name.as_str()))
+            .await?
+            .is_none(),
         "stale row is gone"
     );
     Ok(())
@@ -162,8 +168,13 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     let (_pool, ctx) = setup_ctx().await?;
     let dead = format!("dead-mcp-{}", Uuid::new_v4().simple());
     let recycled = format!("recycled-mcp-{}", Uuid::new_v4().simple());
-    seed_mcp_service(&ctx, &dead, "running", Some(dead_pid())).await?;
-    seed_mcp_service(&ctx, &recycled, "running", Some(std::process::id() as i32)).await?;
+    seed_mcp_service(&ctx, &dead, ServiceStatus::Running, Some(dead_pid())).await?;
+    seed_mcp_service(
+        &ctx,
+        &recycled,
+        ServiceStatus::Running,
+        Some(std::process::id() as i32),
+    ).await?;
 
     shutdown::terminate_children(&ctx).await;
 
@@ -172,11 +183,12 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let recycled_row = repo
-        .find_service_by_name(&recycled)
+        .find_service_by_name(&ServiceName::new(recycled.as_str()))
         .await?
         .expect("recycled row still present");
     assert_ne!(
-        recycled_row.status, "running",
+        recycled_row.status,
+        ServiceStatus::Running,
         "a live non-child pid is cleared, not signalled"
     );
 
@@ -237,8 +249,8 @@ async fn cleanup_sweeps_stale_agent_row_and_keeps_non_stale_mcp() -> anyhow::Res
     let (_pool, ctx) = setup_ctx().await?;
     let stale_agent = format!("stale-agent-{}", Uuid::new_v4().simple());
     let live_mcp = format!("live-mcp-{}", Uuid::new_v4().simple());
-    seed_agent_service(&ctx, &stale_agent, "error", None).await?;
-    seed_mcp_service(&ctx, &live_mcp, "unknown", None).await?;
+    seed_agent_service(&ctx, &stale_agent, ServiceStatus::Error, None).await?;
+    seed_mcp_service(&ctx, &live_mcp, ServiceStatus::Starting, None).await?;
 
     let deleted = cleanup_stale_service_entries(&ctx, None).await?;
     assert!(deleted >= 1, "the stale agent row must be swept");
@@ -248,12 +260,16 @@ async fn cleanup_sweeps_stale_agent_row_and_keeps_non_stale_mcp() -> anyhow::Res
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     assert!(
-        repo.find_service_by_name(&stale_agent).await?.is_none(),
+        repo.find_service_by_name(&ServiceName::new(stale_agent.as_str()))
+            .await?
+            .is_none(),
         "stale agent row is gone"
     );
     assert!(
-        repo.find_service_by_name(&live_mcp).await?.is_some(),
-        "non-stale (unknown-status) mcp row is retained"
+        repo.find_service_by_name(&ServiceName::new(live_mcp.as_str()))
+            .await?
+            .is_some(),
+        "non-stale (starting) mcp row is retained"
     );
     Ok(())
 }
@@ -285,7 +301,7 @@ async fn handle_health_is_degraded_until_the_event_relay_listens() -> anyhow::Re
 #[tokio::test]
 async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let instance_id = systemprompt_identifiers::InstanceId::new(&ctx.config().instance_id);
+    let instance_id = ctx.config().instance_id.clone();
     let handle = systemprompt_events::PostgresEventBridge::new(
         ctx.db_pool().write_pool().as_ref().clone(),
         instance_id,

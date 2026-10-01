@@ -17,7 +17,7 @@ use systemprompt_ai::repository::{AiRequestRepository, InsertSafetyFinding};
 use systemprompt_cli::infrastructure::logs::{self, LogsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{Actor, AiRequestId, ContextId, UserId};
+use systemprompt_identifiers::{Actor, AiRequestId, ContextId, SessionId, UserId};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_security::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
@@ -69,10 +69,12 @@ async fn seed_decision(
     let id = Uuid::new_v4().to_string();
     let actor = Actor::user(user.clone());
     let evaluated = serde_json::json!([]);
+    let session = SessionId::new("sess-governance-report");
+    let context = ContextId::from_uuid(Uuid::from_u128(3));
     repo.insert(&GovernanceDecisionRecord {
         id: &id,
         actor: &actor,
-        session_id: "sess-governance-report",
+        session_id: Some(&session),
         tool_name: tool,
         agent_id: None,
         agent_scope: None,
@@ -82,7 +84,7 @@ async fn seed_decision(
         evaluated_rules: &evaluated,
         plugin_id: None,
         act_chain: &[],
-        context_id: "ctx_governance_report",
+        context_id: &context,
         task_id: None,
         trace_id: None,
         client_id: None,

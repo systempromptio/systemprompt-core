@@ -19,8 +19,8 @@ use crate::auth::{AuthenticatedUser, RateLimitTier, UserType};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::{
-    Actor, AgentName, AiToolCallId, ClientId, ContextId, JwtToken, McpExecutionId, SessionId,
-    TaskId, TraceId, UserId,
+    AccessTokenId, Actor, AgentName, AiToolCallId, ClientId, ContextId, JwtToken, McpExecutionId,
+    SessionId, TaskId, TraceId, UserId,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,15 +43,16 @@ impl RequestContext {
         trace_id: TraceId,
         context_id: ContextId,
         agent_name: AgentName,
+        actor: Actor,
     ) -> Self {
         Self {
             auth: AuthContext {
-                auth_token: JwtToken::new(""),
-                actor: Actor::user(UserId::new("unset")),
+                auth_token: None,
+                actor,
                 user_type: UserType::Anon,
                 act_chain: Vec::new(),
-                jti: String::new(),
-                token_exp: 0,
+                jti: None,
+                token_exp: None,
             },
             request: RequestMetadata {
                 session_id,
@@ -77,7 +78,7 @@ impl RequestContext {
     }
 
     pub fn with_user(mut self, user: AuthenticatedUser) -> Self {
-        self.auth.actor = Actor::user(UserId::new(user.id.to_string()));
+        self.auth.actor = Actor::user(user.id.clone());
         self.user = Some(user);
         self
     }
@@ -128,30 +129,30 @@ impl RequestContext {
         self
     }
 
-    pub fn with_auth_token(mut self, token: impl Into<String>) -> Self {
-        self.auth.auth_token = JwtToken::new(token.into());
+    pub fn with_auth_token(mut self, token: JwtToken) -> Self {
+        self.auth.auth_token = Some(token);
         self
     }
 
     #[must_use]
-    pub fn with_jti(mut self, jti: impl Into<String>) -> Self {
-        self.auth.jti = jti.into();
+    pub fn with_jti(mut self, jti: AccessTokenId) -> Self {
+        self.auth.jti = Some(jti);
         self
     }
 
     #[must_use]
     pub const fn with_token_exp(mut self, token_exp: i64) -> Self {
-        self.auth.token_exp = token_exp;
+        self.auth.token_exp = Some(token_exp);
         self
     }
 
     #[must_use]
-    pub fn jti(&self) -> &str {
-        &self.auth.jti
+    pub const fn jti(&self) -> Option<&AccessTokenId> {
+        self.auth.jti.as_ref()
     }
 
     #[must_use]
-    pub const fn token_exp(&self) -> i64 {
+    pub const fn token_exp(&self) -> Option<i64> {
         self.auth.token_exp
     }
 
@@ -228,8 +229,8 @@ impl RequestContext {
         &self.execution.agent_name
     }
 
-    pub const fn auth_token(&self) -> &JwtToken {
-        &self.auth.auth_token
+    pub const fn auth_token(&self) -> Option<&JwtToken> {
+        self.auth.auth_token.as_ref()
     }
 
     pub const fn user_type(&self) -> UserType {
@@ -283,8 +284,8 @@ impl RequestContext {
         Ok(())
     }
 
-    pub fn validate_authenticated(&self) -> Result<(), RequestContextValidationError> {
-        if self.auth.auth_token.as_str().is_empty() {
+    pub const fn validate_authenticated(&self) -> Result<(), RequestContextValidationError> {
+        if self.auth.auth_token.is_none() {
             return Err(RequestContextValidationError::MissingAuthToken);
         }
         if matches!(self.auth.user_type, UserType::Anon) {

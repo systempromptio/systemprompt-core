@@ -27,6 +27,7 @@ fn ctx(user: Option<&str>) -> RequestContext {
         TraceId::new(session),
         ContextId::generate(),
         AgentName::try_new("ownership-tests").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     match user {
         Some(user) => ctx

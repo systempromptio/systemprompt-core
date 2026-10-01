@@ -13,7 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};
+use systemprompt_identifiers::{AccessTokenId, Actor, ClientId, SessionId, UserId};
 use systemprompt_models::auth::{Permission, UserType};
 
 use super::validate::{ValidationPolicy, decode_session_claims};
@@ -29,7 +29,7 @@ pub struct JwtUserContext {
     pub act_chain: Vec<Actor>,
     // JSON: ABAC attribute bag — JWT claim values are policy-defined and schema-less.
     pub attributes: BTreeMap<String, serde_json::Value>,
-    pub jti: String,
+    pub jti: Option<AccessTokenId>,
     pub exp: i64,
 }
 
@@ -45,14 +45,14 @@ pub fn extract_user_context(token: &str, issuer: &str) -> AuthResult<JwtUserCont
         .unwrap_or_default();
 
     Ok(JwtUserContext {
-        user_id: UserId::new(claims.sub),
+        user_id: UserId::try_new(claims.sub).map_err(AuthError::InvalidSubject)?,
         session_id,
         role,
         user_type: claims.user_type,
         client_id: claims.client_id,
         act_chain,
         attributes: claims.attributes,
-        jti: claims.jti,
+        jti: (!claims.jti.is_empty()).then(|| AccessTokenId::new(claims.jti)),
         exp: claims.exp,
     })
 }

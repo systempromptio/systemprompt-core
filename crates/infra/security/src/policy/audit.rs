@@ -14,7 +14,8 @@
 use serde::Serialize;
 use sqlx::PgPool;
 use systemprompt_identifiers::{
-    Actor, AgentId, CallId, ClientId, ContextId, PluginId, PolicyId, SessionId, UserId,
+    Actor, AgentId, CallId, ClientId, ContextId, McpToolName, PluginId, PolicyId, SessionId,
+    TraceId, UserId,
 };
 use systemprompt_models::errors::RepositoryError;
 
@@ -58,7 +59,7 @@ pub struct PrincipalSnapshot {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct AuditTarget {
-    pub tool_name: String,
+    pub tool_name: McpToolName,
     pub plugin_id: Option<PluginId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_use_id: Option<String>,
@@ -97,7 +98,7 @@ pub struct DecisionAudit {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_id: Option<ContextId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub trace_id: Option<String>,
+    pub trace_id: Option<TraceId>,
 }
 
 fn allow_policy_label(chain: &[ChainEntryOutcome]) -> &'static str {
@@ -162,7 +163,7 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
     let actor = Actor::from_tool_name(
         audit.principal.user_id.clone(),
         audit.principal.agent_id.as_ref(),
-        &audit.target.tool_name,
+        audit.target.tool_name.as_str(),
     );
     let (decision_tag, reason_str, policy_str) = decision_fields(audit);
     let evaluated_rules = serde_json::to_value(VersionedAudit {
@@ -186,20 +187,20 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
     let record = GovernanceDecisionRecord {
         id: &audit.id,
         actor: &actor,
-        session_id: audit.principal.session_id.as_str(),
-        tool_name: &audit.target.tool_name,
-        agent_id: audit.principal.agent_id.as_ref().map(AgentId::as_str),
+        session_id: Some(&audit.principal.session_id),
+        tool_name: audit.target.tool_name.as_str(),
+        agent_id: audit.principal.agent_id.as_ref(),
         agent_scope: Some(audit.principal.agent_scope),
         decision: decision_tag,
         policy: &policy_str,
         reason: &reason_str,
         evaluated_rules: &evaluated_rules,
-        plugin_id: audit.target.plugin_id.as_ref().map(PluginId::as_str),
+        plugin_id: audit.target.plugin_id.as_ref(),
         act_chain: &audit.act_chain,
-        context_id: context_id.as_str(),
+        context_id: &context_id,
         task_id: None,
-        trace_id: audit.trace_id.as_deref(),
-        client_id: audit.principal.client_id.as_ref().map(ClientId::as_str),
+        trace_id: audit.trace_id.as_ref(),
+        client_id: audit.principal.client_id.as_ref(),
         tool_use_id: audit.target.tool_use_id.as_deref(),
     };
 

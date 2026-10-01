@@ -14,7 +14,7 @@ use systemprompt_runtime::AppContext;
 pub(in crate::services::server) fn start_event_bridge(ctx: &AppContext) {
     let pool = ctx.db_pool().write_pool();
 
-    let instance_id = systemprompt_identifiers::InstanceId::new(&ctx.config().instance_id);
+    let instance_id = ctx.config().instance_id.clone();
     let handle = PostgresEventBridge::new(pool.as_ref().clone(), instance_id).start();
 
     if ctx.event_bridge().set(handle).is_err() {

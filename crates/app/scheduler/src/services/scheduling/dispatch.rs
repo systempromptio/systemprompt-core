@@ -57,7 +57,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         enforce,
         parameters,
     } = dispatch;
-    let instance_id = InstanceId::new(&app_context.config().instance_id);
+    let instance_id = app_context.config().instance_id.clone();
 
     {
         let mut guard = running_jobs.lock().await;

@@ -26,13 +26,14 @@ use super::bridge_error::{BridgeError, authenticate_bridge};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 
-pub(super) use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+use systemprompt_models::bridge::host::HostKind;
 
 pub fn instance_enabled_hosts(
     services: &systemprompt_models::services::ServicesConfig,
 ) -> Vec<String> {
-    KNOWN_HOSTS
+    HostKind::ALL
         .iter()
+        .map(|host| host.as_str())
         .filter(|host| {
             services
                 .external_agents
@@ -40,7 +41,7 @@ pub fn instance_enabled_hosts(
                 .find(|(id, _)| id.as_str().replace('_', "-") == **host)
                 .is_none_or(|(_, agent)| agent.enabled)
         })
-        .map(|s| (*s).to_owned())
+        .map(str::to_owned)
         .collect()
 }
 
@@ -64,7 +65,7 @@ pub async fn set_enabled_host(
 ) -> Result<Json<SetHostPrefResponse>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
 
-    if !KNOWN_HOSTS.iter().any(|h| *h == body.host_id) {
+    if body.host_id.parse::<HostKind>().is_err() {
         return Err(BridgeError::UnknownHost(body.host_id).into());
     }
 
@@ -107,7 +108,7 @@ pub async fn set_host_model_filter(
 ) -> Result<Json<HostModelFilterResponse>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
 
-    if !KNOWN_HOSTS.iter().any(|h| *h == body.host_id) {
+    if body.host_id.parse::<HostKind>().is_err() {
         return Err(BridgeError::UnknownHost(body.host_id).into());
     }
 

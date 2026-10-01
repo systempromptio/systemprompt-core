@@ -17,7 +17,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Serialize;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_models::{A2AEvent, AgUiEvent, Config};
 
 pub use super::lifecycle_event::LifecycleEvent;
@@ -223,7 +223,7 @@ impl WebhookContext {
         Self::new(
             broadcaster,
             context.user_id().clone(),
-            context.auth_token().as_str(),
+            context.auth_token().map_or("", JwtToken::as_str),
         )
     }
 

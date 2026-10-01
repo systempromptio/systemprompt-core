@@ -9,7 +9,7 @@ use systemprompt_cli::infrastructure::services::start::{
 };
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands, cleanup};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_database::{DbPool, ServiceConfig};
+use systemprompt_database::{DbPool, ServiceConfig, ServiceModule, ServiceStatus};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_scheduler::{OrphanCleanupReport, OrphanDisposition, OrphanOutcome};
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
@@ -119,9 +119,9 @@ fn cleanup_helpers_render_reports_and_messages() {
 fn cleanup_dry_run_result_counts_services() {
     let services = vec![ServiceConfig {
         instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: "svc-a".to_owned(),
-        module_name: "mod-a".to_owned(),
-        status: "running".to_owned(),
+        name: systemprompt_identifiers::ServiceName::new("svc-a"),
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         pid: Some(4_000_000),
         port: 5001,
         binary_mtime: None,

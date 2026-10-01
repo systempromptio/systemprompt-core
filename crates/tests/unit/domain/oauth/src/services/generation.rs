@@ -349,7 +349,7 @@ mod jwt_minting {
 
     fn test_user() -> AuthenticatedUser {
         AuthenticatedUser::new_with_roles(
-            Uuid::new_v4(),
+            systemprompt_identifiers::UserId::generate(),
             "gen-user".to_owned(),
             "gen@test.invalid".to_owned(),
             vec![Permission::User],

@@ -9,7 +9,7 @@ use jsonwebtoken::{Algorithm, Header, encode};
 use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
-use systemprompt_identifiers::{ClientId, SessionId, UserId};
+use systemprompt_identifiers::{ClientId, PluginId, SessionId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{
     ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
@@ -143,7 +143,7 @@ fn build_claims(
         auth_time: now,
         session_id: Some(session_id.clone()),
         rate_limit_tier: Some(user_type.rate_tier()),
-        plugin_id: config.plugin_id,
+        plugin_id: config.plugin_id.map(PluginId::new),
         act: None,
     })
 }

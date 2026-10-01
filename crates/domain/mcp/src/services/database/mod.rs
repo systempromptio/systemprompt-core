@@ -9,44 +9,20 @@
 pub mod state;
 pub mod sync;
 
+use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use crate::{ERROR, McpServerConfig, RUNNING, STOPPED};
-
-const STOPPING: &str = "stopping";
 use crate::services::registry::RegistryService;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
+use systemprompt_identifiers::ServiceName;
+use systemprompt_models::services::ServiceStatus;
 
-
-/// The lifecycle states the orchestrator writes to `services.status`; the
-/// stored strings are the shared `RUNNING` / `STOPPED` / `ERROR` constants
-/// that every reader of the column matches on.
 // Why: `services.pid` is a signed column; a negative value is corrupt data
 // and reads as "no pid" rather than a wrapped process id.
 #[must_use]
 pub fn stored_pid(pid: Option<i32>) -> Option<u32> {
     pid.and_then(|p| u32::try_from(p).ok())
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ServiceLifecycleStatus {
-    Running,
-    Stopping,
-    Stopped,
-    Error,
-}
-
-impl ServiceLifecycleStatus {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Running => RUNNING,
-            Self::Stopping => STOPPING,
-            Self::Stopped => STOPPED,
-            Self::Error => ERROR,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -96,17 +72,17 @@ impl DatabaseService {
     pub async fn update_service_status(
         &self,
         name: &str,
-        status: ServiceLifecycleStatus,
+        status: ServiceStatus,
     ) -> McpDomainResult<()> {
         self.service_repo
-            .update_service_status(name, status.as_str())
+            .update_service_status(&ServiceName::new(name), status)
             .await
             .map_err(Into::into)
     }
 
     pub async fn clear_service_pid(&self, name: &str) -> McpDomainResult<()> {
         self.service_repo
-            .clear_service_pid(name)
+            .clear_service_pid(&ServiceName::new(name))
             .await
             .map_err(Into::into)
     }

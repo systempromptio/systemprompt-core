@@ -48,8 +48,8 @@ fn ctx_for(user: &UserId) -> RequestContext {
         TraceId::new("introspect-revoke"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
 }
 
 async fn oauth_app(user: UserId) -> anyhow::Result<Router> {

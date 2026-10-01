@@ -71,5 +71,6 @@ pub use subprocess::{
 pub use usage::{usage, usage_update, UsageBuilder};
 pub use user::{
     fixture_actor, fixture_system_admin, fixture_user_id, merging_user_service, unique_user_id,
+    FIXTURE_USER_ID,
 };
 pub use web_config::{web_config, WEB_CONFIG_YAML};

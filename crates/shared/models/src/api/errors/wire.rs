@@ -5,6 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Serializer};
+use systemprompt_identifiers::TraceId;
 
 use super::{ApiError, ErrorCode, ValidationError};
 
@@ -55,7 +56,7 @@ impl Serialize for ApiError {
             path: self.path.as_deref(),
             validation_errors,
             timestamp: self.timestamp,
-            trace_id: self.trace_id.as_deref(),
+            trace_id: self.trace_id.as_ref().map(TraceId::as_str),
         }
         .serialize(serializer)
     }

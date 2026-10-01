@@ -62,9 +62,9 @@ fn context_for(user: &str) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("router-ext").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new(user)),
     )
     .with_user_type(UserType::User)
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
 }
 
 fn context(kind: UserType) -> RequestContext {
@@ -73,11 +73,9 @@ fn context(kind: UserType) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("router-ext").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new("router-ext-user")),
     )
     .with_user_type(kind)
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "router-ext-user",
-    )))
 }
 
 // The header-extracting flavours take a `ContextExtractor`; the trait itself is

@@ -98,7 +98,7 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         not_before: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: systemprompt_identifiers::UserId::new("test-user"),
+        user_id: systemprompt_identifiers::UserId::new("00000000-0000-4000-8000-00000000beef"),
         tenant_id: None,
         user: None,
         plugins: vec![],

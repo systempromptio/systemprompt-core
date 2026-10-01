@@ -8,7 +8,8 @@ use systemprompt_api::services::middleware::jwt::params::{
     BuildContextParams, build_context, extract_common_headers,
 };
 use systemprompt_identifiers::{
-    Actor, AgentName, ClientId, ContextId, SessionId, TaskId, TraceId, UserId,
+    AccessTokenId, Actor, AgentName, ClientId, ContextId, JwtToken, SessionId, TaskId, TraceId,
+    UserId,
 };
 use systemprompt_models::auth::{Permission, UserType};
 use systemprompt_security::{JwtUserContext, TokenExtractor};
@@ -22,7 +23,7 @@ fn jwt_context(user_id: &UserId, session_id: &SessionId) -> JwtUserContext {
         client_id: None,
         act_chain: vec![Actor::user(UserId::new("delegator"))],
         attributes: BTreeMap::new(),
-        jti: "jti-123".to_owned(),
+        jti: Some(AccessTokenId::new("jti-123")),
         exp: 1_900_000_000,
     }
 }
@@ -49,15 +50,15 @@ fn build_context_carries_identity_and_claims() {
 
     assert_eq!(ctx.auth.actor, Actor::user(user_id));
     assert_eq!(ctx.auth.user_type, UserType::User);
-    assert_eq!(ctx.auth.jti, "jti-123");
-    assert_eq!(ctx.auth.token_exp, 1_900_000_000);
+    assert_eq!(ctx.auth.jti, Some(AccessTokenId::new("jti-123")));
+    assert_eq!(ctx.auth.token_exp, Some(1_900_000_000));
     assert_eq!(ctx.auth.act_chain.len(), 1);
     assert_eq!(ctx.request.session_id, session_id);
     assert_eq!(ctx.execution.trace_id.as_str(), "trace-1");
     assert_eq!(ctx.execution.agent_name.as_str(), "agent-x");
     assert!(ctx.execution.task_id.is_none());
     assert!(ctx.request.client_id.is_none());
-    assert!(ctx.auth.auth_token.as_str().is_empty());
+    assert!(ctx.auth.auth_token.is_none());
 }
 
 #[test]
@@ -79,7 +80,7 @@ fn build_context_applies_optional_fields() {
         ctx.execution.task_id.as_ref().map(TaskId::as_str),
         Some("task-7")
     );
-    assert_eq!(ctx.auth.auth_token.as_str(), "token-abc");
+    assert_eq!(ctx.auth.auth_token.as_ref().map(JwtToken::as_str), Some("token-abc"));
 }
 
 #[test]

@@ -2,7 +2,8 @@ use chrono::Utc;
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
 use systemprompt_agent::models::context::{ContextKind, ContextStateEvent};
 use systemprompt_identifiers::{
-    AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, SkillId, TaskId, TraceId,
+    Actor, AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, SkillId, TaskId, TraceId,
+    UserId,
 };
 use systemprompt_models::UserContext;
 use systemprompt_models::execution::context::RequestContext;
@@ -60,6 +61,7 @@ fn context_state_event_skill_loaded_has_context_id() {
         TraceId::new("trace-1"),
         ContextId::try_new(CONTEXT_ID_1).expect("valid ContextId"),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let event = ContextStateEvent::SkillLoaded {
         skill_id: SkillId::new("skill-1"),
@@ -79,6 +81,7 @@ fn context_state_event_skill_loaded_no_tool_name() {
         TraceId::new("trace-2"),
         ContextId::try_new(CONTEXT_ID_2).expect("valid ContextId"),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let event = ContextStateEvent::SkillLoaded {
         skill_id: SkillId::new("skill-2"),

@@ -52,10 +52,8 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
         TraceId::new("stats-t"),
         ContextId::generate(),
         AgentName::try_new("stats-agent").expect("valid AgentName"),
-    )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "stats-u",
-    )));
+        systemprompt_identifiers::Actor::user(UserId::new("stats-u")),
+    );
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
@@ -103,10 +101,8 @@ async fn start_and_complete_execution_roundtrip() {
         TraceId::new("t1"),
         ContextId::generate(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
-    )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "test-user",
-    )));
+        systemprompt_identifiers::Actor::user(UserId::new("test-user")),
+    );
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
@@ -186,8 +182,8 @@ async fn log_execution_sync_writes_row() {
         TraceId::new("t2"),
         ContextId::generate(),
         AgentName::try_new("agent-sync").expect("valid AgentName"),
-    )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new("u2")));
+        systemprompt_identifiers::Actor::user(UserId::new("u2")),
+    );
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {

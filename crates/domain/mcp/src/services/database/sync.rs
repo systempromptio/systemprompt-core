@@ -8,10 +8,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::process::utils;
-use crate::{ERROR, McpServerConfig, RUNNING, STOPPED};
 use systemprompt_database::ServiceRepository;
+use systemprompt_identifiers::ServiceName;
+use systemprompt_models::services::ServiceStatus;
 use tokio::net::TcpStream;
 use tokio::time::{Duration, timeout};
 
@@ -40,11 +42,11 @@ pub async fn cleanup_stale_services(repository: &ServiceRepository) -> McpDomain
     let services = repository.list_mcp_services().await?;
 
     for service in services {
-        if service.status == RUNNING {
+        if service.status == ServiceStatus::Running {
             let port = service.port as u16;
             if !is_port_listening(port).await {
                 repository
-                    .update_service_status(&service.name, STOPPED)
+                    .update_service_status(&service.name, ServiceStatus::Stopped)
                     .await?;
             }
         }
@@ -57,7 +59,7 @@ pub async fn delete_crashed_services(repository: &ServiceRepository) -> McpDomai
     let services = repository.list_mcp_services().await?;
 
     for service in services {
-        if service.status == ERROR {
+        if service.status == ServiceStatus::Error {
             repository.delete_service(&service.name).await?;
         }
     }
@@ -70,12 +72,13 @@ pub async fn sync_database_state(
     servers: &[McpServerConfig],
 ) -> McpDomainResult<()> {
     for server in servers {
-        if let Some(service) = repository.find_service_by_name(&server.name).await? {
+        let server_name = ServiceName::new(server.name.as_str());
+        if let Some(service) = repository.find_service_by_name(&server_name).await? {
             let port = service.port as u16;
             let pid = service.pid;
 
             if !is_service_healthy(port, pid).await {
-                repository.mark_service_crashed(&server.name).await?;
+                repository.mark_service_crashed(&server_name).await?;
             }
         }
     }
@@ -98,7 +101,7 @@ pub async fn delete_disabled_services(
             if let Some(pid) = service.pid {
                 crate::services::process::ProcessService::terminate_gracefully_verified(
                     pid as u32,
-                    &service.name,
+                    service.name.as_str(),
                 )
                 .await?;
             }

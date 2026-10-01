@@ -183,7 +183,7 @@ async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository)
 // Why: Unix can reuse PIDs; kill(-pid) signals the entire process group.
 async fn terminate_service_child(
     repo: &systemprompt_database::ServiceRepository,
-    name: &str,
+    name: &systemprompt_identifiers::ServiceName,
     pid: Option<i32>,
     name_key: &str,
 ) {
@@ -194,7 +194,7 @@ async fn terminate_service_child(
         return;
     }
 
-    if !systemprompt_loader::subprocess::live_pid_is_subprocess(pid, name_key, name) {
+    if !systemprompt_loader::subprocess::live_pid_is_subprocess(pid, name_key, name.as_str()) {
         tracing::warn!(
             service = %name,
             pid,

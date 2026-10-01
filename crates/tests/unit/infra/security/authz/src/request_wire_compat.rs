@@ -6,10 +6,12 @@ use systemprompt_identifiers::{Actor, ActorKind, AgentId, ClientId, RouteId, Tra
 use systemprompt_security::authz::{AuthzContext, AuthzRequest, EntityRef};
 use systemprompt_security::policy::types::AccessScope;
 
+const U1: &str = "00000000-0000-4000-8000-000000000001";
+
 fn legacy_wire() -> serde_json::Value {
     serde_json::json!({
         "entity": { "kind": "gateway_route", "id": "claude-3" },
-        "user_id": "u1",
+        "user_id": U1,
         "roles": ["eng"],
         "trace_id": "trace-1",
     })
@@ -18,7 +20,7 @@ fn legacy_wire() -> serde_json::Value {
 fn request() -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
-        user_id: UserId::new("u1"),
+        user_id: UserId::new(U1),
         actor: None,
         client_id: None,
         access_scope: None,
@@ -40,13 +42,13 @@ fn wire_without_actor_falls_back_to_the_user() {
     assert!(parsed.client_id.is_none());
     assert!(parsed.access_scope.is_none());
     let actor = parsed.actor();
-    assert_eq!(actor.user_id.as_str(), "u1");
+    assert_eq!(actor.user_id.as_str(), U1);
     assert!(matches!(actor.kind, ActorKind::User));
 }
 
 #[test]
 fn mcp_actor_and_client_round_trip() {
-    let mut req = request().for_actor(Actor::mcp(UserId::new("u1"), "comms"));
+    let mut req = request().for_actor(Actor::mcp(UserId::new(U1), "comms"));
     req.client_id = Some(ClientId::bridge());
     let wire = serde_json::to_value(&req).expect("serialize");
     let parsed: AuthzRequest = serde_json::from_value(wire).expect("deserialize");
@@ -82,10 +84,13 @@ fn verified_agent_id_comes_only_from_an_agent_delegate() {
     );
 
     req.act_chain = vec![
-        Actor::agent(UserId::new("u1"), AgentId::new("planner")),
+        Actor::agent(UserId::new(U1), AgentId::new("planner")),
         Actor::user(UserId::new("origin")),
     ];
-    assert_eq!(req.verified_agent_id(), Some("planner"));
+    assert_eq!(
+        req.verified_agent_id().map(AgentId::as_str),
+        Some("planner")
+    );
 }
 
 #[test]

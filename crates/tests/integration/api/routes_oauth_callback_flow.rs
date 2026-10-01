@@ -18,7 +18,7 @@ use axum::http::{Request, Response, StatusCode, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{
-    AgentName, AuthorizationCode, ClientId, ContextId, SessionId, TraceId, UserId,
+    Actor, AgentName, AuthorizationCode, ClientId, ContextId, SessionId, TraceId, UserId,
 };
 use systemprompt_models::Config;
 use systemprompt_models::execution::context::RequestContext;
@@ -62,6 +62,7 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
         TraceId::new("callback-flow"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     ));
     next.run(req).await
 }

@@ -45,8 +45,8 @@ fn ctx(session: &str, user: &UserId) -> RequestContext {
         TraceId::new(session),
         ContextId::generate(),
         AgentName::try_new("ingest-tests").expect("valid AgentName"),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
     .with_user_type(UserType::User)
 }
 

@@ -75,7 +75,7 @@ fn manifest(servers: Vec<ManagedMcpServer>) -> SignedManifest {
         not_before: chrono::DateTime::parse_from_rfc3339("2026-09-19T08:00:00+00:00")
             .unwrap()
             .with_timezone(&chrono::Utc),
-        user_id: systemprompt_identifiers::UserId::new("user_writer_test"),
+        user_id: systemprompt_identifiers::UserId::new("00000000-0000-4000-8000-00000000317e"),
         tenant_id: None,
         user: None,
         plugins: vec![],

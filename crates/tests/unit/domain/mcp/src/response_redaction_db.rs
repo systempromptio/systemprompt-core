@@ -36,10 +36,8 @@ fn ctx() -> RequestContext {
         TraceId::new(session),
         ContextId::generate(),
         AgentName::try_new("redaction-tests").expect("valid AgentName"),
+        Actor::user(UserId::new("11111111-1111-4111-8111-111111111abc")),
     )
-    .with_actor(Actor::user(UserId::new(
-        "11111111-1111-4111-8111-111111111abc",
-    )))
     .with_user_type(UserType::User)
 }
 

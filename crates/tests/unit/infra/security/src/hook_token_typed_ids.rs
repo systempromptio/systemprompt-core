@@ -14,6 +14,7 @@ use systemprompt_security::HookTokenValidator;
 use systemprompt_security::keys::RsaSigningKey;
 
 const ISSUER: &str = "hook-issuer";
+const USER_9: &str = "00000000-0000-4000-8000-000000000009";
 
 fn ensure_authority() -> &'static RsaSigningKey {
     systemprompt_test_fixtures::install_test_signing_key()
@@ -40,7 +41,7 @@ fn hook_claims(plugin_id: &str, subject: &str) -> JwtClaims {
         auth_time: now.timestamp(),
         session_id: Some(SessionId::new("s")),
         rate_limit_tier: Some(RateLimitTier::User),
-        plugin_id: Some(plugin_id.to_string()),
+        plugin_id: Some(PluginId::new(plugin_id)),
         act: None,
     }
 }
@@ -60,7 +61,7 @@ fn mint(claims: &JwtClaims) -> String {
 #[test]
 fn validated_govern_claims_expose_typed_ids() {
     let _ = ensure_authority();
-    let token = mint(&hook_claims("plugin-x", "user-9"));
+    let token = mint(&hook_claims("plugin-x", USER_9));
 
     let validator = HookTokenValidator::new(ISSUER.to_string());
     let claims = validator
@@ -70,14 +71,14 @@ fn validated_govern_claims_expose_typed_ids() {
     let plugin_id: PluginId = claims.plugin_id;
     let subject: UserId = claims.subject;
     assert_eq!(plugin_id.as_str(), "plugin-x");
-    assert_eq!(subject.as_str(), "user-9");
+    assert_eq!(subject.as_str(), USER_9);
     assert!(claims.scopes.contains(&Permission::HookGovern));
 }
 
 #[test]
 fn plugin_id_mismatch_is_rejected() {
     let _ = ensure_authority();
-    let token = mint(&hook_claims("plugin-a", "user-9"));
+    let token = mint(&hook_claims("plugin-a", USER_9));
 
     let validator = HookTokenValidator::new(ISSUER.to_string());
     let result = validator.validate_govern(&token, Some("plugin-b"));
@@ -90,7 +91,7 @@ fn plugin_id_mismatch_is_rejected() {
 #[test]
 fn validate_track_accepts_a_track_scoped_token() {
     let _ = ensure_authority();
-    let token = mint(&hook_claims("plugin-x", "user-9"));
+    let token = mint(&hook_claims("plugin-x", USER_9));
 
     let validator = HookTokenValidator::new(ISSUER.to_string());
     let claims = validator
@@ -102,7 +103,7 @@ fn validate_track_accepts_a_track_scoped_token() {
 #[test]
 fn token_without_the_required_scope_is_rejected_by_name() {
     let _ = ensure_authority();
-    let mut claims = hook_claims("plugin-x", "user-9");
+    let mut claims = hook_claims("plugin-x", USER_9);
     claims.scope = vec![Permission::HookGovern];
     let token = mint(&claims);
 
@@ -116,7 +117,7 @@ fn token_without_the_required_scope_is_rejected_by_name() {
 #[test]
 fn token_without_a_plugin_id_claim_is_rejected() {
     let _ = ensure_authority();
-    let mut claims = hook_claims("plugin-x", "user-9");
+    let mut claims = hook_claims("plugin-x", USER_9);
     claims.plugin_id = None;
     let token = mint(&claims);
 

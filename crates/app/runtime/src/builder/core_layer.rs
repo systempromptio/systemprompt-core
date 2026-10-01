@@ -81,7 +81,7 @@ pub(super) async fn init_core(
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))?;
     let services = init_services(secrets).await?;
     let config = Arc::new(Config::get()?.clone());
-    let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
+    let instance_id = config.instance_id.clone();
     systemprompt_logging::set_instance_id(instance_id.clone());
     let file_storage = init_file_storage(&profile.storage, &app_paths, &instance_id).await?;
 

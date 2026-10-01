@@ -15,7 +15,9 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use std::time::Duration;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, ServiceName, SessionId, TraceId, UserId,
+};
 use systemprompt_models::execution::context::RequestContext;
 use tokio::time::timeout;
 
@@ -136,8 +138,9 @@ async fn connect_and_validate(
     let context = RequestContext::new(
         SessionId::new(format!("mcp-validate-{service_name}")),
         TraceId::generate(),
-        ContextId::derived_from_mcp_validation(service_name),
+        ContextId::derived_from_mcp_validation(&ServiceName::new(service_name)),
         AgentName::system(),
+        Actor::anonymous(UserId::generate()),
     );
     let config = StreamableHttpClientTransportConfig::with_uri(url);
     let http_client = HttpClientWithContext::new(context).map_err(|e| {

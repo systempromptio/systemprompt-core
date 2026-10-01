@@ -8,7 +8,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    Actor, ActorKind, ClientId, ContextId, McpToolName, ModelId, SessionId, TaskId, TraceId, UserId,
+    Actor, ActorKind, AgentId, ClientId, ContextId, McpToolName, ModelId, SessionId, TaskId,
+    TraceId, UserId,
 };
 
 use super::decision::DenyReason;
@@ -200,9 +201,9 @@ impl AuthzRequest {
     // Why: RFC 8693 puts the current actor in the outermost `act` claim;
     // nested actors are prior delegates.
     #[must_use]
-    pub fn verified_agent_id(&self) -> Option<&str> {
+    pub fn verified_agent_id(&self) -> Option<&AgentId> {
         match self.act_chain.first().map(|a| &a.kind) {
-            Some(ActorKind::Agent { agent_id }) => Some(agent_id.as_str()),
+            Some(ActorKind::Agent { agent_id }) => Some(agent_id),
             _ => None,
         }
     }

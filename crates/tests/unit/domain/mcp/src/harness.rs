@@ -152,8 +152,8 @@ pub fn request_context(tag: &str) -> RequestContext {
         TraceId::new(format!("t-{tag}")),
         ContextId::generate(),
         AgentName::try_new(format!("agent-{tag}")).expect("valid AgentName"),
+        Actor::user(UserId::new(format!("user-{tag}"))),
     )
-    .with_actor(Actor::user(UserId::new(format!("user-{tag}"))))
 }
 
 pub async fn mount_mcp_endpoint(server: &MockServer, tools: serde_json::Value) {

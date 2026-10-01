@@ -278,7 +278,7 @@ fn whoami_check_passes_on_identity_and_fails_generically_on_a_500() {
         Mock::given(method("GET"))
             .and(path("/v1/bridge/whoami"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "user_id": "user_abc",
+                "user_id": "00000000-0000-4000-8000-0000000000ab",
                 "email": "e@example.com",
                 "roles": ["member"]
             })))

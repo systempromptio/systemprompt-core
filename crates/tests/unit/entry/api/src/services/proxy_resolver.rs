@@ -29,7 +29,7 @@ async fn seed_service(pool: &DbPool, name: &str, status: &str) {
     let inner = pool.pool();
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, status, port, pid)
-         VALUES ('test-instance', $1, 'mcp_server', $2, 0, $3)
+         VALUES ('test-instance', $1, 'mcp', $2, 0, $3)
          ON CONFLICT (instance_id, name) DO UPDATE SET status = $2",
     )
     .bind(name)
@@ -113,7 +113,7 @@ async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
 // Why: this is the regression test for a defect that killed the API process.
 // `start_services` reports Ok when it started nothing — an unregistered name
 // filters to an empty target list — so the old code recursed on that Ok alone
-// and spun forever on a row that never leaves `crashed`, exhausting the stack.
+// and spun forever on a row that never leaves `error`, exhausting the stack.
 // The timeout is part of the assertion: a reintroduced recursion aborts the
 // binary on stack overflow, and anything that merely hangs fails here rather
 // than wedging the suite.
@@ -123,7 +123,7 @@ async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retri
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_unregistered");
-    seed_service(&pool, &name, "crashed").await;
+    seed_service(&pool, &name, "error").await;
 
     let outcome = tokio::time::timeout(
         std::time::Duration::from_secs(20),
@@ -140,7 +140,7 @@ async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retri
         ProxyError::ServiceNotRunning { service, status } => {
             assert_eq!(service, name);
             assert_eq!(
-                status, "crashed",
+                status, "error",
                 "the refusal must report the status the row still holds, so the operator sees the \
                  service never came back"
             );
@@ -161,7 +161,7 @@ async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_recovers");
-    seed_service(&pool, &name, "crashed").await;
+    seed_service(&pool, &name, "error").await;
 
     let flipper = {
         let pool = pool.clone();
@@ -182,9 +182,10 @@ async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
 
     flipper.await.expect("the flipping task does not panic");
 
-    assert_eq!(resolved.name, name);
+    assert_eq!(resolved.name.as_str(), name);
     assert_eq!(
-        resolved.status, "running",
+        resolved.status,
+        systemprompt_database::ServiceStatus::Running,
         "the re-read must hand back the recovered row, not the stale crashed one"
     );
 
@@ -201,7 +202,7 @@ async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error()
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_then_outage");
-    seed_service(&pool, &name, "crashed").await;
+    seed_service(&pool, &name, "error").await;
 
     let closer = {
         let pool = pool.clone();

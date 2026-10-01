@@ -65,7 +65,7 @@ async fn actual_transport_recovers_persisted_retry_and_uses_only_device_credenti
     let enrollment = Enrollment::new(
         &gateway,
         DeviceId::try_new("device").expect("nonempty fixture device"),
-        UserId::new("consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
     )
     .unwrap();
@@ -131,7 +131,7 @@ async fn plan_for_different_host_is_rejected_even_when_publication_and_digest_ma
     let enrollment = Enrollment::new(
         &gateway,
         DeviceId::try_new("device").expect("nonempty fixture device"),
-        UserId::new("consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
     )
     .unwrap();
@@ -155,7 +155,7 @@ async fn delivery_refuses_different_enrollment_before_any_network_request() {
     let other = Enrollment::new(
         "https://example.invalid",
         DeviceId::try_new("other").expect("nonempty fixture device"),
-        UserId::new("consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_other"),
     )
     .unwrap();
@@ -208,7 +208,7 @@ async fn credential_rejection_is_persisted_and_a_later_delivery_recovers_the_sam
     let enrollment = Enrollment::new(
         &gateway,
         DeviceId::try_new("device").expect("fixture device"),
-        UserId::new("consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_rotated"),
     )
     .unwrap();
@@ -286,7 +286,7 @@ async fn acknowledged_receipt_retries_only_its_unbound_session_without_resending
     let enrollment = Enrollment::new(
         &gateway.uri(),
         DeviceId::try_new("binding-device").unwrap(),
-        UserId::new("consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_binding"),
     )
     .unwrap();

@@ -6,9 +6,11 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::UserId;
 pub use systemprompt_provider_contracts::JobScope;
 
+/// One scheduled job. `owner` is the *username* of the user the job runs as
+/// (resolved to a `UserId` against `users.name` at start); absent means the
+/// system admin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct JobConfig {
@@ -16,7 +18,7 @@ pub struct JobConfig {
     pub extension: Option<String>,
     pub name: String,
     #[serde(default)]
-    pub owner: Option<UserId>,
+    pub owner: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]
@@ -55,8 +57,8 @@ impl JobConfig {
     }
 
     #[must_use]
-    pub fn with_owner(mut self, owner: UserId) -> Self {
-        self.owner = Some(owner);
+    pub fn with_owner(mut self, owner: impl Into<String>) -> Self {
+        self.owner = Some(owner.into());
         self
     }
 

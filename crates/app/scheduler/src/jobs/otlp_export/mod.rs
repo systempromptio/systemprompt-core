@@ -131,7 +131,7 @@ impl Job for OtlpExportJob {
         let pool = db_pool.write_pool();
         let instance_id = job_app_context(ctx)
             .ok()
-            .map(|app| app.config().instance_id.clone());
+            .map(|app| app.config().instance_id.as_str().to_owned());
 
         let report = run(&pool, config, instance_id.as_deref(), true).await?;
         Ok(JobResult::success()

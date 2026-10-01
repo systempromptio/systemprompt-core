@@ -12,7 +12,8 @@ use std::time::{Duration, Instant};
 use clap::Parser;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat, ScriptedPrompter};
-use systemprompt_database::CreateServiceInput;
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, SUBPROCESS_MARKER_ENV};
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
@@ -90,16 +91,17 @@ async fn cleanup_owned_helper() {
     let pool = database.test_pool().await;
     let app = test_app_context(&pool, database.url());
     let repo = app.service_repository().clone();
+    let service = ServiceName::new(SERVICE);
     repo.create_service(CreateServiceInput {
-        name: SERVICE,
-        module_name: "agent",
-        status: "running",
+        name: &service,
+        module_name: ServiceModule::Agent,
+        status: ServiceStatus::Running,
         port: 0,
         binary_mtime: None,
     })
     .await
     .expect("service row");
-    repo.update_service_pid(SERVICE, i32::try_from(pid).expect("PID range"))
+    repo.update_service_pid(&service, i32::try_from(pid).expect("PID range"))
         .await
         .expect("service PID");
     let base = CliConfig::new().with_output_format(OutputFormat::Json);
@@ -123,12 +125,12 @@ async fn cleanup_owned_helper() {
             .is_none()
     );
     assert_eq!(
-        repo.find_service_by_name(SERVICE)
+        repo.find_service_by_name(&service)
             .await
             .expect("row after dry run")
             .expect("row")
             .status,
-        "running"
+        ServiceStatus::Running
     );
     let cancel = CommandContext::with_app_context(
         base.with_interactive(true).with_assume_terminal(true),
@@ -150,12 +152,12 @@ async fn cleanup_owned_helper() {
             .is_none()
     );
     assert_eq!(
-        repo.find_service_by_name(SERVICE)
+        repo.find_service_by_name(&service)
             .await
             .expect("row after cancel")
             .expect("row")
             .status,
-        "running"
+        ServiceStatus::Running
     );
     println!("BEGIN_CONFIRMED");
     services::execute(parse(&["cleanup", "--yes"]), &dry)
@@ -179,12 +181,12 @@ async fn cleanup_owned_helper() {
     }
     child.0.take();
     assert_eq!(
-        repo.find_service_by_name(SERVICE)
+        repo.find_service_by_name(&service)
             .await
             .expect("row after cleanup")
             .expect("row")
             .status,
-        "stopped"
+        ServiceStatus::Stopped
     );
     assert!(
         !pkill_log.exists(),

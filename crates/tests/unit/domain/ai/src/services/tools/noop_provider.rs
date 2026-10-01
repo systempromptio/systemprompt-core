@@ -34,7 +34,7 @@ mod noop_provider_tests {
         let provider = NoopToolProvider::new();
         let context = create_context();
         let request = ToolCallRequest {
-            tool_call_id: "call-123".to_string(),
+            tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-123"),
             name: "some_tool".to_string(),
             arguments: json!({}),
         };

@@ -18,6 +18,8 @@
 //!   producer/consumer.
 //! - [`manifest_version`] — the parsed `<rfc3339>-<hex>` version identifier
 //!   carried inside every manifest.
+//! - [`host`] — [`host::HostKind`], the closed set of host applications the
+//!   bridge integrates with.
 //! - [`ids`] — typed newtypes for manifest-scoped identifiers (plugin id,
 //!   sha256 digest, signature, tool policy, …) so wire fields carry their
 //!   semantics through every layer.
@@ -33,6 +35,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod cowork_artifact;
+pub mod host;
 pub mod ids;
 pub mod manifest;
 pub mod manifest_version;

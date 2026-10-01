@@ -177,12 +177,11 @@ async fn build_transport(
             .with_client_capabilities(capabilities::client_capabilities(with_elicitation))
     } else {
         if server_config.oauth.required {
-            let user_token = context.auth_token();
-            if user_token.as_str().is_empty() {
+            let Some(user_token) = context.auth_token() else {
                 return Err(crate::error::McpDomainError::AuthRequired(
                     "User JWT required for authenticated MCP calls".to_owned(),
                 ));
-            }
+            };
             // Why: rmcp passes `auth_header` to `bearer_auth`, which adds the Bearer
             // prefix.
             transport_config = transport_config.auth_header(user_token.as_str().to_owned());

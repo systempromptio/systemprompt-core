@@ -22,7 +22,7 @@ use axum::extract::Request;
 use axum::http::HeaderMap;
 use axum::response::Response;
 use std::sync::Arc;
-use systemprompt_database::ServiceConfig;
+use systemprompt_database::{ServiceConfig, ServiceModule};
 use systemprompt_identifiers::AgentName;
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
@@ -143,7 +143,7 @@ impl ProxyEngine {
             .send_to_backend(request, &full_url, &headers, service_name)
             .await?;
 
-        if service.module_name == "mcp" {
+        if service.module_name == ServiceModule::Mcp {
             mcp_session::handle_mcp_response(mcp_session::McpResponseCtx {
                 identities: &self.identities,
                 response: &response,
@@ -174,7 +174,7 @@ impl ProxyEngine {
                 .to_owned(),
         })?;
 
-        if service.module_name == "agent" {
+        if service.module_name == ServiceModule::Agent {
             let agent_name = AgentName::try_new(service_name.to_owned()).map_err(|source| {
                 ProxyError::InvalidServiceName {
                     service: service_name.to_owned(),
@@ -184,7 +184,7 @@ impl ProxyEngine {
             req_context = req_context.with_agent_name(agent_name);
         }
 
-        if service.module_name == "mcp" && req_context.auth_token().as_str().is_empty() {
+        if service.module_name == ServiceModule::Mcp && req_context.auth_token().is_none() {
             req_context = mcp_session::enrich_with_cached_identity(
                 &self.identities,
                 request_headers,
@@ -255,7 +255,7 @@ fn inject_forward_headers(
     service_name: &str,
 ) {
     let has_auth_before = headers.get("authorization").is_some();
-    let ctx_has_token = !req_context.auth_token().as_str().is_empty();
+    let ctx_has_token = req_context.auth_token().is_some();
 
     HeaderInjector::inject_context(headers, req_context);
 

@@ -7,7 +7,7 @@
 
 use chrono::{TimeZone, Utc};
 use systemprompt_content::models::{CreateLinkParams, RecordClickParams, TrackClickParams};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
 
@@ -212,7 +212,7 @@ fn test_record_click_params_with_user_id() {
     )
     .with_user_id(Some(fixture_user_id()));
 
-    assert_eq!(params.user_id.as_ref().unwrap().as_str(), "test-user");
+    assert_eq!(params.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
 }
 
 #[test]
@@ -373,7 +373,7 @@ fn test_track_click_params_with_user_id() {
     let params = TrackClickParams::new(LinkId::new("link"), SessionId::new("session"))
         .with_user_id(Some(fixture_user_id()));
 
-    assert_eq!(params.user_id.as_ref().unwrap().as_str(), "test-user");
+    assert_eq!(params.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
 }
 
 #[test]

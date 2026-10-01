@@ -29,7 +29,7 @@ fn gateway() -> Gateway {
         Mock::given(method("GET"))
             .and(path("/v1/bridge/whoami"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "user_id": "user_1",
+                "user_id": "00000000-0000-4000-8000-000000000001",
                 "email": "person@example.com",
                 "roles": ["member"],
             })))

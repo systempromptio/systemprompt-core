@@ -11,7 +11,7 @@ use systemprompt_agent::models::AgentRuntimeInfo;
 use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_models::AiMessage;
 use systemprompt_models::ai::provider_trait::GenerateResponseParams;
 use systemprompt_models::ai::tools::{CallToolResult, ToolCall};
@@ -433,9 +433,10 @@ pub(crate) fn request_context(
         TraceId::generate(),
         ctx.clone(),
         AgentName::try_new(agent_name).expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     rc.auth.actor = systemprompt_identifiers::Actor::user(user.clone());
-    rc.with_auth_token("test-token")
+    rc.with_auth_token(JwtToken::new("test-token"))
 }
 
 pub(crate) fn ai_messages(text: &str) -> Vec<AiMessage> {

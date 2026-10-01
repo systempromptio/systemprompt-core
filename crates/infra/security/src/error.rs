@@ -70,6 +70,9 @@ pub enum AuthError {
     #[error("token is missing the `scope` claim")]
     MissingScope,
 
+    #[error("token `sub` is not a valid user id: {0}")]
+    InvalidSubject(#[source] systemprompt_identifiers::error::IdValidationError),
+
     #[error("token `user_type` claim `{claimed}` does not match permissions (derived `{derived}`)")]
     UserTypeMismatch {
         claimed: systemprompt_models::auth::UserType,

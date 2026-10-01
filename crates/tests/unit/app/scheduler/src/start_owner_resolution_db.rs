@@ -9,7 +9,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::UserId;
 use systemprompt_logging::{LogLevel, LoggingRepository};
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
@@ -55,7 +54,7 @@ mod start_owner_resolution_db {
             jobs: vec![
                 JobConfig::new("cleanup_inactive_sessions").with_schedule("0 0 4 * * *"),
                 JobConfig::new("cleanup_empty_contexts")
-                    .with_owner(UserId::new(bad_owner))
+                    .with_owner(bad_owner)
                     .with_schedule("0 0 4 * * *"),
             ],
             bootstrap_jobs: Vec::new(),

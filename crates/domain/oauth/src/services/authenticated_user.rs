@@ -12,7 +12,6 @@ use std::str::FromStr;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_traits::UserProvider;
-use uuid::Uuid;
 
 use crate::error::{OauthError, OauthResult};
 
@@ -53,11 +52,12 @@ pub async fn load_authenticated_user(
         ));
     }
 
-    let user_uuid = Uuid::parse_str(user.id.as_str())
+    user.id
+        .to_uuid()
         .map_err(|_e| OauthError::Validation(format!("Invalid user UUID: {}", user.id)))?;
 
     Ok(AuthenticatedUser::new_with_roles(
-        user_uuid,
+        user.id,
         user.name,
         user.email,
         permissions,

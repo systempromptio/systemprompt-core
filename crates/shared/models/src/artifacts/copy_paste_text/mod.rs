@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::artifacts::metadata::ExecutionMetadata;
+use crate::artifacts::metadata::ArtifactProvenance;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;
 use crate::execution::context::RequestContext;
@@ -32,7 +32,7 @@ pub struct CopyPasteTextArtifact {
     pub language: Option<String>,
     #[serde(skip)]
     #[schemars(skip)]
-    metadata: ExecutionMetadata,
+    metadata: ArtifactProvenance,
 }
 
 impl CopyPasteTextArtifact {
@@ -44,12 +44,12 @@ impl CopyPasteTextArtifact {
             content: content.into(),
             title: None,
             language: None,
-            metadata: ExecutionMetadata::default(),
+            metadata: ArtifactProvenance::default(),
         }
     }
 
     pub fn with_request(mut self, ctx: &RequestContext) -> Self {
-        self.metadata = ExecutionMetadata::with_request(ctx);
+        self.metadata.set_request(ctx);
         self
     }
 
@@ -59,7 +59,7 @@ impl CopyPasteTextArtifact {
     }
 
     pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
-        self.metadata.execution_id = Some(id.into());
+        self.metadata.set_execution_id(id);
         self
     }
 
@@ -68,8 +68,7 @@ impl CopyPasteTextArtifact {
         skill_id: impl Into<SkillId>,
         skill_name: impl Into<String>,
     ) -> Self {
-        self.metadata.skill_id = Some(skill_id.into());
-        self.metadata.skill_name = Some(skill_name.into());
+        self.metadata.set_skill(skill_id.into(), skill_name.into());
         self
     }
 }

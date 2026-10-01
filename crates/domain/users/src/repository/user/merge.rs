@@ -77,14 +77,15 @@ async fn record_merge_attribution(
     target_id: &UserId,
 ) -> Result<()> {
     let id = uuid::Uuid::new_v4().to_string();
-    let context_id = ContextId::derived_from_session(&SessionId::new(id.clone()));
+    let session_id = SessionId::new(id.clone());
+    let context_id = ContextId::derived_from_session(&session_id);
     let actor = Actor::system(target_id.clone());
     let reason = format!("account merge: {source_id} merged into {target_id}");
     let evaluated_rules = serde_json::json!([]);
     let record = GovernanceDecisionRecord {
         id: &id,
         actor: &actor,
-        session_id: &id,
+        session_id: Some(&session_id),
         tool_name: MERGE_TOOL_NAME,
         agent_id: None,
         agent_scope: None,
@@ -94,7 +95,7 @@ async fn record_merge_attribution(
         evaluated_rules: &evaluated_rules,
         plugin_id: None,
         act_chain: &[],
-        context_id: context_id.as_str(),
+        context_id: &context_id,
         task_id: None,
         trace_id: None,
         client_id: None,

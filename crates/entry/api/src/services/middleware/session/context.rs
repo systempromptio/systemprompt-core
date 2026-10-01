@@ -11,7 +11,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
@@ -75,9 +75,15 @@ impl SessionMiddleware {
     fn degraded_context(trace_id: systemprompt_identifiers::TraceId) -> RequestContext {
         let session_id = SessionId::new(format!("degraded_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
-        RequestContext::new(session_id, trace_id, context_id, AgentName::system())
-            .with_user_type(UserType::Anon)
-            .with_tracked(false)
+        RequestContext::new(
+            session_id,
+            trace_id,
+            context_id,
+            AgentName::system(),
+            Actor::anonymous(UserId::generate()),
+        )
+        .with_user_type(UserType::Anon)
+        .with_tracked(false)
     }
 
     async fn anonymous_context(
@@ -98,11 +104,16 @@ impl SessionMiddleware {
         let session_id = SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
         Ok(
-            RequestContext::new(session_id, trace_id, context_id, AgentName::system())
-                .with_actor(systemprompt_identifiers::Actor::anonymous(user_id))
-                .with_user_type(UserType::Anon)
-                .with_tracked(false)
-                .with_fingerprint_hash(fingerprint),
+            RequestContext::new(
+                session_id,
+                trace_id,
+                context_id,
+                AgentName::system(),
+                Actor::anonymous(user_id),
+            )
+            .with_user_type(UserType::Anon)
+            .with_tracked(false)
+            .with_fingerprint_hash(fingerprint),
         )
     }
 
@@ -137,11 +148,16 @@ impl SessionMiddleware {
         let context_id = HeaderExtractor::extract_context_id(meta.headers)
             .unwrap_or_else(|| ContextId::derived_from_session(&session_id));
 
-        let mut ctx = RequestContext::new(session_id, trace_id, context_id, AgentName::system())
-            .with_actor(systemprompt_identifiers::Actor::user(user_id))
-            .with_auth_token(jwt_token)
-            .with_user_type(UserType::Anon)
-            .with_tracked(true);
+        let mut ctx = RequestContext::new(
+            session_id,
+            trace_id,
+            context_id,
+            AgentName::system(),
+            Actor::user(user_id),
+        )
+        .with_auth_token(JwtToken::new(jwt_token))
+        .with_user_type(UserType::Anon)
+        .with_tracked(true);
         if let Some(fp) = fingerprint_hash {
             ctx = ctx.with_fingerprint_hash(fp);
         }

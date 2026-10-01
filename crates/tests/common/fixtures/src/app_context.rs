@@ -52,7 +52,7 @@ pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintReposito
 
 pub fn fixture_config(database_url: &str) -> Config {
     Config {
-        instance_id: "fixture".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("fixture"),
         metrics_port: None,
         max_concurrent_streams: 16,
         sitename: "test".to_string(),

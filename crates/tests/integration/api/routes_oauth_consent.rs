@@ -31,7 +31,7 @@ static CONFIG_INSTALL: Once = Once::new();
 fn ensure_config() {
     CONFIG_INSTALL.call_once(|| {
         let _ = Config::install(Config {
-            instance_id: "test".to_owned(),
+            instance_id: systemprompt_identifiers::InstanceId::new("test"),
             metrics_port: None,
             max_concurrent_streams: 16,
             sitename: "test".to_owned(),

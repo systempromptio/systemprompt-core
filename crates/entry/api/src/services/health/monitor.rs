@@ -149,7 +149,7 @@ impl ProcessMonitor {
 
                 *summary
                     .modules
-                    .entry(service.module_name)
+                    .entry(service.module_name.as_str().to_owned())
                     .or_insert_with(ModuleHealth::default) += if healthy {
                     ModuleHealth {
                         healthy: 1,

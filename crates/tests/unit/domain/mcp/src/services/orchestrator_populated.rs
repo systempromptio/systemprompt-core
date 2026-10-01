@@ -6,7 +6,8 @@
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
@@ -167,6 +168,7 @@ async fn validate_internal_running_server_probes_local_port() {
     let mock = MockServer::builder().listener(listener).start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valrun");
+    let name_id = ServiceName::new(name.as_str());
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     let db = test_db_pool().await;
     let repo = ServiceRepository::new(
@@ -174,9 +176,9 @@ async fn validate_internal_running_server_probes_local_port() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port,
         binary_mtime: None,
     })
@@ -184,7 +186,7 @@ async fn validate_internal_running_server_probes_local_port() {
     .unwrap();
 
     let result = o.validate_service(&name).await;
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
     result.expect("running internal service probes 127.0.0.1:<port>");
 
     let received = mock.received_requests().await.expect("requests recorded");
@@ -281,6 +283,7 @@ async fn reconcile_external_only_registry_starts_nothing() {
 async fn restart_services_missing_binary_reports_a_failed_outcome() {
     let port = free_port();
     let name = unique("restart");
+    let name_id = ServiceName::new(name.as_str());
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
     let outcomes = o
@@ -298,9 +301,9 @@ async fn restart_services_missing_binary_reports_a_failed_outcome() {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
@@ -308,7 +311,7 @@ async fn restart_services_missing_binary_reports_a_failed_outcome() {
     .unwrap();
 
     let result = o.restart_services(Some(name.clone())).await;
-    repo.delete_service(&name).await.ok();
+    repo.delete_service(&name_id).await.ok();
     let outcomes = result.expect("target listing succeeds");
     assert_eq!(outcomes.len(), 1);
     let outcome = &outcomes[0];
@@ -412,6 +415,7 @@ async fn list_services_and_show_status_render_the_populated_registry() {
 async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let port = free_port();
     let name = unique("reckill");
+    let name_id = ServiceName::new(name.as_str());
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     let db = test_db_pool().await;
     let repo = ServiceRepository::new(
@@ -420,10 +424,11 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     );
 
     let disabled = unique("recgone");
+    let disabled_id = ServiceName::new(disabled.as_str());
     repo.create_service(CreateServiceInput {
-        name: &disabled,
-        module_name: "mcp",
-        status: "running",
+        name: &disabled_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: 65408,
         binary_mtime: None,
     })
@@ -443,15 +448,15 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
         .expect("spawn port listener");
     await_listening(port).await;
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
     .await
     .unwrap();
-    repo.update_service_pid(&name, i32::try_from(child.id()).unwrap())
+    repo.update_service_pid(&name_id, i32::try_from(child.id()).unwrap())
         .await
         .unwrap();
 
@@ -459,8 +464,8 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let result = o.reconcile_with_events(Some(&tx)).await;
     drop(tx);
 
-    let disabled_row = repo.find_service_by_name(&disabled).await.unwrap();
-    repo.delete_service(&name).await.ok();
+    let disabled_row = repo.find_service_by_name(&disabled_id).await.unwrap();
+    repo.delete_service(&name_id).await.ok();
 
     let err = result.expect_err("missing binary still fails the start phase");
     assert!(err.to_string().contains(&name));

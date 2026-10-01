@@ -142,7 +142,7 @@ mod tool_call_request_tests {
 
     fn test_request() -> ToolCallRequest {
         ToolCallRequest {
-            tool_call_id: "call-1".to_string(),
+            tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-1"),
             name: "search".to_string(),
             arguments: serde_json::json!({"query": "test"}),
         }

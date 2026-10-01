@@ -14,7 +14,7 @@
 use std::time::Duration;
 
 use super::repository::{ApprovalRepository, ApprovalRequest, ApprovalStatus};
-use systemprompt_identifiers::{CallId, UserId};
+use systemprompt_identifiers::CallId;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
@@ -25,6 +25,7 @@ pub enum ApprovalOutcome {
     Denied(Box<ApprovalRequest>),
     Expired(Box<ApprovalRequest>),
     StillPending(Box<ApprovalRequest>),
+    Missing,
 }
 
 pub async fn wait_for_decision(
@@ -60,10 +61,9 @@ pub async fn wait_for_decision(
                     "approval row vanished while a call was waiting on it; \
                      treating the call as denied"
                 );
-                return last_seen.map_or_else(
-                    || ApprovalOutcome::Expired(Box::new(missing_placeholder(call_id))),
-                    |r| ApprovalOutcome::Denied(Box::new(r)),
-                );
+                return last_seen.map_or(ApprovalOutcome::Missing, |r| {
+                    ApprovalOutcome::Denied(Box::new(r))
+                });
             },
             Err(err) => {
                 tracing::warn!(
@@ -76,33 +76,10 @@ pub async fn wait_for_decision(
 
         let now = tokio::time::Instant::now();
         if now >= deadline {
-            return last_seen.map_or_else(
-                || ApprovalOutcome::Expired(Box::new(missing_placeholder(call_id))),
-                |r| ApprovalOutcome::StillPending(Box::new(r)),
-            );
+            return last_seen.map_or(ApprovalOutcome::Missing, |r| {
+                ApprovalOutcome::StillPending(Box::new(r))
+            });
         }
         tokio::time::sleep(POLL_INTERVAL.min(deadline - now)).await;
-    }
-}
-
-fn missing_placeholder(call_id: &CallId) -> ApprovalRequest {
-    let now = chrono::Utc::now();
-    ApprovalRequest {
-        call_id: call_id.clone(),
-        tool_name: String::new(),
-        server_name: String::new(),
-        arguments: serde_json::Value::Null,
-        args_digest: String::new(),
-        requested_by: UserId::new(String::new()),
-        session_id: None,
-        trace_id: None,
-        rule: String::new(),
-        status: ApprovalStatus::Expired,
-        approver_id: None,
-        approver_username: None,
-        decided_at: Some(now),
-        decision_note: Some("approval record unavailable".to_owned()),
-        expires_at: now,
-        created_at: now,
     }
 }

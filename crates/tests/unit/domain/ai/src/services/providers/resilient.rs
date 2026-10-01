@@ -333,18 +333,26 @@ impl AiProvider for SequencedStreamProvider {
     }
 
     async fn generate(&self, _: GenerationParams<'_>) -> Result<AiResponse> {
-        Ok(AiResponse::default())
+        Ok(AiResponse::new(uuid::Uuid::new_v4(), String::new(), String::new(), String::new()))
     }
 
     async fn generate_with_tools(
         &self,
         _: ToolGenerationParams<'_>,
     ) -> Result<(AiResponse, Vec<ToolCall>)> {
-        Ok((AiResponse::default(), Vec::new()))
+        Ok((
+            AiResponse::new(
+                uuid::Uuid::new_v4(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ),
+            Vec::new(),
+        ))
     }
 
     async fn generate_with_schema(&self, _: SchemaGenerationParams<'_>) -> Result<AiResponse> {
-        Ok(AiResponse::default())
+        Ok(AiResponse::new(uuid::Uuid::new_v4(), String::new(), String::new(), String::new()))
     }
 
     async fn generate_stream(

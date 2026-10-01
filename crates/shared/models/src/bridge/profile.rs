@@ -74,14 +74,6 @@ fn advertised_limits(
         .collect()
 }
 
-pub const KNOWN_HOSTS: &[&str] = &[
-    "claude-code",
-    "claude-desktop",
-    "codex-cli",
-    "hermes",
-    "opencode",
-];
-
 /// A provider whose credential secret is absent is flagged
 /// (`configured = false`) rather than dropped silently.
 #[derive(Debug, Clone, Serialize, Deserialize)]

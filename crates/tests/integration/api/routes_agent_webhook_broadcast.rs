@@ -92,8 +92,8 @@ fn request_context_for(user: &UserId) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("wh-agent").expect("valid AgentName"),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {

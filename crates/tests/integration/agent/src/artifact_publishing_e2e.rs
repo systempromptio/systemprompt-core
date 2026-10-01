@@ -7,7 +7,7 @@ use systemprompt_agent::services::SkillService;
 use systemprompt_agent::services::artifact_publishing::{
     ArtifactPublishingService, PublishFromMcpParams,
 };
-use systemprompt_identifiers::{Actor, AgentName, ArtifactId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ArtifactId, SessionId, TraceId, UserId};
 use systemprompt_models::a2a::{ArtifactMetadata, TaskState};
 use systemprompt_models::execution::CallSource;
 use systemprompt_models::execution::context::RequestContext;
@@ -70,6 +70,7 @@ async fn artifact_publishing_publish_from_mcp_agentic_skips_messages() -> Result
         TraceId::new("art-pub-trace"),
         fx.context_id.clone(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     ctx.auth.actor = Actor::user(fx.user_id.clone());
 
@@ -102,6 +103,7 @@ async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Resul
         TraceId::new("art-pub-direct-trace"),
         fx.context_id.clone(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     ctx.auth.actor = Actor::user(fx.user_id.clone());
 

@@ -61,24 +61,6 @@ pub struct ExecutionMetadata {
     pub execution_id: Option<String>,
 }
 
-impl Default for ExecutionMetadata {
-    fn default() -> Self {
-        Self {
-            context_id: ContextId::legacy(),
-            trace_id: TraceId::new("unset"),
-            session_id: SessionId::new("unset"),
-            user_id: UserId::new("unset"),
-            agent_name: AgentName::unset(),
-            timestamp: Utc::now(),
-            task_id: None,
-            tool_name: None,
-            skill_id: None,
-            skill_name: None,
-            execution_id: None,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct ExecutionMetadataBuilder {
     context_id: ContextId,
@@ -189,6 +171,54 @@ impl ExecutionMetadata {
             })
             .ok()
             .and_then(|v| v.as_object().cloned())
+    }
+}
+
+/// Provenance an artifact accumulates while it is built: the request it ran
+/// under (absent until `with_request` is called) and the execution and skill
+/// that produced it.
+#[derive(Debug, Clone, Default)]
+pub struct ArtifactProvenance {
+    request: Option<ExecutionMetadata>,
+    execution_id: Option<String>,
+    skill: Option<(SkillId, String)>,
+}
+
+impl ArtifactProvenance {
+    pub fn set_request(&mut self, ctx: &RequestContext) {
+        self.request = Some(ExecutionMetadata::with_request(ctx));
+    }
+
+    pub fn set_metadata(&mut self, metadata: ExecutionMetadata) {
+        self.request = Some(metadata);
+    }
+
+    pub fn set_execution_id(&mut self, id: impl Into<String>) {
+        self.execution_id = Some(id.into());
+    }
+
+    pub fn set_skill(&mut self, id: SkillId, name: String) {
+        self.skill = Some((id, name));
+    }
+
+    pub fn execution_id(&self) -> Option<&str> {
+        self.execution_id.as_deref().or_else(|| {
+            self.request
+                .as_ref()
+                .and_then(|metadata| metadata.execution_id.as_deref())
+        })
+    }
+
+    pub fn metadata(&self) -> Option<ExecutionMetadata> {
+        let mut metadata = self.request.clone()?;
+        if let Some(id) = &self.execution_id {
+            metadata.execution_id = Some(id.clone());
+        }
+        if let Some((id, name)) = &self.skill {
+            metadata.skill_id = Some(id.clone());
+            metadata.skill_name = Some(name.clone());
+        }
+        Some(metadata)
     }
 }
 

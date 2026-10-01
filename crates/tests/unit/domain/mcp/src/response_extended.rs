@@ -1,4 +1,6 @@
-use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::{ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::cli::CliArtifact;
@@ -10,6 +12,7 @@ fn ctx() -> RequestContext {
         TraceId::new("trace-1"),
         ContextId::try_new("00000000-0000-4000-8000-000000000002").expect("valid ContextId"),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

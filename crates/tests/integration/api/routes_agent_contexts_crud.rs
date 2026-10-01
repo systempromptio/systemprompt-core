@@ -45,8 +45,8 @@ fn request_context_for(owner: &Owner) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("crud-agent").expect("valid AgentName"),
+        Actor::user(owner.user_id.clone()),
     )
-    .with_actor(Actor::user(owner.user_id.clone()))
 }
 
 fn foreign_request_context(user: &UserId) -> RequestContext {
@@ -55,8 +55,8 @@ fn foreign_request_context(user: &UserId) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("crud-agent").expect("valid AgentName"),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
 }
 
 async fn seed_context(pool: &DbPool, owner: &Owner) -> anyhow::Result<ContextId> {

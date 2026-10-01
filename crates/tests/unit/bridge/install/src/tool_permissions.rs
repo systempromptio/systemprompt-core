@@ -44,7 +44,7 @@ fn manifest(
         chrono::DateTime::parse_from_rfc3339("2026-09-11T00:00:00Z")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        systemprompt_identifiers::UserId::new("test-user"),
+        systemprompt_identifiers::UserId::new("00000000-0000-4000-8000-00000000beef"),
     )
     .with_managed_mcp_servers(servers)
     .build()

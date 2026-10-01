@@ -14,7 +14,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::public_router;
-use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::execution::context::RequestContext;
@@ -40,7 +40,7 @@ static CONFIG_INSTALL: Once = Once::new();
 fn ensure_config() {
     CONFIG_INSTALL.call_once(|| {
         let _ = Config::install(Config {
-            instance_id: "test".to_owned(),
+            instance_id: systemprompt_identifiers::InstanceId::new("test"),
             metrics_port: None,
             max_concurrent_streams: 16,
             sitename: "test".to_owned(),
@@ -99,6 +99,7 @@ fn fixture_request_context() -> RequestContext {
         TraceId::new("test-trace"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -175,7 +176,7 @@ fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
     install_test_signing_key();
     let issuer = Config::get().expect("config").jwt_issuer.clone();
     let user = AuthenticatedUser::new_with_roles(
-        Uuid::new_v4(),
+        systemprompt_identifiers::UserId::generate(),
         "tx-subject".to_owned(),
         "tx-subject@tx.invalid".to_owned(),
         scopes.clone(),

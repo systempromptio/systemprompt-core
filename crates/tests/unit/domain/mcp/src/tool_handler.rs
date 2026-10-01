@@ -85,10 +85,8 @@ fn test_ctx() -> RequestContext {
         TraceId::new("t-tool"),
         ContextId::generate(),
         AgentName::try_new("agent-tool").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new("user-tool")),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "user-tool",
-    )))
 }
 
 fn echo_request(message: &str) -> CallToolRequestParams {

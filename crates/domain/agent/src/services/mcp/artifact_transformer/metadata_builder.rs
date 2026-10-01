@@ -13,6 +13,7 @@
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
 use systemprompt_models::artifacts::types::ArtifactType;
+use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::{ArtifactMetadata, ContextId, TaskId};
 
 #[derive(Debug)]
@@ -64,7 +65,7 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
     }
 
     if let Some(execution_id) = mcp_execution_id {
-        metadata = metadata.with_mcp_execution_id(execution_id);
+        metadata = metadata.with_mcp_execution_id(McpExecutionId::new(execution_id));
     }
 
     Ok(metadata)

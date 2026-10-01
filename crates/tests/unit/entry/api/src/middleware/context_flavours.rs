@@ -34,6 +34,7 @@ fn anon_session_context() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("session").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -43,9 +44,9 @@ fn real_user_context() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("real").expect("valid AgentName"),
+        Actor::user(UserId::new("u-1")),
     )
     .with_user_type(UserType::User)
-    .with_actor(Actor::user(UserId::new("u-1")))
 }
 
 struct OkExtractor {

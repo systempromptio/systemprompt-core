@@ -4,7 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::IdValidationError;
-use crate::{ClientSessionId, GatewayConversationId, SessionId, TaskId, UserId};
+use crate::{
+    ClientSessionId, GatewayConversationId, McpServerId, ServiceName, SessionId, TaskId, UserId,
+};
 
 crate::define_id!(ContextId, validated, schema, validate_uuid_v4);
 
@@ -68,15 +70,15 @@ impl ContextId {
         Self(uuid::Uuid::new_v5(&SESSION_NAMESPACE, session.as_str().as_bytes()).to_string())
     }
 
-
     #[must_use]
-    pub fn derived_from_cli_probe(server_name: &str) -> Self {
-        Self(uuid::Uuid::new_v5(&CLI_PROBE_NAMESPACE, server_name.as_bytes()).to_string())
+    pub fn derived_from_cli_probe(server_name: &McpServerId) -> Self {
+        Self(uuid::Uuid::new_v5(&CLI_PROBE_NAMESPACE, server_name.as_str().as_bytes()).to_string())
     }
 
     #[must_use]
-    pub fn derived_from_mcp_validation(service_name: &str) -> Self {
-        Self(uuid::Uuid::new_v5(&MCP_VALIDATION_NAMESPACE, service_name.as_bytes()).to_string())
+    pub fn derived_from_mcp_validation(service_name: &ServiceName) -> Self {
+        let name = service_name.as_str().as_bytes();
+        Self(uuid::Uuid::new_v5(&MCP_VALIDATION_NAMESPACE, name).to_string())
     }
 
     #[must_use]
@@ -84,8 +86,12 @@ impl ContextId {
         Self(uuid::Uuid::new_v5(&TASK_NAMESPACE, task_id.as_str().as_bytes()).to_string())
     }
 
+    // Why: migrations 012 (security) and 014 (ai) backfilled NULL
+    // `context_id` columns with this fixed UUID, and `user_contexts` carries
+    // the matching row so those FKs resolve. It names that one row; it is
+    // not a fallback for an absent or unparseable context id.
     #[must_use]
-    pub fn legacy() -> Self {
+    pub fn legacy_context_row() -> Self {
         Self(LEGACY_CONTEXT_UUID.to_owned())
     }
 }

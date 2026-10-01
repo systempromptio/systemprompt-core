@@ -68,7 +68,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
         })?;
 
         let user = AuthenticatedUser {
-            id: user_id,
+            id: UserId::from_uuid(user_id),
             username: params.username.clone(),
             email: params.username.clone(),
             roles: vec![],

@@ -5,13 +5,18 @@
 //! that reads back with the values written, and a dead pool propagates the
 //! typed `sqlx::Error` rather than silently swallowing it.
 
-use systemprompt_identifiers::{Actor, UserId};
+use std::sync::LazyLock;
+
+use systemprompt_identifiers::{Actor, ContextId, SessionId, TraceId, UserId};
 use systemprompt_security::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
     list_trace_ids_with_decision,
 };
 use systemprompt_test_fixtures::{DisposableDb, closed_db_pool, seed_user_row, test_db_pool};
 use uuid::Uuid;
+
+static SESSION: LazyLock<SessionId> = LazyLock::new(|| SessionId::new("sess-audit"));
+static CONTEXT: LazyLock<ContextId> = LazyLock::new(|| ContextId::from_uuid(Uuid::from_u128(1)));
 
 fn record<'a>(
     id: &'a str,
@@ -21,7 +26,7 @@ fn record<'a>(
     GovernanceDecisionRecord {
         id,
         actor,
-        session_id: "sess-audit",
+        session_id: Some(&SESSION),
         tool_name: "audit-tool",
         agent_id: None,
         agent_scope: None,
@@ -31,7 +36,7 @@ fn record<'a>(
         evaluated_rules: evaluated,
         plugin_id: None,
         act_chain: &[],
-        context_id: "ctx_unit_test",
+        context_id: &CONTEXT,
         task_id: None,
         trace_id: None,
         client_id: None,
@@ -117,10 +122,12 @@ async fn trace_lookup_is_distinct_and_filters_by_decision_and_time()
     let evaluated = serde_json::json!([]);
     let cutoff = chrono::Utc::now() - chrono::Duration::hours(1);
 
+    let recent = TraceId::new("trace-recent");
+    let allow = TraceId::new("trace-allow");
     for (id, decision, trace_id) in [
-        ("recent-deny-a", DecisionTag::Deny, Some("trace-recent")),
-        ("recent-deny-b", DecisionTag::Deny, Some("trace-recent")),
-        ("recent-allow", DecisionTag::Allow, Some("trace-allow")),
+        ("recent-deny-a", DecisionTag::Deny, Some(&recent)),
+        ("recent-deny-b", DecisionTag::Deny, Some(&recent)),
+        ("recent-allow", DecisionTag::Allow, Some(&allow)),
         ("null-deny", DecisionTag::Deny, None),
     ] {
         let mut row = record(id, &actor, &evaluated);

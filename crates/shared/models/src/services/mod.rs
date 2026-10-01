@@ -21,6 +21,7 @@ pub mod marketplace_external_plugin;
 pub mod mcp;
 pub mod plugin;
 pub mod providers;
+pub mod registry;
 pub mod rules;
 pub mod runtime;
 pub mod scheduler;
@@ -83,6 +84,7 @@ pub use providers::{
     VertexRateCard, VertexRateCardEntry, WireProtocol,
 };
 pub use rules::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig, RULE_CONFIG_FILENAME};
+pub use registry::{ServiceModule, ServiceStatus, UnknownServiceModule, UnknownServiceStatus};
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
 pub use settings::*;

@@ -3,7 +3,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_ai::services::tools::ToolDiscovery;
-use systemprompt_identifiers::{AgentName, McpServerId};
+use systemprompt_identifiers::{Actor, AgentName, McpServerId, UserId};
 use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
@@ -99,6 +99,7 @@ mod tool_discovery_tests {
             TraceId::new("test-trace".to_string()),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             AgentName::try_new("test-agent".to_string()).expect("valid AgentName"),
+            Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
         )
     }
 

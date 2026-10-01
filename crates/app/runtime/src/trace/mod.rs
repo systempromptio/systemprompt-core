@@ -44,4 +44,7 @@ pub enum TraceError {
 
     #[error("Task not found: {partial_id}")]
     TaskNotFound { partial_id: String },
+
+    #[error("Stored identifier is malformed")]
+    MalformedId(#[from] systemprompt_identifiers::error::IdValidationError),
 }

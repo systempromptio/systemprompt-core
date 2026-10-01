@@ -48,6 +48,7 @@ fn ctx() -> RequestContext {
         TraceId::new("pe-trace"),
         ContextId::generate(),
         AgentName::try_new("pe-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     c.auth.actor = Actor::user(UserId::new("pe-user"));
     c

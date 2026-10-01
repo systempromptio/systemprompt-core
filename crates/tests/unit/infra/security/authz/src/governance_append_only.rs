@@ -6,12 +6,17 @@
 //! binds every role including the one these tests connect as — so the assertion
 //! here is that an UPDATE is refused while INSERT and DELETE still work.
 
-use systemprompt_identifiers::{Actor, UserId};
+use std::sync::LazyLock;
+
+use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
 use systemprompt_security::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
 };
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
+
+static SESSION: LazyLock<SessionId> = LazyLock::new(|| SessionId::new("sess-append-only"));
+static CONTEXT: LazyLock<ContextId> = LazyLock::new(|| ContextId::from_uuid(Uuid::from_u128(2)));
 
 fn record<'a>(
     id: &'a str,
@@ -21,7 +26,7 @@ fn record<'a>(
     GovernanceDecisionRecord {
         id,
         actor,
-        session_id: "sess-append-only",
+        session_id: Some(&SESSION),
         tool_name: "append-only-tool",
         agent_id: None,
         agent_scope: None,
@@ -31,7 +36,7 @@ fn record<'a>(
         evaluated_rules: evaluated,
         plugin_id: None,
         act_chain: &[],
-        context_id: "ctx_append_only",
+        context_id: &CONTEXT,
         task_id: None,
         trace_id: None,
         client_id: None,

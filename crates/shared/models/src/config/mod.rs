@@ -10,6 +10,7 @@
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
+pub use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::ConfigProvider;
 
 use crate::auth::JwtAudience;
@@ -33,13 +34,13 @@ pub fn stable_instance_id(lookup: impl Fn(&str) -> Option<String>) -> Option<Str
 }
 
 #[must_use]
-pub fn random_instance_id() -> String {
-    format!("instance-{}", uuid::Uuid::new_v4().simple())
+pub fn random_instance_id() -> InstanceId {
+    InstanceId::new(format!("instance-{}", uuid::Uuid::new_v4().simple()))
 }
 
 #[derive(Clone)]
 pub struct Config {
-    pub instance_id: String,
+    pub instance_id: InstanceId,
     pub metrics_port: Option<u16>,
     pub max_concurrent_streams: usize,
     pub sitename: String,
@@ -198,7 +199,7 @@ impl ConfigProvider for Config {
             "api_external_url" => Some(self.api_external_url.clone()),
             "jwt_issuer" => Some(self.jwt_issuer.clone()),
             "is_cloud" => Some(self.is_cloud.to_string()),
-            "instance_id" => Some(self.instance_id.clone()),
+            "instance_id" => Some(self.instance_id.as_str().to_owned()),
             "max_concurrent_streams" => Some(self.max_concurrent_streams.to_string()),
             _ => None,
         }

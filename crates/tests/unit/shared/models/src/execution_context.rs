@@ -7,18 +7,22 @@
 //! skipped when empty — so the test that counts is whether a non-empty chain
 //! survives, not whether an empty one is tidy.
 
-use systemprompt_identifiers::{Actor, ClientId, JwtToken, SessionId, UserId};
+use systemprompt_identifiers::{AccessTokenId, Actor, ClientId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::{AuthContext, RequestMetadata};
 
+const CALLER: &str = "00000000-0000-4000-8000-0000000000c1";
+const PRINCIPAL: &str = "00000000-0000-4000-8000-0000000000a1";
+const DELEGATE: &str = "00000000-0000-4000-8000-0000000000d1";
+
 fn auth_context() -> AuthContext {
     AuthContext {
-        auth_token: JwtToken::new("token"),
-        actor: Actor::user(UserId::new("caller")),
+        auth_token: Some(JwtToken::new("token")),
+        actor: Actor::user(UserId::new(CALLER)),
         user_type: UserType::User,
         act_chain: Vec::new(),
-        jti: String::new(),
-        token_exp: 0,
+        jti: None,
+        token_exp: None,
     }
 }
 
@@ -34,8 +38,8 @@ fn round_trip(ctx: &AuthContext) -> AuthContext {
 fn a_delegation_chain_survives_a_round_trip() {
     let mut ctx = auth_context();
     ctx.act_chain = vec![
-        Actor::user(UserId::new("principal")),
-        Actor::user(UserId::new("delegate")),
+        Actor::user(UserId::new(PRINCIPAL)),
+        Actor::user(UserId::new(DELEGATE)),
     ];
 
     let back = round_trip(&ctx);
@@ -55,12 +59,12 @@ fn the_optional_fields_are_omitted_only_when_they_carry_nothing() {
     let json = serde_json::to_value(auth_context()).expect("serialise");
 
     assert!(json.get("act_chain").is_none(), "an empty chain is omitted");
-    assert!(json.get("jti").is_none(), "an empty jti is omitted");
-    assert!(json.get("token_exp").is_none(), "a zero expiry is omitted");
+    assert!(json.get("jti").is_none(), "an absent jti is omitted");
+    assert!(json.get("token_exp").is_none(), "an absent expiry is omitted");
 
     let mut populated = auth_context();
-    populated.jti = "jti-1".to_owned();
-    populated.token_exp = 1_800_000_000;
+    populated.jti = Some(AccessTokenId::new("jti-1"));
+    populated.token_exp = Some(1_800_000_000);
     let json = serde_json::to_value(&populated).expect("serialise");
 
     assert_eq!(json["jti"], "jti-1", "a set jti must reach the wire");
@@ -70,39 +74,34 @@ fn the_optional_fields_are_omitted_only_when_they_carry_nothing() {
     );
 }
 
-// Why: an omitted field must deserialise to its empty form rather than
+// Why: an omitted field must deserialise to its absent form rather than
 // failing. A hop that rejects a context with no delegation chain rejects every
 // ordinary direct call.
 #[test]
 fn a_context_without_the_optional_fields_still_deserialises() {
     let json = serde_json::json!({
-        "auth_token": "token",
-        "actor": Actor::user(UserId::new("caller")),
+        "actor": Actor::user(UserId::new(CALLER)),
         "user_type": UserType::User,
     });
 
     let ctx: AuthContext = serde_json::from_value(json).expect("a minimal context must parse");
 
     assert!(ctx.act_chain.is_empty());
-    assert!(ctx.jti.is_empty());
-    assert_eq!(ctx.token_exp, 0);
+    assert!(ctx.auth_token.is_none());
+    assert!(ctx.jti.is_none());
+    assert!(ctx.token_exp.is_none());
 }
 
-// Why: the default is the untracked-session sentinel, and it is deliberately
-// `is_tracked: true` — the degraded path sets it false explicitly. If the
-// default were false, every ordinary request would look degraded and drop out
-// of session analytics.
 #[test]
-fn default_request_metadata_is_tracked_with_the_unknown_session_sentinel() {
-    let metadata = RequestMetadata::default();
+fn a_context_whose_actor_is_not_a_uuid_is_rejected() {
+    let mut actor = serde_json::to_value(Actor::user(UserId::new(CALLER))).expect("serialise");
+    actor["user_id"] = serde_json::json!("unset");
+    let json = serde_json::json!({
+        "actor": actor,
+        "user_type": UserType::User,
+    });
 
-    assert_eq!(metadata.session_id, SessionId::new("unknown".to_owned()));
-    assert!(
-        metadata.is_tracked,
-        "the default must be tracked; only the degraded path opts out"
-    );
-    assert!(metadata.client_id.is_none());
-    assert!(metadata.fingerprint_hash.is_none());
+    assert!(serde_json::from_value::<AuthContext>(json).is_err());
 }
 
 // Why: the surviving fields are the point here. `timestamp` cannot reach the
@@ -118,7 +117,7 @@ fn an_untracked_request_stays_untracked_across_a_round_trip() {
         client_id: Some(ClientId::new("client-1")),
         is_tracked: false,
         fingerprint_hash: Some("fp".to_owned()),
-        ..RequestMetadata::default()
+        timestamp: std::time::Instant::now(),
     };
 
     let json = serde_json::to_value(&metadata).expect("serialise metadata");

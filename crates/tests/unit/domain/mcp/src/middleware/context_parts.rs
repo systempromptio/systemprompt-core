@@ -21,8 +21,8 @@ fn ctx() -> RequestContext {
         TraceId::new("t-parts"),
         ContextId::generate(),
         AgentName::try_new("agent-parts").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-0000000000f7")),
     )
-    .with_actor(Actor::user(UserId::new("user-parts")))
 }
 
 #[test]

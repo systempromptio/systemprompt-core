@@ -10,6 +10,8 @@
 
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_identifiers::ServiceName;
+use systemprompt_models::services::ServiceStatus;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEventExt, StartupEventSender};
 
@@ -144,8 +146,11 @@ pub async fn verify_database_registration(
     let mut verification_failed = Vec::new();
 
     for server in required_servers {
-        match service_repo.find_service_by_name(&server.name).await {
-            Ok(Some(service)) if service.status == "running" => {
+        match service_repo
+            .find_service_by_name(&ServiceName::new(server.name.as_str()))
+            .await
+        {
+            Ok(Some(service)) if service.status == ServiceStatus::Running => {
                 events.mcp_ready(
                     server.name.clone(),
                     service.port as u16,
@@ -201,17 +206,17 @@ pub async fn cleanup_stale_service_entries(
     let mcp_services = repo.list_mcp_services().await?;
     for service in mcp_services {
         if !service_row_is_stale(
-            service.status.as_str(),
+            service.status,
             service.pid,
             MCP_SERVICE_ID_ENV,
-            &service.name,
+            service.name.as_str(),
         ) {
             continue;
         }
         if repo.delete_service(&service.name).await.is_ok() {
             deleted_count += 1;
             events.mcp_service_cleanup(
-                service.name.clone(),
+                service.name.as_str(),
                 format!(
                     "Stale entry (status: {}, pid: {:?})",
                     service.status, service.pid
@@ -224,17 +229,17 @@ pub async fn cleanup_stale_service_entries(
     for service_name in agent_service_names {
         if let Ok(Some(service)) = repo.find_service_by_name(&service_name).await {
             if !service_row_is_stale(
-                service.status.as_str(),
+                service.status,
                 service.pid,
                 AGENT_NAME_ENV,
-                &service_name,
+                service_name.as_str(),
             ) {
                 continue;
             }
             if repo.delete_service(&service_name).await.is_ok() {
                 deleted_count += 1;
                 events.agent_cleanup(
-                    service_name.clone(),
+                    service_name.as_str(),
                     format!(
                         "Stale entry (status: {}, pid: {:?})",
                         service.status, service.pid
@@ -247,11 +252,16 @@ pub async fn cleanup_stale_service_entries(
     Ok(deleted_count)
 }
 
-pub fn service_row_is_stale(status: &str, pid: Option<i32>, name_key: &str, name: &str) -> bool {
+pub fn service_row_is_stale(
+    status: ServiceStatus,
+    pid: Option<i32>,
+    name_key: &str,
+    name: &str,
+) -> bool {
     use systemprompt_scheduler::ProcessCleanup;
 
     match status {
-        "running" => {
+        ServiceStatus::Running => {
             let Some(pid) = pid.and_then(|p| u32::try_from(p).ok()) else {
                 return true;
             };
@@ -260,7 +270,7 @@ pub fn service_row_is_stale(status: &str, pid: Option<i32>, name_key: &str, name
             }
             !systemprompt_loader::subprocess::live_pid_is_subprocess(pid, name_key, name)
         },
-        "error" | "stopped" => true,
-        _ => false,
+        ServiceStatus::Error | ServiceStatus::Stopped => true,
+        ServiceStatus::Starting | ServiceStatus::Stopping => false,
     }
 }

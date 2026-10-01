@@ -143,13 +143,13 @@ impl SignedManifestBuilder {
         manifest_version: ManifestVersion,
         issued_at: chrono::DateTime<chrono::Utc>,
         not_before: chrono::DateTime<chrono::Utc>,
-        user_id: impl Into<UserId>,
+        user_id: UserId,
     ) -> Self {
         Self {
             manifest_version,
             issued_at,
             not_before,
-            user_id: user_id.into(),
+            user_id,
             tenant_id: None,
             user: None,
             plugins: Vec::new(),

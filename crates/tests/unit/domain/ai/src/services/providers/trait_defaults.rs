@@ -24,7 +24,12 @@ struct MinimalProvider {
 
 impl MinimalProvider {
     fn response(text: &str) -> AiResponse {
-        let mut resp = AiResponse::default();
+        let mut resp = AiResponse::new(
+            uuid::Uuid::new_v4(),
+            String::new(),
+            String::new(),
+            String::new(),
+        );
         resp.content = text.to_owned();
         resp.provider = "minimal".to_owned();
         resp.model = "minimal-model".to_owned();

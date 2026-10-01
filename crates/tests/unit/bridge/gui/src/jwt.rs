@@ -1,9 +1,9 @@
 use systemprompt_bridge::gui::state::{VerifiedIdentity, decode_jwt_identity_unverified};
 
 // Hand-built unsigned JWT. The payload segment is the URL_SAFE_NO_PAD base64
-// of {"email":"a@b.com","sub":"user_1","tenant_id":"tenant_1","exp":
-// 1893456000}.
-const VALID_TOKEN: &str = "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFAYi5jb20iLCJzdWIiOiJ1c2VyXzEiLCJ0ZW5hbnRfaWQiOiJ0ZW5hbnRfMSIsImV4cCI6MTg5MzQ1NjAwMH0.sig";
+// of {"email":"a@b.com","sub":"00000000-0000-4000-8000-000000000001",
+// "tenant_id":"tenant_1","exp":1893456000}.
+const VALID_TOKEN: &str = "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFAYi5jb20iLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJ0ZW5hbnRfaWQiOiJ0ZW5hbnRfMSIsImV4cCI6MTg5MzQ1NjAwMH0.sig";
 
 // Payload segment is base64url of `{}` (all claims absent).
 const EMPTY_CLAIMS_TOKEN: &str = "eyJhbGciOiJub25lIn0.e30.sig";
@@ -23,7 +23,10 @@ fn decodes_full_claims() {
     } = identity;
 
     assert_eq!(email.as_deref(), Some("a@b.com"));
-    assert_eq!(user_id.as_ref().map(|id| id.as_str()), Some("user_1"));
+    assert_eq!(
+        user_id.as_ref().map(|id| id.as_str()),
+        Some("00000000-0000-4000-8000-000000000001")
+    );
     assert_eq!(tenant_id.as_ref().map(|id| id.as_str()), Some("tenant_1"));
     assert_eq!(exp_unix, Some(1_893_456_000));
 }

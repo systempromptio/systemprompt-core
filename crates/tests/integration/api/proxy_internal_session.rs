@@ -3,7 +3,7 @@
 use axum::body::Body;
 use axum::http::Request;
 use systemprompt_api::routes::proxy::mcp;
-use systemprompt_identifiers::{AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{Permission, UserType};
@@ -103,6 +103,7 @@ settings:
         TraceId::generate(),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     ));
 
     let response = mcp::router(&ctx).oneshot(request).await?;

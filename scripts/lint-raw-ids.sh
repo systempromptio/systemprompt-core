@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+# `--strict` checks the name set derived from crates/shared/identifiers (plus
+# fn arguments and `Uuid`), `--report` prints its per-crate counts; both live
+# in lint-raw-ids-strict.sh and are not part of check-gates until the lanes
+# finish converting. With no flags this script is the gate below, unchanged.
+if [ "$#" -gt 0 ]; then
+    exec "$(dirname "$0")/lint-raw-ids-strict.sh" "$@"
+fi
+
 # Field names whose typed ID exists in systemprompt_identifiers. The second
 # block is every such name with no raw site left; a name joins the list when
 # its last raw `String` site is converted (instance_id, plugin_id, trace_id,

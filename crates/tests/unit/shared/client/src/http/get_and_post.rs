@@ -147,7 +147,7 @@ async fn test_post_request_success() {
     let response_body = serde_json::json!({
         "data": {
             "context_id": "00000000-0000-4000-8000-000000000001",
-            "user_id": "user-456",
+            "user_id": "00000000-0000-4000-8000-000000000456",
             "name": "Auto-generated",
             "kind": "user",
             "created_at": "2024-01-01T00:00:00Z",
@@ -180,7 +180,7 @@ async fn test_post_request_with_body() {
     let response_body = serde_json::json!({
         "data": {
             "context_id": "00000000-0000-4000-8000-000000000001",
-            "user_id": "user-456",
+            "user_id": "00000000-0000-4000-8000-000000000456",
             "name": "My Context",
             "kind": "user",
             "created_at": "2024-01-01T00:00:00Z",
@@ -213,7 +213,7 @@ async fn test_post_request_content_type_json() {
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "data": {
                 "context_id": "00000000-0000-4000-8000-000000000002",
-                "user_id": "user-456",
+                "user_id": "00000000-0000-4000-8000-000000000456",
                 "name": "Test",
                 "kind": "user",
                 "created_at": "2024-01-01T00:00:00Z",

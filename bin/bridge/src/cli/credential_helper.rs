@@ -23,7 +23,10 @@ pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> Exi
     if host == "claude-desktop" {
         return emit_claude_via_chain(ctx);
     }
-    if systemprompt_models::bridge::profile::KNOWN_HOSTS.contains(&host.as_str()) {
+    if host
+        .parse::<systemprompt_models::bridge::host::HostKind>()
+        .is_ok()
+    {
         return emit_host_token(ctx, &crate::ids::HostId::new(host));
     }
     stdio::eprint_line(&error_json(&format!("unknown host id: {host}")));
