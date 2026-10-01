@@ -99,14 +99,13 @@ esac
 cores="$(nproc 2>/dev/null || echo 4)"
 threads="${TEST_THREADS:-$(( cores < 8 ? cores : 8 ))}"
 
-# `--lib` alone skips every `tests/*.rs` integration binary. The integration-cli
-# shard includes those targets by default; coverage adds all target kinds to
-# every shard, so target flags must be deduplicated before invoking nextest.
-targets=(--lib)
+# `--lib` alone skips every `tests/*.rs` integration binary (integration-cli's
+# subprocess suites, the events durable-delivery test, entry-cli's
+# plugin_validation_inventory), so every shard runs `--tests` too. Coverage
+# passes target kinds of its own, so target flags are deduplicated before
+# invoking nextest.
+targets=(--lib --tests)
 nextest_args=()
-case "$group" in
-  integration-cli) targets+=(--tests) ;;
-esac
 while [ "$#" -gt 0 ]; do
   arg="$1"
   shift

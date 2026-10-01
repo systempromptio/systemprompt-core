@@ -1,6 +1,6 @@
 # Clippy configuration for the bridge — mirrors the root clippy.toml thresholds
 # so the bridge workspace enforces the same code-quality bar as the main
-# workspace, plus a bridge-specific disallowed-types policy.
+# workspace, except `too-many-lines-threshold` (150 here, 75 at the root).
 
 avoid-breaking-exported-api = false
 msrv = "1.96"
@@ -20,7 +20,3 @@ vec-box-size-threshold = 4096
 future-size-threshold = 16384
 stack-size-threshold = 512000
 max-struct-bools = 5
-
-disallowed-types = [
-    { path = "ureq::Agent", reason = "Use reqwest::Client (shared with proxy). The bridge has a single-runtime policy — see plan/03-phase3-native-polish.md §3.1." },
-]

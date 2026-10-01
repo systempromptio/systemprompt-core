@@ -48,7 +48,7 @@ systemprompt-scheduler = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-ai = { workspace = true }
-systemprompt-generator = { workspace = true, features = ["image-processing"] }
+systemprompt-generator = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
