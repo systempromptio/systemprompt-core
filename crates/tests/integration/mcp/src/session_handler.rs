@@ -4,20 +4,13 @@
 #![cfg(unix)]
 
 use rmcp::transport::streamable_http_server::session::SessionManager;
-use systemprompt_database::DbPool;
 use systemprompt_mcp::SessionTimeouts;
 use systemprompt_mcp::middleware::DatabaseSessionHandler;
-
-async fn get_db_or_skip() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn handler_new_succeeds() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -27,9 +20,7 @@ async fn handler_new_succeeds() {
 
 #[tokio::test]
 async fn handler_with_timeouts_succeeds() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let timeouts = SessionTimeouts {
         init: Some(std::time::Duration::from_secs(5)),
         keep_alive: Some(std::time::Duration::from_secs(30)),
@@ -47,9 +38,7 @@ async fn handler_with_timeouts_succeeds() {
 
 #[tokio::test]
 async fn create_then_close_session_lifecycle() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -78,9 +67,7 @@ async fn create_then_close_session_lifecycle() {
 
 #[tokio::test]
 async fn close_unknown_session_is_idempotent() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -93,9 +80,7 @@ async fn close_unknown_session_is_idempotent() {
 
 #[tokio::test]
 async fn has_session_returns_false_for_unknown() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -109,9 +94,7 @@ async fn has_session_returns_false_for_unknown() {
 #[tokio::test]
 async fn mcp_state_exposes_db_pool() {
     use systemprompt_mcp::McpState;
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let state = McpState::new(db.clone());
     let _ = state.db_pool();
     let _ = format!("{state:?}");
