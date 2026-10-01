@@ -125,7 +125,7 @@ systemprompt-security = { workspace = true, optional = true }
 
 # Application
 systemprompt-runtime = { workspace = true, optional = true, features = ["geolocation"] }
-systemprompt-generator = { workspace = true, optional = true, features = ["image-processing"] }
+systemprompt-generator = { workspace = true, optional = true }
 
 # Entry points
 systemprompt-api = { workspace = true, optional = true }

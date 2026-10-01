@@ -10,7 +10,7 @@ This is a library, not a framework. You compile it into your binary and extend i
 
 ## Crate Architecture
 
-34-member Rust workspace, published to crates.io as `systemprompt` with feature flags:
+33-member Rust workspace, published to crates.io as `systemprompt` with feature flags:
 
 ```
 Shared (7)     identifiers, provider-contracts, traits, extension,
@@ -18,8 +18,8 @@ Shared (7)     identifiers, provider-contracts, traits, extension,
 
 Infra (8)      database, logging, config, events, security, cloud, loader, storage
 
-Domain (13)    users, oauth, files, analytics, content, mcp, ai, agent,
-               templates, marketplace, slack, teams, evaluation
+Domain (12)    users, oauth, files, analytics, content, mcp, ai, agent,
+               templates, marketplace, slack, teams
 
 App (3)        runtime, scheduler, generator
 
@@ -35,7 +35,8 @@ Facade (1)     systemprompt (re-exports with feature gates)
 [dependencies]
 systemprompt = { version = "0.62", features = ["full"] }
 
-# Selective (pick what you need)
+# Selective (pick what you need; `mcp` adds `rmcp` only, the
+# `systemprompt::mcp` domain module comes with `full`)
 systemprompt = { version = "0.62", features = ["core", "database", "mcp"] }
 ```
 

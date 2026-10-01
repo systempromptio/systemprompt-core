@@ -68,9 +68,6 @@ indicatif = { workspace = true }
 
 # File utilities
 
-# Image processing (WebP conversion)
-image = { workspace = true, optional = true }
-
 # HTTP client
 
 # Chrono for dates
@@ -88,10 +85,6 @@ chrono = { workspace = true }
 inventory = { workspace = true }
 async-trait = { workspace = true }
 
-[features]
-default = []
-image-processing = ["dep:image"]
-
 [package.metadata.docs.rs]
 all-features = true
 
@@ -99,5 +92,5 @@ all-features = true
 tempfile = { workspace = true }
 
 [package.metadata.cargo-machete]
-# image: used only under the image-processing feature / inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
-ignored = ["image", "inventory"]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
+ignored = ["inventory"]

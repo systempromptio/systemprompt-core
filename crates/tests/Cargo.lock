@@ -8182,7 +8182,6 @@ dependencies = [
  "chrono",
  "comrak",
  "futures",
- "image",
  "indicatif",
  "inventory",
  "quick-xml 0.42.0",

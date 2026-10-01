@@ -22,8 +22,8 @@ use systemprompt::prelude::*;
 | `api` | HTTP server and `AppContext` (requires `core` + `database`) |
 | `cli` | CLI entry point |
 | `full` | Everything: all domain modules + CLI |
-| `slack` | Slack integration (opt-in; not included in `full`) |
-| `teams` | Microsoft Teams integration (opt-in; not included in `full`) |
+| `slack` | `systemprompt::slack` module (not in `full`; `api` compiles the crate regardless) |
+| `teams` | `systemprompt::teams` module (not in `full`; `api` compiles the crate regardless) |
 
 The full per-feature matrix, including the finer-grained flags (`config`, `mcp`, `events`, `security`, `runtime`, and the rest), is on the [docs.rs crate root](https://docs.rs/systemprompt).
 
