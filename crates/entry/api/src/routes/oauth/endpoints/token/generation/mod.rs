@@ -63,7 +63,7 @@ pub struct TokenGenerationParams<'a> {
 #[derive(Debug)]
 pub struct GeneratedTokens {
     pub response: TokenResponse,
-    pub refresh_token_id: String,
+    pub refresh_token_id: RefreshTokenId,
 }
 
 pub async fn generate_tokens_by_user_id(
@@ -125,7 +125,7 @@ struct JwtAndRefreshToken {
     access_token: String,
     refresh_token_value: String,
     scope_string: String,
-    refresh_token_id: String,
+    refresh_token_id: RefreshTokenId,
 }
 
 async fn create_jwt_and_refresh_token(
@@ -174,7 +174,7 @@ async fn create_jwt_and_refresh_token(
         access_token,
         refresh_token_value,
         scope_string,
-        refresh_token_id: refresh_token_id.as_str().to_owned(),
+        refresh_token_id,
     })
 }
 

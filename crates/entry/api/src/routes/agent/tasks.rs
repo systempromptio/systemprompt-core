@@ -8,10 +8,11 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
 use serde::Deserialize;
-use systemprompt_identifiers::{TaskId, UserId};
+use systemprompt_identifiers::TaskId;
 
 use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;
@@ -52,7 +53,7 @@ pub async fn get_task(
 
     let task_repo = app_context.a2a_repositories().tasks.clone();
 
-    let task_id_typed = TaskId::new(&task_id);
+    let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
     task_repo
         .validate_task_ownership(&task_id_typed, req_ctx.user_id())
         .await?;
@@ -71,7 +72,7 @@ pub async fn list_tasks_by_user(
     State(app_context): State<AppContext>,
     Query(params): Query<TaskFilterParams>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let user_id = req_ctx.auth.actor.user_id.as_str();
+    let user_id = req_ctx.user_id();
 
     tracing::debug!(user_id = %user_id, "Listing tasks");
 
@@ -89,10 +90,8 @@ pub async fn list_tasks_by_user(
         _ => None,
     });
 
-    let user_id_typed = UserId::new(user_id);
-    let mut tasks = task_repo
-        .get_tasks_by_user_id(&user_id_typed, params.limit.map(|l| l as i32), None)
-        .await?;
+    let limit = params.limit.map(|l| i32::try_from(l).unwrap_or(i32::MAX));
+    let mut tasks = task_repo.get_tasks_by_user_id(user_id, limit, None).await?;
 
     if let Some(state) = task_state {
         tasks.retain(|t| t.status.state == state);
@@ -111,7 +110,7 @@ pub async fn get_messages_by_task(
 
     let task_repo = app_context.a2a_repositories().tasks.clone();
 
-    let task_id_typed = TaskId::new(&task_id);
+    let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
     task_repo
         .validate_task_ownership(&task_id_typed, req_ctx.user_id())
         .await?;
@@ -131,7 +130,7 @@ pub async fn delete_task(
 
     let task_repo = app_context.a2a_repositories().tasks.clone();
 
-    let task_id_typed = TaskId::new(&task_id);
+    let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
     task_repo
         .validate_task_ownership(&task_id_typed, req_ctx.user_id())
         .await?;

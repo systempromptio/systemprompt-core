@@ -8,6 +8,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::Config;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
@@ -137,9 +138,11 @@ pub async fn handle_oauth_protected_resource_with_path(
 
     let base_url = base.as_str().to_owned();
 
-    let scopes = get_mcp_server_scopes(ctx.mcp_registry(), &service_name)
-        .await
-        .unwrap_or_else(|| vec!["user".to_owned()]);
+    let scopes = match McpServerId::try_new(service_name.as_str()) {
+        Ok(server) => get_mcp_server_scopes(ctx.mcp_registry(), &server).await,
+        Err(_) => None,
+    }
+    .unwrap_or_else(|| vec!["user".to_owned()]);
     let resource_url = format!(
         "{}{}",
         base_url,

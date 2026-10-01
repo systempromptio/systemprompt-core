@@ -17,6 +17,7 @@ use serde_json::json;
 
 use crate::services::proxy::backend::ProxyError;
 use crate::services::request_base_url::resolve as resolve_request_base_url;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::modules::ApiPaths;
@@ -29,10 +30,10 @@ pub(super) struct AuthValidator;
 impl AuthValidator {
     pub(super) fn validate_service_access(
         headers: &HeaderMap,
-        service_name: &str,
+        service_name: &ServiceName,
         req_context: Option<&RequestContext>,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let result = AuthService::authorize_service_access(headers, service_name);
+        let result = AuthService::authorize_service_access(headers, service_name.as_str());
 
         if let Err(status) = &result {
             let trace_id =
@@ -45,7 +46,7 @@ impl AuthValidator {
 }
 
 pub(super) struct ChallengeRequest<'a> {
-    pub service_name: &'a str,
+    pub service_name: &'a ServiceName,
     pub resource_path: &'a str,
     pub headers: &'a HeaderMap,
     pub ctx: &'a AppContext,
@@ -138,14 +139,14 @@ impl OAuthChallengeBuilder {
 }
 
 pub(crate) fn build_mcp_unknown_service_challenge(
-    service_name: &str,
+    service_name: &ServiceName,
     headers: &HeaderMap,
     ctx: &AppContext,
     req_context: Option<&RequestContext>,
 ) -> Option<ProxyError> {
     let status_code =
         AuthValidator::validate_service_access(headers, service_name, req_context).err()?;
-    let resource_path = ApiPaths::mcp_server_endpoint(service_name);
+    let resource_path = ApiPaths::mcp_server_endpoint(service_name.as_str());
     let has_authorization = headers.get(AUTHORIZATION).is_some();
     Some(challenge_or_error(&ChallengeRequest {
         service_name,
@@ -161,10 +162,10 @@ pub(super) fn challenge_or_error(req: &ChallengeRequest<'_>) -> ProxyError {
     match OAuthChallengeBuilder::build_challenge_response(req) {
         Ok(challenge_response) => ProxyError::AuthChallenge(Box::new(challenge_response)),
         Err(status) if status == StatusCode::UNAUTHORIZED => ProxyError::AuthenticationRequired {
-            service: req.service_name.to_owned(),
+            service: req.service_name.to_string(),
         },
         Err(_) => ProxyError::Forbidden {
-            service: req.service_name.to_owned(),
+            service: req.service_name.to_string(),
         },
     }
 }

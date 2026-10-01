@@ -27,7 +27,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use systemprompt_identifiers::{AiToolCallId, McpExecutionId};
+use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpServerId};
 use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_mcp::{
     ArtifactIngest, INTENT_CLAIM_WINDOW_SECONDS, IngestRequest, IntentClaimService, from_wire_value,
@@ -45,7 +45,7 @@ pub struct McpAudit {
     intent_claims: IntentClaimService,
     ingest: Option<Arc<ArtifactIngest>>,
     context: RequestContext,
-    server_name: String,
+    server_name: McpServerId,
     invocation: ToolCallInvocation,
     started_at: DateTime<Utc>,
     mcp_execution_id: McpExecutionId,
@@ -56,7 +56,7 @@ impl McpAudit {
         intent_claims: IntentClaimService,
         ingest: Option<Arc<ArtifactIngest>>,
         context: RequestContext,
-        server_name: String,
+        server_name: McpServerId,
         invocation: ToolCallInvocation,
     ) -> Self {
         Self {
@@ -66,7 +66,7 @@ impl McpAudit {
             server_name,
             invocation,
             started_at: Utc::now(),
-            mcp_execution_id: McpExecutionId::new(uuid::Uuid::new_v4().to_string()),
+            mcp_execution_id: McpExecutionId::generate(),
         }
     }
 
@@ -89,13 +89,13 @@ impl McpAudit {
         };
 
         let request = ToolExecutionRequest {
-            tool_name: self.invocation.tool_name,
-            server_name: self.server_name.clone(),
+            tool_name: self.invocation.tool_name.into(),
+            server_name: self.server_name.clone().into(),
             input: self.invocation.arguments,
             started_at: self.started_at,
             context: self.context,
             request_method: Some("mcp".to_owned()),
-            request_source: Some(self.server_name),
+            request_source: Some(String::from(self.server_name)),
             ai_tool_call_id: None,
             source: ExecutionSource::Proxy,
         };

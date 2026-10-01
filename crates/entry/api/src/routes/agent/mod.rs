@@ -26,12 +26,7 @@ use crate::error::ApiHttpError;
               caller for negligible gain"
 )]
 pub(crate) fn parse_context_id(raw: &str) -> Result<ContextId, ApiHttpError> {
-    match ContextId::try_new(raw) {
-        Ok(id) => Ok(id),
-        Err(source) => Err(ApiError::bad_request("invalid context id")
-            .with_source(source)
-            .into()),
-    }
+    ContextId::try_new(raw).map_err(|e| ApiHttpError::from(ApiError::from(e)))
 }
 
 pub fn registry_router(ctx: &AppContext) -> Router {

@@ -154,7 +154,7 @@ struct ContentPageRequest<'a> {
     path: &'a str,
     trimmed_path: &'a str,
     slug: &'a str,
-    source_id: &'a str,
+    source_id: &'a SourceId,
     dist_dir: &'a std::path::Path,
     headers: &'a HeaderMap,
 }
@@ -187,9 +187,8 @@ async fn serve_content_page(
 
     let content_repo = &ctx.content_repositories().content;
 
-    let source_id = SourceId::new(req.source_id);
     match content_repo
-        .get_by_source_and_slug(&source_id, req.slug, &LocaleCode::english())
+        .get_by_source_and_slug(req.source_id, req.slug, &LocaleCode::english())
         .await
     {
         Ok(Some(_)) => not_prerendered_response(req.path, req.slug),

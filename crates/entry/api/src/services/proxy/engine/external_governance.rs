@@ -6,7 +6,7 @@
 
 use super::super::audit::parse_tool_call;
 use super::super::backend::ProxyError;
-use systemprompt_identifiers::{CallId, McpToolName};
+use systemprompt_identifiers::{CallId, McpToolName, ServiceName};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::Decision;
@@ -20,11 +20,11 @@ use systemprompt_security::policy::{
 pub(super) async fn enforce(
     ctx: &AppContext,
     request: &RequestContext,
-    service: &str,
+    service: &ServiceName,
     body: &[u8],
 ) -> Result<(), ProxyError> {
     let denied = || ProxyError::Forbidden {
-        service: service.to_owned(),
+        service: service.to_string(),
     };
     let Some(value) = tool_call(service, body)? else {
         return Ok(());
@@ -39,7 +39,7 @@ pub(super) async fn enforce(
         .and_then(serde_json::Value::as_str)
         .ok_or_else(denied)?;
     let target = McpToolName::try_new(format!("mcp__{service}__{tool}")).map_err(|error| {
-        tracing::warn!(%error, service, "External MCP tool name rejected");
+        tracing::warn!(%error, %service, "External MCP tool name rejected");
         denied()
     })?;
     let arguments = value
@@ -83,7 +83,7 @@ pub(super) async fn enforce(
     };
     let pool = ctx.db_pool().write_pool();
     record_decision(&pool, &record).await.map_err(|error| {
-        tracing::warn!(%error, service, "External MCP governance failed");
+        tracing::warn!(%error, %service, "External MCP governance failed");
         denied()
     })?;
     if allowed { Ok(()) } else { Err(denied()) }
@@ -102,15 +102,15 @@ fn principal(request: &RequestContext, scope: AccessScope) -> PrincipalSnapshot 
 
 // JSON: MCP JSON-RPC request frame — forwarded verbatim to the external MCP
 // server.
-fn tool_call(service: &str, body: &[u8]) -> Result<Option<serde_json::Value>, ProxyError> {
+fn tool_call(service: &ServiceName, body: &[u8]) -> Result<Option<serde_json::Value>, ProxyError> {
     let denied = || ProxyError::Forbidden {
-        service: service.to_owned(),
+        service: service.to_string(),
     };
     if body.is_empty() {
         return Ok(None);
     }
     let value: serde_json::Value = serde_json::from_slice(body).map_err(|error| {
-        tracing::debug!(%error, service, "Invalid external MCP request");
+        tracing::debug!(%error, %service, "Invalid external MCP request");
         denied()
     })?;
     if !value.is_object() {

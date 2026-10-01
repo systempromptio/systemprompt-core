@@ -133,7 +133,8 @@ pub async fn handle_webauthn_complete(
         &headers,
         &redirect_uri,
         authorization_code.as_str(),
-        &params,
+        client_id,
+        params.state.as_deref(),
         &issuer,
     ))
 }
@@ -150,20 +151,17 @@ fn create_successful_response(
     headers: &HeaderMap,
     redirect_uri: &str,
     authorization_code: &str,
-    params: &WebAuthnCompleteQuery,
+    client_id: &ClientId,
+    state: Option<&str>,
     issuer: &str,
 ) -> Response {
-    let state = params.state.as_deref().filter(|s| !s.is_empty());
+    let state = state.filter(|s| !s.is_empty());
 
     if is_browser_request(headers) {
-        let mut target = format!("{redirect_uri}?code={authorization_code}");
-
-        if let Some(client_id_val) = params.client_id.as_ref() {
-            target.push_str(&format!(
-                "&client_id={}",
-                urlencoding::encode(client_id_val.as_str())
-            ));
-        }
+        let mut target = format!(
+            "{redirect_uri}?code={authorization_code}&client_id={}",
+            urlencoding::encode(client_id.as_str())
+        );
 
         if let Some(state_val) = state {
             target.push_str(&format!("&state={}", urlencoding::encode(state_val)));
@@ -175,10 +173,7 @@ fn create_successful_response(
             authorization_code: authorization_code.to_owned(),
             state: state.unwrap_or("").to_owned(),
             redirect_uri: redirect_uri.to_owned(),
-            client_id: params
-                .client_id
-                .clone()
-                .unwrap_or_else(|| ClientId::new("")),
+            client_id: client_id.clone(),
         };
 
         Json(response_data).into_response()

@@ -43,7 +43,7 @@ async fn resolve_returns_running_service() -> anyhow::Result<()> {
     let name = format!("run-{}", Uuid::new_v4().simple());
     seed(&ctx, &name, ServiceStatus::Running).await?;
 
-    let config = ServiceResolver::resolve(&name, &ctx)
+    let config = ServiceResolver::resolve(&ServiceName::new(&name), &ctx)
         .await
         .map_err(|e| anyhow::anyhow!("resolve failed: {e}"))?;
     assert_eq!(config.name.as_str(), name);
@@ -54,9 +54,12 @@ async fn resolve_returns_running_service() -> anyhow::Result<()> {
 #[tokio::test]
 async fn resolve_missing_service_is_not_found() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let err = ServiceResolver::resolve(&format!("absent-{}", Uuid::new_v4().simple()), &ctx)
-        .await
-        .expect_err("missing service must error");
+    let err = ServiceResolver::resolve(
+        &ServiceName::new(format!("absent-{}", Uuid::new_v4().simple())),
+        &ctx,
+    )
+    .await
+    .expect_err("missing service must error");
     assert!(matches!(
         err,
         systemprompt_api::services::proxy::ProxyError::ServiceNotFound { .. }
@@ -70,7 +73,7 @@ async fn resolve_stopped_service_is_not_running() -> anyhow::Result<()> {
     let name = format!("stop-{}", Uuid::new_v4().simple());
     seed(&ctx, &name, ServiceStatus::Stopped).await?;
 
-    let err = ServiceResolver::resolve(&name, &ctx)
+    let err = ServiceResolver::resolve(&ServiceName::new(&name), &ctx)
         .await
         .expect_err("stopped must error");
     assert!(matches!(
@@ -104,12 +107,15 @@ fn outbound_headers_forwards_passthrough_and_provider() {
 
 #[test]
 fn map_resolve_error_classifies_domain_errors() {
-    let auth =
-        map_resolve_error("svc", McpDomainError::AuthRequired("need".to_owned())).to_string();
+    let auth = map_resolve_error(
+        &ServiceName::new("svc"),
+        McpDomainError::AuthRequired("need".to_owned()),
+    )
+    .to_string();
     assert!(auth.contains("Authentication required"));
 
     let unavailable = map_resolve_error(
-        "svc",
+        &ServiceName::new("svc"),
         McpDomainError::ExternalAuthUnavailable {
             server: "svc".to_owned(),
             message: "vault down".to_owned(),
@@ -122,7 +128,7 @@ fn map_resolve_error_classifies_domain_errors() {
 #[test]
 fn an_unconnected_provider_account_is_a_409_the_user_can_fix() {
     let err = map_resolve_error(
-        "github",
+        &ServiceName::new("github"),
         McpDomainError::ExternalAccountNotConnected {
             server: "github".to_owned(),
         },

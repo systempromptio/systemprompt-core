@@ -14,6 +14,7 @@
 
 use serde::Deserialize;
 use serde_json::{Value, json};
+use systemprompt_identifiers::{McpExecutionId, McpToolName};
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 
 const TOOLS_CALL_METHOD: &str = "tools/call";
@@ -30,7 +31,7 @@ struct RequestFrame {
 
 #[derive(Deserialize)]
 struct ToolCallParams {
-    name: String,
+    name: McpToolName,
     // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     #[serde(default)]
     arguments: Option<Value>,
@@ -40,7 +41,7 @@ struct ToolCallParams {
 pub struct ToolCallInvocation {
     // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
     pub id: Value,
-    pub tool_name: String,
+    pub tool_name: McpToolName,
     // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     pub arguments: Value,
 }
@@ -120,7 +121,7 @@ pub fn frame_matches(data: &str, request_id: &Value) -> bool {
         .is_some_and(|frame| frame.get("id") == Some(request_id))
 }
 
-pub fn stamp_execution(data: &str, mcp_execution_id: &str) -> Option<String> {
+pub fn stamp_execution(data: &str, mcp_execution_id: &McpExecutionId) -> Option<String> {
     let mut frame: Value = serde_json::from_str(data).ok()?;
     let result = frame.get_mut("result")?.as_object_mut()?;
     let meta = result
@@ -133,7 +134,7 @@ pub fn stamp_execution(data: &str, mcp_execution_id: &str) -> Option<String> {
         .as_object_mut()?;
     execution
         .entry("mcp_execution_id")
-        .or_insert_with(|| Value::String(mcp_execution_id.to_owned()));
+        .or_insert_with(|| Value::String(mcp_execution_id.to_string()));
     serde_json::to_string(&frame).ok()
 }
 

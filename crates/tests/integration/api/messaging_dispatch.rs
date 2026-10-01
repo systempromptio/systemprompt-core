@@ -9,9 +9,10 @@
 //! infrastructure.
 
 use systemprompt_api::routes::messaging::{
-    DispatchOutcome, MessagingError, MessagingInbound, ReplyTarget, dispatch_messaging,
+    DispatchOutcome, MessagingConversation, MessagingError, MessagingInbound, ReplyTarget,
+    dispatch_messaging,
 };
-use systemprompt_identifiers::{AgentName, SlackWorkspaceId};
+use systemprompt_identifiers::{AgentName, SlackChannelId, SlackUserId, SlackWorkspaceId};
 use systemprompt_security::authz::{DenyAllHook, EntityRef};
 use systemprompt_test_fixtures::{
     TEST_SLACK_WORKSPACE_ID, agent_error_response_json, agent_reply_response_json,
@@ -27,11 +28,12 @@ const ISSUER: &str = "https://slack.com";
 
 fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
     MessagingInbound {
-        platform: "slack",
         issuer: ISSUER.to_owned(),
-        org_id: TEST_SLACK_WORKSPACE_ID.to_owned(),
-        channel_id: "C_TEST".to_owned(),
-        external_user_id: external_user_id.to_owned(),
+        conversation: MessagingConversation::Slack {
+            workspace_id: SlackWorkspaceId::new(TEST_SLACK_WORKSPACE_ID),
+            channel_id: Some(SlackChannelId::new("C_TEST")),
+            user_id: SlackUserId::new(external_user_id),
+        },
         text: text.to_owned(),
         agent_name: AgentName::try_new(test_messaging_agent()).expect("valid AgentName"),
         entity: EntityRef::SlackWorkspace(SlackWorkspaceId::new(TEST_SLACK_WORKSPACE_ID)),

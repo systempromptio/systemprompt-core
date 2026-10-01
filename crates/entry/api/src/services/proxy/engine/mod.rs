@@ -23,7 +23,7 @@ use axum::http::HeaderMap;
 use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_database::{ServiceConfig, ServiceModule};
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
 use systemprompt_models::RequestContext;
@@ -42,7 +42,7 @@ pub enum ProxyKind {
 
 #[derive(Debug)]
 pub struct ProxyTarget<'a> {
-    pub service_name: &'a str,
+    pub service_name: &'a ServiceName,
     pub path: &'a str,
     pub kind: ProxyKind,
 }
@@ -157,7 +157,7 @@ impl ProxyEngine {
         }
 
         ResponseHandler::build_response(response).map_err(|source| ProxyError::InvalidResponse {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
             source,
         })
     }
@@ -166,7 +166,7 @@ impl ProxyEngine {
         &self,
         req_ctx: Option<RequestContext>,
         service: &ServiceConfig,
-        service_name: &str,
+        service_name: &ServiceName,
         request_headers: &HeaderMap,
     ) -> Result<RequestContext, ProxyError> {
         let mut req_context = req_ctx.ok_or_else(|| ProxyError::MissingContext {
@@ -175,9 +175,9 @@ impl ProxyEngine {
         })?;
 
         if service.module_name == ServiceModule::Agent {
-            let agent_name = AgentName::try_new(service_name.to_owned()).map_err(|source| {
+            let agent_name = AgentName::try_new(service_name.as_str()).map_err(|source| {
                 ProxyError::InvalidServiceName {
-                    service: service_name.to_owned(),
+                    service: service_name.to_string(),
                     source,
                 }
             })?;
@@ -202,7 +202,7 @@ impl ProxyEngine {
         request: Request<Body>,
         full_url: &str,
         headers: &HeaderMap,
-        service_name: &str,
+        service_name: &ServiceName,
     ) -> Result<reqwest::Response, ProxyError> {
         let method_str = request.method().to_string();
 
@@ -220,7 +220,7 @@ impl ProxyEngine {
         req_builder.send().await.map_err(|e| {
             tracing::error!(service = %service_name, url = %full_url, error = %e, "Connection failed");
             ProxyError::ConnectionFailed {
-                service: service_name.to_owned(),
+                service: service_name.to_string(),
                 url: full_url.to_owned(),
                 source: e,
             }
@@ -229,7 +229,7 @@ impl ProxyEngine {
 }
 
 fn unknown_service_error(
-    service_name: &str,
+    service_name: &ServiceName,
     proxy_kind: ProxyKind,
     request: &Request<Body>,
     ctx: &AppContext,
@@ -252,7 +252,7 @@ fn unknown_service_error(
 fn inject_forward_headers(
     headers: &mut HeaderMap,
     req_context: &RequestContext,
-    service_name: &str,
+    service_name: &ServiceName,
 ) {
     let has_auth_before = headers.get("authorization").is_some();
     let ctx_has_token = req_context.auth_token().is_some();
@@ -271,7 +271,7 @@ fn inject_forward_headers(
 
 fn external_server(
     proxy_kind: ProxyKind,
-    service_name: &str,
+    service_name: &ServiceName,
     ctx: &AppContext,
 ) -> Result<Option<McpServerConfig>, ProxyError> {
     if !matches!(proxy_kind, ProxyKind::Mcp) {
@@ -279,9 +279,9 @@ fn external_server(
     }
     let found = ctx
         .mcp_registry()
-        .find_server(service_name)
+        .find_server(service_name.as_str())
         .map_err(|source| ProxyError::RegistryUnavailable {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
             source,
         })?;
     Ok(found.filter(McpServerConfig::is_external))

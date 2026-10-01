@@ -158,6 +158,9 @@ async fn get_context_invalid_id_returns_400() -> anyhow::Result<()> {
         .oneshot(empty_get("/undefined"))
         .await?;
     assert_eq!(resp.status().as_u16(), 400, "{}", resp.status());
+    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024).await?;
+    let json: serde_json::Value = serde_json::from_slice(&body)?;
+    assert_eq!(json["error_key"], "invalid_identifier", "{json}");
     Ok(())
 }
 

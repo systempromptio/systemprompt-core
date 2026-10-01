@@ -18,12 +18,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod a2a;
+pub mod conversation;
 pub mod identity;
 
 use std::sync::LazyLock;
 
 use serde_json::json;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, SessionId, TraceId};
 use systemprompt_oauth::OauthError;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
@@ -32,6 +33,7 @@ use systemprompt_users::UserError;
 
 use crate::services::proxy::ProxyError;
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
+pub use conversation::MessagingConversation;
 use identity::resolve_or_link_user;
 
 static GUARDED_CLIENT: LazyLock<Option<reqwest::Client>> = LazyLock::new(|| {
@@ -59,11 +61,8 @@ pub enum ReplyTarget {
 /// Slack- or Teams-specific type.
 #[derive(Debug, Clone)]
 pub struct MessagingInbound {
-    pub platform: &'static str,
     pub issuer: String,
-    pub org_id: String,
-    pub channel_id: String,
-    pub external_user_id: String,
+    pub conversation: MessagingConversation,
     pub text: String,
     pub agent_name: AgentName,
     pub entity: EntityRef,
@@ -117,14 +116,13 @@ pub async fn dispatch_messaging(
     let user = resolve_or_link_user(
         ctx,
         &inbound.issuer,
-        &inbound.external_user_id,
+        inbound.conversation.sender_wire_id(),
         &inbound.sender.claims(),
     )
     .await?;
     let authed = authenticated_user(&user);
 
-    let context_id =
-        ContextId::derived_from_messaging(inbound.platform, &inbound.org_id, &inbound.channel_id);
+    let context_id = inbound.conversation.context_id();
 
     let authz = AuthzRequest {
         entity: inbound.entity.clone(),
@@ -137,8 +135,8 @@ pub async fn dispatch_messaging(
         trace_id: TraceId::generate(),
         session_id: None,
         context: AuthzContext::extension(
-            format!("{}.message", inbound.platform),
-            json!({ "channel": inbound.channel_id }),
+            format!("{}.message", inbound.conversation.platform()),
+            json!({ "channel": inbound.conversation.channel_key() }),
         ),
         context_id: Some(context_id.clone()),
         task_id: None,
@@ -152,6 +150,6 @@ pub async fn dispatch_messaging(
     let token = mint_a2a_token(ctx, &authed, &session_id)?;
 
     let request = build_a2a_request(&inbound, &authed, &session_id, &token, &context_id)?;
-    let reply = run_agent(ctx, inbound.agent_name.as_str(), request).await?;
+    let reply = run_agent(ctx, &inbound.agent_name, request).await?;
     Ok(DispatchOutcome::Replied(reply))
 }

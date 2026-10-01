@@ -7,8 +7,9 @@
 use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::IntoResponse;
 use systemprompt_api::services::proxy::auth::access::{AccessValidator, OAuthRequirement};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ServiceName, UserId};
 use systemprompt_models::Config;
+use systemprompt_models::services::ServiceModule;
 use systemprompt_test_fixtures::{install_test_signing_key, mint_admin_jwt};
 use uuid::Uuid;
 
@@ -21,13 +22,19 @@ fn validate_with_requirement(
     ctx: &systemprompt_runtime::AppContext,
     req_context: Option<&systemprompt_models::RequestContext>,
 ) -> Result<Option<systemprompt_models::auth::AuthenticatedUser>, Box<axum::response::Response>> {
-    AccessValidator::validate_with_requirement(headers, service_name, requirement, ctx, req_context)
-        .map_err(|e| Box::new(e.into_response()))
+    AccessValidator::validate_with_requirement(
+        headers,
+        &ServiceName::new(service_name),
+        requirement,
+        ctx,
+        req_context,
+    )
+    .map_err(|e| Box::new(e.into_response()))
 }
 
 fn requirement(required: bool, scopes: &[&str], audience: &str) -> OAuthRequirement {
     OAuthRequirement {
-        module: "mcp".to_owned(),
+        module: ServiceModule::Mcp,
         required,
         scopes: scopes.iter().map(|s| (*s).to_owned()).collect(),
         audience: audience.to_owned(),
@@ -147,7 +154,7 @@ async fn agent_module_challenge_advertises_agent_resource() -> anyhow::Result<()
     let (_pool, ctx) = setup_ctx().await?;
     let headers = HeaderMap::new();
     let mut req = requirement(true, &[], "");
-    req.module = "agent".to_owned();
+    req.module = ServiceModule::Agent;
     let result = validate_with_requirement(&headers, "my-agent", &req, &ctx, None);
     let Err(err) = result else {
         panic!("must be challenged")

@@ -11,6 +11,7 @@ use systemprompt_api::repository::tool_usage;
 use systemprompt_api::services::proxy::audit::jsonrpc::parse_tool_call;
 use systemprompt_api::services::proxy::audit::{McpAudit, tap};
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::IntentClaimService;
 use systemprompt_traits::DynToolCallIntentClaims;
 use uuid::Uuid;
@@ -31,7 +32,13 @@ async fn record_tool_call(
     let repo = tool_usage(pool);
     let intents: DynToolCallIntentClaims = Arc::new(AiRequestRepository::new(pool));
     let claims = IntentClaimService::new(intents, repo);
-    let audit = McpAudit::new(claims, None, context, server_name.to_owned(), invocation);
+    let audit = McpAudit::new(
+        claims,
+        None,
+        context,
+        McpServerId::new(server_name),
+        invocation,
+    );
     Ok(tap::record(response, audit).await?)
 }
 

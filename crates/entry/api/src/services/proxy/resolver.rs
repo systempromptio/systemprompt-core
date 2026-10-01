@@ -27,18 +27,17 @@ pub fn stale_port(db_port: i32, config_port: u16) -> Option<u16> {
 
 impl ServiceResolver {
     pub async fn resolve(
-        service_name: &str,
+        service_name: &ServiceName,
         ctx: &AppContext,
     ) -> Result<ServiceConfig, ProxyError> {
         let service_repo = ctx.service_repository();
-        let name = ServiceName::new(service_name);
 
-        let service = match service_repo.find_service_by_name(&name).await {
+        let service = match service_repo.find_service_by_name(service_name).await {
             Ok(svc) => svc,
             Err(e) => {
                 tracing::error!(service = %service_name, error = %e, "Database error when looking up service");
                 return Err(ProxyError::DatabaseError {
-                    service: service_name.to_owned(),
+                    service: service_name.to_string(),
                     source: e,
                 });
             },
@@ -47,7 +46,7 @@ impl ServiceResolver {
         let Some(service) = service else {
             tracing::warn!(service = %service_name, "Service not found");
             return Err(ProxyError::ServiceNotFound {
-                service: service_name.to_owned(),
+                service: service_name.to_string(),
             });
         };
 
@@ -60,14 +59,13 @@ impl ServiceResolver {
                     tracing::error!(service = %service_name, error = ?error, "Failed to restart service");
                 }
                 if restart.is_ok() {
-                    let restarted =
-                        service_repo
-                            .find_service_by_name(&name)
-                            .await
-                            .map_err(|e| ProxyError::DatabaseError {
-                                service: service_name.to_owned(),
-                                source: e,
-                            })?;
+                    let restarted = service_repo
+                        .find_service_by_name(service_name)
+                        .await
+                        .map_err(|e| ProxyError::DatabaseError {
+                            service: service_name.to_string(),
+                            source: e,
+                        })?;
 
                     if let Some(restarted) = restarted
                         && restarted.status == ServiceStatus::Running
@@ -85,7 +83,7 @@ impl ServiceResolver {
 
             tracing::warn!(service = %service_name, status = %service.status, "Service not running");
             return Err(ProxyError::ServiceNotRunning {
-                service: service_name.to_owned(),
+                service: service_name.to_string(),
                 status: service.status.to_string(),
             });
         }
@@ -94,11 +92,11 @@ impl ServiceResolver {
     }
 
     async fn reconcile_internal_port(
-        service_name: &str,
+        service_name: &ServiceName,
         mut service: ServiceConfig,
         ctx: &AppContext,
     ) -> ServiceConfig {
-        let config = match ctx.mcp_registry().find_server(service_name) {
+        let config = match ctx.mcp_registry().find_server(service_name.as_str()) {
             Ok(Some(config)) => config,
             Ok(None) => return service,
             Err(e) => {
@@ -120,7 +118,7 @@ impl ServiceResolver {
             );
             if let Err(e) = ctx
                 .service_repository()
-                .update_service_port(&ServiceName::new(service_name), new_port)
+                .update_service_port(service_name, new_port)
                 .await
             {
                 tracing::error!(service = %service_name, error = %e, "Failed to persist reconciled service port");
@@ -131,22 +129,25 @@ impl ServiceResolver {
         service
     }
 
-    async fn attempt_restart(service_name: &str, ctx: &AppContext) -> Result<(), ProxyError> {
+    async fn attempt_restart(
+        service_name: &ServiceName,
+        ctx: &AppContext,
+    ) -> Result<(), ProxyError> {
         let orchestrator = McpOrchestrator::new(
             (**ctx.service_repository()).clone(),
             Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),
         )
         .map_err(|source| ProxyError::RestartFailed {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
             source,
         })?;
 
         orchestrator
-            .start_services(Some(service_name.to_owned()))
+            .start_services(Some(service_name.to_string()))
             .await
             .map_err(|source| ProxyError::RestartFailed {
-                service: service_name.to_owned(),
+                service: service_name.to_string(),
                 source,
             })?;
 

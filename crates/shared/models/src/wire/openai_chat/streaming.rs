@@ -35,7 +35,7 @@ where
     let initial = OpenAiChatStreamState {
         buf: Vec::new(),
         model: fallback_model,
-        message_id: MessageId::new(""),
+        message_id: None,
         started: false,
         text_block: None,
         next_index: 0,
@@ -170,7 +170,7 @@ fn emit_message_start(
         .and_then(Value::as_str)
         .unwrap_or(&state.model)
         .to_owned();
-    state.message_id = MessageId::new(&id);
+    state.message_id = Some(MessageId::new(&id));
     events.push(Ok(CanonicalEvent::MessageStart {
         id,
         model: model.clone(),
@@ -203,7 +203,10 @@ fn emit_message_stop(
         return;
     }
     events.push(Ok(CanonicalEvent::MessageStop {
-        id: state.message_id.as_str().to_owned(),
+        id: state
+            .message_id
+            .as_ref()
+            .map_or_else(String::new, |id| id.as_str().to_owned()),
         stop_reason: Some(reason),
         raw_finish_reason: Some(finish.to_owned()),
     }));

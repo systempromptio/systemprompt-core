@@ -57,7 +57,7 @@ pub(super) async fn resource(
         })?;
     if !crate::routes::gateway::bridge::instance_enabled_hosts(&services)
         .iter()
-        .any(|value| host.accepts_host_name(value))
+        .any(|value| host.accepts_host_name(value.as_str()))
     {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
@@ -83,7 +83,7 @@ pub(super) async fn resource(
                 || skill
                     .hosts
                     .iter()
-                    .any(|value| host.accepts_host_name(value)))
+                    .any(|value| host.accepts_host_name(value.as_str())))
     }) {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }

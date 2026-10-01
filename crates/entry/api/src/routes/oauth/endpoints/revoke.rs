@@ -155,7 +155,7 @@ async fn revoke_access_token(
     };
     caller.check_client(claims.client_id.as_ref())?;
 
-    if !caller.owns(&UserId::new(&claims.sub)) {
+    if !UserId::try_new(claims.sub.as_str()).is_ok_and(|subject| caller.owns(&subject)) {
         tracing::warn!(
             caller = %caller.user_id,
             "Refused to revoke an access token owned by another user"

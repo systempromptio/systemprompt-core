@@ -24,7 +24,7 @@ use crate::wire::error::WireStreamError;
 pub(super) struct OpenAiChatStreamState {
     pub(super) buf: Vec<u8>,
     pub(super) model: String,
-    pub(super) message_id: MessageId,
+    pub(super) message_id: Option<MessageId>,
     pub(super) started: bool,
     pub(super) text_block: Option<u32>,
     pub(super) next_index: u32,

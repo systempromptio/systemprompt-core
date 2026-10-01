@@ -107,10 +107,10 @@ async fn get_marketplace(
     State(_ctx): State<AppContext>,
     AxumPath(id): AxumPath<String>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
+    let id = MarketplaceId::try_new(id).map_err(ApiError::from)?;
     let services = ConfigLoader::load()?;
     let service = MarketplaceService::new(&services);
 
-    let id = MarketplaceId::new(id);
     let marketplace = service.get(&id)?;
 
     let body = serde_json::to_vec_pretty(&render_marketplace_json(id.as_str(), marketplace))
@@ -130,8 +130,9 @@ async fn get_marketplace_yaml(
     State(ctx): State<AppContext>,
     AxumPath(id): AxumPath<String>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
+    let id = MarketplaceId::try_new(id).map_err(ApiError::from)?;
     let marketplaces_root = marketplaces_path(&ctx);
-    let requested = marketplaces_root.join(&id).join("config.yaml");
+    let requested = marketplaces_root.join(id.as_str()).join("config.yaml");
 
     let canonical_root = marketplaces_root
         .canonicalize()

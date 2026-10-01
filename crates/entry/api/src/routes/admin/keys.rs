@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams, UserApiKey};
 
@@ -35,7 +36,7 @@ pub(super) struct IssueApiKeyRequest {
 
 #[derive(Debug, Serialize)]
 pub(super) struct IssueApiKeyResponse {
-    pub id: String,
+    pub id: ApiKeyId,
     pub name: String,
     pub key_prefix: String,
     pub secret: String,
@@ -45,7 +46,7 @@ pub(super) struct IssueApiKeyResponse {
 
 #[derive(Debug, Serialize)]
 pub(super) struct ApiKeyView {
-    pub id: String,
+    pub id: ApiKeyId,
     pub name: String,
     pub key_prefix: String,
     pub created_at: Option<DateTime<Utc>>,
@@ -57,7 +58,7 @@ pub(super) struct ApiKeyView {
 impl From<UserApiKey> for ApiKeyView {
     fn from(k: UserApiKey) -> Self {
         Self {
-            id: k.id.as_str().to_owned(),
+            id: k.id,
             name: k.name,
             key_prefix: k.key_prefix,
             created_at: k.created_at,
@@ -73,7 +74,10 @@ async fn issue_key(
     Extension(req_ctx): Extension<RequestContext>,
     Json(body): Json<IssueApiKeyRequest>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let target_user = resolve_target_user(&req_ctx, body.target_user_id.as_deref());
+    let target_user = match body.target_user_id.as_deref() {
+        Some(value) if !value.is_empty() => UserId::try_new(value).map_err(ApiError::from)?,
+        _ => req_ctx.user_id().clone(),
+    };
     let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
 
     let issued = service
@@ -87,7 +91,7 @@ async fn issue_key(
     Ok((
         StatusCode::CREATED,
         Json(IssueApiKeyResponse {
-            id: issued.record.id.as_str().to_owned(),
+            id: issued.record.id,
             name: issued.record.name,
             key_prefix: issued.record.key_prefix,
             secret: issued.secret,
@@ -115,19 +119,12 @@ async fn revoke_key(
 ) -> Result<StatusCode, ApiHttpError> {
     let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
 
-    let id = ApiKeyId::new(key_id);
+    let id = ApiKeyId::try_new(key_id).map_err(ApiError::from)?;
     let revoked = service.revoke(&id, req_ctx.user_id()).await?;
 
     if revoked {
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(ApiHttpError::not_found("API key not found"))
-    }
-}
-
-fn resolve_target_user(req_ctx: &RequestContext, override_user_id: Option<&str>) -> UserId {
-    match override_user_id {
-        Some(value) if !value.is_empty() => UserId::new(value.to_owned()),
-        _ => req_ctx.user_id().clone(),
     }
 }

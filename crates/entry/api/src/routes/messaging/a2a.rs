@@ -18,7 +18,9 @@ use systemprompt_agent::models::a2a::protocol::MessageSendConfiguration;
 use systemprompt_agent::models::a2a::{
     A2aJsonRpcRequest, Message, MessageRole, MessageSendParams, Part, Task, TextPart,
 };
-use systemprompt_identifiers::{Actor, ContextId, JwtToken, MessageId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, JwtToken, MessageId, ServiceName, SessionId, TraceId,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::methods;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, JwtAudience, Permission};
@@ -137,11 +139,12 @@ pub(super) fn build_a2a_request(
 
 pub(super) async fn run_agent(
     ctx: &AppContext,
-    agent: &str,
+    agent: &AgentName,
     request: Request<Body>,
 ) -> Result<String, MessagingError> {
+    let service_name = ServiceName::new(agent.as_str());
     let target = ProxyTarget {
-        service_name: agent,
+        service_name: &service_name,
         path: "",
         kind: ProxyKind::Agent,
     };

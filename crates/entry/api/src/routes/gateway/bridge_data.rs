@@ -5,6 +5,7 @@
 
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_loader::{ConfigLoadResult, ConfigLoader};
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_oauth::OauthResult;
@@ -42,11 +43,11 @@ pub async fn load_enabled_hosts(ctx: &AppContext, user_id: &UserId) -> OauthResu
 pub async fn upsert_host_pref(
     ctx: &AppContext,
     user_id: &UserId,
-    host_id: &str,
+    host_id: HostKind,
     enabled: bool,
 ) -> OauthResult<()> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    repo.upsert(user_id, host_id, enabled).await?;
+    repo.upsert(user_id, host_id.as_str(), enabled).await?;
     Ok(())
 }
 
@@ -61,11 +62,11 @@ pub async fn load_host_model_protocols(
 pub async fn set_host_model_protocols(
     ctx: &AppContext,
     user_id: &UserId,
-    host_id: &str,
+    host_id: HostKind,
     protocols: Option<&[String]>,
 ) -> OauthResult<()> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    repo.set_model_protocols(user_id, host_id, protocols)
+    repo.set_model_protocols(user_id, host_id.as_str(), protocols)
         .await?;
     Ok(())
 }
