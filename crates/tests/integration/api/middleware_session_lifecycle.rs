@@ -199,3 +199,56 @@ async fn a_page_is_served_without_a_session_when_the_database_is_gone() -> Resul
     );
     Ok(())
 }
+
+async fn principal_handler(
+    axum::Extension(ctx): axum::Extension<systemprompt_models::RequestContext>,
+) -> String {
+    format!(
+        "{}|{}|{}",
+        ctx.actor().kind.as_str(),
+        ctx.user_id(),
+        ctx.session_id()
+    )
+}
+
+#[tokio::test]
+async fn a_degraded_request_runs_as_a_fresh_anonymous_principal() -> Result<()> {
+    let b = ensure_test_bootstrap();
+    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    let (db, ctx) = setup_ctx().await?;
+    let mw = SessionMiddleware::new(&ctx);
+    let app = Router::new()
+        .route("/page", get(principal_handler))
+        .layer(middleware::from_fn(move |req, next| {
+            let mw = mw.clone();
+            async move { mw.handle(req, next).await }
+        }));
+    db.pool().close().await;
+
+    let mut principals = Vec::new();
+    for _ in 0..2 {
+        let ua = format!(
+            "Mozilla/5.0 (X11; Linux x86_64) degraded/{}",
+            uuid::Uuid::new_v4()
+        );
+        let resp = app
+            .clone()
+            .oneshot(get_page(&[("user-agent", ua)]))
+            .await?;
+        assert!(resp.status().is_success(), "{}", resp.status());
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await?;
+        principals.push(String::from_utf8(body.to_vec())?);
+    }
+
+    let parsed: Vec<Vec<&str>> = principals.iter().map(|p| p.split('|').collect()).collect();
+    for fields in &parsed {
+        assert_eq!(fields[0], "anonymous", "{fields:?}");
+        assert!(UserId::try_new(fields[1]).is_ok(), "{fields:?}");
+        assert!(fields[2].starts_with("degraded_"), "{fields:?}");
+    }
+    assert_ne!(
+        parsed[0][1], parsed[1][1],
+        "each degraded request is its own principal, never a shared sentinel"
+    );
+    Ok(())
+}

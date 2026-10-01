@@ -196,13 +196,12 @@ fn sync_only_agent_resolves_without_a_host_app() {
 
 #[test]
 fn a_kind_this_build_has_no_host_for_is_the_only_unknown() {
-    if desktop_offered() {
-        return;
-    }
-    assert!(matches!(
-        resolve_host(HostKind::ClaudeDesktop),
-        ResolvedHost::Unknown
-    ));
+    let resolved = resolve_host(HostKind::ClaudeDesktop);
+    assert_eq!(
+        matches!(resolved, ResolvedHost::Unknown),
+        !desktop_offered(),
+        "claude-desktop is unknown exactly when this build offers no desktop host"
+    );
 }
 
 #[test]

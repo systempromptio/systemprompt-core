@@ -203,7 +203,10 @@ async fn published_managed_skill_detail_replaces_same_named_filesystem_content()
     )
     .await
     .unwrap();
-    let output = show_resolved_skill(&fixture.key, &fixture.ctx)
+    let output = show_resolved_skill(
+        &systemprompt_identifiers::SkillId::new(fixture.key.as_str()),
+        &fixture.ctx,
+    )
         .await
         .unwrap();
     let wire = serde_json::to_value(output.artifact()).unwrap().to_string();

@@ -1,6 +1,8 @@
 //! Unit tests for artifact builders and execution provenance metadata.
 
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, SkillId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpToolName, SessionId, SkillId, SkillName, TraceId, UserId,
+};
 use systemprompt_models::artifacts::{
     Artifact, CliArtifact, CopyPasteTextArtifact, ExecutionMetadata, ResearchArtifact,
     SourceCitation, TableArtifact, TextArtifact,
@@ -40,7 +42,7 @@ fn table_to_response_reports_count_and_execution_id() {
 fn table_with_request_and_skill_populate_metadata_via_response() {
     let table = TableArtifact::new(vec![])
         .with_request(&ctx())
-        .with_skill(SkillId::new("skill-x"), "Skill X");
+        .with_skill(SkillId::new("skill-x"), SkillName::new("Skill X"));
 
     let response = table.to_response();
     assert!(
@@ -63,7 +65,7 @@ fn text_artifact_builders_and_schema() {
     let text = TextArtifact::new("body")
         .with_title("Title")
         .with_execution_id("e-1")
-        .with_skill(SkillId::new("s"), "S")
+        .with_skill(SkillId::new("s"), SkillName::new("S"))
         .with_request(&ctx());
 
     let json = serde_json::to_value(&text).unwrap();
@@ -81,7 +83,7 @@ fn copy_paste_text_builders_and_schema() {
     let artifact = CopyPasteTextArtifact::new("SELECT 1")
         .with_title("Query")
         .with_execution_id("e-2")
-        .with_skill(SkillId::new("sql"), "SQL")
+        .with_skill(SkillId::new("sql"), SkillName::new("SQL"))
         .with_request(&ctx());
 
     let json = serde_json::to_value(&artifact).unwrap();
@@ -101,8 +103,8 @@ fn copy_paste_text_builders_and_schema() {
 #[test]
 fn execution_metadata_builder_copies_request_identity() {
     let meta = ExecutionMetadata::builder(&ctx())
-        .with_tool("my_tool")
-        .with_skill(SkillId::new("skill-1"), "Skill One")
+        .with_tool(McpToolName::new("my_tool"))
+        .with_skill(SkillId::new("skill-1"), SkillName::new("Skill One"))
         .with_execution("exec-1")
         .build();
 
@@ -110,8 +112,8 @@ fn execution_metadata_builder_copies_request_identity() {
     assert_eq!(meta.trace_id.as_str(), "trace-1");
     assert_eq!(meta.session_id.as_str(), "sess-1");
     assert_eq!(meta.agent_name.as_str(), "agent_one");
-    assert_eq!(meta.tool_name.as_deref(), Some("my_tool"));
-    assert_eq!(meta.skill_name.as_deref(), Some("Skill One"));
+    assert_eq!(meta.tool_name.as_ref().map(McpToolName::as_str), Some("my_tool"));
+    assert_eq!(meta.skill_name.as_ref().map(SkillName::as_str), Some("Skill One"));
     assert_eq!(meta.execution_id.as_deref(), Some("exec-1"));
     assert!(meta.task_id.is_none());
 }
@@ -119,11 +121,11 @@ fn execution_metadata_builder_copies_request_identity() {
 #[test]
 fn execution_metadata_chained_setters_match_builder() {
     let meta = ExecutionMetadata::with_request(&ctx())
-        .with_tool("t")
-        .with_skill(SkillId::new("s"), "S")
+        .with_tool(McpToolName::new("t"))
+        .with_skill(SkillId::new("s"), SkillName::new("S"))
         .with_execution("e");
 
-    assert_eq!(meta.tool_name.as_deref(), Some("t"));
+    assert_eq!(meta.tool_name.as_ref().map(McpToolName::as_str), Some("t"));
     assert_eq!(meta.skill_id.as_ref().map(|s| s.as_str()), Some("s"));
     assert_eq!(meta.execution_id.as_deref(), Some("e"));
 }

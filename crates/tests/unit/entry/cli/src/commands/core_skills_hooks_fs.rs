@@ -7,6 +7,7 @@ use std::path::Path;
 
 use clap::Parser;
 use systemprompt_cli::core::skills::list::{execute_with_path, show_skill_detail};
+use systemprompt_identifiers::SkillId;
 use systemprompt_cli::core::{hooks, skills};
 
 #[derive(Debug, Parser)]
@@ -136,7 +137,7 @@ fn skills_list_with_name_renders_detail() {
 #[test]
 fn skill_detail_unknown_name_errors() {
     let tmp = tempfile::tempdir().unwrap();
-    let err = show_skill_detail("ghost", tmp.path()).unwrap_err();
+    let err = show_skill_detail(&SkillId::new("ghost"), tmp.path()).unwrap_err();
     assert!(err.to_string().contains("not found"), "{err}");
 }
 
@@ -144,7 +145,7 @@ fn skill_detail_unknown_name_errors() {
 fn skill_detail_without_config_errors() {
     let tmp = tempfile::tempdir().unwrap();
     fs::create_dir_all(tmp.path().join("bare")).unwrap();
-    let err = show_skill_detail("bare", tmp.path()).unwrap_err();
+    let err = show_skill_detail(&SkillId::new("bare"), tmp.path()).unwrap_err();
     assert!(err.to_string().contains("has no"), "{err}");
 }
 
@@ -152,7 +153,7 @@ fn skill_detail_without_config_errors() {
 fn skill_detail_without_content_file_has_empty_preview() {
     let tmp = tempfile::tempdir().unwrap();
     write_skill(tmp.path(), "nocontent", true, None);
-    let json = artifact_json(show_skill_detail("nocontent", tmp.path()).unwrap());
+    let json = artifact_json(show_skill_detail(&SkillId::new("nocontent"), tmp.path()).unwrap());
     assert!(json.contains("nocontent skill"), "{json}");
 }
 

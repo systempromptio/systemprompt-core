@@ -104,3 +104,41 @@ async fn sink_records_a_verified_agent_delegate() {
     assert_eq!(agent_id.as_deref(), Some("planner"));
     cleanup(&pool, &trace).await;
 }
+
+async fn context_of(pool: &sqlx::PgPool, trace_id: &str) -> String {
+    sqlx::query_scalar("SELECT context_id FROM governance_decisions WHERE trace_id = $1")
+        .bind(trace_id)
+        .fetch_one(pool)
+        .await
+        .expect("the sink wrote a row keyed by the request trace")
+}
+
+#[tokio::test]
+async fn sink_without_a_context_or_session_mints_a_fresh_context_not_the_legacy_row() {
+    let pool = test_db_pool().await.write_pool();
+    let sink = DbAuditSink::new(GovernanceDecisionRepository::from_pool(pool.clone()));
+    let legacy = systemprompt_identifiers::ContextId::legacy_context_row();
+
+    let mut contexts = Vec::new();
+    for _ in 0..2 {
+        let req = mcp_request("sink-ctx-user", "comms", Vec::new());
+        let trace = req.trace_id.as_str().to_owned();
+        sink.record(
+            &req,
+            &AuthzDecision::Allow,
+            AuthzSource::AllowAllUnrestricted,
+        )
+        .await;
+        contexts.push(context_of(&pool, &trace).await);
+        cleanup(&pool, &trace).await;
+    }
+
+    for context in &contexts {
+        assert_ne!(context, legacy.as_str(), "no row lands in the legacy context");
+        assert!(
+            systemprompt_identifiers::ContextId::try_new(context.as_str()).is_ok(),
+            "{context}"
+        );
+    }
+    assert_ne!(contexts[0], contexts[1], "each context-less row gets its own context");
+}

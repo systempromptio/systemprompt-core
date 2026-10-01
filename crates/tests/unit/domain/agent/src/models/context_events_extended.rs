@@ -3,7 +3,7 @@ use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart
 use systemprompt_agent::models::context::{ContextKind, ContextStateEvent};
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId,
-    SkillId, TaskId, TraceId, UserId,
+    SkillId, SkillName, TaskId, TraceId, UserId,
 };
 use systemprompt_models::UserContext;
 use systemprompt_models::execution::context::RequestContext;
@@ -65,7 +65,7 @@ fn context_state_event_skill_loaded_has_context_id() {
     );
     let event = ContextStateEvent::SkillLoaded {
         skill_id: SkillId::new("skill-1"),
-        skill_name: "MySkill".to_string(),
+        skill_name: SkillName::new("MySkill"),
         description: "Does things".to_string(),
         request_context: ctx,
         tool_name: Some(McpToolName::new("tool_fn")),
@@ -85,7 +85,7 @@ fn context_state_event_skill_loaded_no_tool_name() {
     );
     let event = ContextStateEvent::SkillLoaded {
         skill_id: SkillId::new("skill-2"),
-        skill_name: "AnotherSkill".to_string(),
+        skill_name: SkillName::new("AnotherSkill"),
         description: "Another one".to_string(),
         request_context: ctx,
         tool_name: None,

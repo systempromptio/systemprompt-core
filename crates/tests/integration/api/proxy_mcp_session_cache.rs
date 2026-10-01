@@ -93,7 +93,7 @@ async fn successful_response_with_session_header_caches_identity() {
         "cache@test.invalid".to_owned(),
         vec![Permission::User],
     );
-    let rc = request_context(&user_uuid.to_string());
+    let rc = request_context(&user_uuid.to_string()).with_auth_token(JwtToken::new("bearer"));
     handle_mcp_response(ResponseArgs {
         cache: &cache,
         response: &response,
@@ -105,6 +105,40 @@ async fn successful_response_with_session_header_caches_identity() {
     })
     .await;
     assert_eq!(cache.cached_user(&sess_new).await, Some(user_uuid));
+}
+
+#[tokio::test]
+async fn response_for_a_request_without_a_bearer_does_not_cache() {
+    let cache = cache().await;
+    let sess_no_bearer = sid("sess-no-bearer");
+    let response = backend_response(
+        ResponseTemplate::new(200).insert_header("mcp-session-id", sess_no_bearer.as_str()),
+    )
+    .await;
+    let user_uuid = Uuid::new_v4();
+    let user = AuthenticatedUser::new(
+        systemprompt_identifiers::UserId::new(user_uuid.to_string()),
+        "no-bearer-user".to_owned(),
+        "no-bearer@test.invalid".to_owned(),
+        vec![Permission::User],
+    );
+    let rc = request_context(&user_uuid.to_string());
+    assert!(rc.auth_token().is_none());
+    handle_mcp_response(ResponseArgs {
+        cache: &cache,
+        response: &response,
+        request_headers: &HeaderMap::new(),
+        req_context: &rc,
+        authenticated_user: Some(&user),
+        service_name: "svc",
+        method_str: "POST",
+    })
+    .await;
+    assert_eq!(
+        cache.cached_user(&sess_no_bearer).await,
+        None,
+        "an identity is only cached alongside the bearer that proved it"
+    );
 }
 
 #[tokio::test]
