@@ -114,8 +114,43 @@ domain_error! {
         #[error("Failed to start {0}")]
         ServicesFailedToStart(ServiceStartFailures),
 
-        #[error("{0}")]
-        Internal(String),
+        #[error("process {pid} for MCP server {service} exited during startup")]
+        ProcessDiedDuringStartup { pid: u32, service: String },
+
+        #[error("MCP server {service} failed health validation after {attempts} attempts")]
+        HealthValidationFailed { service: String, attempts: u32 },
+
+        #[error("MCP server {service} started but has no registry row")]
+        ServiceRowMissing { service: String },
+
+        #[error("cargo build failed for MCP server {service} (binary: {binary})")]
+        BuildFailed { service: String, binary: String },
+
+        #[error("MCP client exposes no peer info after the handshake")]
+        PeerInfoUnavailable,
+
+        #[error("no UI renderer registered for artifact type {artifact_type}")]
+        NoRendererForArtifactType { artifact_type: String },
+
+        #[error("artifact payload is not a JSON object")]
+        ArtifactPayloadNotObject,
+
+        #[error("artifact has no data part to render")]
+        ArtifactHasNoData,
+
+        #[error("{field} must be an http(s) or data: media URL, got {scheme:?}")]
+        UnsafeMediaUrl { field: String, scheme: String },
+
+        #[error("`ps` reported an unparseable {field}: {value:?}")]
+        InvalidPsField {
+            field: &'static str,
+            value: String,
+            #[source]
+            source: std::num::ParseIntError,
+        },
+
+        #[error("`ps` reported PID 0")]
+        PsReportedPidZero,
 
         #[error("{context}: {source}")]
         Operation {

@@ -66,17 +66,11 @@ pub(super) fn process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
         return Ok(None);
     }
 
-    let reported_pid: u32 = parts[0].parse().map_err(|_e| {
-        crate::error::McpDomainError::Internal(format!("Invalid PID: {}", parts[0]))
-    })?;
-    let parent_pid: u32 = parts[1].parse().map_err(|_e| {
-        crate::error::McpDomainError::Internal(format!("Invalid PPID: {}", parts[1]))
-    })?;
+    let reported_pid = parse_ps_field("PID", parts[0])?;
+    let parent_pid = parse_ps_field("PPID", parts[1])?;
 
     if reported_pid == 0 {
-        return Err(crate::error::McpDomainError::Internal(
-            "PID cannot be 0".to_owned(),
-        ));
+        return Err(crate::error::McpDomainError::PsReportedPidZero);
     }
 
     Ok(Some(ProcessInfo {
@@ -84,4 +78,14 @@ pub(super) fn process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
         ppid: parent_pid,
         command: parts[2..].join(" "),
     }))
+}
+
+fn parse_ps_field(field: &'static str, value: &str) -> crate::error::McpDomainResult<u32> {
+    value
+        .parse()
+        .map_err(|source| crate::error::McpDomainError::InvalidPsField {
+            field,
+            value: value.to_owned(),
+            source,
+        })
 }

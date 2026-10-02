@@ -49,10 +49,11 @@ pub fn parse_artifact_resource_uri(uri: &str) -> Option<(&str, &str)> {
 }
 
 fn to_a2a_artifact(target: &RenderTarget<'_>) -> McpDomainResult<Artifact> {
-    let data =
-        target.payload.as_object().cloned().ok_or_else(|| {
-            McpDomainError::Internal("Artifact payload is not an object".to_owned())
-        })?;
+    let data = target
+        .payload
+        .as_object()
+        .cloned()
+        .ok_or_else(|| McpDomainError::ArtifactPayloadNotObject)?;
 
     Ok(Artifact {
         id: target.artifact_id.clone(),

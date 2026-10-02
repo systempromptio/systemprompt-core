@@ -113,10 +113,10 @@ pub fn safe_url(candidate: &str) -> Option<String> {
 }
 
 pub fn unsafe_url_error(field: &str, candidate: &str) -> crate::error::McpDomainError {
-    let scheme: String = candidate.trim().chars().take(16).collect();
-    crate::error::McpDomainError::Internal(format!(
-        "{field} must be an http(s) or data: media URL, got {scheme:?}"
-    ))
+    crate::error::McpDomainError::UnsafeMediaUrl {
+        field: field.to_owned(),
+        scheme: candidate.trim().chars().take(16).collect(),
+    }
 }
 
 pub fn json_to_js_literal<T: serde::Serialize + ?Sized>(value: &T) -> String {

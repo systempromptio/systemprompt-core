@@ -384,9 +384,11 @@ fn build_server_surfaces_failed_cargo_exit_without_claiming_success() {
     with_cargo_shim(23, |invocation| {
         let error = build_server(&config).expect_err("failed cargo exit must reject the build");
         assert!(
-            error
-                .to_string()
-                .contains("Build failed for verify-bin (binary: failing-mcp-fixture)"),
+            matches!(
+                &error,
+                systemprompt_mcp::error::McpDomainError::BuildFailed { service, binary }
+                    if service == "verify-bin" && binary == "failing-mcp-fixture"
+            ),
             "{error}"
         );
         assert_eq!(

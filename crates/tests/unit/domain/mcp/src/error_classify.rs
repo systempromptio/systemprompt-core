@@ -103,8 +103,11 @@ fn test_dependency_unavailable_is_permanent() {
 }
 
 #[test]
-fn test_internal_is_permanent() {
-    let err = McpDomainError::Internal("boom".to_string());
+fn test_health_validation_failure_is_permanent() {
+    let err = McpDomainError::HealthValidationFailed {
+        service: "boom".to_string(),
+        attempts: 3,
+    };
     assert!(is_permanent(&err.classify()));
 }
 

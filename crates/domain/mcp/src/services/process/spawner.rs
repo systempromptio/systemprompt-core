@@ -247,9 +247,9 @@ pub fn build_server(config: &McpServerConfig) -> McpDomainResult<()> {
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         tracing::error!(service = %config.name, binary, error = %stderr, "Build failed");
-        Err(crate::error::McpDomainError::Internal(format!(
-            "Build failed for {} (binary: {binary})",
-            config.name
-        )))
+        Err(crate::error::McpDomainError::BuildFailed {
+            service: config.name.clone(),
+            binary: binary.to_owned(),
+        })
     }
 }
