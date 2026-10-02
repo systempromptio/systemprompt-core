@@ -42,7 +42,8 @@ pub use traits::{
 };
 
 pub use systemprompt_provider_contracts::{
-    PagePrepareContext, PagePrerenderer, PageRenderSpec, ProviderError, ProviderResult,
+    DynPagePrerenderer, PagePrepareContext, PagePrerenderer, PageRenderSpec, ProviderError,
+    ProviderResult,
 };
 
 #[cfg(feature = "tokio")]
@@ -57,5 +58,3 @@ pub type DynTemplateDataExtender = std::sync::Arc<dyn TemplateDataExtender>;
 pub type DynComponentRenderer = std::sync::Arc<dyn ComponentRenderer>;
 
 pub type DynPageDataProvider = std::sync::Arc<dyn PageDataProvider>;
-
-pub type DynPagePrerenderer = std::sync::Arc<dyn PagePrerenderer>;
