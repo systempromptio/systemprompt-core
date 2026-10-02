@@ -117,7 +117,8 @@ async fn read_artifact_renders_stored_payload_with_ui_meta() {
 }
 
 #[tokio::test]
-async fn read_artifact_without_context_id_still_renders() {
+async fn read_artifact_without_context_id_is_refused_instead_of_rendering_under_the_legacy_context()
+{
     let (db, repo) = repo().await;
     let id = fresh_id();
     let payload = serde_json::json!({
@@ -131,9 +132,11 @@ async fn read_artifact_without_context_id_still_renders() {
         .expect("save");
 
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
-    let result = read_artifact_resource(&request, &McpServerId::new("srv"), &repo)
+    let error = read_artifact_resource(&request, &McpServerId::new("srv"), &repo)
         .await
-        .expect("render");
-    let serialized = serde_json::to_string(&result.contents).expect("serializable");
-    assert!(serialized.contains("context-free render"));
+        .expect_err("an artifact with no context has nothing to render under");
+    assert!(
+        error.message.contains("has no context to render under"),
+        "{error:?}"
+    );
 }
