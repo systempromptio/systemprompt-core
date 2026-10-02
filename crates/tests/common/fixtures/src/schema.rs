@@ -7,6 +7,7 @@ use systemprompt_database::{
     install_extension_schemas_full, DatabaseProvider, MigrationConfig, SchemaInstallReport,
 };
 use systemprompt_extension::{ExtensionRegistry, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 
 pub async fn install_extension_schemas(
     registry: &ExtensionRegistry,
@@ -18,7 +19,7 @@ pub async fn install_extension_schemas(
 pub async fn install_extension_schemas_with_config(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,
-    disabled_extensions: &[String],
+    disabled_extensions: &[ExtensionId],
 ) -> Result<SchemaInstallReport, LoaderError> {
     install_extension_schemas_full(
         registry,

@@ -10,6 +10,7 @@
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 
 use super::RouteMountError;
 use systemprompt_models::modules::ApiPaths;
@@ -28,7 +29,7 @@ use crate::services::middleware::{
 
 fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
     let missing = |provider: &str| LoaderError::InitializationFailed {
-        extension: "oauth".to_owned(),
+        extension: ExtensionId::new("oauth"),
         message: format!("{provider} is required to mount the OAuth routes"),
     };
     let analytics = ctx

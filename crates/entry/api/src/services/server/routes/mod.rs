@@ -22,6 +22,7 @@ mod static_setup;
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 
 pub(super) use error::RouteMountError;
 use systemprompt_runtime::AppContext;
@@ -107,13 +108,13 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
     let analytics = ctx
         .session_provider()
         .ok_or_else(|| LoaderError::InitializationFailed {
-            extension: "jwt".to_owned(),
+            extension: ExtensionId::new("jwt"),
             message: "SessionProvider is required for JWT session enforcement".to_owned(),
         })?;
     let user_provider = ctx
         .user_provider()
         .ok_or_else(|| LoaderError::InitializationFailed {
-            extension: "jwt".to_owned(),
+            extension: ExtensionId::new("jwt"),
             message: "UserProvider is required for JWT validation".to_owned(),
         })?;
     let jti_revocation =

@@ -36,6 +36,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::Config;
 use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_runtime::AppContext;
@@ -141,7 +142,7 @@ where
             .use_headers()
             .finish()
             .ok_or_else(|| LoaderError::InitializationFailed {
-                extension: "rate_limit".to_owned(),
+                extension: ExtensionId::new("rate_limit"),
                 message: format!(
                     "rate limit rejected for {per_second_clamped}/s with burst {burst_u32}"
                 ),

@@ -144,7 +144,7 @@ async fn execute_migrations_history(
 
     let migration_service = MigrationService::new(db);
     let applied: Vec<systemprompt_database::AppliedMigration> = migration_service
-        .get_applied_migrations(extension_id.as_str())
+        .get_applied_migrations(extension_id)
         .await
         .context("Failed to get migration history")?;
 

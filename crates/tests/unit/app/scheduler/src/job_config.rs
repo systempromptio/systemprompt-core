@@ -1,4 +1,4 @@
-use systemprompt_identifiers::JobName;
+use systemprompt_identifiers::{ExtensionId, JobName};
 use systemprompt_models::services::scheduler::JobScope;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 
@@ -45,8 +45,8 @@ mod job_config_tests {
 
     #[test]
     fn with_extension_sets_extension() {
-        let cfg = JobConfig::new(JobName::new("job")).with_extension("core");
-        assert_eq!(cfg.extension, Some("core".to_string()));
+        let cfg = JobConfig::new(JobName::new("job")).with_extension(ExtensionId::new("core"));
+        assert_eq!(cfg.extension, Some(ExtensionId::new("core")));
     }
 
     #[test]
@@ -88,12 +88,12 @@ mod job_config_tests {
         let owner = "user-1".to_owned();
         let cfg = JobConfig::new(JobName::new("complex_job"))
             .with_owner(owner.clone())
-            .with_extension("scheduler")
+            .with_extension(ExtensionId::new("scheduler"))
             .with_schedule("0 */5 * * * *")
             .disabled();
         assert_eq!(cfg.name, "complex_job");
         assert_eq!(cfg.owner, Some(owner));
-        assert_eq!(cfg.extension, Some("scheduler".to_string()));
+        assert_eq!(cfg.extension, Some(ExtensionId::new("scheduler")));
         assert_eq!(cfg.schedule, Some("0 */5 * * * *".to_string()));
         assert!(!cfg.enabled);
     }
@@ -220,7 +220,7 @@ mod scheduler_config_tests {
         let cfg = SchedulerConfig::with_system_admin();
         for job in &cfg.jobs {
             assert_eq!(
-                job.extension.as_deref(),
+                job.extension.as_ref().map(ExtensionId::as_str),
                 Some("core"),
                 "job '{}' should have extension 'core'",
                 job.name

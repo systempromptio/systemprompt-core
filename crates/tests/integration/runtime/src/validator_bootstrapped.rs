@@ -71,7 +71,7 @@ fn validate_extension_configs_over_bootstrapped_services_path() {
 
     for outcome in &outcomes {
         assert!(
-            !outcome.extension_id.is_empty(),
+            !outcome.extension_id.as_str().is_empty(),
             "each outcome names its extension: {outcome:?}",
         );
         assert!(

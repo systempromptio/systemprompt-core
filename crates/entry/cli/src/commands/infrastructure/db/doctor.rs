@@ -66,9 +66,9 @@ pub(super) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Resu
     // schema file registered without a table name still declares its
     // tables; the `schema.table` list above is only for required columns.
     let mut created_tables: Vec<String> = Vec::new();
-    let mut ids: Vec<String> = Vec::new();
+    let mut ids: Vec<ExtensionId> = Vec::new();
     for ext in registry.schema_extensions() {
-        ids.push(ext.id().to_owned());
+        ids.push(ExtensionId::new(ext.id()));
         for schema in ext.schemas() {
             created_tables.extend(created_table_names(&schema.sql).unwrap_or_default());
         }
