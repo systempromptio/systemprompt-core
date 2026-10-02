@@ -119,7 +119,7 @@ fn teams_app_merged_from_include() {
         .get("tenant_main")
         .expect("teams app from include must be merged");
     assert_eq!(app.tenant_id.as_str(), "tid-0001");
-    assert_eq!(app.app_id, "app-0001");
+    assert_eq!(app.app_id.as_str(), "app-0001");
 }
 
 #[test]
