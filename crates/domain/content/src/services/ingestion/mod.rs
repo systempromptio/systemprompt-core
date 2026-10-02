@@ -29,6 +29,14 @@ enum IngestFileResult {
     WouldUpdate(String),
 }
 
+struct IngestCandidate<'a> {
+    new_content: &'a crate::models::Content,
+    new_hash: String,
+    slug: String,
+    source: &'a IngestionSource<'a>,
+    parsed: &'a scanner::ParsedFrontmatter,
+}
+
 #[derive(Debug)]
 pub struct IngestionService {
     content_repo: ContentRepository,
@@ -57,15 +65,7 @@ impl IngestionService {
         report.warnings.extend(scan_result.warnings);
 
         for file_path in scan_result.files {
-            match self
-                .ingest_file(
-                    &file_path,
-                    source,
-                    options.override_existing,
-                    options.dry_run,
-                )
-                .await
-            {
+            match self.ingest_file(&file_path, source, options).await {
                 Ok(result) => {
                     report.files_processed += 1;
                     match result {
@@ -91,8 +91,7 @@ impl IngestionService {
         &self,
         path: &Path,
         source: &IngestionSource<'_>,
-        override_existing: bool,
-        dry_run: bool,
+        options: IngestionOptions,
     ) -> Result<IngestFileResult, ContentError> {
         let markdown_text = tokio::fs::read_to_string(path).await?;
         let parsed = scanner::parse_frontmatter(&markdown_text)?;
@@ -118,44 +117,32 @@ impl IngestionService {
             )
             .await?;
 
-        let slug = new_content.slug.clone();
-        let new_hash = builder::compute_version_hash(&new_content);
+        let candidate = IngestCandidate {
+            new_content: &new_content,
+            new_hash: builder::compute_version_hash(&new_content),
+            slug: new_content.slug.clone(),
+            source,
+            parsed: &parsed,
+        };
 
         match existing_content {
-            None => {
-                self.ingest_new(&new_content, new_hash, slug, source, &parsed, dry_run)
-                    .await
-            },
-            Some(existing) => {
-                self.ingest_existing(
-                    existing,
-                    &new_content,
-                    new_hash,
-                    slug,
-                    source,
-                    &parsed,
-                    override_existing,
-                    dry_run,
-                )
-                .await
-            },
+            None => self.ingest_new(candidate, options.dry_run).await,
+            Some(existing) => self.ingest_existing(existing, candidate, options).await,
         }
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "ingestion needs the parsed content, its hash/slug, the source, the frontmatter, \
-                  and the dry-run flag together; splitting them obscures the single ingest step"
-    )]
     async fn ingest_new(
         &self,
-        new_content: &crate::models::Content,
-        new_hash: String,
-        slug: String,
-        source: &IngestionSource<'_>,
-        parsed: &scanner::ParsedFrontmatter,
+        candidate: IngestCandidate<'_>,
         dry_run: bool,
     ) -> Result<IngestFileResult, ContentError> {
+        let IngestCandidate {
+            new_content,
+            new_hash,
+            slug,
+            source,
+            parsed,
+        } = candidate;
         if dry_run {
             return Ok(IngestFileResult::WouldCreate(slug));
         }
@@ -191,31 +178,28 @@ impl IngestionService {
         Ok(IngestFileResult::Created)
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "update path also needs the existing row and the override flag alongside the same \
-                  ingest inputs; splitting them obscures the single ingest step"
-    )]
     async fn ingest_existing(
         &self,
         existing: crate::models::Content,
-        new_content: &crate::models::Content,
-        new_hash: String,
-        slug: String,
-        source: &IngestionSource<'_>,
-        parsed: &scanner::ParsedFrontmatter,
-        override_existing: bool,
-        dry_run: bool,
+        candidate: IngestCandidate<'_>,
+        options: IngestionOptions,
     ) -> Result<IngestFileResult, ContentError> {
+        let IngestCandidate {
+            new_content,
+            new_hash,
+            slug,
+            source,
+            parsed,
+        } = candidate;
         if existing.version_hash == new_hash {
             return Ok(IngestFileResult::Unchanged);
         }
 
-        if !override_existing {
+        if !options.override_existing {
             return Ok(IngestFileResult::Skipped);
         }
 
-        if dry_run {
+        if options.dry_run {
             return Ok(IngestFileResult::WouldUpdate(slug));
         }
 
