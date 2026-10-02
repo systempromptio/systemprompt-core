@@ -218,8 +218,11 @@ async fn enforce_clean_agent_state(
         }
     }
 
-    let port_manager = PortService::new();
-    if let Err(e) = port_manager.cleanup_port_if_needed(desired_port).await {
+    if desired_port != 0
+        && let Err(e) = PortService::new()
+            .cleanup_port_if_needed(desired_port)
+            .await
+    {
         events.error(
             format!("Failed to cleanup port {desired_port} for agent {agent}: {e}"),
             false,
