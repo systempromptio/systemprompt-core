@@ -7843,6 +7843,7 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
+ "tokio",
  "tracing",
  "walkdir",
 ]
@@ -8084,6 +8085,7 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
+ "tokio",
  "tracing",
  "uuid",
  "walkdir",
