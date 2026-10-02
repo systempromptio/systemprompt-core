@@ -2,9 +2,9 @@
 //! that cannot reach its tenant is allowed to do, and what the failure advises.
 //!
 //! These decisions live in `systemprompt_cli::runner::routing` and
-//! `systemprompt_cli::runner::profile_routing`. The read paths resolve against
-//! the checkout's own `.systemprompt` directory, so they are driven only where
-//! the outcome is a refusal — nothing here writes.
+//! `systemprompt_cli::runner::profile_routing`. The tenant and session reads
+//! resolve under the profile's system root, which these tests point at an
+//! owned temporary project so the developer's `.systemprompt` is never read.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -35,6 +35,15 @@ fn fixture_profile() -> Profile {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let yaml = std::fs::read_to_string(&boot.profile_path).expect("read the fixture profile");
     serde_yaml::from_str(&yaml).expect("parse the fixture profile")
+}
+
+fn profile_in_owned_project() -> (tempfile::TempDir, Profile) {
+    let root = tempfile::TempDir::new().expect("owned project root");
+    std::fs::create_dir_all(root.path().join(".systemprompt")).expect("create .systemprompt");
+    std::fs::create_dir_all(root.path().join("services")).expect("create services");
+    let mut profile = fixture_profile();
+    profile.paths.system = root.path().display().to_string();
+    (root, profile)
 }
 
 fn message(err: &anyhow::Error) -> String {
@@ -69,7 +78,7 @@ fn a_local_profile_routes_locally() {
 
 #[test]
 fn a_tenant_that_is_not_in_the_local_store_is_reported_with_the_sync_command() {
-    let profile = fixture_profile();
+    let (_root, profile) = profile_in_owned_project();
 
     let err = resolve_tenant(&profile, &TenantId::new("tenant_that_was_never_synced"))
         .expect_err("an unsynced tenant cannot be resolved");
@@ -83,7 +92,7 @@ fn a_tenant_that_is_not_in_the_local_store_is_reported_with_the_sync_command() {
 
 #[test]
 fn a_key_with_no_stored_session_says_to_log_in() {
-    let profile = fixture_profile();
+    let (_root, profile) = profile_in_owned_project();
     let key = SessionKey::Tenant(TenantId::new("tenant_with_no_session_at_all"));
 
     let err = load_session_for_key(&profile, &key, "http://localhost:8080")
