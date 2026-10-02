@@ -325,15 +325,15 @@ fn fallback_api_suggestions_branch_by_prefix() {
 #[test]
 fn repository_error_variants_classify() {
     assert_eq!(
-        status_of(RepositoryError::NotFound("s".to_owned()).into()),
+        status_of(RepositoryError::not_found("session", "s").into()),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(RepositoryError::InvalidArgument("v".to_owned()).into()),
+        status_of(RepositoryError::invalid_argument("value", "v").into()),
         StatusCode::BAD_REQUEST
     );
     assert_eq!(
-        status_of(RepositoryError::Conflict("c".to_owned()).into()),
+        status_of(RepositoryError::conflict("task", "t1", "c").into()),
         StatusCode::CONFLICT
     );
     assert_eq!(
@@ -367,18 +367,23 @@ fn agent_error_not_found_and_validation_are_distinguished_from_the_catch_all() {
 #[test]
 fn agent_repository_errors_keep_their_classification() {
     assert_eq!(
-        status_of(AgentError::Repository(RepositoryError::not_found("task t1")).into()),
+        status_of(AgentError::Repository(RepositoryError::not_found("task", "t1")).into()),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(AgentError::Repository(RepositoryError::conflict("stale version")).into()),
+        status_of(
+            AgentError::Repository(RepositoryError::conflict("task", "t1", "stale version")).into()
+        ),
         StatusCode::CONFLICT
     );
 }
 
 #[test]
 fn a_stored_task_without_an_agent_name_is_a_server_error() {
-    let err = AgentError::Repository(RepositoryError::invalid_data("task t1 has no agent_name"));
+    let err = AgentError::Repository(RepositoryError::invalid_data(
+        "agent_name",
+        "missing for task t1",
+    ));
     assert_eq!(
         status_of(err.into()),
         StatusCode::INTERNAL_SERVER_ERROR,

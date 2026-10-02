@@ -97,7 +97,7 @@ async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Re
             .contexts
             .get_context(&context_id, request.user_id())
             .await,
-        Err(systemprompt_traits::RepositoryError::NotFound(_))
+        Err(systemprompt_traits::RepositoryError::NotFound { .. })
     ));
 
     drop(ctx);

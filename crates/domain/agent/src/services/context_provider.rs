@@ -64,8 +64,8 @@ impl ContextProvider for ContextProviderService {
             .get_context(context_id, user_id)
             .await
             .map_err(|e| match e {
-                systemprompt_traits::RepositoryError::NotFound(msg) => {
-                    ContextProviderError::NotFound(msg)
+                systemprompt_traits::RepositoryError::NotFound { .. } => {
+                    ContextProviderError::NotFound(format!("Context {context_id} not found"))
                 },
                 other => ContextProviderError::Database(other.into()),
             })?;
@@ -117,8 +117,8 @@ impl ContextProvider for ContextProviderService {
             .update_context_name(context_id, user_id, name)
             .await
             .map_err(|e| match e {
-                systemprompt_traits::RepositoryError::NotFound(msg) => {
-                    ContextProviderError::NotFound(msg)
+                systemprompt_traits::RepositoryError::NotFound { .. } => {
+                    ContextProviderError::NotFound(format!("Context {context_id} not found"))
                 },
                 other => ContextProviderError::Database(other.into()),
             })
@@ -133,8 +133,8 @@ impl ContextProvider for ContextProviderService {
             .delete_context(context_id, user_id)
             .await
             .map_err(|e| match e {
-                systemprompt_traits::RepositoryError::NotFound(msg) => {
-                    ContextProviderError::NotFound(msg)
+                systemprompt_traits::RepositoryError::NotFound { .. } => {
+                    ContextProviderError::NotFound(format!("Context {context_id} not found"))
                 },
                 other => ContextProviderError::Database(other.into()),
             })

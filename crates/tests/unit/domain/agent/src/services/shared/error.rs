@@ -80,7 +80,7 @@ fn from_sqlx_row_not_found_maps_to_repository_not_found() {
 #[test]
 fn from_repository_errors_map_to_repository() {
     let err: AgentServiceError =
-        systemprompt_agent::repository::RepositoryError::NotFound("row gone".to_owned()).into();
+        systemprompt_agent::repository::RepositoryError::not_found("row", "row gone").into();
     assert!(matches!(err, AgentServiceError::Repository(_)));
     assert!(err.to_string().contains("row gone"));
 }

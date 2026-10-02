@@ -116,7 +116,10 @@ async fn get_parts_rejects_non_object_data_content() {
         .await
         .expect_err("non-object data must be rejected");
     match err {
-        RepositoryError::InvalidData(msg) => assert!(msg.contains("JSON object")),
+        RepositoryError::InvalidData { field, reason } => {
+            assert_eq!(field, "data_content");
+            assert!(reason.contains("JSON object"));
+        },
         other => panic!("expected InvalidData, got {other:?}"),
     }
 

@@ -56,7 +56,7 @@ impl ApprovalRepository {
 
         self.find(req.call_id)
             .await?
-            .ok_or_else(|| RepositoryError::not_found(req.call_id.as_str()))
+            .ok_or_else(|| RepositoryError::not_found("approval request", req.call_id))
     }
 
     pub async fn find(&self, call_id: &CallId) -> Result<Option<ApprovalRequest>, RepositoryError> {

@@ -194,9 +194,11 @@ impl AiRequestRepository {
         .await?;
         match inserted {
             Some(_) => Ok(id.clone()),
-            None => Err(RepositoryError::conflict(format!(
-                "AI request {id} already exists"
-            ))),
+            None => Err(RepositoryError::conflict(
+                "AI request",
+                id,
+                "already exists",
+            )),
         }
     }
 }

@@ -59,17 +59,18 @@ impl_part_columns!(ArtifactPartRow);
 pub(crate) fn part_from_row(row: &impl PartColumns) -> Result<Part, RepositoryError> {
     match row.part_kind() {
         PART_KIND_TEXT => {
-            let text = row
-                .text_content()
-                .ok_or_else(|| RepositoryError::InvalidData("Missing text_content".into()))?;
+            let text = row.text_content().ok_or_else(|| {
+                RepositoryError::invalid_data("text_content", "missing for a text part")
+            })?;
             Ok(Part::Text(TextPart {
                 text: text.to_owned(),
             }))
         },
         PART_KIND_FILE => {
             if row.file_uri().is_none() && row.file_bytes().is_none() {
-                return Err(RepositoryError::InvalidData(
-                    "File part has neither file_uri nor file_bytes".into(),
+                return Err(RepositoryError::invalid_data(
+                    "file_uri",
+                    "file part has neither file_uri nor file_bytes",
                 ));
             }
             Ok(Part::File(FilePart {
@@ -82,19 +83,21 @@ pub(crate) fn part_from_row(row: &impl PartColumns) -> Result<Part, RepositoryEr
             }))
         },
         PART_KIND_DATA => {
-            let data_value = row
-                .data_content()
-                .ok_or_else(|| RepositoryError::InvalidData("Missing data_content".into()))?;
+            let data_value = row.data_content().ok_or_else(|| {
+                RepositoryError::invalid_data("data_content", "missing for a data part")
+            })?;
             let serde_json::Value::Object(data) = data_value else {
-                return Err(RepositoryError::InvalidData(
-                    "Data content must be a JSON object".into(),
+                return Err(RepositoryError::invalid_data(
+                    "data_content",
+                    "must be a JSON object",
                 ));
             };
             Ok(Part::Data(DataPart { data: data.clone() }))
         },
-        other => Err(RepositoryError::InvalidData(format!(
-            "Unknown part kind: {other}"
-        ))),
+        other => Err(RepositoryError::invalid_data(
+            "part_kind",
+            format!("unknown part kind {other}"),
+        )),
     }
 }
 

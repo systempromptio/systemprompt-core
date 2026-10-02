@@ -39,6 +39,7 @@
 - **Breaking:** `FrameOptions` is defined in `systemprompt_provider_contracts`, and `systemprompt_extension::FrameOptions` and `systemprompt_extension::frame_options::FrameOptions` are removed; `systemprompt_models::profile::FrameOptions` and the extension prelude still re-export it. Migrate by importing `systemprompt_provider_contracts::FrameOptions`.
 - **Breaking:** the bridge gateway bodies `WhoamiResponse`, `SelfEnrollRequest`, `SelfEnrollResponse`, `DevicePatResponse` and `ReleaseManifest` move from `systemprompt_api::routes::gateway` to `systemprompt_models::bridge::gateway`, where `WhoamiResponse.user_id` and `email` are `Option`. Migrate by importing them from `systemprompt_models::bridge::gateway`.
 - **Breaking:** `--profile` on `cloud doctor`, `cloud deploy` and `cloud backup` accepts only a profile name and refuses a path. Migrate by passing the profile's directory name under `.systemprompt/profiles/`.
+- **Breaking:** `systemprompt_traits::RepositoryError::{NotFound, Conflict, InvalidArgument, InvalidData}` are struct variants: `NotFound { entity, key: Option<String> }`, `Conflict { entity, key, reason }`, `InvalidArgument { field, reason }` and `InvalidData { field, reason }`, built with `RepositoryError::not_found(entity, key)`, `conflict(entity, key, reason)`, `invalid_argument(field, reason)` and `invalid_data(field, reason)`; HTTP status mapping is unchanged. Migrate by passing the entity kind or field name as the first argument and matching with `{ .. }` or named fields.
 
 ### Changed
 

@@ -37,11 +37,11 @@ const fn service_type(module: ServiceModule) -> ServiceType {
 fn required_text<'a>(row: &'a JsonRow, column: &str) -> SchedulerResult<&'a str> {
     row.get(column)
         .and_then(|v| v.as_str())
-        .ok_or_else(|| invalid_row(format!("services row has no `{column}` value")))
+        .ok_or_else(|| invalid_row(format!("row has no `{column}` value")))
 }
 
-const fn invalid_row(message: String) -> SchedulerError {
-    SchedulerError::Repository(RepositoryError::InvalidData(message))
+fn invalid_row(reason: String) -> SchedulerError {
+    SchedulerError::Repository(RepositoryError::invalid_data("services", reason))
 }
 
 fn decode_error(
@@ -67,7 +67,7 @@ fn decode_db_service(row: &JsonRow) -> SchedulerResult<DbServiceRecord> {
         .get("port")
         .and_then(serde_json::Value::as_i64)
         .and_then(|p| i32::try_from(p).ok())
-        .ok_or_else(|| invalid_row(format!("services row `{name}` has no valid `port` value")))?;
+        .ok_or_else(|| invalid_row(format!("row `{name}` has no valid `port` value")))?;
     let updated_at_epoch = row
         .get("updated_at_epoch")
         .and_then(serde_json::Value::as_f64);

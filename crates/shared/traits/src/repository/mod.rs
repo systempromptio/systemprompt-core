@@ -4,8 +4,11 @@
 //! variants carry the classification an HTTP or job boundary needs (missing
 //! entity, conflict, constraint violation, corrupt stored data, backend
 //! failure) and keep the underlying error as a `#[source]` rather than its
-//! text. With the `sqlx` feature, `From<sqlx::Error>` classifies a database
-//! error by SQLSTATE, so `?` on a query result yields `NotFound`,
+//! text. The caller-facing variants are structured: a missing entity or a
+//! conflict names the entity kind and its key, an invalid argument or a
+//! corrupt stored value names the field, and `reason` carries only what that
+//! structure cannot. With the `sqlx` feature, `From<sqlx::Error>` classifies a
+//! database error by SQLSTATE, so `?` on a query result yields `NotFound`,
 //! `Constraint` or `Database` rather than an opaque string.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -56,11 +59,18 @@ impl fmt::Display for ConstraintKind {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum RepositoryError {
-    #[error("entity not found: {0}")]
-    NotFound(String),
+    #[error("{entity} not found{}", key_suffix(.key.as_deref()))]
+    NotFound {
+        entity: &'static str,
+        key: Option<String>,
+    },
 
-    #[error("conflict: {0}")]
-    Conflict(String),
+    #[error("{entity} {key} conflicts: {reason}")]
+    Conflict {
+        entity: &'static str,
+        key: String,
+        reason: String,
+    },
 
     #[error("{kind} on constraint {constraint}")]
     Constraint {
@@ -70,11 +80,11 @@ pub enum RepositoryError {
         source: BoxedSource,
     },
 
-    #[error("invalid argument: {0}")]
-    InvalidArgument(String),
+    #[error("invalid argument {field}: {reason}")]
+    InvalidArgument { field: &'static str, reason: String },
 
-    #[error("invalid stored data: {0}")]
-    InvalidData(String),
+    #[error("invalid stored data in {field}: {reason}")]
+    InvalidData { field: &'static str, reason: String },
 
     #[error("could not decode {context}")]
     Decode {
@@ -118,20 +128,37 @@ pub enum RepositoryError {
 }
 
 impl RepositoryError {
-    pub fn not_found<T: fmt::Display>(what: T) -> Self {
-        Self::NotFound(what.to_string())
+    pub fn not_found(entity: &'static str, key: impl fmt::Display) -> Self {
+        Self::NotFound {
+            entity,
+            key: Some(key.to_string()),
+        }
     }
 
-    pub fn conflict(message: impl Into<String>) -> Self {
-        Self::Conflict(message.into())
+    pub fn conflict(
+        entity: &'static str,
+        key: impl fmt::Display,
+        reason: impl Into<String>,
+    ) -> Self {
+        Self::Conflict {
+            entity,
+            key: key.to_string(),
+            reason: reason.into(),
+        }
     }
 
-    pub fn invalid_argument(message: impl Into<String>) -> Self {
-        Self::InvalidArgument(message.into())
+    pub fn invalid_argument(field: &'static str, reason: impl Into<String>) -> Self {
+        Self::InvalidArgument {
+            field,
+            reason: reason.into(),
+        }
     }
 
-    pub fn invalid_data(message: impl Into<String>) -> Self {
-        Self::InvalidData(message.into())
+    pub fn invalid_data(field: &'static str, reason: impl Into<String>) -> Self {
+        Self::InvalidData {
+            field,
+            reason: reason.into(),
+        }
     }
 
     pub fn internal(message: impl Into<String>) -> Self {
@@ -169,7 +196,7 @@ impl RepositoryError {
 
     #[must_use]
     pub const fn is_not_found(&self) -> bool {
-        matches!(self, Self::NotFound(_))
+        matches!(self, Self::NotFound { .. })
     }
 
     #[must_use]
@@ -180,7 +207,7 @@ impl RepositoryError {
     #[must_use]
     pub const fn is_conflict(&self) -> bool {
         match self {
-            Self::Conflict(_) => true,
+            Self::Conflict { .. } => true,
             Self::Constraint { kind, .. } => kind.is_conflict(),
             _ => false,
         }
@@ -200,4 +227,8 @@ impl RepositoryError {
         // CREATE reshapes it.
         self.sqlstate() == Some("42P13")
     }
+}
+
+fn key_suffix(key: Option<&str>) -> String {
+    key.map(|key| format!(": {key}")).unwrap_or_default()
 }

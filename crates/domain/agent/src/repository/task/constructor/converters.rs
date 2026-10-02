@@ -59,7 +59,7 @@ pub(super) fn construct_metadata(row: &TaskRow) -> Result<TaskMetadata, Reposito
         .as_ref()
         .map(ToString::to_string)
         .ok_or_else(|| {
-            RepositoryError::InvalidData(format!("task {} has no agent_name", row.task_id))
+            RepositoryError::invalid_data("agent_name", format!("missing for task {}", row.task_id))
         })?;
 
     let mut metadata = match row.metadata.as_ref() {

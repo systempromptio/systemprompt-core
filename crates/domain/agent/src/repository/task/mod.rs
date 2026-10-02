@@ -176,9 +176,10 @@ impl TaskRepository {
 
         match result {
             Some(_) => Ok(()),
-            None => Err(RepositoryError::NotFound(format!(
-                "Task {task_id} not found or user {user_id} does not have access"
-            ))),
+            None => Err(RepositoryError::not_found(
+                "task",
+                format!("{task_id} for user {user_id}"),
+            )),
         }
     }
 }

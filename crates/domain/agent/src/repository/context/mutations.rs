@@ -72,10 +72,10 @@ impl ContextRepository {
         .await?;
 
         if result.rows_affected() != 1 {
-            return Err(RepositoryError::NotFound(format!(
-                "Context {} not found for user {}",
-                context_id, user_id
-            )));
+            return Err(RepositoryError::not_found(
+                "context",
+                format!("{context_id} for user {user_id}"),
+            ));
         }
         Ok(())
     }
@@ -159,10 +159,10 @@ impl ContextRepository {
 
         match result {
             Some(_) => Ok(()),
-            None => Err(RepositoryError::NotFound(format!(
-                "Context {} not found or user {} does not have access",
-                context_id, user_id
-            ))),
+            None => Err(RepositoryError::not_found(
+                "context",
+                format!("{context_id} for user {user_id}"),
+            )),
         }
     }
 
@@ -186,10 +186,10 @@ impl ContextRepository {
         .await?;
 
         if result.rows_affected() == 0 {
-            return Err(RepositoryError::NotFound(format!(
-                "Context {} not found for user {}",
-                context_id, user_id
-            )));
+            return Err(RepositoryError::not_found(
+                "context",
+                format!("{context_id} for user {user_id}"),
+            ));
         }
 
         Ok(())
@@ -209,10 +209,10 @@ impl ContextRepository {
         .await?;
 
         if result.rows_affected() == 0 {
-            return Err(RepositoryError::NotFound(format!(
-                "Context {} not found for user {}",
-                context_id, user_id
-            )));
+            return Err(RepositoryError::not_found(
+                "context",
+                format!("{context_id} for user {user_id}"),
+            ));
         }
 
         Ok(())

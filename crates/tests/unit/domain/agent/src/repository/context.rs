@@ -57,7 +57,7 @@ async fn get_context_wrong_user_is_not_found() {
     let err = repo.get_context(&context_id, &other).await.unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 
     let err = repo
@@ -66,7 +66,7 @@ async fn get_context_wrong_user_is_not_found() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 }
 
@@ -144,7 +144,7 @@ async fn update_context_name_unknown_is_not_found() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 }
 
@@ -169,7 +169,7 @@ async fn delete_context() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 }
 
@@ -423,7 +423,7 @@ async fn ensure_context_by_another_user_never_writes_into_the_owners_row() {
         repo.ensure_context(&foreign, ContextKind::Session)
             .await
             .unwrap_err(),
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 
     let after = repo.get_context(&context_id, &owner).await.expect("get");
@@ -435,7 +435,7 @@ async fn ensure_context_by_another_user_never_writes_into_the_owners_row() {
     );
     assert!(matches!(
         repo.get_context(&context_id, &intruder).await.unwrap_err(),
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 }
 

@@ -65,7 +65,7 @@ RepositoryError → ServiceError → ApiError → HTTP Response
 ```rust
 use systemprompt_models::{RepositoryError, ServiceError, ApiError};
 
-let repo_err = RepositoryError::NotFound("user-123".to_string());
+let repo_err = RepositoryError::not_found("user", "user-123");
 let svc_err: ServiceError = repo_err.into();
 let api_err: ApiError = svc_err.into();
 ```
