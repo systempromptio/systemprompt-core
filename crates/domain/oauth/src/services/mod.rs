@@ -40,7 +40,7 @@ pub use templating::TemplateEngine;
 pub use webauthn::{JwtTokenValidator, UserCreationService, WebAuthnConfig, WebAuthnService};
 
 pub use generation::{
-    JwtConfig, JwtSigningParams, generate_anonymous_jwt, generate_anonymous_jwt_with_expiry,
+    DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_anonymous_jwt, generate_anonymous_jwt_with_expiry,
     generate_client_secret, generate_jwt, generate_jwt_with_act, generate_secure_token,
     hash_client_secret, verify_client_secret,
 };

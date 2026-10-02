@@ -85,22 +85,27 @@ impl Default for JwtConfig {
     }
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "JWT minting needs the full set of claim-shaping inputs; bundling into a struct \
-              would obscure the call sites"
-)]
-pub fn generate_jwt_with_act(
-    user: &AuthenticatedUser,
-    config: JwtConfig,
-    jti: AccessTokenId,
-    session_id: &SessionId,
-    signing: &JwtSigningParams<'_>,
-    act: ActClaim,
-) -> Result<String> {
-    let mut token = build_claims(user, config, jti, session_id, signing)?;
-    token.act = Some(act);
-    encode_claims(&token, signing)
+/// Inputs for minting an RFC 8693 delegated access token carrying an `act` claim.
+#[derive(Debug)]
+pub struct DelegatedJwtParams<'a> {
+    pub user: &'a AuthenticatedUser,
+    pub config: JwtConfig,
+    pub jti: AccessTokenId,
+    pub session_id: &'a SessionId,
+    pub signing: &'a JwtSigningParams<'a>,
+    pub act: ActClaim,
+}
+
+pub fn generate_jwt_with_act(params: DelegatedJwtParams<'_>) -> Result<String> {
+    let mut token = build_claims(
+        params.user,
+        params.config,
+        params.jti,
+        params.session_id,
+        params.signing,
+    )?;
+    token.act = Some(params.act);
+    encode_claims(&token, params.signing)
 }
 
 fn build_claims(
