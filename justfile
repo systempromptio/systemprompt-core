@@ -227,22 +227,21 @@ format-check:
     cargo fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
 
 # Build rustdoc with warnings as errors (main + test workspace).
-# `--workspace` stops at the manifest it is invoked from, so the 86 test
+# `--workspace` stops at the manifest it is invoked from, so the test
 # crates need their own pass — without it their `//!` heads go unchecked and
 # intra-doc links rot silently.
-# Local-only, like `just style-check`: the test workspace ships no `.sqlx`
-# cache, so its `query!` fixtures need the live database that
-# `crates/tests/.cargo/config.toml` points at. CI's docs job runs offline and
-# covers the main workspace alone.
+# The test-workspace pass is local-only: the test workspace ships no `.sqlx`
+# cache, so its `query!` fixtures need DATABASE_URL at a migrated database.
+# CI's docs job runs offline and covers the main and bridge workspaces.
 doc-check:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
     RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps
     cd crates/tests && RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 
 # Run clippy linter with strict settings (main workspace).
-# The separate `crates/tests` workspace is clippied by `just style-check` (it
-# needs a live database for its `query!` fixtures, which CI's lint job lacks);
-# CI compiles it in the dedicated Test job instead.
+# The separate `crates/tests` workspace is clippied by `just style-check`
+# locally and by quality.yml's `lint-tests` job, which migrates a disposable
+# database for its `query!` fixtures.
 # `--keep-going` mirrors CI: a compile error in one crate must not hide the
 # clippy findings in every crate behind it (0.51.0 lost a gate round that way).
 lint: lint-bridge lint-bridge-native-tests
@@ -507,7 +506,9 @@ style-check:
     echo ""
     echo "✅ All style checks passed!"
 
-# Run unit tests (separate test workspace, no database required)
+# Run the test workspace with cargo test. DB-backed tests and the sqlx macros
+# in their fixtures need DATABASE_URL at a migrated database; `just test-shard`
+# sets that up and matches CI.
 unit-test *ARGS:
     cargo test --manifest-path crates/tests/Cargo.toml --workspace {{ARGS}}
 
@@ -865,12 +866,14 @@ clean:
 # TESTING
 # =============================================================================
 
-# Run the Rust test workspace (crates/tests) end to end against a fresh database.
-# Mirrors the CI `test` job: drop+recreate the target DB, apply every extension
-# schema with the migrate tool built OFFLINE (the schema does not exist yet, so
-# live query verification of its core-crate deps would fail), then run the suite
-# LIVE against the migrated schema. Override the target with TEST_DATABASE_URL;
-# the default points at a dedicated `systemprompt_test` DB on the local server.
+# Run the library unit tests of the test workspace (crates/tests) against a
+# fresh database: drop+recreate the target DB, apply every extension schema with
+# the migrate tool built OFFLINE (the schema does not exist yet, so live query
+# verification of its core-crate deps would fail), then `cargo test --lib` LIVE
+# against the migrated schema. Integration-test targets do not run here; CI's
+# sharded nextest run is `just test-shard` / `just test-all-shards`. Override
+# the target with TEST_DATABASE_URL; the default is a disposable
+# `systemprompt_test` DB on the local server.
 test-rust *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1027,7 +1030,7 @@ lint-swallowed-errors:
 
 # An error turned into a String (`map_err(|e| e.to_string())`,
 # `Result<_, String>`, a `Foo(String)` variant built from Display) loses its
-# source and classification. Not yet in check-gates: it ratchets per crate.
+# source and classification. Part of check-gates.
 # `just lint-stringly-errors --report [PATH...]` prints per-crate counts.
 lint-stringly-errors *ARGS:
     ./scripts/lint-stringly-errors.sh {{ARGS}}
