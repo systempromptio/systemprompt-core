@@ -11,31 +11,28 @@ Defines extension contracts and compile-time registration for routes, schemas, m
 
 ## Overview
 
-An extension declares its schemas, API routes, scheduled jobs, providers, seeds, and assets through the `Extension` trait. Authors register each one with the `register_extension!` macro, which submits it to the [`inventory`](https://docs.rs/inventory) linker collector. At startup the runtime gathers every registration, validates the dependency graph, and merges the resulting wiring into the host binary. Dependency ordering is enforced at compile time through a typestate builder, so an extension that names a missing dependency fails to build rather than to boot.
+An extension declares its schemas, API routes, scheduled jobs, providers, seeds, and assets through the `Extension` trait. Authors register each one with the `register_extension!` macro, which submits it to the [`inventory`](https://docs.rs/inventory) linker collector. At startup the runtime gathers every registration, validates declared dependencies (`Extension::dependencies()`) and reserved API paths, and merges the resulting wiring into the host binary. `Extension` is the single extension trait: `metadata()` is required and every other hook is a defaulted method.
 
 ## Module Map
 
 | Module | Purpose |
 |--------|---------|
-| `any` | Type-erased wrappers (`AnyExtension`, `ApiExtensionWrapper`, `SchemaExtensionWrapper`). |
-| `asset` | `AssetDefinition`, `AssetDefinitionBuilder`, `AssetPaths`, `AssetType`. |
+| `asset` (private, re-exported) | `AssetDefinition`, `AssetDefinitionBuilder`, `AssetPaths`, `AssetType`. |
 | `build` | Build-script helper (`emit_migrations`) that generates `Extension::migrations()` from `schema/migrations/*.sql`, paired with the `extension_migrations!` macro. |
-| `builder` | `ExtensionBuilder`: fluent builder enforcing dependency ordering via typestate. |
-| `capabilities` | `CapabilityContext`, `FullContext`, and the `Has*` capability traits. |
+| `capabilities` | The `Has*` capability traits (`HasAnalytics`, `HasFingerprint`, `HasRouteClassifier`, `HasUserService`). |
 | `context` | `ExtensionContext` and `DynExtensionContext` handed to extensions during router resolution. |
-| `error` | `LoaderError`, `ConfigError`. |
-| `frame_options` | Per-route `X-Frame-Options` override (`FrameOptions`, `stamp_frame_options`) honoured by the host security-headers middleware. |
-| `hlist` | Heterogeneous-list machinery (`TypeList`, `Contains`, `Subset`, `NotSame`) backing the dependency typestate. |
+| `cost` | `CostDirective`, `CostDirectiveError`, `TriggerPolicy`. |
+| `error` | `LoaderError`, `ExtensionConfigError`. |
+| `frame_options` | Per-route `X-Frame-Options` override (`FrameOptions`, `FrameOptionsOverride`, `stamp_frame_options`) honoured by the host security-headers middleware. |
+| `gateway_guard` | `GatewayRequestGuard` and the `register_gateway_guard!` macro for gateway request guards. |
 | `metadata` | `ExtensionMetadata`, `ExtensionRole`, `SchemaDefinition`. |
 | `migration` | `Migration` value type for versioned extension migrations. |
-| `registry` | `ExtensionRegistry`, `ExtensionRegistration`, discovery, queries, validation. |
+| `purge` | `UserPurgeTable` and orphan-sweep registrations (`user_purge_tables!`, `orphan_sweeps!`). |
+| `registry` | `ExtensionRegistry`, `ExtensionRegistration`, `RESERVED_PATHS`, discovery, queries, validation. |
 | `router` | `ExtensionRouter`, `ExtensionRouterConfig`, `SiteAuthConfig`. |
 | `runtime_config` | Process-level fallback injection of extensions when the `inventory` collector is stripped (for example by LTO). |
 | `seed` | `Seed`: idempotent post-migration data fixtures applied on every boot, outside migration tracking. |
-| `traits` | The `Extension` trait and `register_extension!` macro. |
-| `typed` | Compile-time-checked sub-traits: `SchemaExtensionTyped`, `ApiExtensionTyped`, `ConfigExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`. |
-| `typed_registry` | `TypedExtensionRegistry` and `RESERVED_PATHS`. |
-| `types` | `Dependencies`, `DependencyList`, `ExtensionMeta`, `ExtensionType`, `NoDependencies`. |
+| `traits` (private, re-exported) | The `Extension` trait and `register_extension!` macro. |
 
 ## Usage
 
@@ -53,10 +50,9 @@ struct MyExtension;
 impl Extension for MyExtension {
     fn metadata(&self) -> ExtensionMetadata {
         ExtensionMetadata {
-            name: "my-extension".into(),
-            version: "0.1.0".into(),
-            role: ExtensionRole::Domain,
-            ..Default::default()
+            id: "my-extension",
+            name: "My Extension",
+            version: "0.1.0",
         }
     }
 }
@@ -72,12 +68,14 @@ None. This crate has no Cargo features; everything compiles into every build.
 
 - `inventory`: Compile-time extension registration.
 - `axum`: Router types for `ExtensionRouter` and the frame-options middleware.
-- `reqwest`: HTTP client types exposed through capability traits.
+- `async-trait`: `dyn`-compatible async hooks.
 - `serde` / `serde_json`: Metadata and configuration serialisation.
 - `thiserror`: Typed error enums.
 - `tracing`: Structured logging.
+- `xxhash-rust`: Migration checksums.
 - `systemprompt-provider-contracts`: Provider trait definitions re-exported from the prelude.
-- `systemprompt-traits` (with `web` feature): Core shared traits.
+- `systemprompt-traits`: Core shared traits.
+- `systemprompt-identifiers`: Typed identifiers.
 
 ## License
 

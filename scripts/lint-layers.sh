@@ -24,7 +24,8 @@
 #      (architecture.md "The client crate performs network I/O") and is
 #      exempt from the `reqwest` / `tokio` rows only. `axum` is exempt for
 #      exactly two crates: `systemprompt-extension` (the extension routing
-#      contract is `ApiExtensionTyped::router() -> axum::Router`) and
+#      contract is `Extension::router()`, whose `ExtensionRouter` wraps an
+#      `axum::Router`) and
 #      `systemprompt-models` behind its optional `web` feature (the
 #      `IntoResponse` impls for the API envelopes). Neither opens a socket;
 #      replacing them is a router-abstraction redesign, not a dependency trim.
