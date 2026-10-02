@@ -4,10 +4,42 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use serde::Deserialize;
+use serde::de::IgnoredAny;
+use std::collections::BTreeMap;
 use std::path::Path;
 use systemprompt_models::{ComponentSource, PluginConfig};
 
 use super::DEFAULT_AGENT_TOOLS;
+
+#[derive(Debug, Deserialize)]
+struct AgentNames {
+    #[serde(default)]
+    agents: BTreeMap<String, IgnoredAny>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AgentsFile {
+    #[serde(default)]
+    agents: BTreeMap<String, AgentHeader>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AgentHeader {
+    card: Option<AgentCardHeader>,
+    metadata: Option<AgentMetadataHeader>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AgentCardHeader {
+    description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AgentMetadataHeader {
+    #[serde(rename = "systemPrompt")]
+    system_prompt: Option<String>,
+}
 
 pub fn generate_agents(
     plugin: &PluginConfig,
@@ -48,21 +80,13 @@ fn resolve_agents(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<Str
     }
 
     let content = std::fs::read_to_string(&agents_config_path)?;
-    let config: serde_yaml::Value = serde_yaml::from_str(&content)?;
+    let config: AgentNames = serde_yaml::from_str(&content)?;
 
-    let mut ids = Vec::new();
-    if let Some(agents) = config.get("agents").and_then(|a| a.as_mapping()) {
-        for (key, _) in agents {
-            if let Some(name) = key.as_str()
-                && !plugin.agents.exclude.contains(&name.to_owned())
-            {
-                ids.push(name.to_owned());
-            }
-        }
-    }
-
-    ids.sort();
-    Ok(ids)
+    Ok(config
+        .agents
+        .into_keys()
+        .filter(|name| !plugin.agents.exclude.contains(name))
+        .collect())
 }
 
 fn build_agent_md(agent: &str, services_agents_dir: &Path) -> Result<String> {
@@ -75,24 +99,22 @@ fn build_agent_md(agent: &str, services_agents_dir: &Path) -> Result<String> {
                 continue;
             }
             let content = std::fs::read_to_string(&path)?;
-            let config: serde_yaml::Value = match serde_yaml::from_str(&content) {
+            let mut config: AgentsFile = match serde_yaml::from_str(&content) {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::warn!(path = %path.display(), error = %e, "Failed to parse YAML");
                     continue;
                 },
             };
-            if let Some(agent_val) = config.get("agents").and_then(|a| a.get(agent)) {
-                let description = agent_val
-                    .get("card")
-                    .and_then(|c| c.get("description"))
-                    .and_then(|d| d.as_str())
-                    .map_or_else(|| format!("{agent} agent"), str::to_owned);
-                let system_prompt = agent_val
-                    .get("metadata")
-                    .and_then(|m| m.get("systemPrompt"))
-                    .and_then(|s| s.as_str())
-                    .map_or_else(String::new, str::to_owned);
+            if let Some(header) = config.agents.remove(agent) {
+                let description = header
+                    .card
+                    .and_then(|card| card.description)
+                    .unwrap_or_else(|| format!("{agent} agent"));
+                let system_prompt = header
+                    .metadata
+                    .and_then(|metadata| metadata.system_prompt)
+                    .unwrap_or_default();
                 return Ok(format!(
                     "---\nname: {}\ndescription: \"{}\"\ntools: {}\n---\n\n{}\n",
                     agent,

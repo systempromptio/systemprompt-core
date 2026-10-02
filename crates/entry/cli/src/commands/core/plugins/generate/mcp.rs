@@ -4,8 +4,21 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use serde::Deserialize;
+use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_models::PluginConfig;
+
+#[derive(Debug, Deserialize)]
+struct McpPortConfig {
+    #[serde(default)]
+    mcp_servers: HashMap<String, McpPortEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct McpPortEntry {
+    port: Option<u16>,
+}
 
 pub fn generate_mcp_json(
     plugin: &PluginConfig,
@@ -39,21 +52,17 @@ pub fn generate_mcp_json(
 
 fn resolve_mcp_port(mcp_name: &str, config_path: &Path) -> Option<u16> {
     let content = std::fs::read_to_string(config_path)
-        .map_err(|e| {
+        .inspect_err(|e| {
             tracing::debug!(error = %e, path = %config_path.display(), "Failed to read config for MCP port resolution");
-            e
         })
         .ok()?;
-    let config: serde_yaml::Value = serde_yaml::from_str(&content)
-        .map_err(|e| {
+    let config: McpPortConfig = serde_yaml::from_str(&content)
+        .inspect_err(|e| {
             tracing::warn!(error = %e, path = %config_path.display(), "Failed to parse config for MCP port resolution");
-            e
         })
         .ok()?;
     config
-        .get("mcp_servers")
-        .and_then(|m| m.get(mcp_name))
-        .and_then(|s| s.get("port"))
-        .and_then(serde_yaml::Value::as_u64)
-        .and_then(|p| u16::try_from(p).ok())
+        .mcp_servers
+        .get(mcp_name)
+        .and_then(|server| server.port)
 }

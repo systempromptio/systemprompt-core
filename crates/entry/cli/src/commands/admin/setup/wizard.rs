@@ -81,9 +81,11 @@ pub(super) async fn execute(
         &args,
         prompter,
         config,
-        &env_name,
-        &project_root,
-        &pg_config,
+        &SetupTarget {
+            env_name: &env_name,
+            project_root: &project_root,
+            pg_config: &pg_config,
+        },
     )?;
 
     let run_migrations = should_run_migrations(&args, prompter, config)?;
@@ -145,18 +147,24 @@ fn confirm_setup(
     )
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "wizard step threads discrete, already-validated setup inputs"
-)]
+#[derive(Clone, Copy)]
+struct SetupTarget<'a> {
+    env_name: &'a str,
+    project_root: &'a Path,
+    pg_config: &'a PostgresConfig,
+}
+
 fn write_configuration(
     args: &SetupArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    env_name: &str,
-    project_root: &Path,
-    pg_config: &PostgresConfig,
+    target: &SetupTarget<'_>,
 ) -> Result<(secrets::SecretsData, PathBuf)> {
+    let SetupTarget {
+        env_name,
+        project_root,
+        pg_config,
+    } = *target;
     let systemprompt_dir = project_root.join(".systemprompt");
 
     let admin_email = resolve_admin_email(args, prompter, config)?;

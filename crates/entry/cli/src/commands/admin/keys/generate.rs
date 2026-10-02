@@ -19,11 +19,7 @@ pub struct GenerateArgs {
     force: bool,
 }
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "clap-derived args ergonomics"
-)]
-pub(super) fn execute(args: GenerateArgs) -> Result<()> {
+pub(super) fn execute(args: &GenerateArgs) -> Result<()> {
     if args.output.exists() && !args.force {
         anyhow::bail!(
             "Refusing to overwrite existing key at {} (pass --force to replace)",
