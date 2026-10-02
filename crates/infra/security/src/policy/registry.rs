@@ -26,8 +26,24 @@ pub type PolicyFactory =
 /// Why a policy factory rejected its YAML entry.
 #[derive(Debug, thiserror::Error)]
 pub enum PolicyConfigurationError {
-    #[error("{0}")]
-    Invalid(String),
+    #[error("unknown access scope `{scope}` in require_approval exempt_scopes")]
+    UnknownExemptScope { scope: String },
+
+    #[error(
+        "require_approval condition on `{tool}` at `{path}` has no operand its `{operator}` \
+         operator can use"
+    )]
+    UnusableCondition {
+        tool: String,
+        path: String,
+        operator: &'static str,
+    },
+
+    #[error(
+        "secret_scan is in enforce mode but compiles no secret patterns; declare `patterns` or \
+         set `mode: warn`"
+    )]
+    ToothlessSecretScan,
 
     #[error("{context}: {source}")]
     Yaml {

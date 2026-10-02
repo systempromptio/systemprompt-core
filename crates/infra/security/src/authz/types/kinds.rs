@@ -230,9 +230,7 @@ impl FromStr for EntityKind {
             "slack_channel" => Ok(Self::SlackChannel),
             "teams_tenant" => Ok(Self::TeamsTenant),
             "teams_conversation" => Ok(Self::TeamsConversation),
-            other => Err(AuthzError::Validation(format!(
-                "unknown entity_type: {other}"
-            ))),
+            other => Err(AuthzError::UnknownEntityKind(other.to_owned())),
         }
     }
 }

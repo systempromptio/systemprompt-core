@@ -16,6 +16,19 @@ domain_error! {
         #[error("invalid access value: {0}")]
         InvalidAccess(String),
 
+        #[error("unknown entity_type: {0}")]
+        UnknownEntityKind(String),
+
+        #[error("unknown access scope: {0}")]
+        UnknownAccessScope(String),
+
+        #[error(
+            "refusing to reconcile the gateway_route catalog against an empty route set — this \
+             would delete every route entity and cascade away every route grant; check that the \
+             profile actually declares a gateway"
+        )]
+        EmptyGatewayRouteSet,
+
         #[error("authz hook transport: {0}")]
         Hook(#[from] reqwest::Error),
 

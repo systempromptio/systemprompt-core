@@ -216,11 +216,7 @@ fn reject_toothless_enforcement(
     if toothless {
         return Err(GovernanceEngineError::InvalidPolicyConfiguration {
             id: cfg.id.clone(),
-            source: PolicyConfigurationError::Invalid(
-                "secret_scan is in enforce mode but compiles no secret patterns; declare \
-                 `patterns` or set `mode: warn`"
-                    .to_owned(),
-            ),
+            source: PolicyConfigurationError::ToothlessSecretScan,
         });
     }
     Ok(())
