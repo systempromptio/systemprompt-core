@@ -93,10 +93,12 @@ pub fn resolve_tenant(
         )
     })?;
 
-    store
-        .find_tenant(tenant)
-        .cloned()
-        .with_context(|| format!("Tenant '{}' not found in local tenant store", tenant))
+    store.find_tenant(tenant).cloned().with_context(|| {
+        format!(
+            "Tenant '{tenant}' not found in local tenant store. Run 'systemprompt cloud tenant \
+                 list' to sync."
+        )
+    })
 }
 
 pub fn load_session_for_key(

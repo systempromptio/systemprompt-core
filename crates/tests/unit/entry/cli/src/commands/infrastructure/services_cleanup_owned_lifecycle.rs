@@ -80,12 +80,26 @@ async fn cleanup_owned_helper() {
     unsafe {
         std::env::set_var("PATH", std::env::join_paths(paths).expect("shim PATH"));
     }
-    let child = Command::new("sleep")
-        .arg("60")
+    // Why: macOS withholds the environment of hardened system binaries such as
+    // `/bin/sleep`, so the marked child is an ordinary interpreter, used only
+    // once it reports that it is the live image.
+    let mut child = Command::new("python3")
+        .args([
+            "-c",
+            "import time\nprint('ready', flush=True)\ntime.sleep(60)",
+        ])
         .env(SUBPROCESS_MARKER_ENV, "1")
         .env(AGENT_NAME_ENV, SERVICE)
+        .stdout(std::process::Stdio::piped())
         .spawn()
         .expect("owned marked child");
+    {
+        use std::io::BufRead;
+        let mut ready = String::new();
+        std::io::BufReader::new(child.stdout.take().expect("child stdout"))
+            .read_line(&mut ready)
+            .expect("owned child reports ready");
+    }
     let pid = child.id();
     let mut child = OwnedChild(Some(child));
     let pool = database.test_pool().await;
@@ -164,21 +178,10 @@ async fn cleanup_owned_helper() {
         .await
         .expect("confirmed cleanup");
     println!("END_CONFIRMED");
-    let deadline = Instant::now() + Duration::from_secs(5);
-    loop {
-        if child
-            .0
-            .as_mut()
-            .expect("child")
-            .try_wait()
-            .expect("poll terminated")
-            .is_some()
-        {
-            break;
-        }
-        assert!(Instant::now() < deadline, "owned child not terminated");
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
+    assert!(
+        !systemprompt_loader::subprocess::is_running(pid).await,
+        "owned child not terminated"
+    );
     child.0.take();
     assert_eq!(
         repo.find_service_by_name(&service)
