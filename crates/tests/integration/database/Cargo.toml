@@ -31,5 +31,6 @@ ignored = [
     "sqlx",
     "systemprompt-database",
     "systemprompt-extension",
+    "systemprompt-identifiers",
     "systemprompt-test-fixtures",
 ]
