@@ -132,7 +132,7 @@ fn ensure_subscriber(level_override: Option<&str>) {
         .init();
 }
 
-pub fn init_logging(db_pool: DbPool) {
+pub fn init_logging(db_pool: &DbPool) {
     ensure_subscriber(None);
 
     let proxy = DB_PROXY.get_or_init(ProxyDatabaseLayer::new);

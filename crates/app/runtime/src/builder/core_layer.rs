@@ -119,7 +119,7 @@ pub(super) async fn init_core(
         &profile.paths.services,
     ))?);
 
-    systemprompt_logging::init_logging(Arc::clone(&database));
+    systemprompt_logging::init_logging(&database);
 
     if config.database_write_url.is_some() {
         tracing::debug!(

@@ -51,7 +51,7 @@ impl ProxyDatabaseLayer {
         }
     }
 
-    pub fn attach(&self, db_pool: DbPool) -> Option<LogWriterHandle> {
+    pub fn attach(&self, db_pool: &DbPool) -> Option<LogWriterHandle> {
         let mut writer = None;
         self.inner.get_or_init(|| {
             let (layer, handle) = DatabaseLayer::new(db_pool);

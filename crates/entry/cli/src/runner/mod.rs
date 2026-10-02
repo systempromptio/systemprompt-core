@@ -157,7 +157,7 @@ async fn run_with_database_url(
         .await
         .context("Failed to connect to database")?;
 
-    systemprompt_logging::init_logging(db_ctx.db_pool_arc());
+    systemprompt_logging::init_logging(&db_ctx.db_pool_arc());
 
     let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned());
     Box::pin(dispatch_command(command, &ctx)).await

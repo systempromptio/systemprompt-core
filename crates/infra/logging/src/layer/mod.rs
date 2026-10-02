@@ -93,13 +93,13 @@ impl std::fmt::Debug for DatabaseLayer {
 }
 
 impl DatabaseLayer {
-    pub fn new(db_pool: DbPool) -> (Self, LogWriterHandle) {
+    pub fn new(db_pool: &DbPool) -> (Self, LogWriterHandle) {
         let (channel, receiver) = LogChannel::new(CHANNEL_CAPACITY);
 
         BACKGROUND_SENDER.get_or_init(|| channel.sender.clone());
 
         let writer = LogWriterHandle::spawn(
-            LoggingRepository::new(&db_pool),
+            LoggingRepository::new(db_pool),
             channel.sender.clone(),
             receiver,
         );
