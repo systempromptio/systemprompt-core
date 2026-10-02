@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::Extension;
+use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
 use crate::lifecycle::installation::migration_cost::{HOT_TABLES, audit_one};
@@ -23,10 +24,17 @@ pub(super) async fn warn_unmeasured_migrations(
 ) {
     let mut pending = Vec::new();
     for ext in extensions {
-        let extension = ext.id().to_owned();
+        let extension = ExtensionId::new(ext.id());
         let applied: std::collections::HashSet<u32> = migration_service
             .get_applied_migrations(&extension)
             .await
+            .inspect_err(|error| {
+                warn!(
+                    %error,
+                    extension = %extension,
+                    "Applied migrations unreadable; the cost warning treats every migration as pending",
+                );
+            })
             .map(|rows| rows.into_iter().map(|row| row.version).collect())
             .unwrap_or_default();
         for migration in ext.migrations().into_iter().filter(|m| !m.tombstone) {

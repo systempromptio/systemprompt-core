@@ -6,6 +6,7 @@
 use sqlx::Postgres;
 use sqlx::pool::PoolConnection;
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, warn};
 
 use crate::services::DatabaseProvider;
@@ -35,7 +36,7 @@ impl BootstrapLockGuard {
     pub async fn acquire(db: &dyn DatabaseProvider) -> Result<Self, LoaderError> {
         let mut conn = db.get_postgres_pool().acquire().await.map_err(|e| {
             LoaderError::SchemaInstallationStepFailed {
-                extension: "database".to_owned(),
+                extension: ExtensionId::new("database"),
                 context: "Failed to acquire bootstrap lock connection".to_owned(),
                 source: Box::new(e),
             }
@@ -45,7 +46,7 @@ impl BootstrapLockGuard {
             .execute(conn.as_mut())
             .await
             .map_err(|e| LoaderError::SchemaInstallationStepFailed {
-                extension: "database".to_owned(),
+                extension: ExtensionId::new("database"),
                 context: "Failed to acquire bootstrap advisory lock".to_owned(),
                 source: Box::new(e),
             })?;

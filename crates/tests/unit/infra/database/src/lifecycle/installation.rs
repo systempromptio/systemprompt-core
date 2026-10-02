@@ -10,6 +10,7 @@ use systemprompt_database::{
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition, Seed,
 };
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::install_extension_schemas_with_config;
 
 use crate::services::db_helper::test_pool;
@@ -137,9 +138,13 @@ async fn install_skips_disabled_extensions() {
         migrations: vec![],
     };
 
-    install_extension_schemas_with_config(&registry_with(ext), &provider, &[ext_id.to_owned()])
-        .await
-        .expect("install with extension disabled");
+    install_extension_schemas_with_config(
+        &registry_with(ext),
+        &provider,
+        &[ExtensionId::new(ext_id)],
+    )
+    .await
+    .expect("install with extension disabled");
 
     assert!(!table_exists(&db, table).await);
 }

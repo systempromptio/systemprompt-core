@@ -6,6 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 
 use crate::lifecycle::migrations::{BaselineStamp, RECORD_MIGRATION_SQL};
 use crate::services::DatabaseProvider;
@@ -14,7 +15,7 @@ pub(super) async fn execute_phase(
     db: &dyn DatabaseProvider,
     statements: &[String],
     stamp: &[BaselineStamp],
-    extension_id: &str,
+    extension_id: &ExtensionId,
 ) -> Result<(), LoaderError> {
     if statements.is_empty() && stamp.is_empty() {
         return Ok(());
@@ -24,7 +25,7 @@ pub(super) async fn execute_phase(
         db.begin_transaction()
             .await
             .map_err(|e| LoaderError::SchemaInstallationStepFailed {
-                extension: extension_id.to_owned(),
+                extension: extension_id.clone(),
                 context: "Failed to begin transaction".to_owned(),
                 source: Box::new(e),
             })?;
@@ -38,7 +39,7 @@ pub(super) async fn execute_phase(
                 Err(rb) => format!(" (rollback also failed: {rb})"),
             };
             return Err(LoaderError::SchemaInstallationStepFailed {
-                extension: extension_id.to_owned(),
+                extension: extension_id.clone(),
                 context: format!(
                     "Statement {n}/{total} failed{rollback_note}\nSQL:\n{statement}",
                     n = idx + 1,
@@ -62,7 +63,7 @@ pub(super) async fn execute_phase(
                 Err(rb) => format!(" (rollback also failed: {rb})"),
             };
             return Err(LoaderError::SchemaInstallationStepFailed {
-                extension: extension_id.to_owned(),
+                extension: extension_id.clone(),
                 context: format!(
                     "Failed to stamp migration {} ({}) as applied{rollback_note}",
                     row.version, row.name
@@ -75,7 +76,7 @@ pub(super) async fn execute_phase(
     tx.commit()
         .await
         .map_err(|e| LoaderError::SchemaInstallationStepFailed {
-            extension: extension_id.to_owned(),
+            extension: extension_id.clone(),
             context: "Failed to commit transaction".to_owned(),
             source: Box::new(e),
         })?;

@@ -9,7 +9,7 @@ use crate::services::DatabaseProvider;
 use std::collections::HashSet;
 use std::time::Instant;
 use systemprompt_extension::{Extension, LoaderError, Migration};
-use systemprompt_identifiers::ToDbValue;
+use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use tracing::{info, warn};
 
 use super::step_error::MigrationStepError;
@@ -41,7 +41,7 @@ fn alter_table_targets(sql: &str) -> Result<Vec<String>, pg_query::Error> {
 pub(super) async fn execute_statements_transactional(
     db: &dyn DatabaseProvider,
     statements: &[String],
-    ext_id: &str,
+    ext_id: &ExtensionId,
     migration: &Migration,
     tracking: Option<TrackingWrite<'_>>,
 ) -> Result<(), LoaderError> {
@@ -53,7 +53,7 @@ pub(super) async fn execute_statements_transactional(
         .begin_transaction()
         .await
         .map_err(|e| LoaderError::MigrationStepFailed {
-            extension: ext_id.to_owned(),
+            extension: ext_id.clone(),
             context: format!(
                 "Failed to begin transaction for migration {} ({})",
                 migration.version, migration.name
@@ -71,7 +71,7 @@ pub(super) async fn execute_statements_transactional(
                 Err(rb) => format!(" (rollback also failed: {rb})"),
             };
             return Err(LoaderError::MigrationStepFailed {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 context: format!("transaction rolled back{rollback_note}"),
                 source: Box::new(step),
             });
@@ -81,7 +81,7 @@ pub(super) async fn execute_statements_transactional(
     tx.commit()
         .await
         .map_err(|e| LoaderError::MigrationStepFailed {
-            extension: ext_id.to_owned(),
+            extension: ext_id.clone(),
             context: format!(
                 "Failed to commit migration {} ({})",
                 migration.version, migration.name
@@ -90,7 +90,7 @@ pub(super) async fn execute_statements_transactional(
         })?;
 
     info!(
-        extension = ext_id,
+        extension = %ext_id,
         version = migration.version,
         name = migration.name,
         statements = total,
@@ -103,7 +103,7 @@ pub(super) async fn execute_statements_transactional(
 async fn apply_in_transaction(
     tx: &mut dyn DatabaseTransaction,
     statements: &[String],
-    ext_id: &str,
+    ext_id: &ExtensionId,
     migration: &Migration,
     tracking: Option<TrackingWrite<'_>>,
 ) -> Result<(), MigrationStepError> {
@@ -123,7 +123,7 @@ async fn apply_in_transaction(
     let suspended = triggers::suspend(&mut triggers::Target::Tx(&mut *tx), migration).await?;
     if !suspended.is_empty() {
         info!(
-            extension = ext_id,
+            extension = %ext_id,
             version = migration.version,
             name = migration.name,
             triggers = %suspended.describe(),
@@ -148,7 +148,7 @@ async fn apply_in_transaction(
         let elapsed = statement_started.elapsed();
         if elapsed >= SLOW_STATEMENT {
             warn!(
-                extension = ext_id,
+                extension = %ext_id,
                 version = migration.version,
                 name = migration.name,
                 statement = idx + 1,
@@ -180,10 +180,10 @@ pub(super) fn check_cross_extension_alters(
     extension: &dyn Extension,
     migration: &Migration,
 ) -> Result<(), LoaderError> {
-    let ext_id = extension.metadata().id;
+    let ext_id = &ExtensionId::new(extension.metadata().id);
     let altered =
         alter_table_targets(migration.sql).map_err(|e| LoaderError::MigrationStepFailed {
-            extension: ext_id.to_owned(),
+            extension: ext_id.clone(),
             context: format!(
                 "Failed to parse migration {} ({}) for cross-extension ALTER check",
                 migration.version, migration.name
@@ -200,7 +200,7 @@ pub(super) fn check_cross_extension_alters(
         let created =
             crate::services::schema_linter::created_table_names(&schema.sql).map_err(|e| {
                 LoaderError::MigrationStepFailed {
-                    extension: ext_id.to_owned(),
+                    extension: ext_id.clone(),
                     context: "Failed to parse declarative schema for ownership check".to_owned(),
                     source: Box::new(e),
                 }
@@ -221,7 +221,7 @@ pub(super) fn check_cross_extension_alters(
         let created =
             crate::services::schema_linter::created_table_names(earlier.sql).map_err(|e| {
                 LoaderError::MigrationStepFailed {
-                    extension: ext_id.to_owned(),
+                    extension: ext_id.clone(),
                     context: format!(
                         "Failed to parse migration {} ({}) for ownership check",
                         earlier.version, earlier.name
@@ -234,7 +234,7 @@ pub(super) fn check_cross_extension_alters(
     for table in &altered {
         if !allowed.contains(table.as_str()) {
             return Err(LoaderError::CrossExtensionAlterUndeclared {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 table: table.clone(),
             });
         }

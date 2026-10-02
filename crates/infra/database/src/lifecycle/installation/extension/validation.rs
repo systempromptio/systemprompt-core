@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 
 use super::super::prepare::{ColumnsToValidate, PreparedSchema};
 use crate::services::DatabaseProvider;
@@ -12,15 +13,16 @@ pub(super) fn validate_table_ownership(
     prepared: &[PreparedSchema],
     schema_extensions: &[std::sync::Arc<dyn Extension>],
 ) -> Result<(), LoaderError> {
-    let mut owners: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
+    let mut owners: std::collections::HashMap<&str, &ExtensionId> =
+        std::collections::HashMap::new();
     for p in prepared {
         for table in &p.owned_tables {
-            if let Some(prev) = owners.insert(table.as_str(), p.extension_id.as_str())
-                && prev != p.extension_id
+            if let Some(prev) = owners.insert(table.as_str(), &p.extension_id)
+                && *prev != p.extension_id
             {
                 return Err(LoaderError::DuplicateTableOwner {
                     table: table.clone(),
-                    extension_a: prev.to_owned(),
+                    extension_a: prev.clone(),
                     extension_b: p.extension_id.clone(),
                 });
             }
@@ -33,7 +35,7 @@ pub(super) fn validate_table_ownership(
             let owned_elsewhere = owners.get(table).is_some_and(|&owner| owner != ext_id);
             if !owned_elsewhere {
                 return Err(LoaderError::CrossExtensionTableNotOwned {
-                    extension: ext_id.to_owned(),
+                    extension: ExtensionId::new(ext_id),
                     table: table.to_owned(),
                 });
             }
@@ -46,7 +48,7 @@ pub(super) fn validate_table_ownership(
 pub(super) async fn validate_extension_columns(
     db: &dyn DatabaseProvider,
     cols: &ColumnsToValidate,
-    extension_id: &str,
+    extension_id: &ExtensionId,
 ) -> Result<(), LoaderError> {
     for column in &cols.columns {
         validate_single_column(db, &cols.schema, &cols.table, column, extension_id).await?;
@@ -59,7 +61,7 @@ async fn validate_single_column(
     schema: &str,
     table: &str,
     column: &str,
-    extension_id: &str,
+    extension_id: &ExtensionId,
 ) -> Result<(), LoaderError> {
     let result = db
         .query_raw_with(
@@ -69,14 +71,14 @@ async fn validate_single_column(
         )
         .await
         .map_err(|e| LoaderError::SchemaInstallationStepFailed {
-            extension: extension_id.to_owned(),
+            extension: extension_id.clone(),
             context: format!("Failed to validate column '{column}'"),
             source: Box::new(e),
         })?;
 
     if result.rows.is_empty() {
         return Err(LoaderError::SchemaInstallationFailed {
-            extension: extension_id.to_owned(),
+            extension: extension_id.clone(),
             message: format!("Required column '{column}' not found in table '{schema}.{table}'"),
         });
     }

@@ -18,12 +18,13 @@ use systemprompt_database::{
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
 };
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::DisposableDb;
 
 #[test]
 fn test_applied_migration_creation() {
     let migration = AppliedMigration {
-        extension_id: "users".to_string(),
+        extension_id: ExtensionId::new("users"),
         version: 1,
         name: "create_users_table".to_string(),
         checksum: "abc123".to_string(),
@@ -39,7 +40,7 @@ fn test_applied_migration_creation() {
 #[test]
 fn test_applied_migration_with_high_version() {
     let migration = AppliedMigration {
-        extension_id: "ext".to_string(),
+        extension_id: ExtensionId::new("ext"),
         version: u32::MAX,
         name: "max_version".to_string(),
         checksum: "hash".to_string(),
@@ -52,14 +53,14 @@ fn test_applied_migration_with_high_version() {
 #[test]
 fn test_applied_migration_with_empty_strings() {
     let migration = AppliedMigration {
-        extension_id: String::new(),
+        extension_id: ExtensionId::new(""),
         version: 0,
         name: String::new(),
         checksum: String::new(),
         applied_at: None,
     };
 
-    assert!(migration.extension_id.is_empty());
+    assert!(migration.extension_id.as_str().is_empty());
     assert!(migration.name.is_empty());
     assert!(migration.checksum.is_empty());
 }
@@ -107,7 +108,7 @@ fn test_migration_result_large_values() {
 #[test]
 fn test_migration_status_creation() {
     let status = MigrationStatus {
-        extension_id: "content".to_string(),
+        extension_id: ExtensionId::new("content"),
         total_defined: 10,
         total_applied: 8,
         pending_count: 2,
@@ -124,7 +125,7 @@ fn test_migration_status_creation() {
 #[test]
 fn test_migration_status_all_applied() {
     let status = MigrationStatus {
-        extension_id: "fully_migrated".to_string(),
+        extension_id: ExtensionId::new("fully_migrated"),
         total_defined: 15,
         total_applied: 15,
         pending_count: 0,
@@ -140,14 +141,14 @@ fn test_migration_status_all_applied() {
 fn test_migration_status_with_applied_migrations() {
     let applied = vec![
         AppliedMigration {
-            extension_id: "test".to_string(),
+            extension_id: ExtensionId::new("test"),
             version: 1,
             name: "v1".to_string(),
             checksum: "hash1".to_string(),
             applied_at: None,
         },
         AppliedMigration {
-            extension_id: "test".to_string(),
+            extension_id: ExtensionId::new("test"),
             version: 2,
             name: "v2".to_string(),
             checksum: "hash2".to_string(),
@@ -156,7 +157,7 @@ fn test_migration_status_with_applied_migrations() {
     ];
 
     let status = MigrationStatus {
-        extension_id: "test".to_string(),
+        extension_id: ExtensionId::new("test"),
         total_defined: 3,
         total_applied: 2,
         pending_count: 1,
@@ -172,7 +173,7 @@ fn test_migration_status_with_applied_migrations() {
 #[test]
 fn test_migration_status_no_migrations() {
     let status = MigrationStatus {
-        extension_id: "empty".to_string(),
+        extension_id: ExtensionId::new("empty"),
         total_defined: 0,
         total_applied: 0,
         pending_count: 0,
@@ -817,7 +818,7 @@ mod checksum_drift_db {
 #[test]
 fn test_migration_status_all_pending() {
     let status = MigrationStatus {
-        extension_id: "fresh_install".to_string(),
+        extension_id: ExtensionId::new("fresh_install"),
         total_defined: 10,
         total_applied: 0,
         pending_count: 10,
@@ -832,7 +833,7 @@ fn test_migration_status_all_pending() {
 #[test]
 fn test_pending_migration_fields() {
     let p = PendingMigration {
-        extension_id: "ext".to_string(),
+        extension_id: ExtensionId::new("ext"),
         version: 7,
         name: "add_index".to_string(),
         sql: "CREATE INDEX idx ON t(c)",
@@ -851,7 +852,7 @@ fn test_pending_migration_fields() {
 #[test]
 fn test_checksum_drift_fields() {
     let d = ChecksumDrift {
-        extension_id: "ext".to_string(),
+        extension_id: ExtensionId::new("ext"),
         version: 3,
         name: "modify".to_string(),
         stored_checksum: "stored".to_string(),
@@ -863,27 +864,18 @@ fn test_checksum_drift_fields() {
 }
 
 #[test]
-fn test_extension_migration_status_default_empty() {
-    let s = ExtensionMigrationStatus::default();
-    assert!(s.extension_id.is_empty());
-    assert!(s.applied.is_empty());
-    assert!(s.pending.is_empty());
-    assert!(s.drift.is_empty());
-}
-
-#[test]
 fn test_extension_migration_status_with_drift_and_pending() {
     let s = ExtensionMigrationStatus {
-        extension_id: "users".to_string(),
+        extension_id: ExtensionId::new("users"),
         applied: vec![AppliedMigration {
-            extension_id: "users".to_string(),
+            extension_id: ExtensionId::new("users"),
             version: 1,
             name: "v1".to_string(),
             checksum: "old".to_string(),
             applied_at: Some("2026-05-15T10:00:00+00:00".to_string()),
         }],
         pending: vec![PendingMigration {
-            extension_id: "users".to_string(),
+            extension_id: ExtensionId::new("users"),
             version: 2,
             name: "v2".to_string(),
             sql: "ALTER TABLE x ADD c INT",
@@ -891,7 +883,7 @@ fn test_extension_migration_status_with_drift_and_pending() {
             no_tx: false,
         }],
         drift: vec![ChecksumDrift {
-            extension_id: "users".to_string(),
+            extension_id: ExtensionId::new("users"),
             version: 1,
             name: "v1".to_string(),
             stored_checksum: "old".to_string(),
@@ -1402,7 +1394,7 @@ async fn an_applied_migration_row_maps_every_column_including_a_null_timestamp()
     let service = MigrationService::new(&provider);
 
     let applied = service
-        .get_applied_migrations("rows_ext")
+        .get_applied_migrations(&ExtensionId::new("rows_ext"))
         .await
         .expect("the applied-migration query maps its rows");
 
@@ -1462,7 +1454,7 @@ async fn a_row_with_a_malformed_version_fails_the_query_instead_of_reading_as_pe
     let service = MigrationService::new(&provider);
 
     let err = service
-        .get_applied_migrations("rows_ext")
+        .get_applied_migrations(&ExtensionId::new("rows_ext"))
         .await
         .expect_err("a version that does not fit u32 is malformed, not absent");
     assert!(err.to_string().contains("malformed"), "{err}");
@@ -1542,7 +1534,7 @@ async fn a_tombstoned_slot_is_neither_executed_nor_recorded() {
 #[test]
 fn orphaned_migration_names_the_slot_no_file_claims() {
     let orphan = OrphanedMigration {
-        extension_id: "web".to_owned(),
+        extension_id: ExtensionId::new("web"),
         version: 34,
         name: "knowledge_bank".to_owned(),
     };
@@ -1554,7 +1546,7 @@ fn orphaned_migration_names_the_slot_no_file_claims() {
 #[test]
 fn tombstoned_slot_reports_whether_the_database_ever_ran_it() {
     let tracked = TombstonedSlot {
-        extension_id: "web".to_owned(),
+        extension_id: ExtensionId::new("web"),
         version: 34,
         name: "knowledge_bank".to_owned(),
         tracked: true,
@@ -1918,7 +1910,7 @@ async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
 
 fn status_with_collisions(collisions: Vec<SlotCollision>) -> ExtensionMigrationStatus {
     ExtensionMigrationStatus {
-        extension_id: "knowledge_bank".to_string(),
+        extension_id: ExtensionId::new("knowledge_bank"),
         slot_collisions: collisions,
         ..Default::default()
     }
@@ -1934,7 +1926,7 @@ fn refuse_slot_collisions_accepts_a_status_without_collisions() {
 #[test]
 fn refuse_slot_collisions_names_both_the_stored_and_the_current_migration() {
     let status = status_with_collisions(vec![SlotCollision {
-        extension_id: "knowledge_bank".to_string(),
+        extension_id: ExtensionId::new("knowledge_bank"),
         version: 34,
         stored_name: "034_knowledge_bank".to_string(),
         current_name: "034_project_activity".to_string(),
@@ -1954,13 +1946,13 @@ fn refuse_slot_collisions_names_both_the_stored_and_the_current_migration() {
 fn refuse_slot_collisions_reports_the_first_collision_when_several_exist() {
     let status = status_with_collisions(vec![
         SlotCollision {
-            extension_id: "knowledge_bank".to_string(),
+            extension_id: ExtensionId::new("knowledge_bank"),
             version: 34,
             stored_name: "034_knowledge_bank".to_string(),
             current_name: "034_project_activity".to_string(),
         },
         SlotCollision {
-            extension_id: "knowledge_bank".to_string(),
+            extension_id: ExtensionId::new("knowledge_bank"),
             version: 35,
             stored_name: "035_files".to_string(),
             current_name: "035_projects".to_string(),

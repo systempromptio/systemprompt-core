@@ -6,11 +6,12 @@
 use super::MigrationService;
 use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_identifiers::ExtensionId;
 
 /// A recorded migration.
 #[derive(Debug, Clone)]
 pub struct AppliedMigration {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
     pub checksum: String,
@@ -19,7 +20,7 @@ pub struct AppliedMigration {
 
 #[derive(Debug, Clone)]
 pub struct PendingMigration {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
     pub sql: &'static str,
@@ -33,7 +34,7 @@ pub struct PendingMigration {
 /// free in the tree while every established database has spent it.
 #[derive(Debug, Clone)]
 pub struct OrphanedMigration {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
 }
@@ -41,7 +42,7 @@ pub struct OrphanedMigration {
 /// A slot declared spent by a `.tombstone` file.
 #[derive(Debug, Clone)]
 pub struct TombstonedSlot {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
     pub tracked: bool,
@@ -55,7 +56,7 @@ pub struct TombstonedSlot {
 /// checksum tells the truth about the database.
 #[derive(Debug, Clone)]
 pub struct SlotCollision {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub stored_name: String,
     pub current_name: String,
@@ -63,16 +64,16 @@ pub struct SlotCollision {
 
 #[derive(Debug, Clone)]
 pub struct ChecksumDrift {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
     pub stored_checksum: String,
     pub current_checksum: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ExtensionMigrationStatus {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub applied: Vec<AppliedMigration>,
     pub pending: Vec<PendingMigration>,
     pub drift: Vec<ChecksumDrift>,
@@ -89,7 +90,7 @@ pub struct MigrationResult {
 
 #[derive(Debug)]
 pub struct MigrationStatus {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub total_defined: usize,
     pub total_applied: usize,
     pub pending_count: usize,
@@ -102,7 +103,7 @@ impl MigrationService<'_> {
         &self,
         extension: &dyn Extension,
     ) -> Result<Vec<PendingMigration>, LoaderError> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
         let defined = extension.migrations();
 
         if defined.is_empty() {
@@ -121,7 +122,7 @@ impl MigrationService<'_> {
             .into_iter()
             .filter(|m| !m.tombstone && !applied_versions.contains(&m.version))
             .map(|m| PendingMigration {
-                extension_id: ext_id.to_owned(),
+                extension_id: ext_id.clone(),
                 version: m.version,
                 name: m.name.clone(),
                 sql: m.sql,
@@ -135,7 +136,7 @@ impl MigrationService<'_> {
         &self,
         extension: &dyn Extension,
     ) -> Result<ExtensionMigrationStatus, LoaderError> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
         let defined = extension.migrations();
 
         self.ensure_migrations_table_exists().await?;
@@ -160,7 +161,7 @@ impl MigrationService<'_> {
         let orphaned = super::orphaned_versions(&applied, &defined)
             .into_iter()
             .map(|version| OrphanedMigration {
-                extension_id: ext_id.to_owned(),
+                extension_id: ext_id.clone(),
                 version,
                 name: applied
                     .iter()
@@ -170,7 +171,7 @@ impl MigrationService<'_> {
             .collect();
 
         Ok(ExtensionMigrationStatus {
-            extension_id: ext_id.to_owned(),
+            extension_id: ext_id.clone(),
             applied,
             pending,
             drift,
@@ -186,7 +187,7 @@ impl MigrationService<'_> {
     ) -> Result<MigrationStatus, LoaderError> {
         self.ensure_migrations_table_exists().await?;
 
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
         let defined_migrations = extension.migrations();
         let applied = self.get_applied_migrations(ext_id).await?;
 
@@ -199,7 +200,7 @@ impl MigrationService<'_> {
             .collect();
 
         Ok(MigrationStatus {
-            extension_id: ext_id.to_owned(),
+            extension_id: ext_id.clone(),
             total_defined: defined_migrations.len(),
             total_applied: applied.len(),
             pending_count: pending.len(),
@@ -220,14 +221,14 @@ struct SlotClassification {
 impl SlotClassification {
     fn classify(
         &mut self,
-        ext_id: &str,
+        ext_id: &ExtensionId,
         m: &Migration,
         row: Option<&AppliedMigration>,
         applied_versions: &HashSet<u32>,
     ) {
         if m.tombstone {
             self.tombstoned.push(TombstonedSlot {
-                extension_id: ext_id.to_owned(),
+                extension_id: ext_id.clone(),
                 version: m.version,
                 name: m.name.clone(),
                 tracked: applied_versions.contains(&m.version),
@@ -237,7 +238,7 @@ impl SlotClassification {
         let current_checksum = m.checksum();
         let Some(row) = row else {
             self.pending.push(PendingMigration {
-                extension_id: ext_id.to_owned(),
+                extension_id: ext_id.clone(),
                 version: m.version,
                 name: m.name.clone(),
                 sql: m.sql,
@@ -248,14 +249,14 @@ impl SlotClassification {
         };
         if row.name != m.name {
             self.slot_collisions.push(SlotCollision {
-                extension_id: ext_id.to_owned(),
+                extension_id: ext_id.clone(),
                 version: m.version,
                 stored_name: row.name.clone(),
                 current_name: m.name.clone(),
             });
         } else if !super::checksum_transition::matches_checksum(m, &row.checksum) {
             self.drift.push(ChecksumDrift {
-                extension_id: ext_id.to_owned(),
+                extension_id: ext_id.clone(),
                 version: m.version,
                 name: m.name.clone(),
                 stored_checksum: row.checksum.clone(),

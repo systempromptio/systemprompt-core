@@ -7,7 +7,7 @@ use super::exec::{TrackingWrite, execute_statements_transactional};
 use super::{MigrationResult, MigrationService};
 use crate::services::SqlExecutor;
 use systemprompt_extension::{Extension, LoaderError, Migration};
-use systemprompt_identifiers::ToDbValue;
+use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use tracing::info;
 
 impl MigrationService<'_> {
@@ -20,7 +20,7 @@ impl MigrationService<'_> {
             return Ok(MigrationResult::default());
         }
 
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
         self.ensure_migrations_table_exists().await?;
 
         let result = self
@@ -32,7 +32,7 @@ impl MigrationService<'_> {
             )
             .await
             .map_err(|e| LoaderError::MigrationStepFailed {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 context: "Failed to query applied migrations for revert".to_owned(),
                 source: Box::new(e),
             })?;
@@ -45,7 +45,7 @@ impl MigrationService<'_> {
                     .and_then(serde_json::Value::as_i64)
                     .and_then(|v| u32::try_from(v).ok())
                     .ok_or_else(|| LoaderError::MigrationFailed {
-                        extension: ext_id.to_owned(),
+                        extension: ext_id.clone(),
                         message: "extension_migrations row has a malformed `version` column"
                             .to_owned(),
                     })
@@ -72,7 +72,7 @@ impl MigrationService<'_> {
 
     async fn revert_version(
         &self,
-        ext_id: &str,
+        ext_id: &ExtensionId,
         version: u32,
         migrations: &[Migration],
     ) -> Result<(), LoaderError> {
@@ -80,7 +80,7 @@ impl MigrationService<'_> {
             .iter()
             .find(|m| m.version == version)
             .ok_or_else(|| LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 message: format!(
                     "Cannot revert migration {version}: not declared in Extension::migrations()"
                 ),
@@ -88,7 +88,7 @@ impl MigrationService<'_> {
 
         if migration.tombstone {
             return Err(LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 message: format!(
                     "Cannot revert migration {version} ('{}'): the slot is tombstoned — its file \
                      was deleted, so there is no down SQL to run",
@@ -100,7 +100,7 @@ impl MigrationService<'_> {
         let down_sql = migration
             .down
             .ok_or_else(|| LoaderError::MigrationNotReversible {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 version,
             })?;
 
@@ -113,7 +113,7 @@ impl MigrationService<'_> {
 
         let statements = SqlExecutor::parse_sql_statements(down_sql).map_err(|e| {
             LoaderError::MigrationStepFailed {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 context: format!(
                     "Failed to parse down migration {} ({})",
                     migration.version, migration.name
