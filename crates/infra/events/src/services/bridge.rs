@@ -149,7 +149,7 @@ impl PostgresEventBridge {
                 () = cancel.cancelled() => return false,
                 notification = listener.recv() => match notification {
                     Ok(notification) => {
-                        self.deliver(notification.payload()).await;
+                        self.deliver(&EventOutboxId::new(notification.payload())).await;
                     },
                     Err(e) => {
                         warn!(error = %e, "event bridge: listener connection lost; reconnecting");
@@ -163,27 +163,26 @@ impl PostgresEventBridge {
         }
     }
 
-    async fn deliver(&self, row_id: &str) {
-        let id = EventOutboxId::new(row_id);
-        let row = match self.outbox.find(&id).await {
+    async fn deliver(&self, id: &EventOutboxId) {
+        let row = match self.outbox.find(id).await {
             Ok(Some(row)) => row,
             Ok(None) => {
-                debug!(row_id, "event bridge: outbox row already pruned; skipping");
+                debug!(row_id = %id, "event bridge: outbox row already pruned; skipping");
                 return;
             },
             Err(e) => {
-                error!(error = %e, row_id, "event bridge: failed to load outbox row");
+                error!(error = %e, row_id = %id, "event bridge: failed to load outbox row");
                 return;
             },
         };
 
         let Some(channel) = OutboxChannel::parse(&row.channel) else {
-            error!(channel = %row.channel, row_id, "event bridge: unknown outbox channel");
+            error!(channel = %row.channel, row_id = %id, "event bridge: unknown outbox channel");
             return;
         };
         if !row.deliver_to_origin && &row.origin_instance_id == self.outbox.instance_id() {
             debug!(
-                row_id,
+                row_id = %id,
                 "event bridge: own event already routed locally; skipping"
             );
             return;

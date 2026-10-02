@@ -5,15 +5,21 @@
 //! replicas load the row and re-inject the event into their local
 //! broadcasters. [`EventRouter`](super::routing::EventRouter) and
 //! [`PostgresEventBridge`](super::bridge::PostgresEventBridge) use this
-//! repository; transactional publication and processing live in `durable`.
+//! repository; the transactional outbox queries behind
+//! [`DurableOutbox`](super::durable::DurableOutbox) live in [`durable`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+pub(crate) mod durable;
+mod ownership;
 
 use sqlx::PgPool;
 use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId, UserId};
 
 use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
+
+pub use ownership::EventsOwnerReassignment;
 
 pub(super) struct OutboxRow {
     pub channel: String,
@@ -95,6 +101,6 @@ impl EventOutboxRepository {
         &self,
         cutoff: chrono::DateTime<chrono::Utc>,
     ) -> Result<u64, sqlx::Error> {
-        super::durable::prune_processed(&self.pool, cutoff).await
+        durable::DurableOutboxRepository::prune_processed(&self.pool, cutoff).await
     }
 }
