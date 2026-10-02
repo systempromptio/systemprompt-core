@@ -20,15 +20,8 @@ impl AgentLifecycle {
         let port_service = PortService::new();
 
         if process::is_port_in_use(port) {
-            match port_service.cleanup_port_if_needed(port).await {
-                Ok(()) => {
-                    tracing::info!(port = %port, "Cleaned up port");
-                },
-                Err(e) => {
-                    tracing::error!(error = %e, port = %port, "Port is in use and cleanup failed");
-                    return Err(e);
-                },
-            }
+            port_service.cleanup_port_if_needed(port).await?;
+            tracing::info!(port = %port, "Cleaned up port");
         }
 
         Ok(())

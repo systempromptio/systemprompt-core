@@ -149,13 +149,8 @@ impl PortService {
 
         for &port in ports {
             if process::is_port_in_use(port) {
-                match self.cleanup_port_if_needed(port).await {
-                    Ok(()) => cleaned += 1,
-                    Err(e) => {
-                        tracing::error!(port = %port, error = %e, "Failed to cleanup port");
-                        return Err(e);
-                    },
-                }
+                self.cleanup_port_if_needed(port).await?;
+                cleaned += 1;
             }
         }
 

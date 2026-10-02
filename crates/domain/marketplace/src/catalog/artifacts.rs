@@ -94,17 +94,8 @@ pub fn load_artifacts(services_root: &Path) -> Result<Vec<ArtifactEntry>, Market
 
     let mut out = Vec::with_capacity(entries.len());
     for (_dir_name, artifact_dir) in entries {
-        match build_artifact_entry(&artifact_dir) {
-            Ok(Some(entry)) => out.push(entry),
-            Ok(None) => {},
-            Err(e) => {
-                tracing::error!(
-                    artifact_dir = %artifact_dir.display(),
-                    error = %e,
-                    "manifest: failed to build artifact entry"
-                );
-                return Err(e);
-            },
+        if let Some(entry) = build_artifact_entry(&artifact_dir)? {
+            out.push(entry);
         }
     }
     Ok(out)

@@ -69,40 +69,27 @@ impl OAuthRepository {
         let scopes = params.scopes.clone();
         let redirect_uris = params.redirect_uris.clone();
 
-        match client_repo.create(params).await {
-            Ok(client) => {
-                let duration = start_time.elapsed();
+        let client = client_repo.create(params).await?;
+        let duration = start_time.elapsed();
 
-                tracing::info!(
-                    client_id = %client_id,
-                    client_name = %client_name,
-                    scopes = ?scopes,
-                    redirect_uris = ?redirect_uris,
-                    created_in_ms = duration.as_millis(),
-                    "OAuth client created"
-                );
+        tracing::info!(
+            client_id = %client_id,
+            client_name = %client_name,
+            scopes = ?scopes,
+            redirect_uris = ?redirect_uris,
+            created_in_ms = duration.as_millis(),
+            "OAuth client created"
+        );
 
-                if duration.as_millis() > 500 {
-                    tracing::warn!(
-                        client_id = %client_id,
-                        duration_ms = duration.as_millis(),
-                        "Slow OAuth client creation"
-                    );
-                }
-
-                Ok(client)
-            },
-            Err(e) => {
-                let duration = start_time.elapsed();
-                tracing::error!(
-                    error = %e,
-                    client_id = %client_id,
-                    duration_ms = duration.as_millis(),
-                    "OAuth client creation failed"
-                );
-                Err(e)
-            },
+        if duration.as_millis() > 500 {
+            tracing::warn!(
+                client_id = %client_id,
+                duration_ms = duration.as_millis(),
+                "Slow OAuth client creation"
+            );
         }
+
+        Ok(client)
     }
 
     pub async fn list_clients(&self) -> OauthResult<Vec<OAuthClient>> {

@@ -57,16 +57,9 @@ pub async fn register_service(
         port,
         binary_mtime,
     })
-    .await
-    .inspect_err(|e| {
-        tracing::error!(service = %config.name, error = %e, "Failed to create service record");
-    })?;
+    .await?;
 
-    repo.update_service_pid(&service_name, pid as i32)
-        .await
-        .inspect_err(|e| {
-            tracing::error!(service = %config.name, error = %e, "Failed to update PID for service");
-        })?;
+    repo.update_service_pid(&service_name, pid as i32).await?;
 
     tracing::debug!(service = %config.name, pid = pid, "Service registered in database");
     Ok(service_name)
