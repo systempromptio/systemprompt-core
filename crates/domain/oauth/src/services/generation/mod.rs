@@ -85,7 +85,8 @@ impl Default for JwtConfig {
     }
 }
 
-/// Inputs for minting an RFC 8693 delegated access token carrying an `act` claim.
+/// Inputs for minting an RFC 8693 delegated access token carrying an `act`
+/// claim.
 #[derive(Debug)]
 pub struct DelegatedJwtParams<'a> {
     pub user: &'a AuthenticatedUser,

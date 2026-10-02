@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::repository::SessionRepository;
 use crate::Result;
+use crate::repository::SessionRepository;
 use async_trait::async_trait;
 use chrono::Utc;
 use systemprompt_identifiers::{SessionId, UserId};

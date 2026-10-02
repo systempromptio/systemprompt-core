@@ -45,11 +45,7 @@ fn reply_client() -> Option<reqwest::Client> {
 
 impl TeamsClient {
     #[must_use]
-    pub fn new(
-        http: reqwest::Client,
-        app_id: TeamsAppId,
-        app_password: impl Into<String>,
-    ) -> Self {
+    pub fn new(http: reqwest::Client, app_id: TeamsAppId, app_password: impl Into<String>) -> Self {
         let tokens = TokenProvider::new(http, app_id, app_password);
         Self {
             reply_http: reply_client(),

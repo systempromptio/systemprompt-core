@@ -65,11 +65,7 @@ pub struct TokenProvider {
 
 impl TokenProvider {
     #[must_use]
-    pub fn new(
-        http: reqwest::Client,
-        app_id: TeamsAppId,
-        app_password: impl Into<String>,
-    ) -> Self {
+    pub fn new(http: reqwest::Client, app_id: TeamsAppId, app_password: impl Into<String>) -> Self {
         Self {
             http,
             app_id,

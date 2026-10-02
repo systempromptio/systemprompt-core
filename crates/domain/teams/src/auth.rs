@@ -104,9 +104,7 @@ impl ActivityTokenVerifier {
             context: "invalid token header",
             source,
         })?;
-        let kid = header
-            .kid
-            .ok_or(TeamsError::MissingKeyId)?;
+        let kid = header.kid.ok_or(TeamsError::MissingKeyId)?;
 
         let jwk = self.key_for(&kid, now_unix).await?;
         let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|source| {
