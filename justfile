@@ -680,17 +680,16 @@ coverage:
     # it those tests early-return and produce no coverage.
     #
     # It must point at a disposable, freshly-migrated database, exactly as
-    # coverage.yml does. Pointed at the shared dev `systemprompt-web` DB — the
-    # default until 2026-08-03 — its web-project triggers fail core tests en
-    # masse and the run under-reports by ~6 points (the 82.75% of the
-    # 2026-07-21 baseline against the same tree that measures 88.91% here).
+    # coverage.yml does; the shared dev `systemprompt-web` DB carries
+    # web-project triggers that fail core tests. The default URL carries no
+    # password: psql and sqlx read it from PGPASSWORD or ~/.pgpass.
     #
     # %m%c (continuous mode, no %p): with per-PID files, PID reuse across the
     # ~18k nextest processes silently overwrites earlier profraws — tests
     # covered only by a single low-frequency process read as uncovered. One
     # mmap-shared file per module signature makes counter updates atomic and
     # mirrors coverage.yml.
-    : "${DATABASE_URL:=postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_coverage}"
+    : "${DATABASE_URL:=postgres://systemprompt_admin@localhost:5432/systemprompt_coverage}"
     cov_base="${DATABASE_URL%/*}"
     cov_name="${DATABASE_URL##*/}"
     cov_db_prefix="${cov_name}_cov"
@@ -873,11 +872,12 @@ clean:
 # against the migrated schema. Integration-test targets do not run here; CI's
 # sharded nextest run is `just test-shard` / `just test-all-shards`. Override
 # the target with TEST_DATABASE_URL; the default is a disposable
-# `systemprompt_test` DB on the local server.
+# `systemprompt_test` DB on the local server. The default URL carries no
+# password: psql and sqlx read it from PGPASSWORD or ~/.pgpass.
 test-rust *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_test}"
+    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
     echo "▶ resetting test database: ${name}"
@@ -904,7 +904,8 @@ install-nextest:
 # Mirrors the CI `test` job exactly: the shard group→crate mapping and the
 # nextest invocation come from scripts/test-shard.sh (shared with CI). Each run
 # drops+recreates the target DB so cross-run pollution can't occur. Override the
-# DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`.
+# DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`,
+# whose URL carries no password (PGPASSWORD or ~/.pgpass supplies it).
 # Groups: shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge
 test-shard GROUP *args:
     #!/usr/bin/env bash
@@ -913,7 +914,7 @@ test-shard GROUP *args:
         echo "cargo-nextest not found — run 'just install-nextest' first" >&2
         exit 1
     }
-    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_test}"
+    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
     echo "▶ resetting test database: ${name}"
