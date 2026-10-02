@@ -12,7 +12,7 @@ set -uo pipefail
 
 SENSITIVE_FILES=(
     crates/domain/analytics/src/repository/session_signals/mod.rs
-    crates/domain/users/src/sessions/mod.rs
+    crates/domain/users/src/repository/session/mod.rs
     crates/infra/logging/src/repository/analytics/ingestion.rs
     crates/domain/content/src/repository/content/stats.rs
     crates/domain/users/src/repository/api_key.rs
@@ -34,10 +34,10 @@ SENSITIVE_FILES=(
 # file:function pairs whose replica read is acceptable — listings and
 # analytics that tolerate replication lag. Every entry must still exist.
 ALLOWLIST=(
-    "crates/domain/users/src/sessions/mod.rs:find_by_fingerprint"
-    "crates/domain/users/src/sessions/mod.rs:list_active_by_user"
-    "crates/domain/users/src/sessions/mod.rs:count_inactive"
-    "crates/domain/users/src/sessions/mod.rs:count_sessions_missing_geo"
+    "crates/domain/users/src/repository/session/mod.rs:find_by_fingerprint"
+    "crates/domain/users/src/repository/session/mod.rs:list_active_by_user"
+    "crates/domain/users/src/repository/session/mod.rs:count_inactive"
+    "crates/domain/users/src/repository/session/mod.rs:count_sessions_missing_geo"
     "crates/domain/users/src/repository/api_key.rs:list_api_keys_for_user"
     "crates/domain/users/src/repository/user/session.rs:list_sessions"
     "crates/domain/users/src/repository/user/session.rs:list_recent_sessions"
