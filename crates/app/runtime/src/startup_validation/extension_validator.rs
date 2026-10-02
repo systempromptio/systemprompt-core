@@ -7,6 +7,7 @@ use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::{ExtensionConfigError, ExtensionRegistry, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
 use systemprompt_models::Config;
@@ -120,7 +121,7 @@ fn validate_extension_assets(
 /// `validate_config` pass without a `Config` or a [`StartupValidationReport`].
 #[derive(Debug)]
 pub struct ExtensionConfigOutcome {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub config_key: String,
     pub error: Option<String>,
 }
@@ -169,7 +170,7 @@ pub fn validate_extension_configs(
                 .err()
                 .map(|e| e.to_string());
             Some(ExtensionConfigOutcome {
-                extension_id: ext.id().to_owned(),
+                extension_id: ExtensionId::new(ext.id()),
                 config_key: format!("{}.config", prefix),
                 error,
             })

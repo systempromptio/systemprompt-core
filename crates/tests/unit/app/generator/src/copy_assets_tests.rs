@@ -6,6 +6,7 @@
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::AssetDefinition;
 use systemprompt_generator::{copy_asset, execute_copy_extension_assets};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::profile::PathsConfig;
 use tempfile::TempDir;
 
@@ -56,7 +57,7 @@ async fn copy_asset_creates_parent_dir_and_copies_file() {
     std::fs::create_dir_all(&dist).unwrap();
 
     let asset = AssetDefinition::css(src.clone(), "nested/deep/style.css");
-    let res = copy_asset(&dist, "ext-under-test", &asset).await;
+    let res = copy_asset(&dist, &ExtensionId::new("ext-under-test"), &asset).await;
     assert!(res.is_ok(), "copy must succeed: {res:?}");
 
     let dest = dist.join("nested/deep/style.css");
@@ -75,7 +76,7 @@ async fn copy_asset_missing_source_errors() {
 
     let missing = tmp.path().join("does-not-exist.css");
     let asset = AssetDefinition::css(missing, "out/style.css");
-    let res = copy_asset(&dist, "ext-under-test", &asset).await;
+    let res = copy_asset(&dist, &ExtensionId::new("ext-under-test"), &asset).await;
     assert!(res.is_err(), "missing source must error");
 }
 
@@ -90,7 +91,7 @@ async fn copy_asset_reports_a_destination_parent_that_is_a_file() {
     std::fs::write(&collision, b"owned sentinel").unwrap();
     let asset = AssetDefinition::css(src.clone(), "nested/style.css");
 
-    let error = copy_asset(&dist, "ext-under-test", &asset)
+    let error = copy_asset(&dist, &ExtensionId::new("ext-under-test"), &asset)
         .await
         .expect_err("a file cannot be used as a destination directory");
 
@@ -105,7 +106,7 @@ async fn copy_asset_reports_a_destination_parent_that_is_a_file() {
     assert!(!dist.join("nested/style.css").exists());
 
     std::fs::remove_file(&collision).unwrap();
-    copy_asset(&dist, "ext-under-test", &asset)
+    copy_asset(&dist, &ExtensionId::new("ext-under-test"), &asset)
         .await
         .expect("copy succeeds after the destination parent is repaired");
     assert_eq!(
