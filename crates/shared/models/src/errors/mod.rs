@@ -13,8 +13,8 @@
 //! - [`ServicesValidationError`] — services / agents / plugins validation.
 //! - [`MetadataError`] — MCP `_meta` payload decoding.
 //! - [`SecretsError`] — on-disk secrets document.
-//! - [`AiInferenceError`] / [`McpRegistryError`] — the typed errors of the
-//!   dyn-dispatched provider seams.
+//! - [`AiInferenceError`] / [`McpRegistryError`] — the typed errors of the AI
+//!   provider and MCP registry seams.
 //! - [`RepositoryError`] — the workspace's single repository error, defined in
 //!   `systemprompt-traits`; it renders over HTTP through
 //!   [`crate::api::ApiError`]'s `From` impl.
