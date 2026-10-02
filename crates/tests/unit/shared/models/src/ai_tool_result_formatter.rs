@@ -2,9 +2,9 @@
 
 use rmcp::model::ContentBlock;
 use serde_json::json;
-use systemprompt_models::ai::tools::{CallToolResult, ToolCall};
-use systemprompt_models::ai::tool_result_formatter::ToolResultFormatter;
 use systemprompt_identifiers::AiToolCallId;
+use systemprompt_models::ai::tool_result_formatter::ToolResultFormatter;
+use systemprompt_models::ai::tools::{CallToolResult, ToolCall};
 
 fn create_tool_call(name: &str) -> ToolCall {
     ToolCall {
