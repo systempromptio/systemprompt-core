@@ -11,10 +11,12 @@
 use super::html::{
     HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script, safe_url, unsafe_url_error,
 };
+use super::typed::lenient;
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
-use systemprompt_models::a2a::Artifact;
+use systemprompt_models::a2a::{Artifact, Part};
 use systemprompt_models::artifacts::ArtifactType;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -29,48 +31,42 @@ impl ImageRenderer {
         let mut data = ImageData::default();
 
         for part in &artifact.parts {
-            if let Some(file) = part.as_file() {
-                if let Some(bytes) = file.get("bytes").and_then(|v| v.as_str()) {
-                    let mime = file
-                        .get("mimeType")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("image/png");
-                    data.src = format!("data:{};base64,{}", mime, bytes);
-                } else if let Some(uri) = file.get("uri").and_then(|v| v.as_str()) {
-                    uri.clone_into(&mut data.src);
-                }
-            }
-
-            if let Some(part_data) = part.as_data() {
-                if let Some(src) = part_data
-                    .get("src")
-                    .or_else(|| part_data.get("url"))
-                    .and_then(|v| v.as_str())
-                {
-                    src.clone_into(&mut data.src);
-                }
-                if let Some(alt) = part_data.get("alt").and_then(|v| v.as_str()) {
-                    data.alt = Some(alt.to_owned());
-                }
-                if let Some(caption) = part_data.get("caption").and_then(|v| v.as_str()) {
-                    data.caption = Some(caption.to_owned());
-                }
-                if let Some(width) = part_data.get("width").and_then(JsonValue::as_u64) {
-                    data.width = Some(width as u32);
-                }
-                if let Some(height) = part_data.get("height").and_then(JsonValue::as_u64) {
-                    data.height = Some(height as u32);
-                }
+            match part {
+                Part::File(file_part) => {
+                    let file = &file_part.file;
+                    if let Some(bytes) = &file.bytes {
+                        let mime = file.mime_type.as_deref().unwrap_or("image/png");
+                        data.src = format!("data:{mime};base64,{bytes}");
+                    } else if let Some(url) = &file.url {
+                        url.clone_into(&mut data.src);
+                    }
+                },
+                Part::Data(data_part) => {
+                    let Ok(fields) =
+                        ImageDataFields::deserialize(JsonValue::Object(data_part.data.clone()))
+                    else {
+                        continue;
+                    };
+                    if let Some(src) = fields.src.or(fields.url) {
+                        data.src = src;
+                    }
+                    data.alt = fields.alt.or(data.alt);
+                    data.caption = fields.caption.or(data.caption);
+                    data.width = fields.width.or(data.width);
+                    data.height = fields.height.or(data.height);
+                },
+                Part::Text(_) => {},
             }
         }
 
-        if let Some(hints) = &artifact.metadata.rendering_hints {
-            if let Some(alt) = hints.get("alt").and_then(|v| v.as_str()) {
-                data.alt = Some(alt.to_owned());
-            }
-            if let Some(caption) = hints.get("caption").and_then(|v| v.as_str()) {
-                data.caption = Some(caption.to_owned());
-            }
+        if let Some(hints) = artifact
+            .metadata
+            .rendering_hints
+            .clone()
+            .and_then(|hints| ImageHints::deserialize(hints).ok())
+        {
+            data.alt = hints.alt.or(data.alt);
+            data.caption = hints.caption.or(data.caption);
         }
 
         data
@@ -96,6 +92,30 @@ impl ImageRenderer {
             .build();
         UiResource::new(html).with_csp(self.csp_policy())
     }
+}
+
+#[derive(Deserialize)]
+struct ImageDataFields {
+    #[serde(default, deserialize_with = "lenient")]
+    src: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    url: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    alt: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    caption: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    width: Option<u32>,
+    #[serde(default, deserialize_with = "lenient")]
+    height: Option<u32>,
+}
+
+#[derive(Deserialize)]
+struct ImageHints {
+    #[serde(default, deserialize_with = "lenient")]
+    alt: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    caption: Option<String>,
 }
 
 #[derive(Default)]
