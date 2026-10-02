@@ -76,15 +76,15 @@ async fn test_authorization_code_lifecycle() {
     let scopes = "openid profile";
     let (verifier, challenge) = pkce_pair();
 
-    let params = AuthCodeParams::builder(
-        &code,
-        &client_id,
-        &user_id,
+    let params = AuthCodeParams {
+        code: &code,
+        client_id: &client_id,
+        user_id: &user_id,
         redirect_uri,
-        scopes,
-        &challenge,
-    )
-    .build();
+        scope: scopes,
+        code_challenge: &challenge,
+        resource: None,
+    };
     repo.store_authorization_code(params)
         .await
         .expect("Failed to store authorization code");
@@ -134,15 +134,15 @@ async fn test_authorization_code_pkce() {
 
     let (verifier, challenge) = pkce_pair();
 
-    let params = AuthCodeParams::builder(
-        &code,
-        &client_id,
-        &user_id,
+    let params = AuthCodeParams {
+        code: &code,
+        client_id: &client_id,
+        user_id: &user_id,
         redirect_uri,
-        "openid",
-        &challenge,
-    )
-    .build();
+        scope: "openid",
+        code_challenge: &challenge,
+        resource: None,
+    };
     repo.store_authorization_code(params)
         .await
         .expect("Failed to store PKCE code");
@@ -172,15 +172,15 @@ async fn test_authorization_code_pkce_invalid_verifier() {
 
     let (_verifier, challenge) = pkce_pair();
 
-    let params = AuthCodeParams::builder(
-        &code,
-        &client_id,
-        &user_id,
+    let params = AuthCodeParams {
+        code: &code,
+        client_id: &client_id,
+        user_id: &user_id,
         redirect_uri,
-        "openid",
-        &challenge,
-    )
-    .build();
+        scope: "openid",
+        code_challenge: &challenge,
+        resource: None,
+    };
     repo.store_authorization_code(params)
         .await
         .expect("Failed to store PKCE code");

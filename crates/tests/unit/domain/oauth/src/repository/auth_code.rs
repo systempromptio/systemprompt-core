@@ -307,26 +307,6 @@ async fn replayed_code_with_linked_refresh_token_revokes_the_family() {
         .expect_err("family must be revoked after replay");
 }
 
-#[test]
-fn auth_code_params_builder_sets_challenge_and_resource() {
-    let code = AuthorizationCode::new("code-builder");
-    let client = ClientId::new("client_builder");
-    let user = UserId::new("user-builder");
-    let params = AuthCodeParams::builder(
-        &code,
-        &client,
-        &user,
-        "http://127.0.0.1/cb",
-        "openid",
-        "challenge-value",
-    )
-    .with_resource("https://rs.example")
-    .build();
-
-    assert_eq!(params.code_challenge, "challenge-value");
-    assert_eq!(params.resource, Some("https://rs.example"));
-}
-
 #[tokio::test]
 async fn link_auth_code_to_dangling_refresh_token_errors() {
     let ctx = setup().await;

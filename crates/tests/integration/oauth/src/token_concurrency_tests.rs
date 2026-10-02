@@ -86,10 +86,15 @@ async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
     let redirect = "http://localhost:3000/callback";
     let verifier = "concurrency_test_pkce_verifier_value_0123456789abcdef";
     let challenge = pkce_pair(verifier);
-    repo.store_authorization_code(
-        AuthCodeParams::builder(&code, &client_id, &user_id, redirect, "openid", &challenge)
-            .build(),
-    )
+    repo.store_authorization_code(AuthCodeParams {
+        code: &code,
+        client_id: &client_id,
+        user_id: &user_id,
+        redirect_uri: redirect,
+        scope: "openid",
+        code_challenge: &challenge,
+        resource: None,
+    })
     .await
     .expect("store code");
 
@@ -142,10 +147,15 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
     let redirect = "http://localhost:3000/callback";
     let verifier = "concurrency_test_pkce_verifier_value_0123456789abcdef";
     let challenge = pkce_pair(verifier);
-    repo.store_authorization_code(
-        AuthCodeParams::builder(&code, &client_id, &user_id, redirect, "openid", &challenge)
-            .build(),
-    )
+    repo.store_authorization_code(AuthCodeParams {
+        code: &code,
+        client_id: &client_id,
+        user_id: &user_id,
+        redirect_uri: redirect,
+        scope: "openid",
+        code_challenge: &challenge,
+        resource: None,
+    })
     .await
     .expect("store code");
 
@@ -323,10 +333,15 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
     let redirect = "http://localhost:3000/callback";
     let verifier = "this_is_the_correct_pkce_verifier_string_value";
     let challenge = pkce_pair(verifier);
-    repo.store_authorization_code(
-        AuthCodeParams::builder(&code, &client_id, &user_id, redirect, "openid", &challenge)
-            .build(),
-    )
+    repo.store_authorization_code(AuthCodeParams {
+        code: &code,
+        client_id: &client_id,
+        user_id: &user_id,
+        redirect_uri: redirect,
+        scope: "openid",
+        code_challenge: &challenge,
+        resource: None,
+    })
     .await
     .expect("store pkce code");
 

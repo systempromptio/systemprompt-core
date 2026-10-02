@@ -47,18 +47,16 @@ impl OAuthRepository {
         }
         let code = AuthorizationCode::new(crate::services::generate_secure_token("auth_code"));
 
-        let mut builder = AuthCodeParams::builder(
-            &code,
-            params.client_id,
-            params.user_id,
-            params.redirect_uri,
-            &scope,
-            params.code_challenge,
-        );
-        if let Some(resource) = params.resource {
-            builder = builder.with_resource(resource);
-        }
-        self.store_authorization_code(builder.build()).await?;
+        self.store_authorization_code(AuthCodeParams {
+            code: &code,
+            client_id: params.client_id,
+            user_id: params.user_id,
+            redirect_uri: params.redirect_uri,
+            scope: &scope,
+            code_challenge: params.code_challenge,
+            resource: params.resource,
+        })
+        .await?;
         Ok(code)
     }
     pub async fn store_authorization_code(&self, params: AuthCodeParams<'_>) -> OauthResult<()> {
