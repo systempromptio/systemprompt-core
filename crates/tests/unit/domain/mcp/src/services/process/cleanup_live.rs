@@ -1,10 +1,9 @@
-use std::net::TcpListener;
 use std::process::{Child, Command};
 use std::time::Duration;
 use systemprompt_identifiers::ServiceName;
 
 use systemprompt_mcp::services::process::cleanup::{
-    cleanup_port_processes, force_kill, terminate_gracefully, terminate_gracefully_verified,
+    force_kill, terminate_gracefully, terminate_gracefully_verified,
 };
 
 fn spawn_sleeper() -> Child {
@@ -72,26 +71,4 @@ async fn verified_termination_skips_child_with_wrong_service_marker() {
         marked.child.try_wait().expect("try_wait").is_none(),
         "a child whose marker names another service is left running"
     );
-}
-
-#[tokio::test]
-async fn cleanup_port_processes_never_signals_the_caller() {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-    let port = listener.local_addr().expect("addr").port();
-
-    let killed = cleanup_port_processes(port).await.expect("cleanup ok");
-
-    assert!(killed.contains(&std::process::id()));
-    assert!(listener.local_addr().is_ok());
-}
-
-#[tokio::test]
-async fn cleanup_port_processes_unused_port_returns_empty() {
-    let port = {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-        listener.local_addr().expect("addr").port()
-    };
-
-    let killed = cleanup_port_processes(port).await.expect("cleanup ok");
-    assert!(killed.is_empty());
 }

@@ -10,8 +10,8 @@ fn find_pid_by_port_unused_port_returns_none() {
 }
 
 #[test]
-fn find_pid_by_port_zero_returns_ok() {
-    find_pid_by_port(0).expect("port 0 query succeeds");
+fn find_pid_by_port_zero_is_no_port() {
+    assert_eq!(find_pid_by_port(0).expect("port 0 query succeeds"), None);
 }
 
 #[test]

@@ -2,11 +2,15 @@
 //!
 //! On Linux, prefers `/proc` parsing (no subprocess); falls back to `lsof`.
 //! On other Unix targets, uses `lsof`. On Windows, parses `netstat`/`tasklist`.
+//! Port 0 is "no port": every port lookup answers `None` for it without asking
+//! the OS, and only listening sockets select a PID.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::listener::listener_pids;
 use crate::error::McpDomainResult;
+use std::num::NonZeroU16;
 use std::process::Command;
 
 #[cfg(target_os = "linux")]
@@ -15,67 +19,22 @@ mod linux_proc;
 
 #[cfg(target_os = "linux")]
 pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
+    let Some(port) = NonZeroU16::new(port) else {
+        return Ok(None);
+    };
     if let Some(pid) = linux_proc::find_pid_by_port_proc(port) {
         return Ok(Some(pid));
     }
 
-    find_pid_by_port_lsof(port)
+    Ok(listener_pids(port)?.first().copied())
 }
 
-#[cfg(all(unix, not(target_os = "linux")))]
+#[cfg(not(target_os = "linux"))]
 pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
-    find_pid_by_port_lsof(port)
-}
-
-#[cfg(unix)]
-fn find_pid_by_port_lsof(port: u16) -> McpDomainResult<Option<u32>> {
-    let output = Command::new("lsof")
-        .args(["-ti", &format!(":{port}")])
-        .output()
-        .map_err(|e| {
-            crate::error::McpDomainError::operation(
-                format!("failed to run `lsof -ti :{port}` for port {port}"),
-                e,
-            )
-        })?;
-
-    if output.stdout.is_empty() {
+    let Some(port) = NonZeroU16::new(port) else {
         return Ok(None);
-    }
-
-    Ok(String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .next()
-        .and_then(|line| line.trim().parse::<u32>().ok()))
-}
-
-#[cfg(windows)]
-pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
-    let output = Command::new("netstat")
-        .args(["-ano", "-p", "TCP"])
-        .output()
-        .map_err(|e| {
-            crate::error::McpDomainError::operation(
-                format!("failed to run `netstat -ano -p TCP` for port {port}"),
-                e,
-            )
-        })?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let port_pattern = format!(":{port} ");
-    let port_pattern_tab = format!(":{port}\t");
-
-    for line in stdout.lines() {
-        if line.contains(&port_pattern) || line.contains(&port_pattern_tab) {
-            if let Some(pid_str) = line.split_whitespace().last() {
-                if let Ok(pid) = pid_str.parse::<u32>() {
-                    return Ok(Some(pid));
-                }
-            }
-        }
-    }
-
-    Ok(None)
+    };
+    Ok(listener_pids(port)?.first().copied())
 }
 
 #[cfg(unix)]

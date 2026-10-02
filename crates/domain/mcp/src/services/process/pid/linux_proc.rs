@@ -4,9 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 #![cfg(target_os = "linux")]
 
+use std::num::NonZeroU16;
 use std::os::unix::fs::MetadataExt;
 
-pub(super) fn find_pid_by_port_proc(port: u16) -> Option<u32> {
+const TCP_LISTEN_STATE: &str = "0A";
+
+pub(super) fn find_pid_by_port_proc(port: NonZeroU16) -> Option<u32> {
     let Ok(tcp_content) = std::fs::read_to_string("/proc/net/tcp") else {
         return None;
     };
@@ -26,7 +29,7 @@ pub(super) fn find_pid_by_port_proc(port: u16) -> Option<u32> {
         let Ok(parsed) = u16::from_str_radix(port_str, 16) else {
             continue;
         };
-        if parsed != port {
+        if parsed != port.get() || parts.get(3).copied() != Some(TCP_LISTEN_STATE) {
             continue;
         }
 

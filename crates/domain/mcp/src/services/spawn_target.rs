@@ -19,7 +19,9 @@ pub trait SpawnTarget {
 
 impl SpawnTarget for McpServerConfig {
     fn spawn_port(&self) -> McpDomainResult<u16> {
-        self.port.ok_or_else(|| not_spawnable(&self.name, "port"))
+        self.port
+            .filter(|port| *port != 0)
+            .ok_or_else(|| not_spawnable(&self.name, "port"))
     }
 
     fn spawn_binary(&self) -> McpDomainResult<&str> {

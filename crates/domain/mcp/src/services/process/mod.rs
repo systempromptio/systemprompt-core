@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod cleanup;
+pub mod listener;
 pub mod monitor;
 pub mod pid;
 mod ps;

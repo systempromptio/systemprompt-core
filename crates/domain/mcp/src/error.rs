@@ -54,6 +54,15 @@ domain_error! {
         )]
         PortHolderUnverifiable { port: u16, pid: u32, service: String },
 
+        #[error("port {port} is still held by process {pid} after its service was stopped")]
+        PortStillOccupied { port: u16, pid: u32 },
+
+        #[error("port {port} did not become free after {attempts} checks")]
+        PortNotReleased { port: u16, attempts: u32 },
+
+        #[error("process {pid} for service {service} is still running after SIGKILL")]
+        ProcessSurvivedKill { pid: u32, service: String },
+
         #[error("Configuration error: {0}")]
         Configuration(String),
 

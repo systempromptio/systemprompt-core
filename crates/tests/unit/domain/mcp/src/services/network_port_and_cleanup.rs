@@ -11,7 +11,7 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::client::validate_connection_by_url;
 use systemprompt_mcp::services::network::port::is_port_in_use;
 use systemprompt_mcp::services::process::cleanup::{
-    cleanup_port_processes, force_kill, terminate_gracefully, terminate_gracefully_verified,
+    force_kill, terminate_gracefully, terminate_gracefully_verified,
 };
 use systemprompt_mcp::services::process::monitor::is_process_running;
 use wiremock::matchers::{body_partial_json, method, path};
@@ -119,20 +119,6 @@ async fn terminate_gracefully_verified_leaves_a_pid_naming_another_service_alone
     assert!(
         still_alive,
         "a pid whose environ names another service must never be signalled"
-    );
-}
-
-#[tokio::test]
-async fn cleanup_port_processes_reports_nothing_for_a_port_with_no_holder() {
-    let (listener, port) = held_port();
-    drop(listener);
-
-    assert!(
-        cleanup_port_processes(port)
-            .await
-            .expect("the sweep runs")
-            .is_empty(),
-        "an unheld port yields no pids to clean"
     );
 }
 

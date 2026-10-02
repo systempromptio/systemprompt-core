@@ -1,14 +1,17 @@
-//! Process termination and port reclamation for MCP servers.
+//! Process termination for MCP servers.
 //!
 //! Cross-platform helpers to gracefully terminate ([`terminate_gracefully`])
-//! then force-kill ([`force_kill`]) a process by PID, and to discover and clear
-//! every process holding a given port. All operations are idempotent against an
+//! then force-kill ([`force_kill`]) a process by PID. A PID found any other way
+//! than from this installation's own records is stopped only through
+//! [`terminate_gracefully_verified`], which signals nothing it cannot prove is
+//! the named service's child. All operations are idempotent against an
 //! already-dead PID.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
+#[cfg(windows)]
 use std::process::Command;
 use std::time::Duration;
 use systemprompt_identifiers::ServiceName;
@@ -156,9 +159,10 @@ pub async fn terminate_gracefully_verified(
     if wait_until_gone(pid, FORCED_EXIT_WAIT).await {
         return Ok(());
     }
-    Err(crate::error::McpDomainError::Internal(format!(
-        "process {pid} for service {service_name} is still running after SIGKILL"
-    )))
+    Err(crate::error::McpDomainError::ProcessSurvivedKill {
+        pid,
+        service: service_name.to_string(),
+    })
 }
 
 async fn wait_until_gone(pid: u32, budget: Duration) -> bool {
@@ -178,85 +182,4 @@ async fn wait_until_gone(pid: u32, budget: Duration) -> bool {
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
-}
-
-#[cfg(unix)]
-pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
-    tracing::debug!(port = port, "Cleaning up processes on port");
-
-    let output = Command::new("lsof")
-        .args(["-ti", &format!(":{port}")])
-        .output()
-        .map_err(|e| {
-            crate::error::McpDomainError::operation(
-                format!("failed to run `lsof -ti :{port}` for port {port}"),
-                e,
-            )
-        })?;
-
-    if output.stdout.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let pids_string = String::from_utf8_lossy(&output.stdout);
-    let mut killed_pids = Vec::new();
-
-    for pid_str in pids_string.lines() {
-        if let Ok(pid) = pid_str.trim().parse::<u32>() {
-            tracing::debug!(port = port, pid = pid, "Stopping process blocking port");
-
-            terminate_gracefully(pid)?;
-
-            tokio::time::sleep(Duration::from_millis(100)).await;
-
-            force_kill(pid)?;
-
-            killed_pids.push(pid);
-        }
-    }
-
-    tokio::time::sleep(Duration::from_millis(200)).await;
-
-    Ok(killed_pids)
-}
-
-#[cfg(windows)]
-pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
-    tracing::debug!(port = port, "Cleaning up processes on port");
-
-    let output = Command::new("netstat")
-        .args(["-ano", "-p", "TCP"])
-        .output()
-        .map_err(|e| {
-            crate::error::McpDomainError::operation(
-                format!("failed to run `netstat -ano -p TCP` for port {port}"),
-                e,
-            )
-        })?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let port_pattern = format!(":{port} ");
-    let mut killed_pids = Vec::new();
-
-    for line in stdout.lines() {
-        if line.contains(&port_pattern) {
-            if let Some(pid_str) = line.split_whitespace().last() {
-                if let Ok(pid) = pid_str.parse::<u32>() {
-                    tracing::debug!(port = port, pid = pid, "Stopping process blocking port");
-
-                    terminate_gracefully(pid)?;
-
-                    tokio::time::sleep(Duration::from_millis(100)).await;
-
-                    force_kill(pid)?;
-
-                    killed_pids.push(pid);
-                }
-            }
-        }
-    }
-
-    tokio::time::sleep(Duration::from_millis(200)).await;
-
-    Ok(killed_pids)
 }

@@ -39,9 +39,7 @@ async fn verify_clean_state(
 
     let port = config.spawn_port()?;
     if let Some(pid) = ProcessService::find_pid_by_port(port)? {
-        return Err(crate::error::McpDomainError::Internal(format!(
-            "Port {port} still occupied by PID {pid}"
-        )));
+        return Err(crate::error::McpDomainError::PortStillOccupied { port, pid });
     }
 
     if let Some(service) = lifecycle
