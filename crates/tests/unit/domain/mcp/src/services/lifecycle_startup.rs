@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_mcp::error::McpDomainError;
+use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::LifecycleService;
 use systemprompt_mcp::services::lifecycle::startup::{check_health_status, wait_for_startup};
 use systemprompt_models::mcp::McpServerConfig;

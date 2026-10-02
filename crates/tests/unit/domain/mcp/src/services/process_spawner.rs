@@ -386,7 +386,7 @@ fn build_server_surfaces_failed_cargo_exit_without_claiming_success() {
         assert!(
             matches!(
                 &error,
-                systemprompt_mcp::error::McpDomainError::BuildFailed { service, binary }
+                systemprompt_mcp::McpDomainError::BuildFailed { service, binary }
                     if service == "verify-bin" && binary == "failing-mcp-fixture"
             ),
             "{error}"
