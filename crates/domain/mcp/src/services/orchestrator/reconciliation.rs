@@ -26,7 +26,7 @@ use super::process_cleanup::{
 use super::server_startup::{StartPendingServersParams, start_pending_servers};
 use crate::McpServerConfig;
 use crate::services::database::DatabaseService;
-use crate::services::lifecycle::LifecycleOrchestrator;
+use crate::services::lifecycle::LifecycleService;
 use crate::services::network::port::{self, POST_KILL_DELAY_MS};
 use crate::services::process::ProcessService;
 use crate::services::registry::RegistryService;
@@ -34,7 +34,7 @@ use crate::services::registry::RegistryService;
 #[derive(Debug)]
 pub struct ReconcileParams<'a> {
     pub database: &'a DatabaseService,
-    pub lifecycle: &'a LifecycleOrchestrator,
+    pub lifecycle: &'a LifecycleService,
     pub event_bus: &'a Arc<EventBus>,
     pub registry: &'a RegistryService,
     pub events: Option<&'a StartupEventSender>,

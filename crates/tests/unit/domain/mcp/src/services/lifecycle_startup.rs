@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_mcp::services::LifecycleOrchestrator;
+use systemprompt_mcp::services::LifecycleService;
 use systemprompt_mcp::services::lifecycle::startup::{check_health_status, wait_for_startup};
 use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
@@ -141,7 +141,7 @@ async fn start_server_rejects_external_servers() {
         Arc::new(bootstrap.app_paths.clone()),
         registry,
     );
-    let lifecycle = LifecycleOrchestrator::new(
+    let lifecycle = LifecycleService::new(
         systemprompt_mcp::services::process::ProcessService::new(),
         systemprompt_mcp::services::NetworkService::new(),
         database,

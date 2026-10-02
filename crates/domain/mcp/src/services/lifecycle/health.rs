@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::LifecycleOrchestrator;
+use super::LifecycleService;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthCheckResult, HealthStatus, perform_health_check};
@@ -12,10 +12,10 @@ use crate::services::spawn_target::SpawnTarget;
 use systemprompt_models::services::ServiceStatus;
 
 pub async fn check_server_health(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
 ) -> McpDomainResult<bool> {
-    if !is_process_running(manager, config).await? {
+    if !is_process_running(lifecycle, config).await? {
         return Ok(false);
     }
 
@@ -28,18 +28,18 @@ pub async fn check_server_health(
     if is_healthy {
         log_healthy_status(config, &health_result);
     } else {
-        mark_service_error(manager, config, &health_result).await?;
+        mark_service_error(lifecycle, config, &health_result).await?;
     }
 
     Ok(is_healthy)
 }
 
 async fn is_process_running(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
 ) -> McpDomainResult<bool> {
     let Some(pid) = ProcessService::find_pid_by_port(config.spawn_port()?)? else {
-        manager
+        lifecycle
             .database()
             .update_service_status(&config.service_name(), ServiceStatus::Stopped)
             .await?;
@@ -47,7 +47,7 @@ async fn is_process_running(
     };
 
     if !ProcessService::is_running(pid) {
-        manager
+        lifecycle
             .database()
             .update_service_status(&config.service_name(), ServiceStatus::Stopped)
             .await?;
@@ -58,11 +58,11 @@ async fn is_process_running(
 }
 
 async fn mark_service_error(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
     health_result: &HealthCheckResult,
 ) -> McpDomainResult<()> {
-    manager
+    lifecycle
         .database()
         .update_service_status(&config.service_name(), ServiceStatus::Error)
         .await?;

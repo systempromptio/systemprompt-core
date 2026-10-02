@@ -1,20 +1,20 @@
-//! Constructor tests for orchestrator handlers and the event bus.
+//! Constructor tests for orchestrator subscribers and the event bus.
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_mcp::services::database::DatabaseService;
-use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
+use systemprompt_mcp::services::lifecycle::LifecycleService;
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::network::NetworkService;
 use systemprompt_mcp::services::orchestrator::{
-    DatabaseSyncHandler, EventBus, LifecycleHandler, MonitoringHandler,
+    DatabaseSyncSubscriber, EventBus, LifecycleSubscriber, MonitoringSubscriber,
 };
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_dependencies() -> (LifecycleOrchestrator, DatabaseService, RegistryService) {
+async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryService) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
@@ -41,7 +41,7 @@ async fn make_dependencies() -> (LifecycleOrchestrator, DatabaseService, Registr
         Arc::clone(&app_paths),
         registry.clone(),
     );
-    let lifecycle = LifecycleOrchestrator::new(
+    let lifecycle = LifecycleService::new(
         ProcessService::new(),
         NetworkService::new(),
         database.clone(),
@@ -53,20 +53,20 @@ async fn make_dependencies() -> (LifecycleOrchestrator, DatabaseService, Registr
 
 #[tokio::test]
 async fn lifecycle_handler_construction() {
-    let h = LifecycleHandler;
+    let h = LifecycleSubscriber;
     let _ = format!("{h:?}");
 }
 
 #[test]
 fn monitoring_handler_construction() {
-    let h = MonitoringHandler;
+    let h = MonitoringSubscriber;
     let _ = format!("{h:?}");
 }
 
 #[tokio::test]
 async fn database_sync_handler_construction() {
     let (_lifecycle, database, _registry) = make_dependencies().await;
-    let h = DatabaseSyncHandler::new(database);
+    let h = DatabaseSyncSubscriber::new(database);
     let _ = format!("{h:?}");
 }
 

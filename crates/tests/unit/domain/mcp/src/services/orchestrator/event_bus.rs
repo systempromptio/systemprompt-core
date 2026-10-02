@@ -104,6 +104,6 @@ fn test_event_bus_debug_format() {
     let debug_str = format!("{:?}", event_bus);
 
     assert!(debug_str.contains("EventBus"));
-    assert!(debug_str.contains("handlers_count"));
+    assert!(debug_str.contains("subscribers_count"));
     assert!(debug_str.contains("0")); // Initially 0 handlers
 }

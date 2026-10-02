@@ -1,6 +1,6 @@
 //! Startup sequencing for a single MCP server.
 //!
-//! Drives the [`LifecycleOrchestrator`] through binary verification, port
+//! Drives the [`LifecycleService`] through binary verification, port
 //! preparation, spawn, and a bounded health-check poll loop before registering
 //! the running service. Emits [`StartupEventSender`] progress events and treats
 //! a degraded-but-listening server as ready once attempts are nearly exhausted.
@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::LifecycleOrchestrator;
+use super::LifecycleService;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthStatus, perform_health_check};
@@ -20,7 +20,7 @@ use std::time::Duration;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 pub async fn start_server(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
@@ -31,23 +31,23 @@ pub async fn start_server(
         tx.mcp_starting(&config.name, port);
     }
 
-    ProcessService::verify_binary(manager.app_paths(), config)?;
+    ProcessService::verify_binary(lifecycle.app_paths(), config)?;
 
-    manager
+    lifecycle
         .network()
         .prepare_port(port, &config.service_name())
         .await?;
 
-    manager
+    lifecycle
         .network()
         .wait_for_port_release_with_retry(port, &config.service_name(), MAX_PORT_CLEANUP_ATTEMPTS)
         .await?;
 
-    let pid = ProcessService::spawn_server(manager.app_paths(), config)?;
+    let pid = ProcessService::spawn_server(lifecycle.app_paths(), config)?;
 
     wait_for_startup(config, pid, events).await?;
 
-    manager.database().register_service(config, pid).await?;
+    lifecycle.database().register_service(config, pid).await?;
 
     tracing::info!(server = %config.name, port, "MCP server started");
 

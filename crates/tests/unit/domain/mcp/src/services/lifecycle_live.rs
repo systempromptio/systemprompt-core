@@ -8,7 +8,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::DatabaseService;
-use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
+use systemprompt_mcp::services::lifecycle::LifecycleService;
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::network::NetworkService;
 use systemprompt_mcp::services::process::ProcessService;
@@ -22,7 +22,7 @@ use wiremock::MockServer;
 
 use crate::harness::{default_tools_json, mount_mcp_endpoint};
 
-async fn make_lifecycle() -> (LifecycleOrchestrator, systemprompt_database::DbPool) {
+async fn make_lifecycle() -> (LifecycleService, systemprompt_database::DbPool) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
@@ -50,7 +50,7 @@ async fn make_lifecycle() -> (LifecycleOrchestrator, systemprompt_database::DbPo
         registry,
     );
     (
-        LifecycleOrchestrator::new(
+        LifecycleService::new(
             ProcessService::new(),
             NetworkService::new(),
             database,

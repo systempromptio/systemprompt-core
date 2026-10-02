@@ -15,22 +15,22 @@ use systemprompt_traits::StartupEventSender;
 
 pub mod event_bus;
 pub mod events;
-pub mod handlers;
 mod lifecycle_ops;
 pub mod process_cleanup;
 mod reconciliation;
 mod server_startup;
 mod service_validation;
+pub mod subscribers;
 mod target_resolution;
 
 pub use event_bus::EventBus;
 pub use events::McpEvent;
-pub use handlers::{DatabaseSyncHandler, LifecycleHandler, MonitoringHandler};
 pub use lifecycle_ops::McpRestartOutcome;
 pub use reconciliation::ReconcileParams;
+pub use subscribers::{DatabaseSyncSubscriber, LifecycleSubscriber, MonitoringSubscriber};
 
 use super::database::DatabaseService;
-use super::lifecycle::LifecycleOrchestrator;
+use super::lifecycle::LifecycleService;
 use super::monitoring::MonitoringService;
 use super::monitoring::status::McpServiceStatus;
 use super::network::NetworkService;
@@ -41,7 +41,7 @@ use crate::McpServerConfig;
 #[derive(Debug)]
 pub struct McpOrchestrator {
     event_bus: Arc<EventBus>,
-    lifecycle: LifecycleOrchestrator,
+    lifecycle: LifecycleService,
     database: DatabaseService,
     monitoring: MonitoringService,
     registry: RegistryService,
@@ -65,7 +65,7 @@ impl McpOrchestrator {
         let network = NetworkService::new();
         let process = ProcessService::new();
         let monitoring = MonitoringService::new();
-        let lifecycle = LifecycleOrchestrator::new(
+        let lifecycle = LifecycleService::new(
             process,
             network,
             database.clone(),
@@ -73,11 +73,11 @@ impl McpOrchestrator {
             Arc::clone(&app_paths),
         );
 
-        event_bus.register_handler(Arc::new(LifecycleHandler));
+        event_bus.register_subscriber(Arc::new(LifecycleSubscriber));
 
-        event_bus.register_handler(Arc::new(MonitoringHandler));
+        event_bus.register_subscriber(Arc::new(MonitoringSubscriber));
 
-        event_bus.register_handler(Arc::new(DatabaseSyncHandler::new(database.clone())));
+        event_bus.register_subscriber(Arc::new(DatabaseSyncSubscriber::new(database.clone())));
 
         Ok(Self {
             event_bus: Arc::new(event_bus),
@@ -96,7 +96,7 @@ impl McpOrchestrator {
         &self.event_bus
     }
 
-    pub(super) const fn lifecycle(&self) -> &LifecycleOrchestrator {
+    pub(super) const fn lifecycle(&self) -> &LifecycleService {
         &self.lifecycle
     }
 

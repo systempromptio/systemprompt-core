@@ -14,7 +14,7 @@ use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::database::sync::{
     cleanup_stale_services, delete_crashed_services, sync_database_state,
 };
-use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
+use systemprompt_mcp::services::lifecycle::LifecycleService;
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::network::NetworkService;
 use systemprompt_mcp::services::process::ProcessService;
@@ -25,7 +25,7 @@ use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_lifecycle() -> (LifecycleOrchestrator, systemprompt_database::DbPool) {
+async fn make_lifecycle() -> (LifecycleService, systemprompt_database::DbPool) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
@@ -52,7 +52,7 @@ async fn make_lifecycle() -> (LifecycleOrchestrator, systemprompt_database::DbPo
         Arc::clone(&app_paths),
         registry,
     );
-    let lifecycle = LifecycleOrchestrator::new(
+    let lifecycle = LifecycleService::new(
         ProcessService::new(),
         NetworkService::new(),
         database,

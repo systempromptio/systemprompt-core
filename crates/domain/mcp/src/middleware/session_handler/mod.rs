@@ -1,4 +1,4 @@
-//! Database-backed MCP session manager.
+//! Database-backed MCP session handler.
 //!
 //! [`DatabaseSessionHandler`] implements the rmcp `SessionManager` trait (see
 //! the `session_manager_impl` submodule), wrapping rmcp's in-memory

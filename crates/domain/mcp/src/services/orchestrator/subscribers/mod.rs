@@ -1,6 +1,6 @@
-//! Event handlers for the MCP orchestrator's [`EventBus`](super::EventBus).
+//! Event subscribers for the MCP orchestrator's [`EventBus`](super::EventBus).
 //!
-//! Each [`EventHandler`] reacts to a class of [`McpEvent`] — lifecycle,
+//! Each [`EventSubscriber`] reacts to a class of [`McpEvent`] — lifecycle,
 //! monitoring, and database-sync — and is registered as a trait object on the
 //! bus.
 //!
@@ -12,10 +12,10 @@ use async_trait::async_trait;
 
 use super::events::McpEvent;
 
-/// Registered on the event bus as `Arc<dyn EventHandler>`; `#[async_trait]`
+/// Registered on the event bus as `Arc<dyn EventSubscriber>`; `#[async_trait]`
 /// keeps it object-safe.
 #[async_trait]
-pub trait EventHandler: Send + Sync {
+pub trait EventSubscriber: Send + Sync {
     async fn handle(&self, event: &McpEvent) -> McpDomainResult<()>;
 
     fn name(&self) -> &'static str;
@@ -29,6 +29,6 @@ pub mod database_sync;
 pub mod lifecycle;
 pub mod monitoring;
 
-pub use database_sync::DatabaseSyncHandler;
-pub use lifecycle::LifecycleHandler;
-pub use monitoring::MonitoringHandler;
+pub use database_sync::DatabaseSyncSubscriber;
+pub use lifecycle::LifecycleSubscriber;
+pub use monitoring::MonitoringSubscriber;

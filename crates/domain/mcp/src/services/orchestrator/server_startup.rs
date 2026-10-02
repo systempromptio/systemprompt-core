@@ -18,12 +18,12 @@ use super::event_bus::EventBus;
 use super::events::McpEvent;
 use crate::McpServerConfig;
 use crate::services::database::{DatabaseService, stored_pid};
-use crate::services::lifecycle::LifecycleOrchestrator;
+use crate::services::lifecycle::LifecycleService;
 
 pub(super) struct StartPendingServersParams<'a> {
     pub servers: &'a [McpServerConfig],
     pub running_names: &'a HashSet<String>,
-    pub lifecycle: &'a LifecycleOrchestrator,
+    pub lifecycle: &'a LifecycleService,
     pub database: &'a DatabaseService,
     pub event_bus: &'a Arc<EventBus>,
     pub events: Option<&'a StartupEventSender>,
@@ -83,7 +83,7 @@ fn notify_reconciliation_complete(
 
 async fn start_single_server(
     server: &McpServerConfig,
-    lifecycle: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     database: &DatabaseService,
     event_bus: &Arc<EventBus>,
     events: Option<&StartupEventSender>,

@@ -1,4 +1,4 @@
-//! Event handler recording monitoring outcomes.
+//! Event subscriber recording monitoring outcomes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,13 +6,13 @@
 use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
-use super::{EventHandler, McpEvent};
+use super::{EventSubscriber, McpEvent};
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct MonitoringHandler;
+pub struct MonitoringSubscriber;
 
 #[async_trait]
-impl EventHandler for MonitoringHandler {
+impl EventSubscriber for MonitoringSubscriber {
     async fn handle(&self, event: &McpEvent) -> McpDomainResult<()> {
         let _guard = systemprompt_logging::SystemSpan::new("mcp_orchestrator").enter();
         match event {

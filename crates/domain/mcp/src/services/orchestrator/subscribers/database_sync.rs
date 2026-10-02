@@ -1,4 +1,4 @@
-//! Event handler syncing MCP service state to the database.
+//! Event subscriber syncing MCP service state to the database.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,21 +9,21 @@ use async_trait::async_trait;
 use crate::services::database::DatabaseService;
 use systemprompt_models::services::ServiceStatus;
 
-use super::{EventHandler, McpEvent};
+use super::{EventSubscriber, McpEvent};
 
 #[derive(Debug)]
-pub struct DatabaseSyncHandler {
+pub struct DatabaseSyncSubscriber {
     database: DatabaseService,
 }
 
-impl DatabaseSyncHandler {
+impl DatabaseSyncSubscriber {
     pub const fn new(database: DatabaseService) -> Self {
         Self { database }
     }
 }
 
 #[async_trait]
-impl EventHandler for DatabaseSyncHandler {
+impl EventSubscriber for DatabaseSyncSubscriber {
     async fn handle(&self, event: &McpEvent) -> McpDomainResult<()> {
         match event {
             McpEvent::ServiceStarted { service_name, .. } => {

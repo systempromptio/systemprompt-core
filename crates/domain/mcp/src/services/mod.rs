@@ -24,7 +24,7 @@ pub use artifact_ingest::{ArtifactIngest, ArtifactScanner, IngestOutcome, Ingest
 pub use database::{DatabaseService, ServiceInfo};
 pub use deployment::DeploymentService;
 pub use intent_claim::IntentClaimService;
-pub use lifecycle::LifecycleOrchestrator;
+pub use lifecycle::LifecycleService;
 pub use monitoring::MonitoringService;
 pub use monitoring::proxy_health::{ProxyHealthCheck, RoutableService};
 pub use network::NetworkService;

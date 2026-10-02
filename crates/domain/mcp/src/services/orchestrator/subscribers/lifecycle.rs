@@ -1,4 +1,4 @@
-//! Event handler applying lifecycle transitions to MCP services.
+//! Event subscriber applying lifecycle transitions to MCP services.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,13 +6,13 @@
 use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
-use super::{EventHandler, McpEvent};
+use super::{EventSubscriber, McpEvent};
 
 #[derive(Debug, Clone, Copy)]
-pub struct LifecycleHandler;
+pub struct LifecycleSubscriber;
 
 #[async_trait]
-impl EventHandler for LifecycleHandler {
+impl EventSubscriber for LifecycleSubscriber {
     async fn handle(&self, event: &McpEvent) -> McpDomainResult<()> {
         match event {
             McpEvent::ServiceStartRequested { service_name } => {

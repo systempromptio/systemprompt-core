@@ -1,11 +1,11 @@
-//! DB-backed smoke tests for [`LifecycleOrchestrator`] accessors and
+//! DB-backed smoke tests for [`LifecycleService`] accessors and
 //! shutdown / health-check on missing services (no real spawn).
 
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_mcp::services::database::DatabaseService;
-use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
+use systemprompt_mcp::services::lifecycle::LifecycleService;
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::network::NetworkService;
 use systemprompt_mcp::services::process::ProcessService;
@@ -16,7 +16,7 @@ use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_orchestrator() -> (LifecycleOrchestrator, McpServerConfig) {
+async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
@@ -43,7 +43,7 @@ async fn make_orchestrator() -> (LifecycleOrchestrator, McpServerConfig) {
         Arc::clone(&app_paths),
         registry,
     );
-    let lifecycle = LifecycleOrchestrator::new(
+    let lifecycle = LifecycleService::new(
         ProcessService::new(),
         NetworkService::new(),
         database,
