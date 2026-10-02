@@ -23,7 +23,6 @@ struct OwnedServer {
 
 struct OwnedAgent {
     name: String,
-    port: u16,
     observed_pids: Vec<u32>,
     log_file: std::path::PathBuf,
 }
@@ -484,7 +483,6 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         stderr,
         cleanup_agent: Some(OwnedAgent {
             name: agent_name.clone(),
-            port: agent_port,
             observed_pids: Vec::new(),
             log_file: fixture
                 .system_dir
@@ -624,7 +622,6 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         stderr: replacement_stderr,
         cleanup_agent: Some(OwnedAgent {
             name: agent_name.clone(),
-            port: agent_port,
             observed_pids: vec![agent_pid],
             log_file: fixture
                 .system_dir
@@ -765,7 +762,6 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         stderr: recovery_stderr,
         cleanup_agent: Some(OwnedAgent {
             name: agent_name.clone(),
-            port: agent_port,
             observed_pids: vec![replacement_agent_pid],
             log_file: fixture
                 .system_dir
