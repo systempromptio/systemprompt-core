@@ -67,8 +67,11 @@ pub struct CatalogListing {
 /// A listing that could not be attempted at all.
 #[derive(Debug, Error)]
 pub enum DiscoveryError {
-    #[error("{0}")]
-    Unusable(String),
+    #[error("endpoint '{endpoint}' is not a Vertex host")]
+    NotVertexHost { endpoint: String },
+
+    #[error("Model Garden requires a bearer token")]
+    BearerRequired,
 }
 
 /// An upstream that can be asked which models it serves.

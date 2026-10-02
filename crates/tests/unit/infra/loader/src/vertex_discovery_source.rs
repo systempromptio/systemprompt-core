@@ -171,9 +171,7 @@ impl CatalogSource for FailingCatalog {
         if self.hang {
             std::future::pending().await
         } else {
-            Err(DiscoveryError::Unusable(
-                "fixture publisher refused catalog listing".to_owned(),
-            ))
+            Err(DiscoveryError::BearerRequired)
         }
     }
 }
@@ -221,7 +219,7 @@ async fn publisher_error_and_timeout_preserve_the_last_discovered_catalog() {
         if hang {
             assert!(failure.contains("timed out after 0s"), "{failure}");
         } else {
-            assert!(failure.contains("refused catalog listing"), "{failure}");
+            assert!(failure.contains("requires a bearer token"), "{failure}");
         }
         let after = providers.providers[0]
             .find_model("vertex-gemini-3.5-flash")

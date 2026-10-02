@@ -69,18 +69,12 @@ impl CatalogSource for VertexCatalog {
         provider: &ProviderEntry,
         _scope: &CredentialScope,
     ) -> Result<CatalogListing, DiscoveryError> {
-        let host = vertex_host(&provider.endpoint).ok_or_else(|| {
-            DiscoveryError::Unusable(format!(
-                "{}: endpoint '{}' is not a Vertex host",
-                provider.name.as_str(),
-                provider.endpoint
-            ))
-        })?;
+        let host =
+            vertex_host(&provider.endpoint).ok_or_else(|| DiscoveryError::NotVertexHost {
+                endpoint: provider.endpoint.clone(),
+            })?;
         if !auth.is_bearer() {
-            return Err(DiscoveryError::Unusable(format!(
-                "{}: Model Garden requires a bearer token",
-                provider.name.as_str()
-            )));
+            return Err(DiscoveryError::BearerRequired);
         }
 
         let name = provider.name.as_str();

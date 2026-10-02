@@ -66,7 +66,7 @@ impl ServicesSourceBootstrap {
             Ok(active) => Ok(active),
             Err(e) => {
                 tracing::error!(error = %e, "Services bundle refresh failed");
-                Self::fall_back(profile, &cache, &e)
+                Self::fall_back(profile, &cache, e)
             },
         }
     }
@@ -151,13 +151,14 @@ impl ServicesSourceBootstrap {
     fn fall_back(
         profile: &Profile,
         cache: &BundleCache,
-        error: &BundleError,
+        error: BundleError,
     ) -> BundleResult<ActiveServicesRoot> {
         match profile.services.on_fetch_failure {
-            FetchFailurePolicy::FailClosed => Err(BundleError::policy(format!(
-                "services.on_fetch_failure is fail_closed: {error}"
-            ))),
-            FetchFailurePolicy::UseLastGood => last_good(profile, cache, error)
+            FetchFailurePolicy::FailClosed => Err(BundleError::policy_context(
+                "services.on_fetch_failure is fail_closed",
+                error,
+            )),
+            FetchFailurePolicy::UseLastGood => last_good(profile, cache, &error)
                 .map_or_else(|| bundled_fallback(profile, error), Ok),
             FetchFailurePolicy::UseBundled => bundled_fallback(profile, error),
         }
@@ -189,13 +190,16 @@ fn last_good(
     })
 }
 
-fn bundled_fallback(profile: &Profile, error: &BundleError) -> BundleResult<ActiveServicesRoot> {
+fn bundled_fallback(profile: &Profile, error: BundleError) -> BundleResult<ActiveServicesRoot> {
     let root = PathBuf::from(&profile.paths.services);
     if !root.join("config/config.yaml").is_file() {
-        return Err(BundleError::policy(format!(
-            "no cached bundle and no baked services tree at {}: {error}",
-            root.display()
-        )));
+        return Err(BundleError::policy_context(
+            format!(
+                "no cached bundle and no baked services tree at {}",
+                root.display()
+            ),
+            error,
+        ));
     }
     tracing::error!(
         path = %root.display(),
