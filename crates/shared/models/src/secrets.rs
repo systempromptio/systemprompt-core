@@ -116,7 +116,7 @@ impl Secrets {
         Ok(secrets)
     }
 
-    pub fn validate(&self) -> Result<(), SecretsError> {
+    pub const fn validate(&self) -> Result<(), SecretsError> {
         if self.oauth_at_rest_pepper.len() < OAUTH_AT_REST_PEPPER_MIN_LENGTH {
             return Err(SecretsError::PepperTooShort {
                 min: OAUTH_AT_REST_PEPPER_MIN_LENGTH,

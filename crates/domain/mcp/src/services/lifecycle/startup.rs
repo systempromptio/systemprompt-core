@@ -97,7 +97,7 @@ pub async fn wait_for_startup(
     };
 
     if let Some(tx) = events {
-        tx.mcp_failed(&config.name, &error.to_string());
+        tx.mcp_failed(&config.name, error.to_string());
     }
 
     Err(error)

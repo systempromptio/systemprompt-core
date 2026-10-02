@@ -9,7 +9,6 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
-use crate::error::SchedulerError;
 use crate::repository::AnalyticsRepository;
 
 #[derive(Debug, Clone, Copy)]
@@ -35,8 +34,7 @@ impl Job for NoJsCleanupJob {
         let analytics = AnalyticsRepository::new(ctx.get::<DbPool>()?);
         let result = analytics
             .mark_no_js_sessions_as_bots()
-            .await
-            .map_err(SchedulerError::from)?;
+            .await?;
 
         let marked = result as u64;
         let duration_ms = start_time.elapsed().as_millis() as u64;

@@ -5,7 +5,6 @@
 
 use anyhow::Result;
 use serde::Deserialize;
-use serde::de::IgnoredAny;
 use std::collections::BTreeMap;
 use std::path::Path;
 use systemprompt_models::{ComponentSource, PluginConfig};
@@ -15,7 +14,7 @@ use super::DEFAULT_AGENT_TOOLS;
 #[derive(Debug, Deserialize)]
 struct AgentNames {
     #[serde(default)]
-    agents: BTreeMap<String, IgnoredAny>,
+    agents: BTreeMap<String, serde_yaml::Value>,
 }
 
 #[derive(Debug, Deserialize)]
