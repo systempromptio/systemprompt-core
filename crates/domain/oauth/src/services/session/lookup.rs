@@ -9,7 +9,7 @@
 
 use super::{AnonymousSessionInfo, MAX_SESSION_AGE_SECONDS, SessionCreationService};
 use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};
-use systemprompt_identifiers::{ClientId, JwtToken, SessionId, UserId};
+use systemprompt_identifiers::{ClientId, JwtToken, UserId};
 use systemprompt_models::auth::UserRole;
 
 const SESSION_LOOKUP_TIMEOUT_MS: u64 = 500;
@@ -32,15 +32,12 @@ impl SessionCreationService {
                 tracing::debug!(fingerprint = %fingerprint, "Session lookup timed out");
             })
             .ok()?
-            .map_err(|e| {
+            .inspect_err(|e| {
                 tracing::warn!(error = %e, fingerprint = %fingerprint, "Failed to find existing session");
-                e
             })
             .ok()??;
-        let user_id_str = existing_session.user_id.as_ref()?;
-
-        let user_id = UserId::new(user_id_str.clone());
-        let session_id = SessionId::new(existing_session.session_id.clone());
+        let user_id = existing_session.user_id?;
+        let session_id = existing_session.session_id;
 
         if !self.is_anonymous_user(&user_id).await {
             tracing::debug!(
@@ -59,9 +56,8 @@ impl SessionCreationService {
             issuer: &config.jwt_issuer,
         };
         let token = generate_anonymous_jwt(&user_id, &session_id, client_id, &signing)
-            .map_err(|e| {
+            .inspect_err(|e| {
                 tracing::warn!(error = %e, "Failed to generate JWT for session lookup");
-                e
             })
             .ok()?;
 

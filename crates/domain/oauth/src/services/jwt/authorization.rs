@@ -95,9 +95,8 @@ impl AuthorizationService {
             .iter()
             .filter_map(|s| {
                 JwtAudience::from_str(s)
-                    .map_err(|e| {
+                    .inspect_err(|e| {
                         tracing::warn!(audience = %s, error = %e, "Invalid audience in configuration");
-                        e
                     })
                     .ok()
             })
