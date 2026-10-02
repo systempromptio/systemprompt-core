@@ -13,6 +13,7 @@
 use super::ConfiguredInventoryEntry;
 use crate::catalog::fingerprint::{canonical_json, hash_dir_metadata};
 use crate::managed::{ManagedError, Result};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -186,6 +187,16 @@ fn scan_catalog_directory(
     Ok(())
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct CatalogEntryConfig {
+    #[serde(default)]
+    enabled: Option<bool>,
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    file: Option<String>,
+}
+
 fn inspect(path: &Path, kind: &str, key: &str) -> Result<()> {
     if std::fs::symlink_metadata(path)?.is_symlink() {
         return Err(invalid("Catalog configuration is a symlink"));
@@ -208,12 +219,18 @@ fn inspect(path: &Path, kind: &str, key: &str) -> Result<()> {
             context: "catalog configuration",
             source: Box::new(error),
         })?;
-    if config.get("enabled").and_then(serde_yaml::Value::as_bool) == Some(false) {
+    let config = serde_yaml::from_value::<Option<CatalogEntryConfig>>(config)
+        .map_err(|error| ManagedError::InvalidInput {
+            context: "catalog configuration",
+            source: Box::new(error),
+        })?
+        .unwrap_or_default();
+    if config.enabled == Some(false) {
         return Err(invalid("Configured entry is disabled"));
     }
     if config
-        .get("id")
-        .and_then(serde_yaml::Value::as_str)
+        .id
+        .as_deref()
         .is_some_and(|id| !id.is_empty() && id != key)
     {
         return Err(invalid("Configured identity conflicts with its path"));
@@ -223,8 +240,8 @@ fn inspect(path: &Path, kind: &str, key: &str) -> Result<()> {
             .parent()
             .ok_or_else(|| invalid("Missing skill directory"))?;
         let content = config
-            .get("file")
-            .and_then(serde_yaml::Value::as_str)
+            .file
+            .as_deref()
             .filter(|value| !value.is_empty())
             .unwrap_or("index.md");
         crate::managed::validate_inventory_path(content)?;

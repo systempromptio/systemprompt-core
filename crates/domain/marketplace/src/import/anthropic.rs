@@ -74,8 +74,7 @@ pub struct MarketplacePluginEntry {
     #[serde(default)]
     pub keywords: Vec<String>,
     #[serde(default)]
-    // JSON: Anthropic marketplace.json permits a string or an object here
-    pub author: Option<serde_json::Value>,
+    pub author: Option<PluginEntryAuthor>,
     #[serde(default)]
     pub license: Option<String>,
     #[serde(default)]
@@ -93,6 +92,24 @@ pub struct MarketplacePluginEntry {
     pub mode: PluginEntryMode,
 }
 
+/// A marketplace entry's `author`: Anthropic permits a bare name or an object;
+/// any other shape reads as absent rather than rejecting the entry.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum PluginEntryAuthor {
+    Name(String),
+    Detailed(PluginEntryAuthorDetail),
+    Unrecognised(serde::de::IgnoredAny),
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct PluginEntryAuthorDetail {
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub email: Option<String>,
+}
+
 /// How the importer treats a marketplace entry: `vendor` fetches and imports
 /// it, `pass_through` keeps it as authored for Claude Code to fetch.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
@@ -106,20 +123,16 @@ pub enum PluginEntryMode {
 impl MarketplacePluginEntry {
     pub fn author_name(&self) -> Option<String> {
         match self.author.as_ref()? {
-            serde_json::Value::String(s) => Some(s.clone()),
-            serde_json::Value::Object(map) => {
-                map.get("name").and_then(|v| v.as_str()).map(str::to_owned)
-            },
-            _ => None,
+            PluginEntryAuthor::Name(name) => Some(name.clone()),
+            PluginEntryAuthor::Detailed(detail) => detail.name.clone(),
+            PluginEntryAuthor::Unrecognised(_) => None,
         }
     }
 
     pub fn author_email(&self) -> Option<String> {
         match self.author.as_ref()? {
-            serde_json::Value::Object(map) => {
-                map.get("email").and_then(|v| v.as_str()).map(str::to_owned)
-            },
-            _ => None,
+            PluginEntryAuthor::Detailed(detail) => detail.email.clone(),
+            PluginEntryAuthor::Name(_) | PluginEntryAuthor::Unrecognised(_) => None,
         }
     }
 

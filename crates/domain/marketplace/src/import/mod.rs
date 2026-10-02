@@ -68,7 +68,8 @@ use crate::error::MarketplaceError;
 use crate::managed::{GitSourceCapture, NativeGitSourceCapture};
 
 pub use anthropic::{
-    MarketplaceJson, MarketplacePluginEntry, PluginEntryMode, PluginSource, RemotePluginSource,
+    MarketplaceJson, MarketplacePluginEntry, PluginEntryAuthor, PluginEntryAuthorDetail,
+    PluginEntryMode, PluginSource, RemotePluginSource,
 };
 pub use sidecar::{MarketplaceSidecar, PluginSidecar, SIDECAR_RELPATH};
 pub use warning::ImportWarning;
