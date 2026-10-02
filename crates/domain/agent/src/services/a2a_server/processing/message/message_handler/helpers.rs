@@ -67,18 +67,18 @@ pub(super) async fn broadcast_agui_lifecycle(params: BroadcastAguiLifecycleParam
     }
 
     let msg_start =
-        AgUiEventBuilder::text_message_start(message_id.to_string(), AgUiMessageRole::Assistant);
+        AgUiEventBuilder::text_message_start(message_id.clone(), AgUiMessageRole::Assistant);
     if let Err(e) = webhooks.broadcast_agui(msg_start).await {
         tracing::debug!(error = %e, "Failed to broadcast text_message_start event");
     }
 
     let msg_content =
-        AgUiEventBuilder::text_message_content(message_id.to_string(), params.response_text);
+        AgUiEventBuilder::text_message_content(message_id.clone(), params.response_text);
     if let Err(e) = webhooks.broadcast_agui(msg_content).await {
         tracing::debug!(error = %e, "Failed to broadcast text_message_content event");
     }
 
-    let msg_end = AgUiEventBuilder::text_message_end(message_id.to_string());
+    let msg_end = AgUiEventBuilder::text_message_end(message_id.clone());
     if let Err(e) = webhooks.broadcast_agui(msg_end).await {
         tracing::debug!(error = %e, "Failed to broadcast text_message_end event");
     }

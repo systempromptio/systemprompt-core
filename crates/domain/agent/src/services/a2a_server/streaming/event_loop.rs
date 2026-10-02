@@ -151,23 +151,23 @@ async fn broadcast_tool_call_started(
     tool_call: &ToolCall,
     message_id: &MessageId,
 ) {
-    let tool_call_id = tool_call.ai_tool_call_id.as_str();
+    let tool_call_id = &tool_call.ai_tool_call_id;
     let start_event = AgUiEventBuilder::tool_call_start(
-        tool_call_id,
+        tool_call_id.clone(),
         &tool_call.name,
-        Some(message_id.to_string()),
+        Some(message_id.clone()),
     );
     if let Err(e) = webhook_context.broadcast_agui(start_event).await {
         tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_START");
     }
 
     let args_json = serde_json::to_string(&tool_call.arguments).unwrap_or_else(|_| String::new());
-    let args_event = AgUiEventBuilder::tool_call_args(tool_call_id, &args_json);
+    let args_event = AgUiEventBuilder::tool_call_args(tool_call_id.clone(), &args_json);
     if let Err(e) = webhook_context.broadcast_agui(args_event).await {
         tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_ARGS");
     }
 
-    let end_event = AgUiEventBuilder::tool_call_end(tool_call_id);
+    let end_event = AgUiEventBuilder::tool_call_end(tool_call_id.clone());
     if let Err(e) = webhook_context.broadcast_agui(end_event).await {
         tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_END");
     }
@@ -181,7 +181,7 @@ async fn broadcast_tool_result(
     let result_value = serde_json::to_value(result).unwrap_or_else(|_| serde_json::Value::Null);
     let result_event = AgUiEventBuilder::tool_call_result(
         MessageId::generate(),
-        ai_tool_call_id.as_str(),
+        ai_tool_call_id.clone(),
         result_value,
     );
     if let Err(e) = webhook_context.broadcast_agui(result_event).await {

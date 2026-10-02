@@ -38,18 +38,18 @@ impl TextStreamState {
             return;
         };
 
-        let message_id_str = message_id.as_str();
-
         if !self.message_started {
-            let start_event =
-                AgUiEventBuilder::text_message_start(message_id_str, AgUiMessageRole::Assistant);
+            let start_event = AgUiEventBuilder::text_message_start(
+                message_id.clone(),
+                AgUiMessageRole::Assistant,
+            );
             if let Err(e) = webhook_context.broadcast_agui(start_event).await {
                 tracing::error!(error = %e, "Failed to broadcast TEXT_MESSAGE_START");
             }
             self.message_started = true;
         }
 
-        let content_event = AgUiEventBuilder::text_message_content(message_id_str, &text);
+        let content_event = AgUiEventBuilder::text_message_content(message_id.clone(), &text);
         if let Err(e) = webhook_context.broadcast_agui(content_event).await {
             tracing::error!(error = %e, "Failed to broadcast TEXT_MESSAGE_CONTENT");
         }
@@ -62,7 +62,7 @@ impl TextStreamState {
         if self.message_started
             && let Some(ref webhook_context) = self.webhook_context
         {
-            let end_event = AgUiEventBuilder::text_message_end(message_id.as_str());
+            let end_event = AgUiEventBuilder::text_message_end(message_id.clone());
             if let Err(e) = webhook_context.broadcast_agui(end_event).await {
                 tracing::error!(error = %e, "Failed to broadcast TEXT_MESSAGE_END");
             }
