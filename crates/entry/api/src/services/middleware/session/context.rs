@@ -96,10 +96,7 @@ impl SessionMiddleware {
             .session_creation_service
             .ensure_anonymous_user(meta.analytics)
             .await
-            .map_err(|e| {
-                tracing::error!(error = %e, session_prefix, "Failed to ensure anonymous user");
-                ApiError::internal_error("Service temporarily unavailable")
-            })?;
+            .map_err(|e| ApiError::internal("Failed to ensure anonymous user", e))?;
 
         let session_id = SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
