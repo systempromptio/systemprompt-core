@@ -7,6 +7,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::lifecycle::LifecycleService;
 use systemprompt_mcp::services::monitoring::MonitoringService;
@@ -20,9 +21,9 @@ use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use wiremock::MockServer;
 
-use crate::harness::{default_tools_json, mount_mcp_endpoint};
+use crate::harness::{default_tools_json, mount_mcp_endpoint, unique_instance};
 
-async fn make_lifecycle() -> (LifecycleService, systemprompt_database::DbPool) {
+async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
@@ -41,14 +42,8 @@ async fn make_lifecycle() -> (LifecycleService, systemprompt_database::DbPool) {
         .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-        Arc::clone(&app_paths),
-        registry,
-    );
+    let repo = ServiceRepository::new(&db, unique_instance());
+    let database = DatabaseService::new(repo.clone(), Arc::clone(&app_paths), registry);
     (
         LifecycleService::new(
             ProcessService::new(),
@@ -57,7 +52,7 @@ async fn make_lifecycle() -> (LifecycleService, systemprompt_database::DbPool) {
             MonitoringService::new(),
             app_paths,
         ),
-        db,
+        repo,
     )
 }
 
@@ -95,15 +90,7 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
     }
 }
 
-async fn seed_service(
-    db: &systemprompt_database::DbPool,
-    name: &ServiceName,
-    port: u16,
-) -> ServiceRepository {
-    let repo = ServiceRepository::new(
-        db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+async fn seed_service(repo: &ServiceRepository, name: &ServiceName, port: u16) {
     repo.create_service(CreateServiceInput {
         name,
         module_name: ServiceModule::Mcp,
@@ -113,19 +100,18 @@ async fn seed_service(
     })
     .await
     .unwrap();
-    repo
 }
 
 #[tokio::test]
 async fn health_check_live_mcp_endpoint_reports_healthy() {
-    let (life, db) = make_lifecycle().await;
+    let (life, repo) = make_lifecycle().await;
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let port = mock.address().port();
 
     let name = format!("hc-live-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
-    let repo = seed_service(&db, &name_id, port).await;
+    seed_service(&repo, &name_id, port).await;
 
     let healthy = life.health_check(&make_config(&name, port)).await.unwrap();
 
@@ -143,13 +129,13 @@ async fn health_check_live_mcp_endpoint_reports_healthy() {
 
 #[tokio::test]
 async fn health_check_non_mcp_listener_marks_service_error() {
-    let (life, db) = make_lifecycle().await;
+    let (life, repo) = make_lifecycle().await;
     let mock = MockServer::start().await;
     let port = mock.address().port();
 
     let name = format!("hc-err-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
-    let repo = seed_service(&db, &name_id, port).await;
+    seed_service(&repo, &name_id, port).await;
 
     let healthy = life.health_check(&make_config(&name, port)).await.unwrap();
 
@@ -176,14 +162,14 @@ fn marker_helper() {
 
 #[tokio::test]
 async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
-    let (life, db) = make_lifecycle().await;
+    let (life, repo) = make_lifecycle().await;
 
     let name = format!("stop-live-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65401;
-    let mut marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
+    let marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
 
-    let repo = seed_service(&db, &name_id, port).await;
+    seed_service(&repo, &name_id, port).await;
     repo.update_service_pid(&name_id, i32::try_from(marked.pid()).unwrap())
         .await
         .unwrap();
@@ -195,17 +181,17 @@ async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
 
     assert_eq!(row.status, ServiceStatus::Stopped);
     assert!(row.pid.is_none());
-    assert!(!marked.child.wait().expect("child reaped").success());
+    assert!(!subprocess::is_running(marked.pid()).await);
 }
 
 #[tokio::test]
 async fn restart_server_sweeps_stale_running_row_then_fails_on_missing_binary() {
-    let (life, db) = make_lifecycle().await;
+    let (life, repo) = make_lifecycle().await;
 
     let name = format!("restart-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65402;
-    let repo = seed_service(&db, &name_id, port).await;
+    seed_service(&repo, &name_id, port).await;
 
     let result = life.restart_server(&make_config(&name, port)).await;
 

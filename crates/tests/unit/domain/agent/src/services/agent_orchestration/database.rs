@@ -2,10 +2,10 @@
 // transitions, and listing. Each test early-returns when no
 // test database is configured (mirrors the repository test guard).
 //
-// PIDs above i32::MAX are non-signalable, so `process::process_exists` returns
-// false for them without ever touching a real process. We use such a PID to
-// drive the "recorded running but process dead" reconciliation branch
-// deterministically.
+// A pid far above any kernel's pid_max is never running, so
+// `subprocess::is_running` reports it gone without touching a real process. We
+// use such a PID to drive the "recorded running but process dead"
+// reconciliation branch deterministically.
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;

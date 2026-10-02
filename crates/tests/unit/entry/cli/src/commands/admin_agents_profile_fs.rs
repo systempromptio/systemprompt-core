@@ -61,10 +61,8 @@ fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
 #[tokio::test]
 async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     use std::sync::Arc;
-    use systemprompt_agent::services::agent_orchestration::port_service::{
-        find_process_using_port, is_agent_process,
-    };
     use systemprompt_cli::infrastructure::services::restart;
+    use systemprompt_loader::subprocess::{self, ChildKind};
     use systemprompt_test_fixtures::{
         DisposableDb, fixture_app_context_with, install_test_signing_key,
     };
@@ -75,13 +73,18 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
         .expect("an available owned agent port");
     let port = listener.local_addr().unwrap().port();
     assert_eq!(
-        find_process_using_port(port).unwrap(),
-        Some(std::process::id()),
+        subprocess::pids_listening_on(port).await.unwrap(),
+        vec![std::process::id()],
         "the occupied port must belong to this test process"
     );
     assert!(
-        !is_agent_process(std::process::id()).unwrap(),
-        "the production port cleanup classifier must reject the unit-test process"
+        !subprocess::owns(
+            std::process::id(),
+            ChildKind::Agent,
+            &systemprompt_identifiers::ServiceName::new("covlister"),
+        )
+        .await,
+        "the production port cleanup identity check must reject the unit-test process"
     );
     std::fs::write(
         root.join("agents/covlister.yaml"),
@@ -356,10 +359,8 @@ async fn delete_removes_the_selected_agent_and_reloads_the_profile_config() {
 #[tokio::test]
 async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_disabled_agents() {
     use std::sync::Arc;
-    use systemprompt_agent::services::agent_orchestration::port_service::{
-        find_process_using_port, is_agent_process,
-    };
     use systemprompt_cli::infrastructure::services::restart;
+    use systemprompt_loader::subprocess::{self, ChildKind};
     use systemprompt_test_fixtures::{
         DisposableDb, fixture_app_context_with, install_test_signing_key,
     };
@@ -370,12 +371,19 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
         .expect("an available agent port");
     let port = listener.local_addr().unwrap().port();
     assert_eq!(
-        find_process_using_port(port).expect("inspect owned listener"),
-        Some(std::process::id()),
+        subprocess::pids_listening_on(port)
+            .await
+            .expect("inspect owned listener"),
+        vec![std::process::id()],
         "the occupied port must belong to this test process"
     );
     assert!(
-        !is_agent_process(std::process::id()).expect("classify test process"),
+        !subprocess::owns(
+            std::process::id(),
+            ChildKind::Agent,
+            &systemprompt_identifiers::ServiceName::new("covlister"),
+        )
+        .await,
         "production cleanup must reject the unit-test process"
     );
     std::fs::write(

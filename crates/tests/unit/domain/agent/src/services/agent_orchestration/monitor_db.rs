@@ -75,7 +75,7 @@ async fn health_check_passes_for_live_process_with_open_port() {
 
     let name = unique_name("mon_live");
     let svc = db_service_with(&pool, &[(&name, port)]);
-    svc.register_agent(&name, std::process::id(), port)
+    svc.register_agent(&name, std::os::unix::process::parent_id(), port)
         .await
         .expect("register");
 
@@ -99,7 +99,7 @@ async fn health_check_fails_for_live_process_with_closed_port() {
 
     let name = unique_name("mon_closed");
     let svc = db_service_with(&pool, &[(&name, port)]);
-    svc.register_agent(&name, std::process::id(), port)
+    svc.register_agent(&name, std::os::unix::process::parent_id(), port)
         .await
         .expect("register");
 

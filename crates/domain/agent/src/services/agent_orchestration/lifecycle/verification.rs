@@ -14,25 +14,29 @@ use crate::services::agent_orchestration::{
 };
 
 impl AgentLifecycle {
-    pub async fn validate_prerequisites(&self, port: u16) -> OrchestrationResult<()> {
+    pub async fn validate_prerequisites(
+        &self,
+        agent_name: &AgentName,
+        port: u16,
+    ) -> OrchestrationResult<()> {
         use super::super::port_service::PortService;
 
-        let port_service = PortService::new();
-
         if process::is_port_in_use(port) {
-            port_service.cleanup_port_if_needed(port).await?;
+            PortService::new()
+                .cleanup_port_if_needed(port, agent_name)
+                .await?;
             tracing::info!(port = %port, "Cleaned up port");
         }
 
         Ok(())
     }
 
-    pub(super) fn spawn_detached_process(
+    pub(super) async fn spawn_detached_process(
         &self,
         agent_name: &AgentName,
         port: u16,
     ) -> OrchestrationResult<u32> {
-        process::spawn_detached(&self.app_paths, agent_name, port)
+        process::spawn_detached(&self.app_paths, agent_name, port).await
     }
 
     pub async fn verify_startup(
@@ -118,7 +122,7 @@ impl AgentLifecycle {
 
         match self.db_service.get_status(agent_name).await {
             Ok(AgentStatus::Running { pid, .. }) => {
-                if process::process_exists(pid) {
+                if systemprompt_loader::subprocess::is_running(pid).await {
                     tracing::error!(
                         agent = %agent_name,
                         pid,

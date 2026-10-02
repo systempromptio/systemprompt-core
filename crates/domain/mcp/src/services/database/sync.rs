@@ -10,7 +10,8 @@
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use crate::services::process::utils;
+use crate::services::database::stored_pid;
+use crate::services::process::ProcessService;
 use systemprompt_database::ServiceRepository;
 use systemprompt_models::services::ServiceStatus;
 use tokio::net::TcpStream;
@@ -32,7 +33,10 @@ async fn is_port_listening(port: u16) -> bool {
 async fn is_service_healthy(port: u16, pid: Option<i32>) -> bool {
     let port_healthy = is_port_listening(port).await;
 
-    let process_alive = pid.is_some_and(|p| utils::process_exists(p as u32));
+    let process_alive = match stored_pid(pid) {
+        Some(pid) => ProcessService::is_running(pid).await,
+        None => false,
+    };
 
     port_healthy && process_alive
 }
@@ -97,12 +101,8 @@ pub async fn delete_disabled_services(
 
     for service in all_services {
         if !enabled_names.contains(service.name.as_str()) {
-            if let Some(pid) = service.pid {
-                crate::services::process::ProcessService::terminate_gracefully_verified(
-                    pid as u32,
-                    &service.name,
-                )
-                .await?;
+            if let Some(pid) = stored_pid(service.pid) {
+                ProcessService::stop(pid, &service.name).await?;
             }
 
             repository.delete_service(&service.name).await?;

@@ -1,19 +1,21 @@
 //! Port liveness probing and reclamation for MCP servers.
 //!
 //! Provides timeout-bounded loopback probes ([`is_port_in_use`]),
-//! cross-platform cleanup of processes holding a port, and retry/backoff
-//! helpers that wait for a port to free up before a server binds. The probe
-//! timeout guards against kernel-level connect hangs that would otherwise stall
-//! startup silently.
+//! reclamation of a port held by this service's own stale process, and
+//! retry/backoff helpers that wait for a port to free up before a server
+//! binds. A holder is stopped only when the loader's supervision module proves
+//! it carries this service's marker; a foreign or unverifiable holder is
+//! refused with a typed error. The probe timeout guards against kernel-level
+//! connect hangs that would otherwise stall startup silently.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::McpDomainResult;
+use crate::error::{McpDomainError, McpDomainResult};
 use std::net::SocketAddr;
-use std::process::Command;
 use std::time::Duration;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use tokio::net::TcpStream;
 
 pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
@@ -23,6 +25,7 @@ pub const POST_KILL_DELAY_MS: u64 = 500;
 // Why: Firewalls can blackhole even loopback SYN packets, leaving a blocking
 // connect waiting for the operating system's TCP timeout.
 const PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
+const STALE_HOLDER_GRACE: Duration = Duration::from_secs(5);
 
 pub async fn prepare_port(port: u16, service_name: &ServiceName) -> McpDomainResult<()> {
     tracing::debug!(port = port, service = %service_name, "Preparing port");
@@ -39,25 +42,24 @@ pub async fn prepare_port(port: u16, service_name: &ServiceName) -> McpDomainRes
 enum PortHolder {
     Ours,
     Caller,
+    Gone,
     Foreign,
     Unverifiable,
 }
 
-fn classify_port_holder(pid: u32, service_name: &ServiceName) -> PortHolder {
+async fn classify_port_holder(pid: u32, service_name: &ServiceName) -> PortHolder {
     if pid == std::process::id() {
         return PortHolder::Caller;
     }
     if !systemprompt_models::subprocess::identity_verification_supported() {
         return PortHolder::Unverifiable;
     }
-    if systemprompt_loader::subprocess::live_pid_is_subprocess(
-        pid,
-        systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
-        service_name,
-    ) {
+    if subprocess::owns(pid, ChildKind::Mcp, service_name).await {
         PortHolder::Ours
-    } else {
+    } else if subprocess::is_running(pid).await {
         PortHolder::Foreign
+    } else {
+        PortHolder::Gone
     }
 }
 
@@ -90,45 +92,19 @@ pub async fn is_port_responsive(port: u16) -> bool {
     is_port_in_use(port).await
 }
 
-#[cfg(unix)]
 pub async fn cleanup_port_processes(port: u16, service_name: &ServiceName) -> McpDomainResult<()> {
-    use nix::sys::signal::{self, Signal};
-    use nix::unistd::Pid;
-
-    let output = Command::new("lsof")
-        .args(["-ti", &format!(":{port}")])
-        .output()
-        .map_err(|e| {
-            crate::error::McpDomainError::operation(
-                format!("failed to run `lsof -ti :{port}` for port {port}"),
-                e,
-            )
-        })?;
-
-    if output.stdout.is_empty() {
-        return Ok(());
-    }
-
-    let pids = String::from_utf8_lossy(&output.stdout);
-    let mut signalled = false;
-    for pid_str in pids.lines() {
-        let Ok(pid) = pid_str.trim().parse::<u32>() else {
-            continue;
-        };
-        let Ok(raw) = i32::try_from(pid) else {
-            continue;
-        };
-        match classify_port_holder(pid, service_name) {
-            PortHolder::Caller => continue,
+    for pid in subprocess::pids_listening_on(port).await? {
+        match classify_port_holder(pid, service_name).await {
+            PortHolder::Caller | PortHolder::Gone => continue,
             PortHolder::Foreign => {
-                return Err(crate::error::McpDomainError::PortOwnedByForeignProcess {
+                return Err(McpDomainError::PortOwnedByForeignProcess {
                     port,
                     pid,
                     service: service_name.to_string(),
                 });
             },
             PortHolder::Unverifiable => {
-                return Err(crate::error::McpDomainError::PortHolderUnverifiable {
+                return Err(McpDomainError::PortHolderUnverifiable {
                     port,
                     pid,
                     service: service_name.to_string(),
@@ -138,90 +114,16 @@ pub async fn cleanup_port_processes(port: u16, service_name: &ServiceName) -> Mc
         }
 
         tracing::debug!(port = port, pid = pid, service = %service_name, "Stopping our stale process on port");
-        signalled = true;
-
-        if let Err(e) = signal::kill(Pid::from_raw(raw), Signal::SIGTERM) {
-            tracing::warn!(pid = pid, error = %e, "Failed to send SIGTERM to port process");
-        }
-
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
-        if let Err(e) = signal::kill(Pid::from_raw(raw), Signal::SIGKILL) {
-            tracing::warn!(pid = pid, error = %e, "Failed to send SIGKILL to port process");
-        }
-    }
-
-    if signalled {
-        tokio::time::sleep(Duration::from_millis(200)).await;
-    }
-
-    Ok(())
-}
-
-#[cfg(windows)]
-pub async fn cleanup_port_processes(port: u16, service_name: &ServiceName) -> McpDomainResult<()> {
-    let output = Command::new("netstat")
-        .args(["-ano", "-p", "TCP"])
-        .output()
-        .map_err(|e| {
-            crate::error::McpDomainError::operation(
-                format!("failed to run `netstat -ano -p TCP` for port {port}"),
-                e,
-            )
-        })?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let port_pattern = format!(":{port} ");
-    let mut signalled = false;
-
-    for line in stdout.lines() {
-        if !line.contains(&port_pattern) {
-            continue;
-        }
-        let Some(pid_str) = line.split_whitespace().last() else {
-            continue;
-        };
-        let Ok(pid) = pid_str.parse::<u32>() else {
-            continue;
-        };
-        match classify_port_holder(pid, service_name) {
-            PortHolder::Caller => continue,
-            PortHolder::Foreign => {
-                return Err(crate::error::McpDomainError::PortOwnedByForeignProcess {
+        match subprocess::stop_owned(pid, ChildKind::Mcp, service_name, STALE_HOLDER_GRACE).await? {
+            StopOutcome::NotRunning | StopOutcome::Stopped(_) => {},
+            StopOutcome::NotOurs => {
+                return Err(McpDomainError::PortOwnedByForeignProcess {
                     port,
                     pid,
                     service: service_name.to_string(),
                 });
             },
-            PortHolder::Unverifiable => {
-                return Err(crate::error::McpDomainError::PortHolderUnverifiable {
-                    port,
-                    pid,
-                    service: service_name.to_string(),
-                });
-            },
-            PortHolder::Ours => {},
         }
-
-        tracing::debug!(port = port, pid = pid, service = %service_name, "Stopping our stale process on port");
-        signalled = true;
-
-        if let Err(e) = Command::new("taskkill").args(["/PID", pid_str]).output() {
-            tracing::warn!(pid = pid, error = %e, "Failed to send taskkill to port process");
-        }
-
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
-        if let Err(e) = Command::new("taskkill")
-            .args(["/PID", pid_str, "/F"])
-            .output()
-        {
-            tracing::warn!(pid = pid, error = %e, "Failed to force taskkill port process");
-        }
-    }
-
-    if signalled {
-        tokio::time::sleep(Duration::from_millis(200)).await;
     }
 
     Ok(())
@@ -241,7 +143,7 @@ pub async fn wait_for_port_release(port: u16) -> McpDomainResult<()> {
         }
     }
 
-    Err(crate::error::McpDomainError::Internal(format!(
+    Err(McpDomainError::Internal(format!(
         "Port {port} did not become available after {max_attempts} attempts"
     )))
 }
@@ -277,7 +179,7 @@ pub async fn wait_for_port_release_with_retry(
         }
     }
 
-    Err(crate::error::McpDomainError::Internal(format!(
+    Err(McpDomainError::Internal(format!(
         "Port {port} could not be acquired after {max_cleanup_attempts} cleanup attempts"
     )))
 }

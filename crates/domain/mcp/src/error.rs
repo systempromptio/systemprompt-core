@@ -133,6 +133,9 @@ domain_error! {
         #[error("Task join error: {0}")]
         TaskJoin(#[from] tokio::task::JoinError),
 
+        #[error("process supervision: {0}")]
+        Supervision(#[from] systemprompt_loader::subprocess::SupervisionError),
+
         #[error("Path error: {0}")]
         Path(#[from] systemprompt_config::paths::PathError),
 

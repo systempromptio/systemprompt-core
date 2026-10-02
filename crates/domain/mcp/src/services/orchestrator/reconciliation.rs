@@ -25,7 +25,7 @@ use super::process_cleanup::{
 };
 use super::server_startup::{StartPendingServersParams, start_pending_servers};
 use crate::McpServerConfig;
-use crate::services::database::DatabaseService;
+use crate::services::database::{DatabaseService, stored_pid};
 use crate::services::lifecycle::LifecycleService;
 use crate::services::network::port::{self, POST_KILL_DELAY_MS};
 use crate::services::process::ProcessService;
@@ -162,7 +162,7 @@ async fn kill_single_server(
 ) -> McpDomainResult<()> {
     let service_name = ServiceName::of_mcp_server(server_name);
     if let Some(service_info) = database.get_service_by_name(&service_name).await? {
-        if let Some(pid) = service_info.pid {
+        if let Some(pid) = stored_pid(service_info.pid) {
             if let Some(tx) = events
                 && let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
                     name: server_name.to_string(),
@@ -171,11 +171,8 @@ async fn kill_single_server(
             {
                 tracing::warn!(error = %e, "Failed to send cleanup notification");
             }
-            if let Err(e) =
-                ProcessService::terminate_gracefully_verified(pid as u32, &service_name).await
-            {
-                tracing::warn!(pid = pid, error = %e, "Failed to terminate process");
-            }
+            let outcome = ProcessService::stop(pid, &service_name).await?;
+            tracing::debug!(server = %server_name, pid, ?outcome, "Stopped previous MCP process");
         }
         if let Err(e) = database.unregister_service(&service_name).await {
             tracing::warn!(server = %server_name, error = %e, "Failed to unregister service");

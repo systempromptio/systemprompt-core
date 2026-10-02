@@ -8,6 +8,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
@@ -18,7 +19,7 @@ use wiremock::MockServer;
 use crate::harness::{
     ExternalServerSpec, bootstrap_with_services, config_with_servers, default_tools_json,
     external_server_block, external_server_block_with_accessor, internal_server_block,
-    mount_mcp_endpoint, register_internal_extension,
+    mount_mcp_endpoint, register_internal_extension, unique_instance,
 };
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
@@ -33,6 +34,13 @@ fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
 }
 
 async fn orchestrator_with_config(blocks: &[String], internal: &[&str]) -> McpOrchestrator {
+    orchestrator_and_repo(blocks, internal).await.0
+}
+
+async fn orchestrator_and_repo(
+    blocks: &[String],
+    internal: &[&str],
+) -> (McpOrchestrator, ServiceRepository) {
     let bootstrap = bootstrap_with_services(&config_with_servers(blocks));
     let db = test_db_pool().await;
     for name in internal {
@@ -47,11 +55,10 @@ async fn orchestrator_with_config(blocks: &[String], internal: &[&str]) -> McpOr
         .expect("application paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let service_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
-    McpOrchestrator::new(service_repo, app_paths, registry).expect("MCP orchestrator")
+    let service_repo = ServiceRepository::new(&db, unique_instance());
+    let orchestrator =
+        McpOrchestrator::new(service_repo.clone(), app_paths, registry).expect("MCP orchestrator");
+    (orchestrator, service_repo)
 }
 
 // Internal MCP servers are validated against the 5000-5999 range, so a port
@@ -173,12 +180,7 @@ async fn validate_internal_running_server_probes_local_port() {
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valrun");
     let name_id = ServiceName::new(name.as_str());
-    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
-    let db = test_db_pool().await;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
     repo.create_service(CreateServiceInput {
         name: &name_id,
         module_name: ServiceModule::Mcp,
@@ -288,7 +290,7 @@ async fn restart_services_missing_binary_reports_a_failed_outcome() {
     let port = free_port();
     let name = unique("restart");
     let name_id = ServiceName::new(name.as_str());
-    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
+    let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
 
     let outcomes = o
         .restart_services(None)
@@ -299,11 +301,6 @@ async fn restart_services_missing_binary_reports_a_failed_outcome() {
         "restart of 'all' covers only the DB running set, which lacks {name}"
     );
 
-    let db = test_db_pool().await;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
     repo.create_service(CreateServiceInput {
         name: &name_id,
         module_name: ServiceModule::Mcp,
@@ -422,12 +419,7 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let port = free_port();
     let name = unique("reckill");
     let name_id = ServiceName::new(name.as_str());
-    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
-    let db = test_db_pool().await;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
 
     let disabled = unique("recgone");
     let disabled_id = ServiceName::new(disabled.as_str());
@@ -444,7 +436,7 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     // Why: reconcile demotes a "running" row whose port is dead to stopped and
     // then crashed, and only rows still marked running are signalled — so a
     // stand-in process that never listens is pruned on paper and left alive.
-    let mut child = std::process::Command::new("python3")
+    let child = std::process::Command::new("python3")
         .arg("-c")
         .arg(LISTENER)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
@@ -476,7 +468,7 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let err = result.expect_err("missing binary still fails the start phase");
     assert!(err.to_string().contains(&name));
     assert!(disabled_row.is_none(), "disabled service row is pruned");
-    assert!(!child.wait().expect("child reaped").success());
+    assert!(!subprocess::is_running(child.id()).await);
 
     let mut saw_cleanup = false;
     while let Ok(event) = rx.try_recv() {

@@ -1,9 +1,10 @@
 //! A failed or missing MCP spawn surfaces a typed error and leaks no zombie
 //! or registered PID.
 
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use systemprompt_mcp::services::process::{monitor, utils};
+use systemprompt_mcp::services::process::ProcessService;
 
 #[test]
 fn spawning_a_nonexistent_binary_surfaces_an_io_error_not_a_panic() {
@@ -22,48 +23,52 @@ fn spawning_a_nonexistent_binary_surfaces_an_io_error_not_a_panic() {
 
 #[tokio::test]
 async fn process_that_exits_immediately_is_recognised_as_dead() {
-    let child = Command::new("true")
+    let mut child = Command::new("true")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .expect("`true` must be on PATH");
-
     let pid = child.id();
-    let mut child = child;
-    let _ = child.wait();
+    child.wait().expect("reap true");
 
     assert!(
-        !monitor::is_process_running(pid),
+        !ProcessService::is_running(pid).await,
         "process layer must report reaped PID {pid} as not running"
     );
 }
 
 #[tokio::test]
 async fn unreaped_exited_child_is_reported_dead_despite_being_a_zombie() {
-    let child = Command::new("true")
+    let mut child = Command::new("sh")
+        .args(["-c", "exit 0"])
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .expect("`true` must spawn");
-
+        .expect("`sh` must spawn");
     let pid = child.id();
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    let mut drained = Vec::new();
+    child
+        .stdout
+        .take()
+        .expect("piped stdout")
+        .read_to_end(&mut drained)
+        .expect("child closed stdout on exit");
 
-    let reported_alive = monitor::is_process_running(pid);
+    let reported_alive = ProcessService::is_running(pid).await;
     drop(child);
 
     assert!(
         !reported_alive,
-        "zombie PID {pid} must be reported dead by is_process_running"
+        "an exited, unreaped child {pid} must be reported dead"
     );
 }
 
-#[test]
-fn process_exists_returns_false_for_unallocated_pid() {
+#[tokio::test]
+async fn an_unallocated_pid_is_not_running() {
     assert!(
-        !utils::process_exists(4_194_305),
-        "process_exists must reject above-pid_max values"
+        !ProcessService::is_running(4_194_305).await,
+        "a pid above pid_max is never running"
     );
 }

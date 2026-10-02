@@ -4,6 +4,7 @@
 //! Profile/Secrets/Config singletons that downstream loaders (schema_sync's
 //! `ConfigLoader::load()`) require.
 
+use crate::harness::unique_instance;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
@@ -33,10 +34,7 @@ async fn make_orchestrator() -> McpOrchestrator {
         .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let service_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let service_repo = ServiceRepository::new(&db, unique_instance());
     McpOrchestrator::new(service_repo, app_paths, registry).expect("orchestrator")
 }
 

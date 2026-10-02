@@ -69,6 +69,7 @@ impl ValidationReport {
 }
 
 use crate::services::shared::AgentServiceError;
+use systemprompt_identifiers::AgentName;
 use systemprompt_traits::{BoxedSource, RepositoryError};
 use thiserror::Error;
 
@@ -107,6 +108,19 @@ pub enum OrchestrationError {
 
     #[error("Service error: {0}")]
     AgentService(#[from] AgentServiceError),
+
+    #[error("process supervision: {0}")]
+    Supervision(#[from] systemprompt_loader::subprocess::SupervisionError),
+
+    #[error(
+        "port {port} for agent {agent} is held by process {pid}, which this installation did \
+         not spawn; stop it or choose a different port"
+    )]
+    PortHeldByForeignProcess {
+        port: u16,
+        pid: u32,
+        agent: AgentName,
+    },
 }
 
 impl OrchestrationError {

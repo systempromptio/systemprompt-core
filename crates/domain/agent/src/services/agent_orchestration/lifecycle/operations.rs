@@ -3,14 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::time::Instant;
-use systemprompt_identifiers::AgentName;
+use std::time::{Duration, Instant};
+use systemprompt_identifiers::{AgentName, ServiceName};
+use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use super::AgentLifecycle;
-use crate::services::agent_orchestration::{
-    AgentStatus, OrchestrationError, OrchestrationResult, process,
-};
+use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, OrchestrationResult};
+
+const STOP_GRACE: Duration = Duration::from_secs(5);
 
 impl AgentLifecycle {
     pub async fn start_agent(
@@ -39,10 +40,12 @@ impl AgentLifecycle {
                 },
             }
 
-            self.validate_prerequisites(agent_config.port).await?;
+            self.validate_prerequisites(agent_name, agent_config.port)
+                .await?;
 
             let pid = self
-                .spawn_detached_process(agent_name, agent_config.port)?;
+                .spawn_detached_process(agent_name, agent_config.port)
+                .await?;
 
             if let Err(e) = self
                 .confirm_spawned(agent_name, pid, agent_config.port)
@@ -79,11 +82,8 @@ impl AgentLifecycle {
         let status = self.db_service.get_status(agent_name).await?;
 
         if let AgentStatus::Running { pid, .. } = status {
-            if process::kill_process_verified(pid, agent_name) {
-                tracing::debug!(agent_name = %agent_name, pid = %pid, "Killed process");
-            } else {
-                tracing::warn!(agent_name = %agent_name, pid = %pid, "Failed to kill process");
-            }
+            let outcome = stop_agent_process(agent_name, pid).await?;
+            tracing::debug!(agent_name = %agent_name, pid = %pid, outcome = ?outcome, "Stopped agent process");
         }
 
         self.db_service.remove_agent_service(agent_name).await?;
@@ -110,14 +110,8 @@ impl AgentLifecycle {
 
         let status = self.db_service.get_status(agent_name).await?;
         if let AgentStatus::Running { pid, .. } = status {
-            match process::terminate_gracefully_verified(pid, agent_name, 5).await {
-                Ok(()) => {
-                    tracing::debug!(agent_name = %agent_name, pid = %pid, "Gracefully terminated process");
-                },
-                Err(e) => {
-                    tracing::warn!(agent_name = %agent_name, pid = %pid, error = %e, "Failed to gracefully terminate");
-                },
-            }
+            let outcome = stop_agent_process(agent_name, pid).await?;
+            tracing::debug!(agent_name = %agent_name, pid = %pid, outcome = ?outcome, "Stopped agent process before restart");
 
             self.db_service.update_agent_stopped(agent_name).await?;
         }
@@ -139,8 +133,8 @@ impl AgentLifecycle {
     }
 
     async fn reap_failed_spawn(&self, agent_name: &AgentName, pid: u32) {
-        match process::terminate_gracefully_verified(pid, agent_name, 5).await {
-            Ok(()) => {
+        match stop_agent_process(agent_name, pid).await {
+            Ok(_) => {
                 if let Err(e) = self.db_service.mark_failed(agent_name).await {
                     tracing::error!(
                         agent_name = %agent_name,
@@ -164,7 +158,7 @@ impl AgentLifecycle {
         let status = self.db_service.get_status(agent_name).await?;
 
         if let AgentStatus::Running { pid, .. } = status
-            && !process::process_exists(pid)
+            && !subprocess::is_running(pid).await
         {
             self.db_service.mark_failed(agent_name).await?;
             tracing::info!(agent_name = %agent_name, "Marked crashed agent as failed in database");
@@ -172,4 +166,22 @@ impl AgentLifecycle {
 
         Ok(())
     }
+}
+
+async fn stop_agent_process(agent_name: &AgentName, pid: u32) -> OrchestrationResult<StopOutcome> {
+    let outcome = subprocess::stop_owned(
+        pid,
+        ChildKind::Agent,
+        &ServiceName::of_agent(agent_name),
+        STOP_GRACE,
+    )
+    .await?;
+    if outcome == StopOutcome::NotOurs {
+        tracing::warn!(
+            agent_name = %agent_name,
+            pid,
+            "Recorded pid is not this agent's process; it was left running and the row is cleared"
+        );
+    }
+    Ok(outcome)
 }

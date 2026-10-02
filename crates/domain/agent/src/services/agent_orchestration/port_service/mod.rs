@@ -1,15 +1,22 @@
-//! Port management — detect, kill, and verify availability of agent ports.
+//! Port management — reclaim an agent's port from a stale copy of that same
+//! agent and verify it is free before a spawn.
+//!
+//! A port holder is signalled only when its agent marker, read back from the
+//! live process, names the agent being started; any other holder is reported
+//! and left running.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod probe;
-
 use std::time::Duration;
+
+use systemprompt_identifiers::{AgentName, ServiceName};
+use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult, process};
 
-pub use probe::{ProcessInfo, find_process_using_port, get_process_info, is_agent_process};
+const STOP_GRACE: Duration = Duration::from_secs(5);
+const PORT_RELEASE_TIMEOUT_SECS: u64 = 5;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PortService;
@@ -24,52 +31,6 @@ impl PortService {
     #[must_use]
     pub const fn new() -> Self {
         Self
-    }
-
-    pub async fn kill_process_on_port(&self, port: u16) -> OrchestrationResult<bool> {
-        let pid = match find_process_using_port(port) {
-            Ok(Some(p)) => p,
-            Ok(None) => {
-                return Ok(false);
-            },
-            Err(e) => {
-                return Err(OrchestrationError::spawn(
-                    format!("Failed to check port {port}"),
-                    e,
-                ));
-            },
-        };
-
-        match is_agent_process(pid) {
-            Ok(true) => {},
-            Ok(false) => {
-                return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                    "Port {} is in use by non-agent process (PID {}). Please free the port \
-                     manually.",
-                    port, pid
-                )));
-            },
-            Err(e) => {
-                return Err(OrchestrationError::spawn(
-                    format!("Port {port} is in use but failed to identify process (PID {pid})"),
-                    e,
-                ));
-            },
-        }
-
-        tracing::warn!(pid = %pid, port = %port, "Killing orphaned agent process");
-
-        if !process::kill_process(pid) {
-            return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                "Failed to kill process {} on port {}",
-                pid, port
-            )));
-        }
-
-        self.wait_for_port_available(port, 5).await?;
-
-        tracing::debug!(port = %port, "Port is now available");
-        Ok(true)
     }
 
     pub async fn wait_for_port_available(
@@ -93,107 +54,46 @@ impl PortService {
         )))
     }
 
-    pub async fn cleanup_port_if_needed(&self, port: u16) -> OrchestrationResult<()> {
+    pub async fn cleanup_port_if_needed(
+        &self,
+        port: u16,
+        agent_name: &AgentName,
+    ) -> OrchestrationResult<()> {
         if !process::is_port_in_use(port) {
             return Ok(());
         }
 
-        match find_process_using_port(port) {
-            Ok(Some(pid)) => match is_agent_process(pid) {
-                Ok(true) => {
-                    tracing::warn!(port = %port, pid = %pid, "Port occupied by orphaned agent process");
-                    self.kill_process_on_port(port).await?;
-                },
-                Ok(false) => {
-                    let info = get_process_info(pid)
-                        .map_err(|e| {
-                            tracing::trace!(pid = %pid, error = %e, "Failed to get process info for error message");
-                            e
-                        })
-                        .ok()
-                        .flatten()
-                        .map_or_else(|| "unknown".to_owned(), |i| i.command);
-
-                    return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                        "Port {} is in use by non-agent process (PID {}): {}\nPlease stop the \
-                         process manually or choose a different port.",
-                        port, pid, info
-                    )));
-                },
-                Err(e) => {
-                    return Err(OrchestrationError::spawn(
-                        format!("Port {port} is in use but failed to identify process (PID {pid})"),
-                        e,
-                    ));
-                },
-            },
-            Ok(None) => {
-                return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                    "Port {} appears to be in use but process cannot be identified",
-                    port
-                )));
-            },
-            Err(e) => {
-                return Err(OrchestrationError::spawn(
-                    format!("Failed to check port {port}"),
-                    e,
-                ));
-            },
-        }
-
-        Ok(())
-    }
-
-    pub async fn cleanup_agent_ports(&self, ports: &[u16]) -> OrchestrationResult<u32> {
-        let mut cleaned = 0;
-
-        for &port in ports {
-            if process::is_port_in_use(port) {
-                self.cleanup_port_if_needed(port).await?;
-                cleaned += 1;
-            }
-        }
-
-        if cleaned > 0 {
-            tracing::info!(cleaned = %cleaned, "Cleaned up ports");
-        }
-
-        Ok(cleaned)
-    }
-
-    pub fn verify_all_ports_available(ports: &[u16]) -> OrchestrationResult<()> {
-        let mut blocked_ports = Vec::new();
-
-        for &port in ports {
-            if process::is_port_in_use(port)
-                && let Ok(Some(pid)) = find_process_using_port(port)
-            {
-                blocked_ports.push((port, pid));
-            }
-        }
-
-        if !blocked_ports.is_empty() {
-            let port_info: Vec<String> = blocked_ports
-                .iter()
-                .map(|(port, pid)| {
-                    let info = get_process_info(*pid)
-                        .map_err(|e| {
-                            tracing::trace!(pid = %pid, error = %e, "Failed to get process info for port status");
-                            e
-                        })
-                        .ok()
-                        .flatten()
-                        .map_or_else(|| "unknown".to_owned(), |i| i.command);
-                    format!("  • Port {} - PID {} ({})", port, pid, info)
-                })
-                .collect();
-
+        let service = ServiceName::of_agent(agent_name);
+        let holders = subprocess::pids_listening_on(port).await?;
+        if holders.is_empty() {
             return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                "The following ports are still in use:\n{}",
-                port_info.join("\n")
+                "Port {port} is in use but no listening process can be identified"
             )));
         }
+        for holder in holders {
+            if !subprocess::owns(holder, ChildKind::Agent, &service).await {
+                return Err(OrchestrationError::PortHeldByForeignProcess {
+                    port,
+                    pid: holder,
+                    agent: agent_name.clone(),
+                });
+            }
+            tracing::warn!(pid = holder, port, agent = %agent_name, "Stopping stale agent process holding its port");
+            match subprocess::stop_owned(holder, ChildKind::Agent, &service, STOP_GRACE).await? {
+                StopOutcome::NotRunning | StopOutcome::Stopped(_) => {},
+                StopOutcome::NotOurs => {
+                    return Err(OrchestrationError::PortHeldByForeignProcess {
+                        port,
+                        pid: holder,
+                        agent: agent_name.clone(),
+                    });
+                },
+            }
+        }
 
+        self.wait_for_port_available(port, PORT_RELEASE_TIMEOUT_SECS)
+            .await?;
+        tracing::debug!(port, "Port is now available");
         Ok(())
     }
 }

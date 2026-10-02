@@ -1,6 +1,7 @@
 //! DB-backed smoke tests for [`LifecycleService`] accessors and
 //! shutdown / health-check on missing services (no real spawn).
 
+use crate::harness::unique_instance;
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
@@ -36,10 +37,7 @@ async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
+        systemprompt_database::ServiceRepository::new(&db, unique_instance()),
         Arc::clone(&app_paths),
         registry,
     );

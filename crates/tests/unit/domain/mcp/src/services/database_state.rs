@@ -1,5 +1,6 @@
 //! DB-backed tests for `services::database::state` helpers.
 
+use crate::harness::unique_instance;
 use std::path::PathBuf;
 use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::database::state::{
@@ -22,10 +23,7 @@ fn get_binary_mtime_existing_file_returns_some() {
 #[tokio::test]
 async fn get_service_by_name_missing_returns_none() {
     let db = test_db_pool().await;
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let svc_repo = ServiceRepository::new(&db, unique_instance());
     let r = get_service_by_name(
         &svc_repo,
         &systemprompt_identifiers::ServiceName::new(format!(
@@ -41,10 +39,7 @@ async fn get_service_by_name_missing_returns_none() {
 #[tokio::test]
 async fn unregister_service_missing_no_panic() {
     let db = test_db_pool().await;
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let svc_repo = ServiceRepository::new(&db, unique_instance());
     unregister_service(
         &svc_repo,
         &systemprompt_identifiers::ServiceName::new(format!(

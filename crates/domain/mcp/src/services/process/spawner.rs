@@ -17,6 +17,7 @@ use std::path::Path;
 use std::process::Command;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_loader::subprocess::{self, ChildKind};
 use systemprompt_models::{Config, Secrets};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
@@ -47,15 +48,7 @@ pub fn build_environment(
         "SYSTEMPROMPT_PROFILE".to_owned(),
         spec.profile_path.to_owned(),
     ));
-    env.push((
-        systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV.to_owned(),
-        "1".to_owned(),
-    ));
     env.push(("DATABASE_TYPE".to_owned(), spec.database_type.to_owned()));
-    env.push((
-        systemprompt_models::subprocess::MCP_SERVICE_ID_ENV.to_owned(),
-        spec.config.name.clone(),
-    ));
     env.push(("MCP_PORT".to_owned(), spec.port.to_string()));
     env.push((
         "MCP_TOOLS_CONFIG".to_owned(),
@@ -189,14 +182,15 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         },
         secrets,
     );
+    subprocess::mark_child(&mut child_command, ChildKind::Mcp, &config.service_name());
 
     child_command
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
-    systemprompt_loader::subprocess::place_in_own_process_group(&mut child_command);
+    subprocess::place_in_own_process_group(&mut child_command);
 
-    let pid = systemprompt_loader::subprocess::spawn_supervised(child_command).map_err(|e| {
+    let pid = subprocess::spawn_supervised(child_command).map_err(|e| {
         crate::error::McpDomainError::operation(
             format!("Failed to start detached {}", config.name),
             e,

@@ -2,6 +2,7 @@
 //! port answers the scripted MCP handshake routes traffic, appears in the
 //! routable list, and a responsive-but-non-MCP port is downgraded to `error`.
 
+use crate::harness::unique_instance;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::monitoring::proxy_health::ProxyHealthCheck;
@@ -17,10 +18,7 @@ async fn can_route_traffic_true_for_running_service_with_live_mcp_endpoint() {
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let port = mock.address().port();
 
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(&db, unique_instance());
     let name = format!("ph-live-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     repo.create_service(CreateServiceInput {
@@ -33,10 +31,7 @@ async fn can_route_traffic_true_for_running_service_with_live_mcp_endpoint() {
     .await
     .unwrap();
 
-    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    ));
+    let p = ProxyHealthCheck::new(repo.clone());
     let routable = p.can_route_traffic(&name_id, port).await.unwrap();
     let status = repo
         .find_service_by_name(&name_id)
@@ -60,10 +55,7 @@ async fn can_route_traffic_responsive_non_mcp_port_marks_service_error() {
     let mock = MockServer::start().await;
     let port = mock.address().port();
 
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(&db, unique_instance());
     let name = format!("ph-err-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     repo.create_service(CreateServiceInput {
@@ -76,10 +68,7 @@ async fn can_route_traffic_responsive_non_mcp_port_marks_service_error() {
     .await
     .unwrap();
 
-    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    ));
+    let p = ProxyHealthCheck::new(repo.clone());
     let routable = p.can_route_traffic(&name_id, port).await.unwrap();
     let status = repo
         .find_service_by_name(&name_id)
@@ -107,10 +96,7 @@ async fn list_routable_services_includes_service_with_responsive_port() {
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let port = mock.address().port();
 
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(&db, unique_instance());
     let name = format!("ph-ok-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     repo.create_service(CreateServiceInput {
@@ -123,10 +109,7 @@ async fn list_routable_services_includes_service_with_responsive_port() {
     .await
     .unwrap();
 
-    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    ));
+    let p = ProxyHealthCheck::new(repo.clone());
     let routable = p.list_routable_services().await.unwrap();
     repo.delete_service(&name_id).await.unwrap();
 

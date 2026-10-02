@@ -8,8 +8,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::repository::agent_service::AgentServiceRepository;
+use crate::services::agent_orchestration::OrchestrationResult;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
-use crate::services::agent_orchestration::{OrchestrationResult, process};
 use systemprompt_identifiers::AgentName;
 
 #[derive(Debug)]
@@ -38,7 +38,7 @@ impl AgentReconciler {
         for (agent_name, status) in all_agents {
             match status {
                 crate::services::agent_orchestration::AgentStatus::Running { pid, .. } => {
-                    if !process::process_exists(pid) {
+                    if !systemprompt_loader::subprocess::is_running(pid).await {
                         tracing::warn!(
                             agent_name = %agent_name,
                             pid = %pid,
@@ -70,7 +70,7 @@ impl AgentReconciler {
         for (agent_name, status) in all_agents {
             match status {
                 crate::services::agent_orchestration::AgentStatus::Running { pid, .. } => {
-                    if process::process_exists(pid) {
+                    if systemprompt_loader::subprocess::is_running(pid).await {
                         report.consistent_running.push(agent_name);
                     } else {
                         report.inconsistent_running.push((agent_name, pid));

@@ -73,7 +73,7 @@ pub async fn wait_for_startup(
             tx.mcp_health_check(&config.name, attempt as u8, max_attempts as u8);
         }
 
-        if !ProcessService::is_running(expected_pid) {
+        if !ProcessService::is_running(expected_pid).await {
             return Err(crate::error::McpDomainError::Internal(format!(
                 "Process {expected_pid} died during startup"
             )));

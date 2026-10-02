@@ -241,27 +241,29 @@ fn coverage_spawn_invalid_executable_returns_a_detached_start_error() {
 }
 
 #[tokio::test]
-async fn spawned_server_receives_service_environment_and_verified_termination_stops_it() {
+async fn spawned_server_receives_service_environment_and_owned_stop_ends_it() {
     use std::os::unix::fs::PermissionsExt;
     use std::time::Duration;
+    use systemprompt_identifiers::ServiceName;
+    use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
     use systemprompt_mcp::services::process::ProcessService;
-    use systemprompt_mcp::services::process::utils::{kill_process, process_exists};
 
     struct OwnedPid {
         pid: Option<u32>,
-        service_name: String,
+        service_name: ServiceName,
     }
     impl Drop for OwnedPid {
         fn drop(&mut self) {
             if let Some(pid) = self.pid
-                && process_exists(pid)
-                && systemprompt_loader::subprocess::live_pid_is_subprocess(
+                && subprocess::live_pid_is_subprocess(
                     pid,
-                    systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
-                    &systemprompt_identifiers::ServiceName::new(&self.service_name),
+                    ChildKind::Mcp.marker_env(),
+                    &self.service_name,
                 )
             {
-                let _ = kill_process(pid);
+                let _ = std::process::Command::new("kill")
+                    .args(["-9", &pid.to_string()])
+                    .status();
             }
         }
     }
@@ -283,13 +285,14 @@ async fn spawned_server_receives_service_environment_and_verified_termination_st
     let mut config = make_config(&binary_name);
     config.name = format!("spawn-{unique}");
     config.port = Some(65431);
+    let service_name = config.service_name();
 
     let pid = ProcessService::spawn_server(&boot.app_paths, &config).expect("spawn fixture");
     let mut cleanup = OwnedPid {
         pid: Some(pid),
-        service_name: config.name.clone(),
+        service_name: service_name.clone(),
     };
-    assert!(process_exists(pid));
+    assert!(ProcessService::is_running(pid).await);
     for _ in 0..80 {
         if marker.exists() {
             break;
@@ -300,32 +303,24 @@ async fn spawned_server_receives_service_environment_and_verified_termination_st
         std::fs::read_to_string(&marker).expect("child environment marker"),
         format!("1|{}|65431", config.name)
     );
-
-    ProcessService::terminate_gracefully_verified(pid, &config.service_name())
-        .await
-        .expect("verified termination");
-    let fixture_is_running = || {
-        ProcessService::is_running(pid)
-            && systemprompt_loader::subprocess::live_pid_is_subprocess(
-                pid,
-                systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
-                &systemprompt_identifiers::ServiceName::new(&config.name),
-            )
-    };
-    for _ in 0..80 {
-        if !fixture_is_running() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
     assert!(
-        !fixture_is_running(),
-        "verified graceful termination must leave no live owned fixture child; \
-         pid {pid} stat={:?} cmdline={:?} environ_readable={}",
-        std::fs::read_to_string(format!("/proc/{pid}/stat")),
-        std::fs::read(format!("/proc/{pid}/cmdline"))
-            .map(|c| String::from_utf8_lossy(&c).replace('\0', " ")),
-        std::fs::read(format!("/proc/{pid}/environ")).is_ok()
+        subprocess::owns(pid, ChildKind::Mcp, &service_name).await,
+        "spawn_server stamps the MCP marker the stop path verifies"
+    );
+    assert!(
+        !subprocess::owns(pid, ChildKind::Mcp, &ServiceName::new("another-server")).await,
+        "the marker names exactly this service"
+    );
+
+    let outcome = ProcessService::stop(pid, &service_name).await;
+
+    assert!(
+        matches!(outcome, Ok(StopOutcome::Stopped(_))),
+        "an owned spawned server is stopped: {outcome:?}"
+    );
+    assert!(
+        !ProcessService::is_running(pid).await,
+        "a stopped server leaves no live child"
     );
     cleanup.pid = None;
     std::fs::remove_file(binary).ok();

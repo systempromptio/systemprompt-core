@@ -5,12 +5,13 @@
 
 use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
+use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_models::services::ServiceStatus;
 use tracing::Instrument;
 
 use crate::McpServerConfig;
 use crate::services::database::state::get_binary_mtime_for_service;
-use crate::services::database::{DatabaseService, ServiceInfo};
+use crate::services::database::{DatabaseService, ServiceInfo, stored_pid};
 use crate::services::process::ProcessService;
 
 pub async fn detect_and_handle_orphaned_processes(
@@ -36,33 +37,35 @@ async fn kill_orphaned_process(
     database: &DatabaseService,
 ) -> McpDomainResult<bool> {
     let port = server.spawn_port()?;
-    let Some(orphaned_pid) = ProcessService::find_process_on_port_with_name(port, &server.name)?
-    else {
-        return Ok(false);
-    };
-
     let service_name = server.service_name();
-    if database.get_service_by_name(&service_name).await?.is_some() {
+    let holders = ProcessService::owned_port_holders(port, &service_name).await?;
+    if holders.is_empty() || database.get_service_by_name(&service_name).await?.is_some() {
         return Ok(false);
     }
 
-    tracing::info!(
-        service = %server.name,
-        pid = orphaned_pid,
-        port,
-        "Found orphaned process"
-    );
+    let mut stopped = false;
+    for orphaned_pid in holders {
+        tracing::info!(
+            service = %server.name,
+            pid = orphaned_pid,
+            port,
+            "Found orphaned process"
+        );
+        if let StopOutcome::Stopped(termination) =
+            ProcessService::stop(orphaned_pid, &service_name).await?
+        {
+            stopped = true;
+            tracing::info!(
+                service_name = %server.name,
+                pid = orphaned_pid,
+                port,
+                ?termination,
+                "Stopped orphaned MCP process, will restart fresh"
+            );
+        }
+    }
 
-    ProcessService::terminate_gracefully_verified(orphaned_pid, &service_name).await?;
-
-    tracing::info!(
-        service_name = %server.name,
-        pid = orphaned_pid,
-        port,
-        "Killed orphaned MCP process, will restart fresh"
-    );
-
-    Ok(true)
+    Ok(stopped)
 }
 
 pub async fn detect_and_handle_stale_binaries(
@@ -132,8 +135,9 @@ async fn kill_and_unregister(
     database: &DatabaseService,
     service_info: &ServiceInfo,
 ) -> McpDomainResult<()> {
-    if let Some(pid) = service_info.pid {
-        ProcessService::terminate_gracefully_verified(pid as u32, &service_info.name).await?;
+    if let Some(pid) = stored_pid(service_info.pid) {
+        let outcome = ProcessService::stop(pid, &service_info.name).await?;
+        tracing::debug!(service = %service_info.name, pid, ?outcome, "Stale-binary process stop");
     }
     database.unregister_service(&service_info.name).await
 }
