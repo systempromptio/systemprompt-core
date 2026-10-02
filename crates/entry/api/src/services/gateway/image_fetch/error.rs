@@ -102,7 +102,7 @@ impl From<&GuardedConnectError> for GuardedRejection {
                 Self::RedirectRefused { url: url.clone() }
             },
             GuardedConnectError::TooManyRedirects(limit) => Self::TooManyRedirects(*limit),
-            GuardedConnectError::Unresolvable(host) => Self::Unresolvable(host.clone()),
+            GuardedConnectError::Unresolvable { host, .. } => Self::Unresolvable(host.clone()),
             GuardedConnectError::BlockedAddress { host, addr } => Self::BlockedAddress {
                 host: host.clone(),
                 addr: *addr,

@@ -21,6 +21,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Uri};
 use axum::response::IntoResponse;
 use std::sync::Arc;
+use systemprompt_traits::RepositoryError;
 
 use super::config::StaticContentMatcher;
 use cache::serve_cached_file;
@@ -196,6 +197,6 @@ async fn serve_content_page(
     {
         Ok(Some(_)) => not_prerendered_response(req.path, req.slug),
         Ok(None) => not_found_response(req.dist_dir, req.headers).await,
-        Err(e) => ApiHttpError::from(e).into_response(),
+        Err(e) => ApiHttpError::from(RepositoryError::from(e)).into_response(),
     }
 }
