@@ -14,6 +14,9 @@ description = "Unified CLI for systemprompt.io AI governance: agent orchestratio
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lints]
 workspace = true
 
