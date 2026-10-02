@@ -71,15 +71,6 @@ async fn install_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn remove_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
-    let pg = pool.pool();
-    sqlx::query("DELETE FROM ai_gateway_policies WHERE name = $1")
-        .bind(name)
-        .execute(pg.as_ref())
-        .await?;
-    Ok(())
-}
-
 async fn settled_categories(
     repos: &GatewayRepositories,
     pool: &DbPool,
@@ -104,7 +95,9 @@ async fn settled_categories(
 #[tokio::test]
 async fn a_failing_scanner_blocks_the_request_under_an_enforcing_policy() -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("gw_scan_fail").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(
         &pool,
         &format!("gw-scan-fail-{}@example.invalid", Uuid::new_v4().simple()),
@@ -130,7 +123,7 @@ async fn a_failing_scanner_blocks_the_request_under_an_enforcing_policy() -> any
     let repos = gw_repos(&pool);
     let outcome = GatewayService::dispatch(&config, &registry, &pool, &repos, di).await;
     let categories = settled_categories(&repos, &pool, &request_id).await;
-    remove_policy(&pool, &policy_name).await?;
+    database.drop_now().await;
 
     match outcome.expect_err("a failed scan must not be treated as clean") {
         DispatchError::Recorded(inner) => {

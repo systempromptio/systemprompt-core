@@ -917,15 +917,6 @@ async fn install_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> 
     Ok(())
 }
 
-async fn remove_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
-    let pg = pool.pool();
-    sqlx::query("DELETE FROM ai_gateway_policies WHERE name = $1")
-        .bind(name)
-        .execute(pg.as_ref())
-        .await?;
-    Ok(())
-}
-
 async fn settled_findings(
     repos: &GatewayRepositories,
     pool: &DbPool,
@@ -951,7 +942,10 @@ async fn settled_findings(
 #[tokio::test]
 async fn buffered_dispatch_persists_request_and_response_safety_findings() -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database =
+        systemprompt_test_fixtures::DisposableDb::with_schema("gw_safety_findings").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-safety@example.invalid").await?;
     let policy_name = format!("gw-safety-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
@@ -992,7 +986,7 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
     assert_eq!(resp.status(), http::StatusCode::OK);
 
     let findings = settled_findings(&repos, &pool, &request_id).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    database.drop_now().await;
     assert!(
         findings
             .iter()
@@ -1025,7 +1019,9 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
 async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -> anyhow::Result<()>
 {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("gw_safety_noflag").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-noflag@example.invalid").await?;
     let policy_name = format!("gw-noflag-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
@@ -1072,7 +1068,7 @@ async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -
     assert_eq!(resp.status(), http::StatusCode::OK);
 
     let findings = settled_findings(&repos, &pool, &request_id).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    database.drop_now().await;
 
     assert!(
         findings
@@ -1099,7 +1095,9 @@ async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -
 async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -> anyhow::Result<()>
 {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("gw_safety_block").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-safety-block@example.invalid").await?;
     let policy_name = format!("gw-block-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
@@ -1123,7 +1121,7 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
         .await
         .expect_err("blocked category must reject the dispatch");
     let findings = settled_findings(&repos, &pool, &request_id).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    database.drop_now().await;
 
     match err {
         DispatchError::Recorded(inner) => {
@@ -1146,9 +1144,9 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
 }
 
 // Why: the gateway merges every global `ai_gateway_policies` row by
-// `(priority, name)`, so a response-policy test on the shared shard database
-// is overridden by whatever policy a concurrent test installed last; the tests
-// that assert on the resolved response policy own a disposable database.
+// `(priority, name)`, so a policy installed on the shared shard database is
+// applied to every concurrent dispatch; every test that installs a policy owns
+// a disposable database.
 async fn install_response_block_policy(
     pool: &DbPool,
     name: &str,
@@ -1278,7 +1276,10 @@ async fn the_same_response_is_served_intact_when_no_category_blocks() -> anyhow:
 #[tokio::test]
 async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database =
+        systemprompt_test_fixtures::DisposableDb::with_schema("gw_response_stream").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-resp-stream@example.invalid").await?;
     let policy_name = format!("gw-resp-stream-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &["jailbreak"]).await?;
@@ -1310,7 +1311,7 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
     let body = String::from_utf8_lossy(&bytes).into_owned();
     let findings = settled_findings(&repos, &pool, &request_id).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    database.drop_now().await;
 
     assert!(
         body.contains("developer mode enabled"),
