@@ -5,6 +5,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ExtensionId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionValidationOutput {
@@ -16,14 +17,14 @@ pub struct ExtensionValidationOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidationError {
-    pub extension_id: Option<String>,
+    pub extension_id: Option<ExtensionId>,
     pub error_type: String,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidationWarning {
-    pub extension_id: Option<String>,
+    pub extension_id: Option<ExtensionId>,
     pub warning_type: String,
     pub message: String,
 }

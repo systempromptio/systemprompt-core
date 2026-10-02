@@ -98,11 +98,19 @@ fn config_lists_all_and_shows_single() {
     assert!(json.is_object());
 
     let id = first_extension_id();
-    config::execute(&config::ConfigArgs { id: Some(id) }, &cfg()).unwrap();
+    config::execute(
+        &config::ConfigArgs {
+            id: Some(systemprompt_identifiers::ExtensionId::new(id)),
+        },
+        &cfg(),
+    )
+    .unwrap();
 
     let err = config::execute(
         &config::ConfigArgs {
-            id: Some("no-such-extension".to_owned()),
+            id: Some(systemprompt_identifiers::ExtensionId::new(
+                "no-such-extension",
+            )),
         },
         &cfg(),
     )

@@ -9,6 +9,7 @@ use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_models::Config;
 use systemprompt_runtime::DatabaseContext;
@@ -21,7 +22,7 @@ use super::types::MigrateMarkAppliedOutput;
 
 #[derive(Clone, Copy)]
 pub(super) struct MarkAppliedArgs<'a> {
-    pub extension: &'a str,
+    pub extension: &'a ExtensionId,
     pub version: u32,
     pub json: bool,
 }
@@ -86,7 +87,7 @@ async fn run_mark_applied(
     let outcome = migration_service
         .mark_applied(ext.as_ref(), version)
         .await
-        .map_err(|e| anyhow!("Failed to mark migration as applied: {}", e))?;
+        .context("Failed to mark migration as applied")?;
 
     let message = format!(
         "Recorded {} v{:03} '{}' as applied (checksum {})",
@@ -97,7 +98,7 @@ async fn run_mark_applied(
     );
 
     let output = MigrateMarkAppliedOutput {
-        extension_id: outcome.extension_id,
+        extension_id: ExtensionId::new(outcome.extension_id),
         version: outcome.version,
         name: outcome.name,
         checksum: outcome.checksum,

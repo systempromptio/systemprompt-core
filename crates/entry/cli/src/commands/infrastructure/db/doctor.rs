@@ -17,6 +17,7 @@ use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::services::schema_linter::created_table_names;
 use systemprompt_database::{DbPool, SchemaResidue, audit_schema_residue};
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
@@ -32,7 +33,7 @@ struct DoctorReport {
 
 #[derive(Debug, Serialize)]
 struct MissingColumn {
-    extension: String,
+    extension: ExtensionId,
     table: String,
     column: String,
 }
@@ -42,10 +43,10 @@ pub(super) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Resu
     let write_provider = db_pool.write();
 
     let mut declared_columns: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut owner: BTreeMap<String, String> = BTreeMap::new();
+    let mut owner: BTreeMap<String, ExtensionId> = BTreeMap::new();
 
     for ext in registry.schema_extensions() {
-        let ext_id = ext.id().to_owned();
+        let ext_id = ExtensionId::new(ext.id());
         for schema in ext.schemas() {
             let Some(table) = schema.table else {
                 continue;
@@ -85,12 +86,11 @@ pub(super) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Resu
         .cloned()
         .collect();
 
-    let mut missing_columns: Vec<(String, String, String)> = Vec::new();
+    let mut missing_columns: Vec<(ExtensionId, String, String)> = Vec::new();
     for (table, required) in &declared_columns {
-        let Some(live_cols) = live_columns.get(table) else {
+        let (Some(live_cols), Some(owner_id)) = (live_columns.get(table), owner.get(table)) else {
             continue;
         };
-        let owner_id = owner.get(table).cloned().unwrap_or_else(String::new);
         for col in required {
             if !live_cols.contains(col) {
                 missing_columns.push((owner_id.clone(), table.clone(), col.clone()));
@@ -121,7 +121,7 @@ fn render(
     undeclared: &[String],
     residue: &SchemaResidue,
     missing_tables: &[String],
-    missing_columns: &[(String, String, String)],
+    missing_columns: &[(ExtensionId, String, String)],
 ) {
     let orphan_ledgers: Vec<String> = residue
         .orphan_migration_ledgers

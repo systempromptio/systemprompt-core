@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::Args;
+use systemprompt_identifiers::ExtensionId;
 
 use super::discover_registry;
 use super::types::{ExtensionValidationOutput, ValidationError, ValidationWarning};
@@ -37,7 +38,7 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> (CommandOutput, bool
         for dep in ext.dependencies() {
             if !registry.has(dep) {
                 errors.push(ValidationError {
-                    extension_id: Some(ext.id().to_owned()),
+                    extension_id: Some(ExtensionId::new(ext.id())),
                     error_type: "missing_dependency".to_owned(),
                     message: format!("Missing dependency: {}", dep),
                 });
@@ -49,7 +50,7 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> (CommandOutput, bool
             && schema.is_null()
         {
             warnings.push(ValidationWarning {
-                extension_id: Some(ext.id().to_owned()),
+                extension_id: Some(ExtensionId::new(ext.id())),
                 warning_type: "config".to_owned(),
                 message: "Config prefix defined but schema is null".to_owned(),
             });
@@ -58,7 +59,7 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> (CommandOutput, bool
 
     for ext in registry.asset_extensions() {
         warnings.push(ValidationWarning {
-            extension_id: Some(ext.id().to_owned()),
+            extension_id: Some(ExtensionId::new(ext.id())),
             warning_type: "asset_validation_skipped".to_owned(),
             message: "Asset validation requires full profile initialization. Use 'systemprompt \
                       infra db doctor'."

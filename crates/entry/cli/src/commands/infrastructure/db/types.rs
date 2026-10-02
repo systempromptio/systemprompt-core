@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ExtensionId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbStatusOutput {
@@ -81,7 +81,7 @@ pub struct DbMigrateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbMigrateDownOutput {
-    pub extension: String,
+    pub extension: ExtensionId,
     pub migrations_reverted: usize,
     pub message: String,
 }
@@ -141,7 +141,7 @@ pub struct MigrationStatusOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtensionMigrationStatus {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub is_required: bool,
     pub total_defined: usize,
     pub total_applied: usize,
@@ -151,7 +151,7 @@ pub struct ExtensionMigrationStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationHistoryOutput {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub migrations: Vec<AppliedMigrationInfo>,
 }
 
@@ -165,7 +165,7 @@ pub struct AppliedMigrationInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingMigrationInfo {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
     pub checksum: String,
@@ -180,7 +180,7 @@ pub struct MigratePlanOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationDriftInfo {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
     pub stored_checksum: String,
@@ -189,7 +189,7 @@ pub struct MigrationDriftInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrateStatusRow {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
     pub status: String,
@@ -209,7 +209,7 @@ pub struct MigrateRepairOutput {
 /// migration — the number was reused, which repair must refuse to reconcile.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationCollisionInfo {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub stored_name: String,
     pub current_name: String,
@@ -217,7 +217,7 @@ pub struct MigrationCollisionInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrateMarkAppliedOutput {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
     pub checksum: String,

@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::Subcommand;
+use systemprompt_identifiers::ExtensionId;
 
 #[derive(Debug, Subcommand)]
 pub enum DbCommands {
@@ -59,8 +60,8 @@ pub enum DbCommands {
     },
     #[command(about = "Revert the most recently applied migrations for an extension")]
     MigrateDown {
-        #[arg(help = "Extension ID")]
-        extension: String,
+        #[arg(help = "Extension ID", value_parser = crate::shared::parse_extension_id)]
+        extension: ExtensionId,
         #[arg(help = "Number of migrations to revert")]
         count: u32,
     },
@@ -74,8 +75,11 @@ pub enum DbCommands {
         name = "migrate-plan"
     )]
     MigratePlan {
-        #[arg(help = "Filter by extension ID (default: all extensions)")]
-        extension: Option<String>,
+        #[arg(
+            help = "Filter by extension ID (default: all extensions)",
+            value_parser = crate::shared::parse_extension_id
+        )]
+        extension: Option<ExtensionId>,
         #[arg(long, help = "Emit JSON instead of a text table")]
         json: bool,
     },
@@ -84,8 +88,11 @@ pub enum DbCommands {
         name = "migrate-status"
     )]
     MigrateStatus {
-        #[arg(help = "Filter by extension ID (default: all extensions)")]
-        extension: Option<String>,
+        #[arg(
+            help = "Filter by extension ID (default: all extensions)",
+            value_parser = crate::shared::parse_extension_id
+        )]
+        extension: Option<ExtensionId>,
         #[arg(long, help = "Emit JSON instead of a text table")]
         json: bool,
     },
@@ -95,8 +102,11 @@ pub enum DbCommands {
         name = "migrate-repair"
     )]
     MigrateRepair {
-        #[arg(help = "Limit repair to a single extension (default: all extensions)")]
-        extension: Option<String>,
+        #[arg(
+            help = "Limit repair to a single extension (default: all extensions)",
+            value_parser = crate::shared::parse_extension_id
+        )]
+        extension: Option<ExtensionId>,
         #[arg(
             long,
             help = "Apply the repair: re-execute the SQL of each drifted migration and rewrite \
@@ -120,8 +130,12 @@ pub enum DbCommands {
         name = "migrate-mark-applied"
     )]
     MigrateMarkApplied {
-        #[arg(long, help = "Extension ID owning the migration")]
-        extension: String,
+        #[arg(
+            long,
+            help = "Extension ID owning the migration",
+            value_parser = crate::shared::parse_extension_id
+        )]
+        extension: ExtensionId,
         #[arg(long, help = "Migration version to mark as applied")]
         version: u32,
         #[arg(long, help = "Emit JSON instead of a text summary")]
@@ -150,7 +164,7 @@ pub enum MigrationsCommands {
     Status,
     #[command(about = "Show migration history for an extension")]
     History {
-        #[arg(help = "Extension ID")]
-        extension: String,
+        #[arg(help = "Extension ID", value_parser = crate::shared::parse_extension_id)]
+        extension: ExtensionId,
     },
 }
