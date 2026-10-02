@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::approval::{ApprovalRefusal, ElevationFailure, GatedChangeError};
 use super::elevated_protocol::{CompletedStep, ElevatedResult, PROTOCOL_VERSION};
+use crate::ids::ElevatedJobId;
 use crate::winproc::{ElevationOutcome, run_elevated};
 
 pub(crate) use self::child::{perform_elevated_write, provision_org_plugins};
@@ -73,7 +74,7 @@ impl ElevatedJob {
 struct StagedJobRef<'a> {
     version: u32,
     requester_sid: String,
-    id: uuid::Uuid,
+    id: &'a ElevatedJobId,
     job: &'a ElevatedJob,
 }
 
@@ -81,7 +82,7 @@ struct StagedJobRef<'a> {
 struct StagedJob {
     version: u32,
     requester_sid: String,
-    id: uuid::Uuid,
+    id: ElevatedJobId,
     job: ElevatedJob,
 }
 
@@ -150,11 +151,11 @@ pub(crate) fn elevate_and_run(
     let stage = tempfile::Builder::new()
         .prefix("elevated-job-")
         .tempdir_in(stage_dir)?;
-    let id = uuid::Uuid::new_v4();
+    let id = ElevatedJobId::generate();
     let body = serde_json::to_vec(&StagedJobRef {
         version: PROTOCOL_VERSION,
         requester_sid: crate::windows_acl::current_sid()?,
-        id,
+        id: &id,
         job,
     })
     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
@@ -173,14 +174,14 @@ pub(crate) fn elevate_and_run(
         ElevationOutcome::Declined => Err(ApprovalRefusal::Declined.into()),
         ElevationOutcome::Failed(message) => Err(ElevationFailure::Helper(message).into()),
         ElevationOutcome::Completed { exit_code } => {
-            verify_completed(job, id, exit_code, &result_path)
+            verify_completed(job, &id, exit_code, &result_path)
         },
     }
 }
 
 fn verify_completed(
     job: &ElevatedJob,
-    id: uuid::Uuid,
+    id: &ElevatedJobId,
     exit_code: u32,
     result_path: &Path,
 ) -> Result<ElevatedReceipt, GatedChangeError> {
