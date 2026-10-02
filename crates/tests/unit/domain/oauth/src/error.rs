@@ -211,7 +211,7 @@ fn webauthn_rs_via_service_error() -> Result<(), OauthError> {
 
 #[test]
 fn config_error_converts_into_config_variant() {
-    let err: OauthError = systemprompt_models::errors::ConfigError::NotInitialized.into();
+    let err: OauthError = systemprompt_models::errors::GlobalConfigError::NotInitialized.into();
     assert!(matches!(err, OauthError::Config(_)));
     assert!(err.to_string().contains("Config not initialized"));
 }

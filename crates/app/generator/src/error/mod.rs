@@ -107,7 +107,7 @@ pub enum PublishError {
     WebConfig(#[from] systemprompt_models::WebConfigError),
 
     #[error("Failed to load global config: {0}")]
-    GlobalConfig(#[from] systemprompt_models::errors::ConfigError),
+    GlobalConfig(#[from] systemprompt_models::errors::GlobalConfigError),
 
     #[error("{context}: {source}")]
     Content {

@@ -32,7 +32,7 @@ mod secrets;
 mod validation;
 
 pub use metadata::MetadataError;
-pub use parse::{ConfigError, ParseEnumError};
+pub use parse::{GlobalConfigError, ParseEnumError};
 pub use provider::{AiInferenceError, AiInferenceResult, McpRegistryError, McpRegistryResult};
 pub use secrets::SecretsError;
 pub use validation::ConfigValidationError;

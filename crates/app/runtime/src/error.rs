@@ -27,7 +27,7 @@ use systemprompt_files::FilesError;
 use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_mcp::McpDomainError;
-use systemprompt_models::errors::ConfigError as ModelConfigError;
+use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::OauthError;
 use systemprompt_security::authz::AuthzError;
 use systemprompt_security::keys::TokenAuthorityError;
@@ -47,7 +47,7 @@ pub enum RuntimeError {
     ProfileBootstrap(#[from] ProfileBootstrapError),
 
     #[error(transparent)]
-    Config(#[from] ModelConfigError),
+    Config(#[from] GlobalConfigError),
 
     #[error(transparent)]
     Paths(#[from] PathError),

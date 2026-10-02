@@ -15,7 +15,7 @@
 
 use std::path::PathBuf;
 
-use systemprompt_models::errors::{ConfigError as ModelConfigError, SecretsError};
+use systemprompt_models::errors::{GlobalConfigError, SecretsError};
 use systemprompt_models::profile::ProfileError;
 
 use crate::bootstrap::{ProfileBootstrapError, SecretsBootstrapError};
@@ -92,7 +92,7 @@ pub enum ConfigError {
     UnsupportedDatabaseType { db_type: String },
 
     #[error("Invalid database URL: {0}")]
-    InvalidDatabaseUrl(#[source] ModelConfigError),
+    InvalidDatabaseUrl(#[source] GlobalConfigError),
 
     #[error(
         "Profile is missing required `system_admin.username` and `SYSTEMPROMPT_SYSTEM_ADMIN` is \

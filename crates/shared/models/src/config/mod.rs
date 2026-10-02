@@ -3,7 +3,7 @@
 //! [`Config`] is the resolved, flat configuration installed once at
 //! startup into a process-wide `OnceLock` and read via [`Config::get`].
 //! Submodules cover postgres-URL validation.
-//! Accessors return [`crate::errors::ConfigError`] when not initialized.
+//! Accessors return [`crate::errors::GlobalConfigError`] when not initialized.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -160,10 +160,10 @@ impl Config {
         CONFIG.get().is_some()
     }
 
-    pub fn get() -> Result<&'static Self, crate::errors::ConfigError> {
+    pub fn get() -> Result<&'static Self, crate::errors::GlobalConfigError> {
         CONFIG
             .get()
-            .ok_or(crate::errors::ConfigError::NotInitialized)
+            .ok_or(crate::errors::GlobalConfigError::NotInitialized)
     }
 
     pub fn install(config: Self) -> Result<(), Box<Self>> {

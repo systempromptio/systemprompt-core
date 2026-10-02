@@ -35,7 +35,7 @@ pub enum TokenAuthorityError {
     FileMissing(PathBuf),
 
     #[error("config unavailable: {0}")]
-    Config(#[source] systemprompt_models::errors::ConfigError),
+    Config(#[source] systemprompt_models::errors::GlobalConfigError),
 
     #[error("signing key secret unavailable: {0}")]
     Secret(#[source] systemprompt_config::SecretsBootstrapError),

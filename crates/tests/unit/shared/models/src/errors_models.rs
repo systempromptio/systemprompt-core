@@ -1,5 +1,5 @@
 use systemprompt_models::errors::{
-    ConfigError, ConfigValidationError, MetadataError, ParseEnumError, SecretsError,
+    ConfigValidationError, GlobalConfigError, MetadataError, ParseEnumError, SecretsError,
 };
 
 #[test]
@@ -28,14 +28,14 @@ fn parse_enum_error_owns_value_string() {
 
 #[test]
 fn config_error_not_initialized_display() {
-    let e = ConfigError::NotInitialized;
+    let e = GlobalConfigError::NotInitialized;
     let s = e.to_string();
     assert!(s.contains("Config not initialized"));
 }
 
 #[test]
 fn config_error_invalid_postgres_url_display() {
-    let e = ConfigError::InvalidPostgresUrl;
+    let e = GlobalConfigError::InvalidPostgresUrl;
     let s = e.to_string();
     assert!(s.contains("PostgreSQL"));
 }

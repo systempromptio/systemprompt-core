@@ -38,7 +38,7 @@ fn config_error_unsupported_database_type() {
 #[test]
 fn config_error_invalid_database_url() {
     let e = ConfigError::InvalidDatabaseUrl(
-        systemprompt_models::errors::ConfigError::InvalidPostgresUrl,
+        systemprompt_models::errors::GlobalConfigError::InvalidPostgresUrl,
     );
     let msg = format!("{e}");
     assert!(msg.starts_with("Invalid database URL: "), "got: {msg}");

@@ -23,7 +23,7 @@ use http::header;
 use http::request::Parts;
 use systemprompt_models::Config;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::errors::ConfigError;
+use systemprompt_models::errors::GlobalConfigError;
 
 #[derive(Debug, Clone)]
 pub struct RequestBaseUrl {
@@ -114,7 +114,7 @@ fn build_from_host(raw_host: &str, configured: &url::Url) -> Result<RequestBaseU
 #[derive(Debug, thiserror::Error)]
 pub enum RequestBaseUrlError {
     #[error("configuration unavailable")]
-    Config(#[from] ConfigError),
+    Config(#[from] GlobalConfigError),
     #[error("api_external_url {url:?} is not a valid URL")]
     InvalidExternalUrl {
         url: String,

@@ -15,7 +15,7 @@ pub mod validation;
 pub use handler::handle_token;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_models::errors::ConfigError;
+use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::OauthError;
 use systemprompt_oauth::services::validation::id_jag::IdJagError;
 use systemprompt_traits::BoxedSource;
@@ -150,8 +150,8 @@ impl TokenError {
     }
 }
 
-impl From<ConfigError> for TokenError {
-    fn from(error: ConfigError) -> Self {
+impl From<GlobalConfigError> for TokenError {
+    fn from(error: GlobalConfigError) -> Self {
         Self::server("Configuration unavailable", error)
     }
 }

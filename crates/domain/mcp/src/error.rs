@@ -116,7 +116,7 @@ domain_error! {
         },
 
         #[error("Configuration: {0}")]
-        Config(#[from] systemprompt_models::errors::ConfigError),
+        Config(#[from] systemprompt_models::errors::GlobalConfigError),
 
         #[error("services config: {0}")]
         ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),

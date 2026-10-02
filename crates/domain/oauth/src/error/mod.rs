@@ -110,7 +110,7 @@ pub enum OauthError {
     Unauthorized(String),
 
     #[error("config error: {0}")]
-    Config(#[from] systemprompt_models::errors::ConfigError),
+    Config(#[from] systemprompt_models::errors::GlobalConfigError),
 
     #[error("secrets unavailable: {0}")]
     Secrets(#[from] systemprompt_config::SecretsBootstrapError),

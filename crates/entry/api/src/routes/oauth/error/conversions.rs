@@ -6,14 +6,14 @@
 
 use systemprompt_config::SecretsBootstrapError;
 use systemprompt_identifiers::error::IdValidationError;
-use systemprompt_models::errors::ConfigError;
+use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
 use systemprompt_traits::auth::AuthProviderError;
 
 use super::OAuthHttpError;
 
-impl From<ConfigError> for OAuthHttpError {
-    fn from(err: ConfigError) -> Self {
+impl From<GlobalConfigError> for OAuthHttpError {
+    fn from(err: GlobalConfigError) -> Self {
         Self::server_error("Configuration unavailable").with_source(err)
     }
 }

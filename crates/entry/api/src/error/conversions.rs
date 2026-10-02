@@ -15,7 +15,7 @@ use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_marketplace::MarketplaceError;
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::errors::ConfigError;
+use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
@@ -51,8 +51,8 @@ impl From<SecretsBootstrapError> for ApiHttpError {
     }
 }
 
-impl From<ConfigError> for ApiHttpError {
-    fn from(err: ConfigError) -> Self {
+impl From<GlobalConfigError> for ApiHttpError {
+    fn from(err: GlobalConfigError) -> Self {
         Self(ApiError::internal("Configuration not ready", err))
     }
 }
