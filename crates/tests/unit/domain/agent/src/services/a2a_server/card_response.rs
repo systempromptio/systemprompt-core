@@ -91,7 +91,9 @@ async fn card_assembly_failure_returns_internal_error() {
 async fn registry_failure_returns_internal_error() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let response = agent_card_response(
-        Err(AgentError::Config("injected registry failure".to_owned())),
+        Err(AgentError::Io(std::io::Error::other(
+            "injected registry failure",
+        ))),
         &AgentName::new("card_seam_agent"),
         "http://cards.invalid",
     )

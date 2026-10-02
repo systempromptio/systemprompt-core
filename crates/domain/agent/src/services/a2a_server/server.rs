@@ -45,9 +45,7 @@ fn cors_layer(origins: &[String]) -> Result<CorsLayer, crate::error::AgentError>
         allowed.push(value);
     }
     if allowed.is_empty() {
-        return Err(crate::error::AgentError::Config(
-            "cors_allowed_origins must contain at least one valid origin".to_owned(),
-        ));
+        return Err(crate::error::AgentError::EmptyCorsAllowlist);
     }
     Ok(CorsLayer::new()
         .allow_origin(AllowOrigin::list(allowed))

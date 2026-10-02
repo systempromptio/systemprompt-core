@@ -174,7 +174,9 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
             request_id: RequestId::Number(12),
             context,
         },
-        Err(AgentError::Config("injected registry failure".to_owned())),
+        Err(AgentError::Io(std::io::Error::other(
+            "injected registry failure",
+        ))),
     )
     .await
     .map_err(|_| ())

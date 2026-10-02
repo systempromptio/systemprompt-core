@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{McpToolName, TaskId};
 use systemprompt_models::StepId;
 use systemprompt_traits::{BoxedSource, MetadataValidationError, RepositoryError};
 use thiserror::Error;
@@ -28,8 +28,14 @@ pub enum ArtifactError {
     #[error("Metadata validation error: {0}")]
     MetadataValidation(#[from] MetadataValidationError),
 
-    #[error("Transform error: {0}")]
-    Transform(String),
+    #[error(
+        "tool {tool_name} declares no x-artifact-type; add x-artifact-type to the tool output or \
+         its output schema"
+    )]
+    MissingArtifactType { tool_name: McpToolName },
+
+    #[error("artifact must be a JSON object, found {found}")]
+    ArtifactNotObject { found: &'static str },
 }
 
 /// The execution-step row(s) a failed write was addressing: one step, or
@@ -64,8 +70,8 @@ pub enum AgentError {
         source: RepositoryError,
     },
 
-    #[error("config: {0}")]
-    Config(String),
+    #[error("config: cors_allowed_origins must contain at least one valid origin")]
+    EmptyCorsAllowlist,
 
     #[error("config: {context}: {source}")]
     InvalidConfig {
@@ -79,9 +85,6 @@ pub enum AgentError {
 
     #[error("agent not found: {0}")]
     NotFound(String),
-
-    #[error("validation: {0}")]
-    Validation(String),
 
     #[error("No available ports in range {min}-{max}")]
     NoAvailablePort { min: u16, max: u16 },

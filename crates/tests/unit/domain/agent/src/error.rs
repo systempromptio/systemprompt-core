@@ -19,10 +19,15 @@ fn test_artifact_error_missing_field_display() {
 }
 
 #[test]
-fn test_artifact_error_transform_display() {
-    let error = ArtifactError::Transform("Failed to convert format".to_string());
-    assert!(error.to_string().contains("Transform error"));
-    assert!(error.to_string().contains("Failed to convert format"));
+fn test_artifact_error_missing_type_names_the_tool() {
+    let error = ArtifactError::MissingArtifactType {
+        tool_name: systemprompt_identifiers::McpToolName::new("search"),
+    };
+    assert!(
+        error
+            .to_string()
+            .contains("tool search declares no x-artifact-type")
+    );
 }
 
 #[test]
@@ -35,7 +40,7 @@ fn test_artifact_error_metadata_validation_keeps_the_cause() {
 
 #[test]
 fn test_agent_error_artifact_display() {
-    let artifact_error = ArtifactError::Transform("bad".to_string());
+    let artifact_error = ArtifactError::ArtifactNotObject { found: "an array" };
     let agent_error: AgentError = artifact_error.into();
     assert!(matches!(agent_error, AgentError::Artifact(_)));
     assert!(agent_error.to_string().contains("Artifact error"));
