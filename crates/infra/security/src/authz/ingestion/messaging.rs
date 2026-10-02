@@ -14,6 +14,7 @@ use std::collections::{BTreeSet, HashMap};
 use systemprompt_models::services::{SlackAppConfig, TeamsAppConfig};
 
 use super::super::error::AuthzResult;
+use super::super::repository::ingestion::IngestionRepository;
 use super::super::types::{EntityKind, RuleType};
 use super::subjects::{SubjectMention, find_unknown_subjects};
 use super::upsert::{Target, upsert_entity_row, upsert_target};
@@ -76,21 +77,14 @@ impl AccessControlIngestionService {
             .collect();
 
         if options.delete_orphans && !ingested_ids.is_empty() {
-            let res = sqlx::query!(
-                r#"
-                DELETE FROM access_control_rules
-                WHERE rule_type = 'role'
-                  AND entity_type = $1
-                  AND source = $3
-                  AND entity_id = ANY($2::text[])
-                "#,
-                kind.as_str(),
+            let deleted = IngestionRepository::delete_app_role_rules(
+                &mut tx,
+                kind,
                 &ingested_ids,
-                options.source,
+                &options.source,
             )
-            .execute(&mut *tx)
             .await?;
-            report.deleted = res.rows_affected() as usize;
+            report.deleted = deleted as usize;
         }
 
         let mut mentions = BTreeSet::new();
