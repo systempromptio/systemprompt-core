@@ -22,6 +22,7 @@ use systemprompt_traits::SessionProvider;
 use uuid::Uuid;
 
 use super::{RequestMeta, SessionMiddleware, attest_session, lifecycle};
+use crate::error::ApiHttpError;
 
 const SESSION_ESTABLISH_TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -96,7 +97,7 @@ impl SessionMiddleware {
             .session_creation_service
             .ensure_anonymous_user(meta.analytics)
             .await
-            .map_err(|e| ApiError::internal("Failed to ensure anonymous user", e))?;
+            .map_err(|e| ApiHttpError::from(e).into_inner())?;
 
         let session_id = SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
