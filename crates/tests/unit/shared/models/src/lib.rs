@@ -45,6 +45,12 @@ mod artifacts_media;
 mod ai_tool_call;
 
 #[cfg(test)]
+mod ai_tool_result_formatter;
+
+#[cfg(test)]
+mod ai_tool_result_formatter_extended;
+
+#[cfg(test)]
 mod message_artifact;
 
 #[cfg(test)]

@@ -12,7 +12,7 @@
 use crate::models::ai::{AiMessage, AiResponse, MessageRole, SamplingParams};
 use crate::models::tools::{CallToolResult, ToolCall};
 use crate::services::providers::{AiProvider, GenerationParams, ToolResultsParams};
-use crate::services::tooled::ToolResultFormatter;
+use systemprompt_models::ToolResultFormatter;
 use tracing::{info, warn};
 
 #[derive(Debug)]

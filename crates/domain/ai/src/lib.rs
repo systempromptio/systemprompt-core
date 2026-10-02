@@ -99,7 +99,6 @@ pub use repository::{
     UpsertPayloadParams,
 };
 
-pub use services::tooled::ToolResultFormatter;
 pub use services::upstream::{UpstreamCall, UpstreamDialect, UpstreamTarget, UpstreamTargetError};
 
 pub use systemprompt_models::ai::{AiProvider, DynAiProvider};
