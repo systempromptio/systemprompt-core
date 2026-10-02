@@ -102,11 +102,11 @@ async fn replica_probe_rejects_missing_or_untyped_recovery_state() {
         (ResultProvider::new(Vec::new()), "returned no row"),
         (
             ResultProvider::new(vec![row(&[("lag_secs", json!(2.5))])]),
-            "lacks in_recovery",
+            "returned no boolean",
         ),
         (
             ResultProvider::new(vec![row(&[("in_recovery", json!("false"))])]),
-            "lacks in_recovery",
+            "returned no boolean",
         ),
     ] {
         let error = replica_status(&provider)
