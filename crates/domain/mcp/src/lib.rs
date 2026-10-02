@@ -99,8 +99,7 @@ pub use services::tool_provider::McpToolProvider;
 pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator, McpRestartOutcome};
 
 pub use systemprompt_models::mcp::{
-    DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,
-    McpRegistry, McpServerState,
+    DynMcpDeploymentProvider, DynMcpRegistry, McpDeploymentProvider, McpRegistry, McpServerState,
 };
 
 pub fn mcp_protocol_version() -> String {

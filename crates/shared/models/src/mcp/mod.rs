@@ -38,8 +38,7 @@ pub use deployment::{
 pub use execution_source::{Correlation, ExecutionSource};
 pub use registry::RegistryConfig;
 pub use registry_trait::{
-    DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,
-    McpRegistry, McpServerState, McpToolProvider,
+    DynMcpDeploymentProvider, DynMcpRegistry, McpDeploymentProvider, McpRegistry, McpServerState,
 };
 pub use server::{McpAuthState, McpServerConfig};
 pub use tool_result_metadata::McpToolResultMetadata;

@@ -30,7 +30,6 @@ systemprompt-mcp = "0.62"
 |-------|----------------|----------|
 | `ToolProvider` | `McpToolProvider` | `services/tool_provider/mod.rs` |
 | `McpRegistry` | `RegistryManager` | `services/registry/trait_impl.rs` |
-| `McpToolProvider` | `RegistryManager` | `services/registry/trait_impl.rs` |
 | `McpDeploymentProvider` | `McpDeploymentProviderImpl` | `services/registry/trait_impl.rs` |
 | `Extension` | `McpExtension` | `extension.rs` |
 
@@ -46,7 +45,7 @@ systemprompt-mcp = "0.62"
 | `services/network/` | Port allocation, HTTP proxy, and router/CORS routing. |
 | `services/orchestrator/` | `McpOrchestrator`: daemon, event bus, reconciliation, schema sync, and event handlers. |
 | `services/process/` | Subprocess spawning, PID tracking, monitoring, and cleanup. |
-| `services/registry/` | `RegistryManager` and the `McpRegistry`/`McpToolProvider`/`McpDeploymentProvider` trait impls. |
+| `services/registry/` | `RegistryManager` and the `McpRegistry`/`McpDeploymentProvider` trait impls. |
 | `services/schema/` | Schema loading and validation. |
 | `services/tool_provider/` | `McpToolProvider` implementation and tool-invocation context. |
 | `services/ui_renderer/` | MCP Apps UI rendering with a CSP policy builder. |
