@@ -2,7 +2,7 @@
 //! traits.
 //!
 //! [`AnalyticsProvider`], [`FingerprintProvider`] and [`SessionUsageCounters`]
-//! are held as `Arc<dyn _>` (see the `Dyn*` aliases) by the runtime context
+//! are held as `Arc<dyn _>` by the runtime context
 //! and by domain services, so they use `#[async_trait]`; native `async fn`
 //! in traits is not `dyn`-compatible.
 //!
@@ -217,10 +217,4 @@ pub trait FingerprintProvider: Send + Sync {
     ) -> AnalyticsResult<()>;
 }
 
-pub type DynAnalyticsProvider = Arc<dyn AnalyticsProvider>;
-
-pub type DynFingerprintProvider = Arc<dyn FingerprintProvider>;
-
 pub type DynSessionUsageCounters = Arc<dyn SessionUsageCounters>;
-
-pub type DynSessionProvider = Arc<dyn SessionProvider>;

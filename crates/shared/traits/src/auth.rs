@@ -117,5 +117,4 @@ pub trait RoleProvider: Send + Sync {
     async fn list_users_by_role(&self, role: &str) -> AuthResult<Vec<AuthUser>>;
 }
 
-pub type DynUserProvider = Arc<dyn UserProvider>;
 pub type DynRoleProvider = Arc<dyn RoleProvider>;

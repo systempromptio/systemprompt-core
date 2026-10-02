@@ -95,5 +95,3 @@ pub trait McpRegistryProvider: Send + Sync {
 }
 
 pub type DynAgentRegistryProvider = Arc<dyn AgentRegistryProvider>;
-
-pub type DynMcpRegistryProvider = Arc<dyn McpRegistryProvider>;

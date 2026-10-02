@@ -98,13 +98,13 @@ pub use validation::{MetadataValidation, MetadataValidationError, Validate, Vali
 
 pub use analytics::{
     ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
-    CreateSessionInput, DynAnalyticsProvider, DynFingerprintProvider, DynSessionUsageCounters,
-    ExtractSignals, FingerprintProvider, SessionAnalytics, SessionUsageCounters,
+    CreateSessionInput, DynSessionUsageCounters, ExtractSignals, FingerprintProvider,
+    SessionAnalytics, SessionUsageCounters,
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, DynRoleProvider, DynUserProvider,
-    FederatedIdentityClaims, RoleProvider, SenderIdentity, UserProvider,
+    AuthProviderError, AuthResult, AuthUser, DynRoleProvider, FederatedIdentityClaims,
+    RoleProvider, SenderIdentity, UserProvider,
 };
 
 pub use storage::{
@@ -113,15 +113,14 @@ pub use storage::{
 
 pub use ai_providers::{
     AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult, AiRequestTrace,
-    AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiRequestTrace,
-    DynAiSessionProvider, ImageGenerationInfo, ImageMetadata, ImageStorageConfig,
-    InsertAiFileParams, TraceMessage, TraceRequestStatus, TraceRequestUsage, TraceSample,
-    TraceSampleFilter, TraceSampleMode,
+    AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiSessionProvider,
+    ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams, TraceMessage,
+    TraceRequestStatus, TraceRequestUsage, TraceSample, TraceSampleFilter, TraceSampleMode,
 };
 
 pub use registry::{
-    AgentInfo, AgentRegistryProvider, DynAgentRegistryProvider, DynMcpRegistryProvider,
-    McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig,
+    AgentInfo, AgentRegistryProvider, DynAgentRegistryProvider, McpRegistryProvider, McpServerInfo,
+    RegistryError, ServiceOAuthConfig,
 };
 
 pub use extension_error::{ExtensionError, McpErrorData};
@@ -141,6 +140,6 @@ mod startup_events;
 pub use startup_events::*;
 
 pub mod session_store;
-pub use analytics::{DynSessionProvider, SessionProvider};
+pub use analytics::SessionProvider;
 pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
 pub use session_store::{DynSessionStore, SessionStore};
