@@ -4,7 +4,7 @@
 //! `get_local_database_url`, and `new_local_docker`.
 
 use systemprompt_cloud::{CloudTenantInfo, StoredTenant, TenantType};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{CloudAppId, TenantId};
 
 fn make_tenant_info(id: &str, db_url: &str) -> CloudTenantInfo {
     CloudTenantInfo {
@@ -129,7 +129,7 @@ fn update_from_tenant_info_updates_app_id() {
         name: "Name".to_string(),
         subscription_id: None,
         subscription_status: None,
-        app_id: Some("app-updated".to_string()),
+        app_id: Some(CloudAppId::new("app-updated")),
         hostname: None,
         region: None,
         plan: None,
@@ -138,7 +138,7 @@ fn update_from_tenant_info_updates_app_id() {
         database_url: "postgres://x".to_string(),
     };
     tenant.update_from_tenant_info(&info);
-    assert_eq!(tenant.app_id, Some("app-updated".to_string()));
+    assert_eq!(tenant.app_id, Some(CloudAppId::new("app-updated")));
 }
 
 #[test]

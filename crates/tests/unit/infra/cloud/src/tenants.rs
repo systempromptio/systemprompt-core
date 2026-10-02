@@ -3,7 +3,7 @@
 use chrono::{TimeDelta, Utc};
 use systemprompt_cloud::tenants::NewCloudTenantParams;
 use systemprompt_cloud::{CloudTenantInfo, StoredTenant, TenantStore, TenantType};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{CloudAppId, TenantId};
 
 #[test]
 fn test_tenant_type_default_is_local() {
@@ -78,7 +78,7 @@ fn test_stored_tenant_new_cloud() {
     let params = NewCloudTenantParams {
         id: TenantId::new("cloud-123"),
         name: "Production".to_string(),
-        app_id: Some("app-456".to_string()),
+        app_id: Some(CloudAppId::new("app-456")),
         hostname: Some("prod.systemprompt.io".to_string()),
         region: Some("iad".to_string()),
         database_url: Some("postgres://cloud/prod".to_string()),
@@ -90,7 +90,7 @@ fn test_stored_tenant_new_cloud() {
 
     assert_eq!(tenant.id.as_str(), "cloud-123");
     assert_eq!(tenant.name, "Production");
-    assert_eq!(tenant.app_id, Some("app-456".to_string()));
+    assert_eq!(tenant.app_id, Some(CloudAppId::new("app-456")));
     assert_eq!(tenant.hostname, Some("prod.systemprompt.io".to_string()));
     assert_eq!(tenant.region, Some("iad".to_string()));
     assert_eq!(tenant.tenant_type, TenantType::Cloud);
@@ -124,7 +124,7 @@ fn test_stored_tenant_from_tenant_info() {
         name: "From Info".to_string(),
         subscription_id: Some("sub-456".to_string()),
         subscription_status: None,
-        app_id: Some("app-789".to_string()),
+        app_id: Some(CloudAppId::new("app-789")),
         hostname: Some("info.systemprompt.io".to_string()),
         region: Some("lhr".to_string()),
         plan: None,
@@ -137,7 +137,7 @@ fn test_stored_tenant_from_tenant_info() {
 
     assert_eq!(tenant.id.as_str(), "info-123");
     assert_eq!(tenant.name, "From Info");
-    assert_eq!(tenant.app_id, Some("app-789".to_string()));
+    assert_eq!(tenant.app_id, Some(CloudAppId::new("app-789")));
     assert_eq!(tenant.hostname, Some("info.systemprompt.io".to_string()));
     assert_eq!(tenant.region, Some("lhr".to_string()));
     assert_eq!(tenant.tenant_type, TenantType::Cloud);
@@ -263,7 +263,7 @@ fn test_tenant_store_from_tenant_infos() {
             name: "Info 2".to_string(),
             subscription_id: None,
             subscription_status: None,
-            app_id: Some("app".to_string()),
+            app_id: Some(CloudAppId::new("app")),
             hostname: None,
             region: None,
             plan: None,
