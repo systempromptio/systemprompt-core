@@ -18,6 +18,7 @@ systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-loader = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-extension = { workspace = true }

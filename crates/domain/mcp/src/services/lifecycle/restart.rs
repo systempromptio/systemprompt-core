@@ -19,9 +19,6 @@ pub async fn restart_server(
     tracing::debug!(service = %config.name, "Stopping current instance");
     shutdown::stop_server(lifecycle, config).await?;
 
-    tracing::debug!(service = %config.name, "Waiting for clean shutdown");
-    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
     verify_clean_state(lifecycle, config).await?;
 
     tracing::debug!(service = %config.name, "Starting new instance");
@@ -38,10 +35,11 @@ async fn verify_clean_state(
     tracing::debug!(service = %config.name, "Verifying clean state");
 
     let port = config.spawn_port()?;
-    if let Some(pid) = ProcessService::find_pid_by_port(port)? {
-        return Err(crate::error::McpDomainError::Internal(format!(
-            "Port {port} still occupied by PID {pid}"
-        )));
+    if ProcessService::port_has_listener(port).await? {
+        return Err(crate::error::McpDomainError::PortUnavailable {
+            port,
+            message: format!("still held after stopping {}", config.name),
+        });
     }
 
     if let Some(service) = lifecycle

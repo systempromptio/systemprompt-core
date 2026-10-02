@@ -72,9 +72,9 @@ fn build_environment_sets_core_variables() {
     let env = env_map(build_environment(&spec(&config, root), &[], |_| None));
 
     assert_eq!(env.get("SYSTEMPROMPT_PROFILE").unwrap(), "/profiles/local");
-    assert_eq!(env.get("SYSTEMPROMPT_SUBPROCESS").unwrap(), "1");
+    assert!(!env.contains_key("SYSTEMPROMPT_SUBPROCESS"));
     assert_eq!(env.get("DATABASE_TYPE").unwrap(), "postgres");
-    assert_eq!(env.get("MCP_SERVICE_ID").unwrap(), "svc-env");
+    assert!(!env.contains_key("MCP_SERVICE_ID"));
     assert_eq!(env.get("MCP_PORT").unwrap(), "65001");
     assert_eq!(env.get("MCP_TOOLS_CONFIG").unwrap(), "{}");
     assert_eq!(env.get("MCP_SERVER_MODEL_CONFIG").unwrap(), "null");

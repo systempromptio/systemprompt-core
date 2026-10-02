@@ -10,12 +10,11 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::ServiceName;
 
+use systemprompt_loader::subprocess;
 use systemprompt_mcp::services::network::port::{cleanup_port_processes, is_port_in_use};
-use systemprompt_mcp::services::process::monitor::is_process_running;
 
-// Orphaned rather than kept as a direct child: a killed child this process has
-// not `wait`ed on lingers as a zombie and still answers `kill -0`, which would
-// make a successful reclaim look like a failure.
+// Orphaned rather than kept as a direct child, as a stale server left behind by
+// a previous run would be: init, not this test, reaps it.
 async fn spawn_owned_listener(port: u16, service_name: &str) -> Option<u32> {
     let python = format!(
         "import socket,time; s=socket.socket(); \
@@ -79,15 +78,14 @@ async fn a_port_held_by_one_of_our_own_servers_is_reclaimed_and_the_process_dies
     }
     outcome.expect("a port held by our own service must be reclaimed");
 
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while is_process_running(pid) && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(25));
+    let gone = !subprocess::is_running(pid).await;
+    if !gone {
+        kill(pid);
     }
     assert!(
-        !is_process_running(pid),
+        gone,
         "the process holding the port must actually be gone, not merely signalled"
     );
-    kill(pid);
 }
 
 // Why: cleanup runs on every start, and the overwhelmingly common case is a

@@ -38,23 +38,15 @@ async fn is_process_running(
     lifecycle: &LifecycleService,
     config: &McpServerConfig,
 ) -> McpDomainResult<bool> {
-    let Some(pid) = ProcessService::find_pid_by_port(config.spawn_port()?)? else {
-        lifecycle
-            .database()
-            .update_service_status(&config.service_name(), ServiceStatus::Stopped)
-            .await?;
-        return Ok(false);
-    };
-
-    if !ProcessService::is_running(pid) {
-        lifecycle
-            .database()
-            .update_service_status(&config.service_name(), ServiceStatus::Stopped)
-            .await?;
-        return Ok(false);
+    if ProcessService::port_has_listener(config.spawn_port()?).await? {
+        return Ok(true);
     }
 
-    Ok(true)
+    lifecycle
+        .database()
+        .update_service_status(&config.service_name(), ServiceStatus::Stopped)
+        .await?;
+    Ok(false)
 }
 
 async fn mark_service_error(

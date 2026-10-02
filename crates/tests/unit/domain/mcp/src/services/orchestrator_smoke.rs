@@ -6,6 +6,7 @@
 //! service). Lifecycle / process-spawn paths are exercised by the existing
 //! integration suite.
 
+use crate::harness::unique_instance;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{ServiceModule, ServiceRepository, ServiceStatus};
@@ -16,6 +17,10 @@ use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
 
 async fn make_orchestrator() -> McpOrchestrator {
+    make_orchestrator_and_repo().await.0
+}
+
+async fn make_orchestrator_and_repo() -> (McpOrchestrator, ServiceRepository) {
     let _ = ensure_test_bootstrap();
     let db = test_db_pool().await;
     let paths = PathsConfig {
@@ -35,11 +40,10 @@ async fn make_orchestrator() -> McpOrchestrator {
         .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let service_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
-    McpOrchestrator::new(service_repo, app_paths, registry).expect("orchestrator")
+    let service_repo = ServiceRepository::new(&db, unique_instance());
+    let orchestrator =
+        McpOrchestrator::new(service_repo.clone(), app_paths, registry).expect("orchestrator");
+    (orchestrator, service_repo)
 }
 
 #[tokio::test]
@@ -49,13 +53,8 @@ async fn orchestrator_new_succeeds() {
 
 #[tokio::test]
 async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
-    use systemprompt_database::{CreateServiceInput, ServiceRepository};
-    let o = make_orchestrator().await;
-    let db = test_db_pool().await;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    use systemprompt_database::CreateServiceInput;
+    let (o, repo) = make_orchestrator_and_repo().await;
     let name = format!("orch-run-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     repo.create_service(CreateServiceInput {

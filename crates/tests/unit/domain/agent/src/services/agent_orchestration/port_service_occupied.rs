@@ -1,18 +1,20 @@
-//! `PortService` against ports that are genuinely occupied.
+//! `PortService` against ports that are genuinely occupied while the port
+//! probe itself is broken.
 //!
-//! The existing suite drives these verbs at free ports, which returns at the
-//! guard before any of the interesting code. Everything that decides whether a
-//! port may be reclaimed — and whether the process holding it gets killed —
-//! only runs when something is actually listening, so these tests hold real
-//! ports with real processes.
+//! Whether a holder may be reclaimed rests on `lsof` naming it; a probe that
+//! is missing or answers garbage must fail closed and leave the listener
+//! untouched. The PATH is swapped per test, which is safe because nextest
+//! runs every test in its own process.
+
+#![cfg(unix)]
 
 use std::net::TcpListener;
-use std::process::Command;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use systemprompt_agent::services::agent_orchestration::port_service::{
-    PortService, find_process_using_port,
-};
+use systemprompt_agent::services::agent_orchestration::OrchestrationError;
+use systemprompt_agent::services::agent_orchestration::port_service::PortService;
+use systemprompt_identifiers::AgentName;
+use systemprompt_loader::subprocess::SupervisionError;
 
 fn held_port() -> (TcpListener, u16) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind ephemeral");
@@ -20,180 +22,31 @@ fn held_port() -> (TcpListener, u16) {
     (listener, port)
 }
 
-// The marker tokens are the two `is_agent_process` looks for in the `ps` args:
-// the binary name and the agent-run subcommand. Passing them as extra argv
-// entries puts them in the command line without changing what the process does.
-//
-// The listener is orphaned rather than kept as a direct child: a killed child
-// this process has not `wait`ed on lingers as a zombie and still answers
-// `kill -0`, which would make the reclaim look like it had failed.
-fn spawn_agent_looking_listener(port: u16) -> Option<u32> {
-    let python = format!(
-        "import socket,time; s=socket.socket(); \
-         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); \
-         s.bind((\"127.0.0.1\", {port})); s.listen(1); time.sleep(600)"
-    );
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg(format!(
-            "python3 -c '{python}' systemprompt admin agents run >/dev/null 2>&1 & echo $!"
-        ))
-        .output()
-        .ok()?;
-    let pid: u32 = String::from_utf8_lossy(&output.stdout)
-        .trim()
-        .parse()
-        .ok()?;
+struct PathGuard(Option<std::ffi::OsString>);
 
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while Instant::now() < deadline {
-        if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
-            return Some(pid);
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-    kill(pid);
-    None
-}
-
-fn kill(pid: u32) {
-    let _ = Command::new("kill").arg("-9").arg(pid.to_string()).status();
-}
-
-fn is_alive(pid: u32) -> bool {
-    Command::new("kill")
-        .args(["-0", &pid.to_string()])
-        .status()
-        .is_ok_and(|s| s.success())
-}
-
-// Why: this is the guard that keeps port cleanup from killing bystanders. The
-// test runner is a non-agent process holding a port, which is exactly the case
-// the branch exists for, and the refusal must carry the offending command line
-// so an operator can act on it.
-#[tokio::test]
-async fn a_port_held_by_a_non_agent_process_is_refused_with_its_command_line() {
-    let service = PortService::new();
-    let (listener, port) = held_port();
-
-    let err = service
-        .cleanup_port_if_needed(port)
-        .await
-        .expect_err("a non-agent holder must not be reclaimed");
-
-    let message = err.to_string();
-    assert!(
-        message.contains("non-agent process"),
-        "the refusal must say why it refused: {message}"
-    );
-    assert!(
-        message.contains(&std::process::id().to_string()),
-        "the refusal must name the holding pid: {message}"
-    );
-    assert!(
-        message.contains("Please stop the process manually"),
-        "the operator needs the remedy, not just the diagnosis: {message}"
-    );
-    assert!(
-        !message.contains("(unknown)"),
-        "the holder's command line was resolvable and must be reported: {message}"
-    );
-    drop(listener);
-}
-
-// Why: cleanup_agent_ports must propagate the refusal rather than counting the
-// port as cleaned. Reporting success here would let a start proceed against a
-// port still owned by someone else.
-#[tokio::test]
-async fn a_batch_cleanup_aborts_on_the_first_port_it_may_not_reclaim() {
-    let service = PortService::new();
-    let (listener, port) = held_port();
-
-    let err = service
-        .cleanup_agent_ports(&[port])
-        .await
-        .expect_err("the batch must surface the refusal");
-
-    assert!(
-        err.to_string().contains("non-agent process"),
-        "the underlying reason must not be flattened: {err}"
-    );
-    drop(listener);
-}
-
-// Why: the converse of the guard. A port held by one of our own orphaned agent
-// workers is exactly what cleanup exists to reclaim, and it must actually die.
-#[tokio::test]
-async fn a_port_held_by_an_orphaned_agent_process_is_reclaimed() {
-    let (listener, port) = held_port();
-    drop(listener);
-    let Some(pid) = spawn_agent_looking_listener(port) else {
-        panic!("could not stand up an agent-looking listener on port {port}");
-    };
-
-    let outcome = PortService::new().cleanup_port_if_needed(port).await;
-
-    if outcome.is_err() {
-        kill(pid);
-    }
-    outcome.expect("an agent-looking holder must be reclaimed");
-
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while is_alive(pid) && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(25));
-    }
-    assert!(
-        !is_alive(pid),
-        "the orphaned agent process must have been killed"
-    );
-    kill(pid);
-}
-
-// Why: this is the preflight an agent start runs. It must name every blocked
-// port with the process behind it — a bare "unavailable" leaves the operator
-// with nothing to act on.
-#[test]
-fn verifying_ports_reports_each_blocked_port_with_its_holder() {
-    let (first, first_port) = held_port();
-    let (second, second_port) = held_port();
-
-    let err = PortService::verify_all_ports_available(&[first_port, second_port])
-        .expect_err("held ports must not verify as available");
-
-    let message = err.to_string();
-    assert!(message.contains("still in use"), "got {message}");
-    for port in [first_port, second_port] {
-        assert!(
-            message.contains(&format!("Port {port}")),
-            "every blocked port must be listed, {port} was not: {message}"
-        );
-    }
-    assert_eq!(
-        message.matches("PID").count(),
-        2,
-        "each blocked port carries its own holder: {message}"
-    );
-    assert!(
-        !message.contains("(unknown)"),
-        "both holders were resolvable: {message}"
-    );
-
-    drop(first);
-    drop(second);
-}
-#[cfg(unix)]
-#[tokio::test]
-async fn malformed_lsof_identity_fails_closed_without_disturbing_the_listener() {
-    struct PathGuard(Option<std::ffi::OsString>);
-    impl Drop for PathGuard {
-        fn drop(&mut self) {
-            match self.0.take() {
-                Some(path) => unsafe { std::env::set_var("PATH", path) },
-                None => unsafe { std::env::remove_var("PATH") },
-            }
+impl Drop for PathGuard {
+    fn drop(&mut self) {
+        match self.0.take() {
+            Some(path) => unsafe { std::env::set_var("PATH", path) },
+            None => unsafe { std::env::remove_var("PATH") },
         }
     }
+}
 
+fn listener_is_alive(listener: &TcpListener) -> bool {
+    std::net::TcpStream::connect_timeout(
+        &listener.local_addr().expect("listener address"),
+        Duration::from_secs(1),
+    )
+    .is_ok()
+}
+
+fn agent() -> AgentName {
+    AgentName::new("occupied_port_agent")
+}
+
+#[tokio::test]
+async fn malformed_lsof_output_fails_closed_without_disturbing_the_listener() {
     let (listener, port) = held_port();
     let shim = tempfile::tempdir().expect("private lsof shim directory");
     let lsof = shim.path().join("lsof");
@@ -205,57 +58,22 @@ async fn malformed_lsof_identity_fails_closed_without_disturbing_the_listener() 
     unsafe { std::env::set_var("PATH", shim.path()) };
 
     let error = PortService::new()
-        .cleanup_port_if_needed(port)
+        .cleanup_port_if_needed(port, &agent())
         .await
         .expect_err("an unparseable holder identity must fail closed");
-    let diagnosis = error.to_string();
+
     assert!(
-        diagnosis.contains(&format!("Failed to check port {port}")),
-        "{diagnosis}"
+        error
+            .to_string()
+            .contains("no listening process can be identified"),
+        "{error}"
     );
     assert!(
-        diagnosis.contains("Failed to parse PID from lsof output"),
-        "{diagnosis}"
-    );
-    assert!(
-        std::net::TcpStream::connect(listener.local_addr().expect("listener address")).is_ok(),
+        listener_is_alive(&listener),
         "identity failure must not terminate or disturb the unverified listener"
     );
 }
 
-#[cfg(unix)]
-struct PathGuard(Option<std::ffi::OsString>);
-
-#[cfg(unix)]
-impl Drop for PathGuard {
-    fn drop(&mut self) {
-        match self.0.take() {
-            Some(path) => unsafe { std::env::set_var("PATH", path) },
-            None => unsafe { std::env::remove_var("PATH") },
-        }
-    }
-}
-
-#[cfg(unix)]
-fn listener_is_alive(listener: &TcpListener) -> bool {
-    std::net::TcpStream::connect_timeout(
-        &listener.local_addr().expect("listener address"),
-        Duration::from_secs(1),
-    )
-    .is_ok()
-}
-
-#[cfg(unix)]
-fn lsof_on_path() -> std::path::PathBuf {
-    std::env::var_os("PATH")
-        .into_iter()
-        .flat_map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
-        .map(|directory| directory.join("lsof"))
-        .find(|candidate| candidate.is_file())
-        .expect("lsof is available before isolating PATH")
-}
-
-#[cfg(unix)]
 #[tokio::test]
 async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener() {
     let (listener, port) = held_port();
@@ -264,15 +82,16 @@ async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener
     unsafe { std::env::set_var("PATH", unavailable.path()) };
 
     let error = PortService::new()
-        .cleanup_port_if_needed(port)
+        .cleanup_port_if_needed(port, &agent())
         .await
         .expect_err("a missing port probe must fail closed");
-    let diagnosis = error.to_string();
     assert!(
-        diagnosis.contains(&format!("Failed to check port {port}")),
-        "{diagnosis}"
+        matches!(
+            error,
+            OrchestrationError::Supervision(SupervisionError::Tool { tool: "lsof", .. })
+        ),
+        "{error:?}"
     );
-    assert!(diagnosis.contains("failed to run `lsof -ti"), "{diagnosis}");
     assert!(
         listener_is_alive(&listener),
         "a missing probe must not disturb the listener"
@@ -280,59 +99,18 @@ async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener
 
     drop(path);
     let restored = PortService::new()
-        .cleanup_port_if_needed(port)
+        .cleanup_port_if_needed(port, &agent())
         .await
-        .expect_err("the restored probe must still refuse the non-agent listener");
+        .expect_err("the restored probe must still refuse the unmarked listener");
     assert!(
-        restored.to_string().contains("non-agent process"),
-        "{restored}"
+        matches!(
+            restored,
+            OrchestrationError::PortHeldByForeignProcess { pid, .. } if pid == std::process::id()
+        ),
+        "{restored:?}"
     );
     assert!(
         listener_is_alive(&listener),
         "restoring a probe must not turn a bystander listener into a cleanup target"
-    );
-}
-
-#[cfg(unix)]
-#[tokio::test]
-async fn missing_ps_fails_identity_check_without_reclaiming_the_listener() {
-    let (listener, port) = held_port();
-    let shim = tempfile::tempdir().expect("private probe shim directory");
-    let lsof = shim.path().join("lsof");
-    assert_eq!(
-        find_process_using_port(port).expect("lsof identifies listener"),
-        Some(std::process::id()),
-        "the real lsof must identify the listener before PATH is isolated"
-    );
-    std::os::unix::fs::symlink(lsof_on_path(), &lsof).expect("link real lsof into owned PATH");
-    let path = PathGuard(std::env::var_os("PATH"));
-    unsafe { std::env::set_var("PATH", shim.path()) };
-
-    let error = PortService::new()
-        .cleanup_port_if_needed(port)
-        .await
-        .expect_err("an unavailable identity probe must fail closed");
-    let diagnosis = error.to_string();
-    assert!(
-        diagnosis.contains(&format!(
-            "failed to identify process (PID {})",
-            std::process::id()
-        )),
-        "{diagnosis}"
-    );
-    assert!(diagnosis.contains("failed to run `ps -p"), "{diagnosis}");
-    assert!(
-        listener_is_alive(&listener),
-        "an unavailable identity probe must not reclaim the listener"
-    );
-
-    drop(path);
-    let restored = PortService::new()
-        .cleanup_port_if_needed(port)
-        .await
-        .expect_err("the restored probe must classify the listener as non-agent");
-    assert!(
-        restored.to_string().contains("non-agent process"),
-        "{restored}"
     );
 }

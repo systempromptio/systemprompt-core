@@ -196,7 +196,6 @@ async fn enforce_clean_agent_state(
     if let Ok(status) = orchestrator.get_status(&agent_name).await {
         match status {
             AgentStatus::Running { pid, port } => {
-                use systemprompt_agent::services::agent_orchestration::process;
                 let reason = if port == desired_port {
                     format!("Restarting agent to ensure fresh state (pid {pid})")
                 } else {
@@ -205,8 +204,19 @@ async fn enforce_clean_agent_state(
                     )
                 };
                 events.agent_cleanup(agent.to_owned(), reason);
-                if let Err(e) = process::terminate_gracefully_verified(pid, &agent_name, 5).await {
-                    tracing::warn!(error = %e, agent = %agent, "Failed to terminate agent process gracefully");
+                let stopped = systemprompt_loader::subprocess::stop_owned(
+                    pid,
+                    systemprompt_loader::subprocess::ChildKind::Agent,
+                    &systemprompt_identifiers::ServiceName::of_agent(&agent_name),
+                    std::time::Duration::from_secs(5),
+                )
+                .await;
+                if let Err(e) = stopped {
+                    events.error(
+                        format!("Failed to stop agent {agent} (pid {pid}): {e}"),
+                        false,
+                    );
+                    return Err(e.into());
                 }
                 if let Err(e) = orchestrator.delete_agent(&agent_name).await {
                     tracing::warn!(error = %e, agent = %agent, "Failed to delete agent during cleanup");
@@ -219,7 +229,10 @@ async fn enforce_clean_agent_state(
     }
 
     let port_manager = PortService::new();
-    if let Err(e) = port_manager.cleanup_port_if_needed(desired_port).await {
+    if let Err(e) = port_manager
+        .cleanup_port_if_needed(desired_port, &agent_name)
+        .await
+    {
         events.error(
             format!("Failed to cleanup port {desired_port} for agent {agent}: {e}"),
             false,

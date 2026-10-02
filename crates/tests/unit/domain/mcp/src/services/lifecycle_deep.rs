@@ -25,7 +25,9 @@ use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_lifecycle() -> (LifecycleService, systemprompt_database::DbPool) {
+use crate::harness::unique_instance;
+
+async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
@@ -44,14 +46,8 @@ async fn make_lifecycle() -> (LifecycleService, systemprompt_database::DbPool) {
         .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-        Arc::clone(&app_paths),
-        registry,
-    );
+    let repo = ServiceRepository::new(&db, unique_instance());
+    let database = DatabaseService::new(repo.clone(), Arc::clone(&app_paths), registry);
     let lifecycle = LifecycleService::new(
         ProcessService::new(),
         NetworkService::new(),
@@ -59,7 +55,7 @@ async fn make_lifecycle() -> (LifecycleService, systemprompt_database::DbPool) {
         MonitoringService::new(),
         app_paths,
     );
-    (lifecycle, db)
+    (lifecycle, repo)
 }
 
 fn make_config(name: &str, port: u16) -> McpServerConfig {
@@ -98,14 +94,10 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
 
 #[tokio::test]
 async fn stop_server_cleans_up_stale_db_row() {
-    let (life, db) = make_lifecycle().await;
+    let (life, repo) = make_lifecycle().await;
     let name = format!("stop-stale-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65528;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
     repo.create_service(CreateServiceInput {
         name: &name_id,
         module_name: ServiceModule::Mcp,
@@ -124,14 +116,10 @@ async fn stop_server_cleans_up_stale_db_row() {
 
 #[tokio::test]
 async fn health_check_dead_port_returns_false_and_updates_status() {
-    let (life, db) = make_lifecycle().await;
+    let (life, repo) = make_lifecycle().await;
     let name = format!("health-dead-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65527;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
     repo.create_service(CreateServiceInput {
         name: &name_id,
         module_name: ServiceModule::Mcp,
@@ -151,14 +139,10 @@ async fn health_check_dead_port_returns_false_and_updates_status() {
 
 #[tokio::test]
 async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
-    let (_, db) = make_lifecycle().await;
+    let (_, repo) = make_lifecycle().await;
     let name = format!("clean-stale-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65526;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
     repo.create_service(CreateServiceInput {
         name: &name_id,
         module_name: ServiceModule::Mcp,
@@ -175,14 +159,10 @@ async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
 
 #[tokio::test]
 async fn sync_database_state_marks_unhealthy_crashed() {
-    let (_, db) = make_lifecycle().await;
+    let (_, repo) = make_lifecycle().await;
     let name = format!("sync-crash-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65525;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
     repo.create_service(CreateServiceInput {
         name: &name_id,
         module_name: ServiceModule::Mcp,
@@ -200,14 +180,10 @@ async fn sync_database_state_marks_unhealthy_crashed() {
 
 #[tokio::test]
 async fn delete_crashed_services_runs() {
-    let (_, db) = make_lifecycle().await;
+    let (_, repo) = make_lifecycle().await;
     let name = format!("crash-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65522;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
     repo.create_service(CreateServiceInput {
         name: &name_id,
         module_name: ServiceModule::Mcp,
@@ -222,14 +198,10 @@ async fn delete_crashed_services_runs() {
 
 #[tokio::test]
 async fn health_check_with_stale_pid_marks_stopped() {
-    let (life, db) = make_lifecycle().await;
+    let (life, repo) = make_lifecycle().await;
     let name = format!("health-pid-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65521;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
     repo.create_service(CreateServiceInput {
         name: &name_id,
         module_name: ServiceModule::Mcp,
@@ -250,14 +222,10 @@ async fn health_check_with_stale_pid_marks_stopped() {
 
 #[tokio::test]
 async fn stop_server_with_stale_db_pid_goes_through_stale_cleanup() {
-    let (life, db) = make_lifecycle().await;
+    let (life, repo) = make_lifecycle().await;
     let name = format!("stop-pid-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65520;
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
     repo.create_service(CreateServiceInput {
         name: &name_id,
         module_name: ServiceModule::Mcp,

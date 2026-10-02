@@ -28,7 +28,9 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, InstanceId, SessionId, TraceId, UserId,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_test_fixtures::{TestBootstrap, init_services_bootstrap};
 use wiremock::matchers::{body_partial_json, method, path};
@@ -38,6 +40,14 @@ static BOOTSTRAP: std::sync::OnceLock<TestBootstrap> = std::sync::OnceLock::new(
 
 pub fn bootstrap_with_services(yaml: &str) -> &'static TestBootstrap {
     BOOTSTRAP.get_or_init(|| init_services_bootstrap(yaml))
+}
+
+// The `services` table is shared by every test against the database, and the
+// orchestrator's sweeps (crashed, disabled, running) act on a whole instance.
+// A test that shares an instance id with another can therefore have its rows
+// deleted, re-marked or its child stopped mid-test; each test takes its own.
+pub fn unique_instance() -> InstanceId {
+    InstanceId::new(format!("test-{}", uuid::Uuid::new_v4().simple()))
 }
 
 pub struct ExternalServerSpec<'a> {

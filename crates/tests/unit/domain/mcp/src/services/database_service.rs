@@ -10,7 +10,9 @@ use systemprompt_models::profile::PathsConfig;
 use systemprompt_models::services::ServiceStatus;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_db_service() -> (DatabaseService, systemprompt_database::DbPool) {
+use crate::harness::unique_instance;
+
+async fn make_db_service() -> (DatabaseService, systemprompt_database::ServiceRepository) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
@@ -29,15 +31,9 @@ async fn make_db_service() -> (DatabaseService, systemprompt_database::DbPool) {
         .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let svc = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-        app_paths,
-        registry,
-    );
-    (svc, db)
+    let repo = systemprompt_database::ServiceRepository::new(&db, unique_instance());
+    let svc = DatabaseService::new(repo.clone(), app_paths, registry);
+    (svc, repo)
 }
 
 #[tokio::test]
@@ -74,13 +70,9 @@ async fn sync_state_empty_runs() {
 #[tokio::test]
 async fn delete_disabled_services_removes_only_the_disabled_service() {
     use crate::harness::internal_mcp_config;
-    use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository};
+    use systemprompt_database::{CreateServiceInput, ServiceModule};
 
-    let (svc, _db) = make_db_service().await;
-    let repo = ServiceRepository::new(
-        &_db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let (svc, repo) = make_db_service().await;
     let keep = ServiceName::new(format!("dbsvc-keep-{}", uuid::Uuid::new_v4().simple()));
     let drop_name = ServiceName::new(format!("dbsvc-drop-{}", uuid::Uuid::new_v4().simple()));
     for (name, port) in [(&keep, 65512u16), (&drop_name, 65511u16)] {
@@ -97,7 +89,7 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
 
     let enabled = [internal_mcp_config(keep.as_str(), 65512)];
     let deleted = svc.delete_disabled_services(&enabled).await.unwrap();
-    assert!(deleted >= 1, "at least the disabled service is deleted");
+    assert_eq!(deleted, 1, "only the disabled service is deleted");
     assert!(
         repo.find_service_by_name(&keep).await.unwrap().is_some(),
         "the enabled service is preserved"

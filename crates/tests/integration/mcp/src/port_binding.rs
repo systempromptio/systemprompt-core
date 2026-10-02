@@ -1,56 +1,47 @@
-//! Port discovery returns a clean `Ok(Some)` for occupied ports and
-//! `Ok(None)` for free ones — never a panic or a bare `io::Error`.
+//! Port discovery reports listeners cleanly for occupied and free ports, and
+//! never counts an unmarked listener as one of this service's processes.
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::process::ProcessService;
 
 use crate::common::{bind_ephemeral_port, spawn_tcp_accept_loop};
 
 #[tokio::test]
-async fn find_pid_by_port_returns_none_for_a_free_port() {
+async fn a_free_port_has_no_listener() {
     let (listener, port) = bind_ephemeral_port();
     drop(listener);
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
-    let result = ProcessService::find_pid_by_port(port).expect("must not error");
-    assert!(
-        result.is_none(),
-        "free port {port} reported as held by PID {result:?}"
-    );
-}
-
-#[tokio::test]
-async fn find_pid_by_port_returns_current_pid_for_bound_port() {
-    let (addr, handle) = spawn_tcp_accept_loop().await;
-    let port = addr.port();
-
-    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-
-    let result = ProcessService::find_pid_by_port(port).expect("must not error");
-    let pid = result.expect("a bound port must have an owner");
-
-    assert_eq!(
-        pid,
-        std::process::id(),
-        "found PID {pid} must match the test process {self_pid}",
-        self_pid = std::process::id()
-    );
-
-    handle.abort();
-}
-
-#[tokio::test]
-async fn find_process_on_port_with_name_filters_by_process_name() {
-    let (addr, handle) = spawn_tcp_accept_loop().await;
-    let port = addr.port();
-    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-
-    let result = ProcessService::find_process_on_port_with_name(port, "nonexistent-mcp-server")
+    let held = ProcessService::port_has_listener(port)
+        .await
         .expect("must not error");
 
-    assert!(
-        result.is_none(),
-        "name filter must reject mismatched processes, got {result:?}"
-    );
+    assert!(!held, "free port {port} reported as held");
+}
 
+#[tokio::test]
+async fn a_bound_port_has_a_listener() {
+    let (addr, handle) = spawn_tcp_accept_loop().await;
+
+    let held = ProcessService::port_has_listener(addr.port()).await;
     handle.abort();
+
+    assert!(
+        held.expect("must not error"),
+        "a bound port must have a listener"
+    );
+}
+
+#[tokio::test]
+async fn an_unmarked_listener_is_not_an_owned_port_holder() {
+    let (addr, handle) = spawn_tcp_accept_loop().await;
+
+    let owned =
+        ProcessService::owned_port_holders(addr.port(), &ServiceName::new("nonexistent-mcp")).await;
+    handle.abort();
+
+    assert_eq!(
+        owned.expect("must not error"),
+        Vec::<u32>::new(),
+        "the unmarked test process is never an owned holder"
+    );
 }

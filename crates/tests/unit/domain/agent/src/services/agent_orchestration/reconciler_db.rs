@@ -79,7 +79,7 @@ async fn consistency_check_buckets_live_and_dead_agents() {
     svc.register_agent(&dead, DEAD_PID, 9413)
         .await
         .expect("register dead");
-    svc.register_agent(&live, std::process::id(), 9414)
+    svc.register_agent(&live, std::os::unix::process::parent_id(), 9414)
         .await
         .expect("register live");
 
@@ -104,7 +104,7 @@ async fn fix_inconsistencies_marks_reported_agents_failed() {
     let pool = test_db_pool().await;
     let stale = unique_name("rec_fix_a");
     let svc = db_service_with(&pool, &[(&stale, 9415)]);
-    svc.register_agent(&stale, std::process::id(), 9415)
+    svc.register_agent(&stale, std::os::unix::process::parent_id(), 9415)
         .await
         .expect("register stale");
 

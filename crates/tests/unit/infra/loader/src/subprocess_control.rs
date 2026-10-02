@@ -148,6 +148,26 @@ async fn stop_owned_stops_a_marked_child() {
 }
 
 #[tokio::test]
+async fn stop_owned_leaves_a_child_marked_for_another_service_running() {
+    let mut marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "files");
+    let pid = marked.pid();
+
+    let outcome = subprocess::stop_owned(
+        pid,
+        ChildKind::Mcp,
+        &ServiceName::new("other"),
+        GENEROUS_GRACE,
+    )
+    .await;
+
+    assert!(matches!(outcome, Ok(StopOutcome::NotOurs)), "{outcome:?}");
+    assert!(
+        marked.child.try_wait().expect("try_wait").is_none(),
+        "a child whose marker names another service is never signalled"
+    );
+}
+
+#[tokio::test]
 async fn stop_owned_reports_a_reaped_pid_as_not_running() {
     let mut child = Command::new("true").spawn().expect("spawn true");
     child.wait().expect("reap true");

@@ -12,9 +12,7 @@
 
 use crate::error::AgentError;
 use crate::repository::agent_service::AgentServiceRepository;
-use crate::services::agent_orchestration::{
-    AgentStatus, OrchestrationError, OrchestrationResult, process,
-};
+use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, OrchestrationResult};
 use crate::services::registry::AgentRegistry;
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::services::{AgentConfig, ServiceStatus};
@@ -77,7 +75,7 @@ impl AgentDatabaseService {
                     return Ok(failed_status("Running row has no recorded process id"));
                 };
                 let (pid, port) = stored_process(pid, row.port)?;
-                if process::process_exists(pid) {
+                if systemprompt_loader::subprocess::is_running(pid).await {
                     Ok(AgentStatus::Running { pid, port })
                 } else {
                     self.mark_failed(agent_name).await?;

@@ -1,5 +1,6 @@
 //! Constructor tests for orchestrator subscribers and the event bus.
 
+use crate::harness::unique_instance;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_mcp::services::database::DatabaseService;
@@ -34,10 +35,7 @@ async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryServ
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
+        systemprompt_database::ServiceRepository::new(&db, unique_instance()),
         Arc::clone(&app_paths),
         registry.clone(),
     );

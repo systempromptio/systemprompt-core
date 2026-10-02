@@ -6,8 +6,10 @@
 use super::LifecycleService;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
+use crate::services::database::stored_pid;
 use crate::services::process::ProcessService;
 use crate::services::spawn_target::SpawnTarget;
+use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_models::services::ServiceStatus;
 
 pub async fn stop_server(
@@ -43,13 +45,18 @@ async fn find_running_process(
         .database()
         .get_service_by_name(&config.service_name())
         .await?
-        && let Some(db_pid) = db_service.pid
-        && ProcessService::is_running(db_pid as u32)
+        && let Some(db_pid) = stored_pid(db_service.pid)
+        && ProcessService::is_running(db_pid).await
     {
-        return Ok(Some(db_pid as u32));
+        return Ok(Some(db_pid));
     }
 
-    ProcessService::find_pid_by_port(config.spawn_port()?)
+    Ok(
+        ProcessService::owned_port_holders(config.spawn_port()?, &config.service_name())
+            .await?
+            .into_iter()
+            .next(),
+    )
 }
 
 async fn perform_graceful_shutdown(
@@ -59,7 +66,17 @@ async fn perform_graceful_shutdown(
 ) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, pid = pid, "Performing graceful shutdown");
 
-    ProcessService::terminate_gracefully_verified(pid, &config.service_name()).await?;
+    match ProcessService::stop(pid, &config.service_name()).await? {
+        StopOutcome::NotRunning | StopOutcome::Stopped(_) => {},
+        StopOutcome::NotOurs => {
+            tracing::warn!(
+                service = %config.name,
+                pid,
+                "Recorded pid belongs to another process; clearing the row without signalling it"
+            );
+            return Ok(());
+        },
+    }
 
     lifecycle
         .network()

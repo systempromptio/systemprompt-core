@@ -1,9 +1,11 @@
-//! External SIGKILL flags a PID dead; `force_kill` / `terminate_gracefully`
-//! on an already-dead PID stay clean no-ops.
+//! An external SIGKILL flags a held child dead without the caller reaping it,
+//! and a stop of an already-dead recorded PID is a clean, typed no-op.
 
 use std::process::Command;
-use std::time::Duration;
-use systemprompt_mcp::services::process::{ProcessService, utils};
+use std::time::{Duration, Instant};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::StopOutcome;
+use systemprompt_mcp::services::process::ProcessService;
 
 use crate::common::spawn_sleep;
 
@@ -11,69 +13,50 @@ fn sigkill(pid: u32) {
     let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
 }
 
+async fn exits_within_five_seconds(pid: u32) -> bool {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < deadline {
+        if !ProcessService::is_running(pid).await {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    false
+}
+
 #[tokio::test]
 async fn kill_minus_9_on_running_server_is_observable_via_is_running() {
-    let mut child = spawn_sleep(60);
-    let pid = child.id();
-
-    assert!(
-        ProcessService::is_running(pid),
-        "freshly spawned PID {pid} must be reported running"
-    );
-
-    sigkill(pid);
-    let _ = child.wait();
-
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
-    assert!(
-        !ProcessService::is_running(pid),
-        "PID {pid} must be reported dead after SIGKILL + wait"
-    );
-}
-
-#[tokio::test]
-async fn force_kill_on_already_dead_pid_is_a_noop() {
-    let mut child = spawn_sleep(60);
-    let pid = child.id();
-
-    sigkill(pid);
-    let _ = child.wait();
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
-    ProcessService::force_kill(pid).expect("force_kill on dead PID must be a clean no-op");
-}
-
-#[tokio::test]
-async fn terminate_gracefully_on_already_dead_pid_is_a_noop() {
-    let mut child = spawn_sleep(60);
-    let pid = child.id();
-
-    sigkill(pid);
-    let _ = child.wait();
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
-    ProcessService::terminate_gracefully(pid)
-        .expect("terminate_gracefully on dead PID must be a clean no-op");
-}
-
-#[tokio::test]
-async fn graceful_then_force_terminates_within_grace_window() {
     let child = spawn_sleep(60);
     let pid = child.id();
+    let running_before = ProcessService::is_running(pid).await;
 
-    let ok = utils::terminate_gracefully(pid, 250).await;
+    sigkill(pid);
+    let gone = exits_within_five_seconds(pid).await;
+    drop(child);
+
     assert!(
-        ok,
-        "graceful-with-fallback must report success for a live PID"
+        running_before,
+        "freshly spawned PID {pid} must be reported running"
     );
-
-    let mut child = child;
-    let _ = child.wait();
-
-    tokio::time::sleep(Duration::from_millis(50)).await;
     assert!(
-        !ProcessService::is_running(pid),
-        "PID {pid} must be dead after terminate_gracefully"
+        gone,
+        "PID {pid} must be reported dead after SIGKILL, zombie or not"
+    );
+}
+
+#[tokio::test]
+async fn stop_on_an_externally_killed_pid_is_a_noop() {
+    let child = spawn_sleep(60);
+    let pid = child.id();
+    sigkill(pid);
+    let gone = exits_within_five_seconds(pid).await;
+
+    let outcome = ProcessService::stop(pid, &ServiceName::new("zombie-probe")).await;
+    drop(child);
+
+    assert!(gone, "PID {pid} must be reported dead after SIGKILL");
+    assert!(
+        matches!(outcome, Ok(StopOutcome::NotRunning)),
+        "{outcome:?}"
     );
 }

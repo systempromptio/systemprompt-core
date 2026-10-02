@@ -28,8 +28,8 @@ async fn agent_database_service_register_and_get_status() -> Result<()> {
 
     svc.register_agent(&name, 12345, 9100).await?;
     let status = svc.get_status(&name).await?;
-    // Status will reflect process_exists for pid 12345 which is fake; might be
-    // Failed
+    // Status reflects whether pid 12345 is running on this host; either
+    // verdict is valid
     let _ = status;
 
     cleanup_agent(&fx.pool, &name).await;

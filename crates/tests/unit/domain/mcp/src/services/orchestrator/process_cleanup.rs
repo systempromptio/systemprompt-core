@@ -4,20 +4,23 @@
 //! whose mtime is compared with the one recorded on the `services` row, and a
 //! real child process that must be reaped when the binary is found to have been
 //! rebuilt. `detect_and_handle_orphaned_processes` is driven against a socket
-//! held by this test process, which exercises the registry lookup and the
-//! identity guard that keeps the caller from signalling itself.
+//! held by this test process, which the identity guard must never treat as an
+//! orphan, and against a marked listener left behind with no service row,
+//! which it must stop.
 
 use std::net::TcpListener;
+use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
+use std::time::Duration;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::orchestrator::process_cleanup::{
     detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
 };
-use systemprompt_mcp::services::process::pid::get_process_name_by_pid;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
@@ -25,7 +28,7 @@ use systemprompt_test_fixtures::{
     TestBootstrap, ensure_test_bootstrap, fixture_user_id, test_db_pool,
 };
 
-use crate::harness::internal_mcp_config;
+use crate::harness::{internal_mcp_config, unique_instance};
 
 const FIXTURE_PORT: u16 = 65500;
 
@@ -57,15 +60,9 @@ async fn fixture() -> Fixture {
         )
         .expect("app paths"),
     );
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(&db, unique_instance());
     let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
+        repo.clone(),
         app_paths,
         RegistryService::new(fixture_user_id()),
     );
@@ -153,7 +150,7 @@ async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
     let id = ServiceName::new(name.as_str());
     let current = write_binary(fx.bootstrap, &name);
 
-    let mut marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
+    let marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
     seed_row(
         &fx.repo,
         &running_row(&id, Some(current - 3600), marked.pid()),
@@ -171,7 +168,7 @@ async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
     );
     assert!(row.is_none(), "the stale service is unregistered");
     assert!(
-        !marked.child.wait().expect("child reaped").success(),
+        !subprocess::is_running(marked.pid()).await,
         "the process running the old binary is terminated"
     );
 }
@@ -282,53 +279,119 @@ async fn empty_registry_and_unbound_ports_hold_no_orphans() {
 }
 
 #[tokio::test]
-async fn port_holder_is_an_orphan_only_while_unregistered_and_is_never_signalled() {
+async fn an_unmarked_port_holder_is_never_an_orphan_and_is_never_signalled() {
     let fx = fixture().await;
-    // skip-ok: `ps` is unavailable on this host, so the test process has no
-    // readable name
-    let Some(self_name) = get_process_name_by_pid(std::process::id()) else {
-        return;
-    };
-
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("addr").port();
-    let config = internal_mcp_config(&self_name, port);
-    let self_id = ServiceName::new(self_name.as_str());
+    let config = internal_mcp_config(&unique("unmarked"), port);
 
-    let orphaned =
-        detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database)
-            .await
-            .expect("unregistered sweep");
-
-    seed_row(
-        &fx.repo,
-        &RowSpec {
-            name: &self_id,
-            status: ServiceStatus::Running,
-            binary_mtime: None,
-            port,
-            pid: std::process::id(),
-        },
-    )
-    .await;
-
-    let registered =
-        detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database)
-            .await
-            .expect("registered sweep");
-
-    fx.repo.delete_service(&self_id).await.ok();
+    let swept = detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database)
+        .await
+        .expect("unregistered sweep");
 
     assert_eq!(
-        orphaned, 1,
-        "a port holder with no service row is reported as an orphan"
-    );
-    assert_eq!(
-        registered, 0,
-        "a port holder that owns a service row is not an orphan"
+        swept, 0,
+        "a holder without this service's marker is not ours"
     );
     assert!(
         listener.local_addr().is_ok(),
         "the identity guard leaves the unmarked caller running"
     );
+}
+
+const LISTENER_HELPER: &str = "services::orchestrator::process_cleanup::listener_helper";
+const LISTEN_PORT_ENV: &str = "SYSTEMPROMPT_TEST_LISTEN_PORT";
+
+#[test]
+#[ignore = "re-executed as a marked MCP listener by the orphan tests"]
+fn listener_helper() {
+    let port: u16 = std::env::var(LISTEN_PORT_ENV)
+        .expect("listen port")
+        .parse()
+        .expect("numeric port");
+    let _listener = TcpListener::bind(("127.0.0.1", port)).expect("bind helper port");
+    systemprompt_test_fixtures::announce_helper_ready();
+    std::thread::sleep(Duration::from_secs(120));
+}
+
+// The stand-in server is this crate's own test binary re-executing an ignored
+// helper, so its environment is readable on macOS as well as Linux.
+fn spawn_marked_listener(port: u16, service_name: &str) -> Child {
+    let helper = systemprompt_test_fixtures::helper(LISTENER_HELPER);
+    let child = Command::new(std::env::current_exe().expect("test binary path"))
+        .args(["--exact", LISTENER_HELPER, "--ignored"])
+        .env(
+            systemprompt_test_fixtures::HELPER_READY_ENV,
+            helper.ready_path(),
+        )
+        .env(LISTEN_PORT_ENV, port.to_string())
+        .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
+        .env(
+            systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+            service_name,
+        )
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn listener helper");
+    helper.await_ready();
+    child
+}
+
+fn released_port() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    listener.local_addr().expect("addr").port()
+}
+
+#[tokio::test]
+async fn a_marked_holder_with_no_service_row_is_stopped_as_an_orphan() {
+    let fx = fixture().await;
+    let port = released_port();
+    let name = unique("orphan");
+    let child = spawn_marked_listener(port, &name);
+    let pid = child.id();
+    let config = internal_mcp_config(&name, port);
+
+    let swept =
+        detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database).await;
+    let gone = !subprocess::is_running(pid).await;
+    if !gone {
+        let cleanup = subprocess::terminate_gracefully(pid, Duration::from_secs(5)).await;
+        assert!(cleanup.is_ok(), "{cleanup:?}");
+    }
+
+    assert_eq!(swept.expect("orphan sweep"), 1);
+    assert!(gone, "the orphaned holder is stopped, not merely signalled");
+}
+
+#[tokio::test]
+async fn a_marked_holder_that_owns_a_service_row_is_not_an_orphan() {
+    let fx = fixture().await;
+    let port = released_port();
+    let name = unique("registered");
+    let id = ServiceName::new(name.as_str());
+    let child = spawn_marked_listener(port, &name);
+    let pid = child.id();
+    seed_row(
+        &fx.repo,
+        &RowSpec {
+            name: &id,
+            status: ServiceStatus::Running,
+            binary_mtime: None,
+            port,
+            pid,
+        },
+    )
+    .await;
+    let config = internal_mcp_config(&name, port);
+
+    let swept =
+        detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database).await;
+    let alive = subprocess::is_running(pid).await;
+    fx.repo.delete_service(&id).await.ok();
+    let cleanup = subprocess::terminate_gracefully(pid, Duration::from_secs(5)).await;
+
+    assert_eq!(swept.expect("registered sweep"), 0);
+    assert!(alive, "a registered holder is left running");
+    assert!(cleanup.is_ok(), "{cleanup:?}");
 }

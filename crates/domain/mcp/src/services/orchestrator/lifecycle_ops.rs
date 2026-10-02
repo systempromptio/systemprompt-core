@@ -152,7 +152,7 @@ impl McpOrchestrator {
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
-            ProcessService::build_server(&server)?;
+            ProcessService::build_server(&server).await?;
 
             tracing::info!(service = %server.name, "Restarting service");
             self.lifecycle().restart_server(&server).await?;
@@ -166,7 +166,7 @@ impl McpOrchestrator {
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
-            ProcessService::build_server(&server)?;
+            ProcessService::build_server(&server).await?;
         }
 
         tracing::info!("Build completed");

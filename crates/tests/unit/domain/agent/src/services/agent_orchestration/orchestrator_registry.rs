@@ -1,8 +1,9 @@
 // DB-backed tests for AgentOrchestrator verbs that need a populated agent
 // registry, injected via `set_registry` over an explicit `ServicesConfig`.
-// PIDs above i32::MAX are never live; the test process's own PID drives the
-// "recorded running and alive" branches without spawning anything (the
-// verified-kill guard refuses to signal a process that is not our child).
+// A pid far above any pid_max is never live; the test runner's parent pid
+// drives the "recorded running and alive" branches without spawning anything
+// (the supervision module never signals a process without this agent's
+// marker, and never reads its own pid as a live child).
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -135,7 +136,7 @@ async fn validate_agent_running_agent_reaches_health_check() {
     let orchestrator = make_orchestrator(&pool, &[(&name, 9452)]).await;
 
     db_service(&pool)
-        .register_agent(&name, std::process::id(), 9452)
+        .register_agent(&name, std::os::unix::process::parent_id(), 9452)
         .await
         .expect("register");
 
@@ -160,7 +161,7 @@ async fn delete_agent_with_live_pid_removes_service_row() {
     let orchestrator = make_orchestrator(&pool, &[(&name, 9453)]).await;
 
     db_service(&pool)
-        .register_agent(&name, std::process::id(), 9453)
+        .register_agent(&name, std::os::unix::process::parent_id(), 9453)
         .await
         .expect("register");
 
@@ -203,7 +204,7 @@ async fn start_agent_already_running_is_rejected() {
     let orchestrator = make_orchestrator(&pool, &[(&name, 9457)]).await;
 
     db_service(&pool)
-        .register_agent(&name, std::process::id(), 9457)
+        .register_agent(&name, std::os::unix::process::parent_id(), 9457)
         .await
         .expect("register");
 
