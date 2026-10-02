@@ -138,7 +138,10 @@ async fn ban_with_metadata_accumulates_session_ids_and_keeps_metadata() {
         Some(ctx.fingerprint.as_str())
     );
     let sessions = ban.associated_session_ids.expect("session ids");
-    assert_eq!(sessions, vec!["sess-one".to_owned(), "sess-two".to_owned()]);
+    assert_eq!(
+        sessions,
+        vec![SessionId::new("sess-one"), SessionId::new("sess-two")]
+    );
 
     ctx.repo.unban_ip(&ctx.ip).await.expect("cleanup");
 }
