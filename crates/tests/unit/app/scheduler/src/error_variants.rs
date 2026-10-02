@@ -4,7 +4,10 @@ use systemprompt_scheduler::SchedulerError;
 use systemprompt_traits::RepositoryError;
 
 fn missing<T: std::any::Any + Send + Sync>() -> MissingDependency {
-    Dependencies::new().get::<T>().unwrap_err()
+    Dependencies::new()
+        .get::<T>()
+        .err()
+        .expect("an empty Dependencies has no handle of any type")
 }
 
 mod additional_variants {
