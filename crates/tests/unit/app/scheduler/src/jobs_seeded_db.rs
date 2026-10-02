@@ -8,22 +8,22 @@ use std::sync::Arc;
 
 use systemprompt_scheduler::{BehavioralAnalysisJob, MaliciousIpBlacklistJob};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
-use systemprompt_traits::{Job, JobContext};
+use systemprompt_traits::{Dependencies, Job, JobContext};
 
 fn make_test_ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
     use systemprompt_identifiers::{Actor, UserId};
 
     let app_ctx = test_app_context(pool, url);
 
-    let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
-        Arc::new(Arc::clone(app_ctx.app_paths_arc()));
-    let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(pool));
-    let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_ctx);
+    let dependencies = Dependencies::new()
+        .with(Arc::clone(app_ctx.app_paths_arc()))
+        .with(Arc::clone(pool))
+        .with(app_ctx);
 
     let owner = UserId::new("seeded-job-test-admin");
     let actor = Actor::job(owner, "test".to_string());
 
-    JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
+    JobContext::new(actor, dependencies)
 }
 
 fn unique_id(prefix: &str) -> String {

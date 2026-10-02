@@ -13,13 +13,10 @@ use systemprompt_scheduler::{
 use systemprompt_test_fixtures::{
     fixture_actor, test_app_context, test_database_url, test_db_pool,
 };
-use systemprompt_traits::{Job, JobContext};
+use systemprompt_traits::{Dependencies, Job, JobContext};
 
 fn make_ctx(pool: &DbPool) -> JobContext {
-    let pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(pool));
-    let ctx_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    let paths_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    JobContext::new(fixture_actor(), pool_any, ctx_any, paths_any)
+    JobContext::new(fixture_actor(), Dependencies::new().with(Arc::clone(pool)))
 }
 
 // database_cleanup reads its per-table windows from `profile.retention`, so
@@ -28,10 +25,10 @@ fn make_ctx(pool: &DbPool) -> JobContext {
 async fn make_ctx_with_app(pool: &DbPool) -> JobContext {
     let url = test_database_url();
     let app = test_app_context(pool, &url);
-    let pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(pool));
-    let ctx_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app);
-    let paths_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    JobContext::new(fixture_actor(), pool_any, ctx_any, paths_any)
+    JobContext::new(
+        fixture_actor(),
+        Dependencies::new().with(Arc::clone(pool)).with(app),
+    )
 }
 
 #[tokio::test]
@@ -135,10 +132,7 @@ async fn no_js_cleanup_job_execute_succeeds() {
 
 #[tokio::test]
 async fn jobs_fail_when_dbpool_missing() {
-    let pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    let ctx_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    let paths_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    let ctx = JobContext::new(fixture_actor(), pool_any, ctx_any, paths_any);
+    let ctx = JobContext::new(fixture_actor(), Dependencies::new());
 
     assert!(DatabaseCleanupJob.execute(&ctx).await.is_err());
     assert!(CleanupInactiveSessionsJob.execute(&ctx).await.is_err());

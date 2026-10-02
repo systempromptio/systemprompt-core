@@ -67,9 +67,7 @@ impl Job for FileIngestionJob {
         let start_time = std::time::Instant::now();
         tracing::info!("File ingestion job started");
 
-        let db_pool = ctx.db_pool::<DbPool>().ok_or_else(|| {
-            ProviderError::Configuration("Database pool not available in job context".into())
-        })?;
+        let db_pool = ctx.get::<DbPool>()?;
 
         let files_config = FilesConfig::get().map_err(|e| ProviderError::ConfigurationLoad {
             context: "files config".to_owned(),

@@ -1,7 +1,6 @@
 //! DB-backed execution paths for `CleanupAnonymousUsersJob::execute` and
 //! `UserRateLimitPruneJob::execute`.
 
-use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -9,16 +8,14 @@ use chrono::{Duration, Utc};
 
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
-use systemprompt_traits::{Job, JobContext};
+use systemprompt_traits::{Dependencies, Job, JobContext};
 use systemprompt_users::UserRateLimitBucketRepository;
 use systemprompt_users::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
 use uuid::Uuid;
 
-fn ctx_with_pool(db_pool_any: Arc<dyn Any + Send + Sync>) -> JobContext {
+fn ctx_with_pool(dependencies: Dependencies) -> JobContext {
     let actor = Actor::job(UserId::new("users-jobs-db-test"), "test".to_owned());
-    let app_context_any: Arc<dyn Any + Send + Sync> = Arc::new(());
-    let app_paths_any: Arc<dyn Any + Send + Sync> = Arc::new(());
-    JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
+    JobContext::new(actor, dependencies)
 }
 
 #[tokio::test]
@@ -26,7 +23,7 @@ async fn execute_succeeds_with_real_pool() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
 
-    let ctx = ctx_with_pool(Arc::new(pool));
+    let ctx = ctx_with_pool(Dependencies::new().with(pool));
     let result = CleanupAnonymousUsersJob
         .execute(&ctx)
         .await
@@ -38,19 +35,19 @@ async fn execute_succeeds_with_real_pool() {
 #[tokio::test]
 async fn execute_fails_without_db_pool_in_context() {
     ensure_test_bootstrap();
-    let ctx = ctx_with_pool(Arc::new(()));
+    let ctx = ctx_with_pool(Dependencies::new());
     let err = CleanupAnonymousUsersJob
         .execute(&ctx)
         .await
         .expect_err("missing pool must fail");
-    assert!(err.to_string().contains("DbPool"));
+    assert!(err.to_string().contains("Database"));
 }
 
 #[tokio::test]
 async fn execute_fails_with_closed_pool() {
     ensure_test_bootstrap();
     let pool = systemprompt_test_fixtures::closed_db_pool().await;
-    let ctx = ctx_with_pool(Arc::new(pool));
+    let ctx = ctx_with_pool(Dependencies::new().with(pool));
     let result: Result<_, _> = CleanupAnonymousUsersJob.execute(&ctx).await;
     assert!(result.is_err());
 }
@@ -70,7 +67,7 @@ async fn rate_limit_prune_drops_windows_older_than_retain_secs_and_keeps_the_res
     // every other test sharing the database; a retention of 399 days confines
     // the sweep to this test's stale row.
     let retain_secs = Duration::days(399).num_seconds().to_string();
-    let ctx = ctx_with_pool(Arc::new(pool.clone()))
+    let ctx = ctx_with_pool(Dependencies::new().with(pool.clone()))
         .with_parameters(HashMap::from([("retain_secs".to_owned(), retain_secs)]));
     let result = UserRateLimitPruneJob
         .execute(&ctx)
@@ -105,7 +102,7 @@ async fn rate_limit_prune_drops_windows_older_than_retain_secs_and_keeps_the_res
 async fn rate_limit_prune_rejects_an_unparseable_retain_secs() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = ctx_with_pool(Arc::new(pool)).with_parameters(HashMap::from([(
+    let ctx = ctx_with_pool(Dependencies::new().with(pool)).with_parameters(HashMap::from([(
         "retain_secs".to_owned(),
         "soon".to_owned(),
     )]));
@@ -120,10 +117,10 @@ async fn rate_limit_prune_rejects_an_unparseable_retain_secs() {
 #[tokio::test]
 async fn rate_limit_prune_fails_without_db_pool_in_context() {
     ensure_test_bootstrap();
-    let ctx = ctx_with_pool(Arc::new(()));
+    let ctx = ctx_with_pool(Dependencies::new());
     let err = UserRateLimitPruneJob
         .execute(&ctx)
         .await
         .expect_err("missing pool must fail");
-    assert!(err.to_string().contains("DbPool"));
+    assert!(err.to_string().contains("Database"));
 }

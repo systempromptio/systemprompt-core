@@ -4,12 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::scanner::ParsedFrontmatter;
-use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_provider_contracts::FrontmatterContext;
+use systemprompt_provider_contracts::{Dependencies, FrontmatterContext};
 
 pub(super) async fn call_frontmatter_processors(
-    db_pool: &DbPool,
+    dependencies: &Dependencies,
     content_id_str: &str,
     slug: &str,
     source_name: &str,
@@ -32,7 +31,7 @@ pub(super) async fn call_frontmatter_processors(
                 slug,
                 source_name,
                 &parsed.raw_yaml,
-                db_pool,
+                dependencies,
             );
 
             if let Err(e) = processor.process_frontmatter(&ctx).await {

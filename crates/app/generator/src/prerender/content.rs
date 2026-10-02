@@ -133,7 +133,7 @@ async fn process_source(
         &public_contents,
         source_name,
         &ctx.content_data_providers,
-        &ctx.db_pool,
+        &ctx.dependencies,
     )
     .await;
     let popular_ids = fetch_popular_ids(content_analytics, source_name, &source.source_id)
@@ -245,7 +245,6 @@ async fn render_parent_if_enabled(job: &SourceRenderJob<'_>) -> Result<u32> {
 
     render_list_route(RenderListParams {
         items: job.items,
-        config: &job.ctx.config,
         web_config: &job.ctx.web_config,
         list_config: parent_config,
         source_name: job.source_name,
@@ -254,7 +253,7 @@ async fn render_parent_if_enabled(job: &SourceRenderJob<'_>) -> Result<u32> {
         template_registry: &job.ctx.template_registry,
         dist_dir: &job.ctx.dist_dir,
         index_content,
-        db_pool: &job.ctx.db_pool,
+        dependencies: &job.ctx.dependencies,
     })
     .await?;
 

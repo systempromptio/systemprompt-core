@@ -17,6 +17,7 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
+use systemprompt_provider_contracts::Dependencies;
 
 #[derive(Debug)]
 enum IngestFileResult {
@@ -31,14 +32,14 @@ enum IngestFileResult {
 #[derive(Debug)]
 pub struct IngestionService {
     content_repo: ContentRepository,
-    db_pool: DbPool,
+    dependencies: Dependencies,
 }
 
 impl IngestionService {
     pub fn new(db: &DbPool, content_repo: ContentRepository) -> Self {
         Self {
             content_repo,
-            db_pool: Arc::clone(db),
+            dependencies: Dependencies::new().with(Arc::clone(db)),
         }
     }
 
@@ -179,7 +180,7 @@ impl IngestionService {
         let created_content = self.content_repo.create(&params).await?;
 
         processors::call_frontmatter_processors(
-            &self.db_pool,
+            &self.dependencies,
             created_content.id.as_str(),
             &slug,
             source.source_name,
@@ -236,7 +237,7 @@ impl IngestionService {
         self.content_repo.update(&update_params).await?;
 
         processors::call_frontmatter_processors(
-            &self.db_pool,
+            &self.dependencies,
             existing.id.as_str(),
             &slug,
             source.source_name,

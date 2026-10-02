@@ -10,7 +10,6 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
-use crate::error::SchedulerError;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ThoughtSignatureCleanupJob;
@@ -32,10 +31,7 @@ impl Job for ThoughtSignatureCleanupJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = std::sync::Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
-        );
+        let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
 
         let deleted = AiThoughtSignatureRepository::new(&db_pool)
             .cleanup_expired()

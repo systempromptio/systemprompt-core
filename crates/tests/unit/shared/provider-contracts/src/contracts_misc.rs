@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use serde_json::json;
 use systemprompt_identifiers::SourceId;
 use systemprompt_provider_contracts::{
-    ContentDataContext, ExtendedData, FrontmatterContext, PartialSource, PartialTemplate,
-    PlaceholderMapping, RenderedComponent, RssFeedContext, RssFeedItem, RssFeedMetadata,
-    RssFeedSpec, SitemapAlternate, SitemapContext, SitemapSourceSpec, SitemapUrlEntry,
+    ContentDataContext, Dependencies, ExtendedData, FrontmatterContext, PartialSource,
+    PartialTemplate, PlaceholderMapping, RenderedComponent, RssFeedContext, RssFeedItem,
+    RssFeedMetadata, RssFeedSpec, SitemapAlternate, SitemapContext, SitemapSourceSpec,
+    SitemapUrlEntry,
 };
 
 #[test]
@@ -33,29 +34,29 @@ fn rendered_component_new_assigns_fields() {
 }
 
 #[test]
-fn frontmatter_context_accessors_and_db_pool_downcast() {
+fn frontmatter_context_accessors_and_dependencies() {
     let raw = serde_yaml::Value::String("hello".to_owned());
     let pool_value: i64 = 42;
-    let pool: &(dyn std::any::Any + Send + Sync) = &pool_value;
+    let deps = Dependencies::new().with(pool_value);
 
-    let ctx = FrontmatterContext::new("cid", "slug-1", "blog", &raw, pool);
+    let ctx = FrontmatterContext::new("cid", "slug-1", "blog", &raw, &deps);
     assert_eq!(ctx.content_id(), "cid");
     assert_eq!(ctx.slug(), "slug-1");
     assert_eq!(ctx.source_name(), "blog");
     assert!(matches!(ctx.raw_frontmatter(), serde_yaml::Value::String(s) if s == "hello"));
-    assert_eq!(ctx.db_pool::<i64>().copied(), Some(42));
-    assert!(ctx.db_pool::<String>().is_none());
+    assert_eq!(ctx.get::<i64>().copied(), Ok(42));
+    ctx.get::<String>().unwrap_err();
 }
 
 #[test]
-fn frontmatter_context_debug_does_not_leak_pool() {
+fn frontmatter_context_debug_lists_dependency_types_only() {
     let raw = serde_yaml::Value::Null;
     let pool_value: i64 = 0;
-    let pool: &(dyn std::any::Any + Send + Sync) = &pool_value;
-    let ctx = FrontmatterContext::new("cid", "slug", "src", &raw, pool);
+    let deps = Dependencies::new().with(pool_value);
+    let ctx = FrontmatterContext::new("cid", "slug", "src", &raw, &deps);
     let dbg = format!("{ctx:?}");
     assert!(dbg.contains("FrontmatterContext"));
-    assert!(dbg.contains("<dyn Any>"));
+    assert!(dbg.contains("i64"));
 }
 
 #[test]
@@ -69,18 +70,18 @@ fn sitemap_context_holds_borrows() {
 }
 
 #[test]
-fn content_data_context_accessors_and_downcast() {
+fn content_data_context_accessors_and_dependencies() {
     let pool_value: u32 = 7;
-    let pool: &(dyn std::any::Any + Send + Sync) = &pool_value;
-    let ctx = ContentDataContext::new("cid-1", "blog", pool);
+    let deps = Dependencies::new().with(pool_value);
+    let ctx = ContentDataContext::new("cid-1", "blog", &deps);
     assert_eq!(ctx.content_id(), "cid-1");
     assert_eq!(ctx.source_name(), "blog");
-    assert_eq!(ctx.db_pool::<u32>().copied(), Some(7));
-    assert!(ctx.db_pool::<i64>().is_none());
+    assert_eq!(ctx.get::<u32>().copied(), Ok(7));
+    ctx.get::<i64>().unwrap_err();
 
     let dbg = format!("{ctx:?}");
     assert!(dbg.contains("ContentDataContext"));
-    assert!(dbg.contains("<dyn Any>"));
+    assert!(dbg.contains("u32"));
 }
 
 #[test]

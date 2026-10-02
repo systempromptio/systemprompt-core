@@ -72,7 +72,7 @@ async fn prerender_pages_with_context(ctx: &PrerenderContext) -> Result<Vec<Page
     for locale in &ctx.web_config.i18n.supported_locales {
         let locale_prefix = ctx.web_config.i18n.locale_prefix(locale);
         let prepare_ctx =
-            PagePrepareContext::new(&ctx.web_config, &ctx.config, &ctx.db_pool, &ctx.dist_dir)
+            PagePrepareContext::new(&ctx.web_config, &ctx.dependencies, &ctx.dist_dir)
                 .with_locale(locale);
 
         let mut rendered_page_types: HashSet<String> = HashSet::new();
@@ -197,7 +197,7 @@ async fn collect_page_data(
     }
 
     let page_ctx =
-        PageContext::new(page_type, &ctx.web_config, &ctx.config, &ctx.db_pool).with_locale(locale);
+        PageContext::new(page_type, &ctx.web_config, &ctx.dependencies).with_locale(locale);
     let providers = ctx.template_registry.page_providers_for(page_type);
     let provider_ids: Vec<_> = providers.iter().map(|p| p.provider_id()).collect();
 

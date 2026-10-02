@@ -136,9 +136,7 @@ impl Job for OtlpExportJob {
             debug!("observability.otlp is not configured; nothing to export");
             return Ok(JobResult::success().with_duration(start.elapsed().as_millis() as u64));
         };
-        let db_pool = ctx
-            .db_pool::<DbPool>()
-            .ok_or_else(|| SchedulerError::missing_context("DbPool"))?;
+        let db_pool = ctx.get::<DbPool>()?;
         let pool = db_pool.write_pool();
         let instance_id = job_app_context(ctx)
             .ok()

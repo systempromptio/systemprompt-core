@@ -13,7 +13,7 @@ use systemprompt_generator::{
 };
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_provider_contracts::{Job, JobContext};
+use systemprompt_provider_contracts::{Dependencies, Job, JobContext};
 use tempfile::TempDir;
 
 fn paths_in(tmp: &TempDir) -> AppPaths {
@@ -58,12 +58,7 @@ async fn copy_extension_assets_no_op_when_registry_is_empty() {
 }
 
 fn empty_job_ctx() -> JobContext {
-    JobContext::new(
-        Actor::system(UserId::new("test-user")),
-        Arc::new(()),
-        Arc::new(()),
-        Arc::new(()),
-    )
+    JobContext::new(Actor::system(UserId::new("test-user")), Dependencies::new())
 }
 
 #[test]
@@ -93,7 +88,7 @@ async fn content_prerender_job_errors_when_db_pool_missing() {
         .execute(&ctx)
         .await
         .expect_err("must fail with no DbPool");
-    assert!(err.to_string().to_lowercase().contains("dbpool"));
+    assert!(err.to_string().contains("Database"));
 }
 
 #[tokio::test]
@@ -104,5 +99,5 @@ async fn page_prerender_job_errors_when_db_pool_missing() {
         .execute(&ctx)
         .await
         .expect_err("must fail with no DbPool");
-    assert!(err.to_string().to_lowercase().contains("dbpool"));
+    assert!(err.to_string().contains("Database"));
 }

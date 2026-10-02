@@ -134,7 +134,7 @@ async fn build_template_data(
         "locale": locale.as_str(),
     });
 
-    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.config, &ctx.db_pool)
+    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.dependencies)
         .with_content_item(item)
         .with_all_items(all_items)
         .with_locale(locale);
@@ -157,12 +157,17 @@ async fn build_template_data(
     )
     .await;
 
-    let extender_ctx =
-        ExtenderContext::builder(item, all_items, config_value, &ctx.web_config, &ctx.db_pool)
-            .with_content_html(args.content_html)
-            .with_url_pattern(&sitemap_config.url_pattern)
-            .with_source_name(source_name)
-            .build();
+    let extender_ctx = ExtenderContext::builder(
+        item,
+        all_items,
+        config_value,
+        &ctx.web_config,
+        &ctx.dependencies,
+    )
+    .with_content_html(args.content_html)
+    .with_url_pattern(&sitemap_config.url_pattern)
+    .with_source_name(source_name)
+    .build();
 
     for extender in ctx.template_registry.extenders_for(content_type) {
         if let Err(e) = extender.extend(&extender_ctx, &mut template_data).await {

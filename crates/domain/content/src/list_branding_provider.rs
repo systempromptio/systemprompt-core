@@ -8,17 +8,13 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::ContentConfigRaw;
-use systemprompt_provider_contracts::{
-    PageContext, PageDataProvider, ProviderError, ProviderResult,
-};
+use systemprompt_provider_contracts::{PageContext, PageDataProvider, ProviderResult};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DefaultListBrandingProvider;
 
 fn resolve_content_raw<'a>(ctx: &'a PageContext<'_>) -> ProviderResult<&'a ContentConfigRaw> {
-    ctx.content_config::<ContentConfigRaw>().ok_or_else(|| {
-        ProviderError::Configuration("ContentConfig not available in PageContext".into())
-    })
+    Ok(ctx.get::<ContentConfigRaw>()?)
 }
 
 #[async_trait]

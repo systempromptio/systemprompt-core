@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use serde_json::json;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_provider_contracts::{
-    PagePrepareContext, PagePrerenderer, PageRenderSpec, ProviderResult,
+    Dependencies, PagePrepareContext, PagePrerenderer, PageRenderSpec, ProviderResult,
 };
 
 use crate::support::web_config;
@@ -15,10 +15,9 @@ use crate::support::web_config;
 #[test]
 fn new_defaults_locale_and_exposes_dist_dir() {
     let wc = web_config();
-    let cc: &(dyn std::any::Any + Send + Sync) = &();
-    let pool: &(dyn std::any::Any + Send + Sync) = &();
+    let deps = Dependencies::new();
     let dist = Path::new("/tmp/dist");
-    let ctx = PagePrepareContext::new(&wc, cc, pool, dist);
+    let ctx = PagePrepareContext::new(&wc, &deps, dist);
 
     assert_eq!(ctx.locale.as_str(), "en");
     assert_eq!(ctx.dist_dir(), Path::new("/tmp/dist"));
@@ -27,35 +26,31 @@ fn new_defaults_locale_and_exposes_dist_dir() {
 #[test]
 fn with_locale_overrides() {
     let wc = web_config();
-    let cc: &(dyn std::any::Any + Send + Sync) = &();
-    let pool: &(dyn std::any::Any + Send + Sync) = &();
+    let deps = Dependencies::new();
     let dist = Path::new("/tmp/dist");
     let locale = LocaleCode::try_new("fr").expect("valid LocaleCode");
-    let ctx = PagePrepareContext::new(&wc, cc, pool, dist).with_locale(&locale);
+    let ctx = PagePrepareContext::new(&wc, &deps, dist).with_locale(&locale);
     assert_eq!(ctx.locale.as_str(), "fr");
 }
 
 #[test]
-fn content_config_and_db_pool_downcast() {
+fn get_returns_inserted_dependencies_and_names_missing_ones() {
     let wc = web_config();
-    let cc: &(dyn std::any::Any + Send + Sync) = &7i64;
-    let pool: &(dyn std::any::Any + Send + Sync) = &"pool".to_string();
+    let deps = Dependencies::new().with(7i64).with("pool".to_string());
     let dist = Path::new("/tmp/dist");
-    let ctx = PagePrepareContext::new(&wc, cc, pool, dist);
+    let ctx = PagePrepareContext::new(&wc, &deps, dist);
 
-    assert_eq!(ctx.content_config::<i64>(), Some(&7i64));
-    assert!(ctx.content_config::<u8>().is_none());
-    assert_eq!(ctx.db_pool::<String>(), Some(&"pool".to_string()));
-    assert!(ctx.db_pool::<i64>().is_none());
+    assert_eq!(ctx.get::<i64>(), Ok(&7i64));
+    assert_eq!(ctx.get::<String>(), Ok(&"pool".to_string()));
+    assert_eq!(ctx.get::<u8>().unwrap_err().type_name(), "u8");
 }
 
 #[test]
 fn context_is_debug() {
     let wc = web_config();
-    let cc: &(dyn std::any::Any + Send + Sync) = &();
-    let pool: &(dyn std::any::Any + Send + Sync) = &();
+    let deps = Dependencies::new();
     let dist = Path::new("/tmp/dist");
-    let ctx = PagePrepareContext::new(&wc, cc, pool, dist);
+    let ctx = PagePrepareContext::new(&wc, &deps, dist);
     assert!(format!("{ctx:?}").contains("PagePrepareContext"));
 }
 
@@ -97,10 +92,9 @@ fn trait_default_priority() {
 #[tokio::test]
 async fn prepare_returns_spec() {
     let wc = web_config();
-    let cc: &(dyn std::any::Any + Send + Sync) = &();
-    let pool: &(dyn std::any::Any + Send + Sync) = &();
+    let deps = Dependencies::new();
     let dist = Path::new("/tmp/dist");
-    let ctx = PagePrepareContext::new(&wc, cc, pool, dist);
+    let ctx = PagePrepareContext::new(&wc, &deps, dist);
 
     let spec = MinimalPrerenderer.prepare(&ctx).await.unwrap().unwrap();
     assert_eq!(spec.template_name, "home.hbs");

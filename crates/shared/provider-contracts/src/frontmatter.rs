@@ -10,6 +10,7 @@
 use async_trait::async_trait;
 use std::any::Any;
 
+use crate::dependencies::{Dependencies, MissingDependency};
 use crate::error::ProviderResult;
 
 pub struct FrontmatterContext<'a> {
@@ -17,7 +18,7 @@ pub struct FrontmatterContext<'a> {
     slug: &'a str,
     source_name: &'a str,
     raw_frontmatter: &'a serde_yaml::Value,
-    db_pool: &'a (dyn Any + Send + Sync),
+    dependencies: &'a Dependencies,
 }
 
 impl std::fmt::Debug for FrontmatterContext<'_> {
@@ -26,26 +27,26 @@ impl std::fmt::Debug for FrontmatterContext<'_> {
             .field("content_id", &self.content_id)
             .field("slug", &self.slug)
             .field("source_name", &self.source_name)
-            .field("db_pool", &"<dyn Any>")
+            .field("dependencies", self.dependencies)
             .finish()
     }
 }
 
 impl<'a> FrontmatterContext<'a> {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         content_id: &'a str,
         slug: &'a str,
         source_name: &'a str,
         raw_frontmatter: &'a serde_yaml::Value,
-        db_pool: &'a (dyn Any + Send + Sync),
+        dependencies: &'a Dependencies,
     ) -> Self {
         Self {
             content_id,
             slug,
             source_name,
             raw_frontmatter,
-            db_pool,
+            dependencies,
         }
     }
 
@@ -69,9 +70,8 @@ impl<'a> FrontmatterContext<'a> {
         self.raw_frontmatter
     }
 
-    #[must_use]
-    pub fn db_pool<T: 'static>(&self) -> Option<&T> {
-        self.db_pool.downcast_ref::<T>()
+    pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {
+        self.dependencies.get::<T>()
     }
 }
 

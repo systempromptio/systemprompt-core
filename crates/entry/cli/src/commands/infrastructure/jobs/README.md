@@ -259,10 +259,7 @@ impl Job for MyCustomJob {
         let start = std::time::Instant::now();
 
         // Extract database pool from context
-        let db_pool = Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available"))?
-        );
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
         info!("my_custom_job started");
 
@@ -420,10 +417,7 @@ impl Job for BlogContentIngestionJob {
 
     async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
         let start = std::time::Instant::now();
-        let db_pool = Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available"))?
-        );
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
         // Ingest blog content...
         let posts_ingested = ingest_blog_posts(&db_pool).await?;

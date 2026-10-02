@@ -1,23 +1,21 @@
 use systemprompt_identifiers::JobName;
-use systemprompt_provider_contracts::ProviderError;
+use systemprompt_provider_contracts::{Dependencies, MissingDependency, ProviderError};
 use systemprompt_scheduler::SchedulerError;
 use systemprompt_traits::RepositoryError;
+
+fn missing<T: std::any::Any + Send + Sync>() -> MissingDependency {
+    Dependencies::new().get::<T>().unwrap_err()
+}
 
 mod additional_variants {
     use super::*;
 
     #[test]
-    fn missing_context_message() {
-        let err = SchedulerError::missing_context("DbPool");
-        assert_eq!(err.to_string(), "Job context missing dependency: DbPool");
-    }
-
-    #[test]
-    fn missing_context_accepts_string() {
-        let err = SchedulerError::missing_context(String::from("AppContext"));
+    fn missing_context_message_names_the_type() {
+        let err = SchedulerError::from(missing::<u32>());
         assert_eq!(
             err.to_string(),
-            "Job context missing dependency: AppContext"
+            "Job context: provider context has no u32 dependency"
         );
     }
 
@@ -90,7 +88,7 @@ mod additional_variants {
     #[test]
     fn all_variants_are_debug() {
         let variants = [
-            (SchedulerError::missing_context("ctx"), "MissingContext"),
+            (SchedulerError::from(missing::<u8>()), "MissingContext"),
             (SchedulerError::panic("boom"), "Panic"),
             (
                 SchedulerError::DistributedLock(RepositoryError::internal("lock err")),
@@ -106,9 +104,10 @@ mod additional_variants {
     }
 
     #[test]
-    fn missing_context_empty_string() {
-        let err = SchedulerError::missing_context("");
-        assert_eq!(err.to_string(), "Job context missing dependency: ");
+    fn missing_context_keeps_the_dependency_as_its_source() {
+        let err = SchedulerError::from(missing::<String>());
+        let source = std::error::Error::source(&err).expect("source");
+        assert!(source.to_string().contains("String"));
     }
 }
 
@@ -144,7 +143,6 @@ mod error_source_chain {
     #[test]
     fn caller_authored_variants_have_no_source() {
         assert!(SchedulerError::panic("x").source().is_none());
-        assert!(SchedulerError::missing_context("x").source().is_none());
     }
 
     #[test]
@@ -210,10 +208,10 @@ mod error_constructor_round_trips {
     }
 
     #[test]
-    fn missing_context_constructor_matches_struct_variant() {
-        let via_ctor = SchedulerError::missing_context("DbPool").to_string();
-        let via_struct = SchedulerError::MissingContext("DbPool".to_string()).to_string();
-        assert_eq!(via_ctor, via_struct);
+    fn missing_context_from_matches_struct_variant() {
+        let via_from = SchedulerError::from(missing::<u8>()).to_string();
+        let via_struct = SchedulerError::MissingContext(missing::<u8>()).to_string();
+        assert_eq!(via_from, via_struct);
     }
 
     #[test]
