@@ -191,9 +191,11 @@ fn disk_hook_config_keeps_an_explicit_id() {
 }
 
 #[test]
-fn disk_hook_config_rejects_an_empty_id() {
-    let yaml = "id: \"\"\nevent: SessionStart\n";
-    let parsed: Result<systemprompt_models::services::DiskHookConfig, _> =
-        serde_yaml::from_str(yaml);
-    assert!(parsed.is_err());
+fn disk_hook_config_reads_a_blank_id_as_absent() {
+    for raw in ["\"\"", "\"   \""] {
+        let yaml = format!("id: {raw}\nevent: SessionStart\n");
+        let cfg: systemprompt_models::services::DiskHookConfig = serde_yaml::from_str(&yaml)
+            .unwrap_or_else(|e| panic!("blank id {raw} must parse: {e}"));
+        assert!(cfg.id.is_none(), "blank id {raw} must read as absent");
+    }
 }
