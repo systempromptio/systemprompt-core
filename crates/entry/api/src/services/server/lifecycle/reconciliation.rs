@@ -124,7 +124,7 @@ pub async fn handle_missing_servers(
     Err(anyhow::anyhow!(
         "FATAL: {} required MCP server(s) failed to start: {}\n\nsystemprompt.io OS cannot \
          operate without MCP servers.\nAgents need tools to function.\n\nBuild missing binaries \
-         with:\n  cargo build --bin {}\n\nOr build all MCP servers:\n  just mcp build",
+         with:\n  cargo build --bin {}\n\nOr build all MCP servers:\n  systemprompt build mcp",
         missing.len(),
         missing.join(", "),
         missing.join(" --bin ")

@@ -120,7 +120,7 @@ fn select_operation(prompter: &dyn Prompter) -> Result<Option<ProfileCommands>> 
         1 | 2 if !has_profiles => {
             CliService::warning("No profiles found");
             CliService::info(
-                "Run 'systemprompt cloud tenant create' (or 'just tenant') to create a tenant \
+                "Run 'systemprompt cloud tenant create' to create a tenant \
                  with a profile.",
             );
             return Ok(Some(ProfileCommands::List));

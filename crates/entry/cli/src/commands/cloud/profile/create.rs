@@ -169,7 +169,7 @@ fn render_next_steps(tenant: &StoredTenant, profile_path: &Path) {
     ));
 
     match tenant.tenant_type {
-        TenantType::Local => CliService::info("  just start"),
-        TenantType::Cloud => CliService::info("  just deploy"),
+        TenantType::Local => CliService::info("  systemprompt infra services start"),
+        TenantType::Cloud => CliService::info("  systemprompt cloud deploy"),
     }
 }

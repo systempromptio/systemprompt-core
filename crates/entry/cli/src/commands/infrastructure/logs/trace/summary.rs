@@ -118,7 +118,10 @@ fn print_trace_context(events: &[TraceEvent], task_id: Option<&TaskId>) {
     if let Some(task_id) = task_id {
         CliService::key_value(
             "  Task",
-            &format!("{} (use: just ai-trace <task_id>)", task_id.as_str()),
+            &format!(
+                "{} (use: systemprompt infra logs trace show <task_id>)",
+                task_id.as_str()
+            ),
         );
     }
 

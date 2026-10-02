@@ -46,9 +46,7 @@ pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result
         if !config.is_json_output() {
             CliService::section("Tenants");
             CliService::info("No tenants configured.");
-            CliService::info(
-                "Run 'systemprompt cloud tenant create' (or 'just tenant') to create one.",
-            );
+            CliService::info("Run 'systemprompt cloud tenant create' to create one.");
         }
         return Ok(CommandOutput::table_of(
             vec!["id", "name", "tenant_type", "has_database"],

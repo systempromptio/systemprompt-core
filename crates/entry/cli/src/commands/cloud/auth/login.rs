@@ -156,9 +156,7 @@ fn print_login_result(response: &UserMeResponse) {
 fn print_tenants(tenants: &[CloudTenantInfo]) {
     if tenants.is_empty() {
         CliService::info("No cloud tenants found.");
-        CliService::info(
-            "Run 'systemprompt cloud tenant create' (or 'just tenant') to create a local tenant.",
-        );
+        CliService::info("Run 'systemprompt cloud tenant create' to create a local tenant.");
         return;
     }
 
@@ -182,8 +180,6 @@ fn print_tenants(tenants: &[CloudTenantInfo]) {
         }
     }
     CliService::info("");
-    CliService::info(
-        "Run 'systemprompt cloud tenant create' (or 'just tenant') to add a local tenant,",
-    );
+    CliService::info("Run 'systemprompt cloud tenant create' to add a local tenant,");
     CliService::info("then 'systemprompt cloud profile create <name>' to create a profile.");
 }

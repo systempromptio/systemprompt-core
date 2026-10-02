@@ -226,8 +226,8 @@ async fn handle_port_conflict(
     if events.is_none() {
         CliService::error(&format!("Port {} is already in use by PID {}", port, pid));
         CliService::info("Use --kill-port-process to terminate the process, or:");
-        CliService::info("   - just api-rebuild    (rebuild and restart)");
-        CliService::info("   - just api-nuke       (nuclear option - kill everything)");
+        CliService::info("   - systemprompt infra services restart api");
+        CliService::info("   - systemprompt infra services stop --all --force");
         CliService::info(&format!(
             "   - kill {}             (manually kill the process)",
             pid
