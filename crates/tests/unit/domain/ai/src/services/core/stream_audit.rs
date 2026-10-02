@@ -54,10 +54,7 @@ async fn truncated_sse_server() -> (String, OwnedSseServer) {
         .expect("bind owned truncated-SSE server");
     let address = listener.local_addr().expect("owned server address");
     let task = tokio::spawn(async move {
-        let (mut socket, _) = tokio::time::timeout(Duration::from_secs(10), listener.accept())
-            .await
-            .expect("provider request arrives")
-            .expect("accept provider request");
+        let (mut socket, _) = listener.accept().await.expect("accept provider request");
         let mut request = Vec::new();
         let header_end = tokio::time::timeout(Duration::from_secs(10), async {
             loop {

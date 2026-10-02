@@ -988,10 +988,7 @@ async fn raw_session_provider() -> anyhow::Result<(String, RawProviderTask)> {
     let task = tokio::spawn(async move {
         let body = br#"{"jsonrpc":"2.0","id":1,"result":{}}"#;
         for attempt in 0..2 {
-            let (mut stream, _) =
-                tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept())
-                    .await
-                    .map_err(|_| anyhow::anyhow!("provider accept timed out"))??;
+            let (mut stream, _) = listener.accept().await?;
             let mut request = Vec::new();
             let (header_end, content_length) = loop {
                 let mut chunk = [0_u8; 1024];
@@ -1079,7 +1076,14 @@ async fn invalid_external_session_header_is_fail_closed_and_valid_retry_binds() 
     )
     .await
     .map_err(|_| anyhow::anyhow!("invalid-header request timed out"))??;
-    assert_eq!(invalid.status(), StatusCode::FORBIDDEN);
+    let invalid_status = invalid.status();
+    let invalid_body = axum::body::to_bytes(invalid.into_body(), usize::MAX).await?;
+    assert_eq!(
+        invalid_status,
+        StatusCode::FORBIDDEN,
+        "{}",
+        String::from_utf8_lossy(&invalid_body)
+    );
     let write = h.pool.write_pool();
     let count: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM mcp_external_sessions WHERE server_name = $1")

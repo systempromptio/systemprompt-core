@@ -106,16 +106,20 @@ async fn monitor_drop_aborts_running_loop() -> anyhow::Result<()> {
 async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let name = unique_name("hc-live");
-    let own_pid = std::process::id() as i32;
-    register_running(&pool, &name, ServiceModule::Agent, Some(own_pid)).await?;
+    let mut live = std::process::Command::new("sleep").arg("30").spawn()?;
+    let live_pid = i32::try_from(live.id())?;
+    register_running(&pool, &name, ServiceModule::Agent, Some(live_pid)).await?;
 
     let monitor = ProcessMonitor::new(ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     ));
-    let summary = monitor.health_check_all().await?;
+    let summary = monitor.health_check_all().await;
+    live.kill()?;
+    live.wait()?;
+    let summary = summary?;
 
-    assert!(summary.total_healthy() >= 1, "own PID should be healthy");
+    assert!(summary.total_healthy() >= 1, "a live PID should be healthy");
     assert!(
         summary.modules.contains_key("agent"),
         "agent module present in summary"

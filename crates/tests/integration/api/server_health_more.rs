@@ -127,15 +127,20 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     let dead = format!("dead-mcp-{}", Uuid::new_v4().simple());
     let recycled = format!("recycled-mcp-{}", Uuid::new_v4().simple());
     seed_mcp_service(&ctx, &dead, ServiceStatus::Running, Some(dead_pid())).await?;
+    let mut foreign = std::process::Command::new("sleep").arg("30").spawn()?;
     seed_mcp_service(
         &ctx,
         &recycled,
         ServiceStatus::Running,
-        Some(std::process::id() as i32),
+        Some(i32::try_from(foreign.id())?),
     )
     .await?;
 
     shutdown::terminate_children(&ctx).await;
+    let foreign_survived = foreign.try_wait()?.is_none();
+    foreign.kill()?;
+    foreign.wait()?;
+    assert!(foreign_survived, "an unmarked live pid is never signalled");
 
     let repo = ServiceRepository::new(
         ctx.db_pool(),
