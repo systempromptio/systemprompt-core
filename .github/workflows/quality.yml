@@ -96,7 +96,6 @@ jobs:
       - name: Install system dependencies
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
-      - run: python3 scripts/ci-strip-cargo-config.py
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Migrate disposable database

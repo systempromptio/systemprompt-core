@@ -98,25 +98,6 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
 
-      - name: Strip [unstable] and [profile.dev] from cargo configs
-        run: |
-          python3 - <<'PY'
-          import re, pathlib
-          for path in (".cargo/config.toml", "crates/tests/.cargo/config.toml"):
-              p = pathlib.Path(path)
-              if not p.exists():
-                  continue
-              s = p.read_text()
-              # Drop sections that trigger the unstable `codegen-backend` feature
-              # and anything forcing sccache. CI uses stable LLVM default.
-              s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
-              s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
-              s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
-              p.write_text(s)
-              print(f"--- {path} ---")
-              print(p.read_text())
-          PY
-
       - run: rustup show
 
       - uses: Swatinem/rust-cache@v2

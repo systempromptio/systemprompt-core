@@ -64,8 +64,8 @@ jobs:
   # and the `systemprompt` CLI the subprocess fixtures spawn — compiled once and
   # handed to the shards as an artifact. Before this each of the 14 shards
   # spent ~10 min compiling the migrator for a migration that takes seconds.
-  # The job mirrors the test job's env and cargo-config surgery exactly so its
-  # sccache objects are the ones the shards then hit.
+  # The job mirrors the test job's env exactly so its sccache objects are the
+  # ones the shards then hit.
   test-tools:
     name: Test tools (prebuilt)
     runs-on: ubuntu-latest
@@ -80,8 +80,6 @@ jobs:
       - name: Install system dependencies
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
-      - name: Strip [unstable] and [profile.dev] from cargo configs
-        run: python3 scripts/ci-strip-cargo-config.py
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Build migrator and CLI
@@ -176,9 +174,6 @@ jobs:
         # backend, which needs libdbus at build time.
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
-
-      - name: Strip [unstable] and [profile.dev] from cargo configs
-        run: python3 scripts/ci-strip-cargo-config.py
 
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
