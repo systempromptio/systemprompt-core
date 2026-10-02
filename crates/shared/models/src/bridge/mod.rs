@@ -18,6 +18,8 @@
 //!   producer/consumer.
 //! - [`manifest_version`] — the parsed `<rfc3339>-<hex>` version identifier
 //!   carried inside every manifest.
+//! - [`gateway`] — the whoami, device self-enrolment, session PAT and release
+//!   feed bodies.
 //! - [`host`] — [`host::HostKind`], the closed set of host applications the
 //!   bridge integrates with.
 //! - [`ids`] — typed newtypes for manifest-scoped identifiers (plugin id,
@@ -35,6 +37,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod cowork_artifact;
+pub mod gateway;
 pub mod host;
 pub mod ids;
 pub mod manifest;

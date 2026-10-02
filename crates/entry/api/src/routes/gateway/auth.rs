@@ -18,6 +18,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{JwtToken, headers};
 use systemprompt_models::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
+use systemprompt_models::bridge::gateway::DevicePatResponse;
 use systemprompt_oauth::services::{
     BridgeAccessRequest, BridgeAuthResult, BridgeExchangeRequest, BridgeOAuthClient,
     exchange_bridge_session_code, hash_exchange_code, issue_bridge_access,
@@ -71,11 +72,6 @@ pub struct SessionPatBody {
     pub code: String,
     #[serde(default)]
     pub device_name: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct DevicePatResponse {
-    pub pat: String,
 }
 
 pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>, ApiHttpError> {

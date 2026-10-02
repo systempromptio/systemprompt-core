@@ -7,6 +7,7 @@ use crate::ids::BearerToken;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub use systemprompt_models::bridge::gateway::DevicePatResponse;
 pub use systemprompt_models::bridge::profile::{
     BridgeProfileResponse as BridgeProfile, ProviderHealth,
 };
@@ -21,11 +22,6 @@ pub struct SessionPatRequest {
     pub code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_name: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct DevicePatResponse {
-    pub pat: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

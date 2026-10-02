@@ -13,22 +13,12 @@ use std::sync::Arc;
 
 use axum::Json;
 use axum::http::HeaderMap;
-use serde::Serialize;
-use systemprompt_identifiers::UserId;
+use systemprompt_models::bridge::gateway::WhoamiResponse;
 use systemprompt_runtime::AppContext;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
-
-#[derive(Debug, Serialize)]
-pub struct WhoamiResponse {
-    pub user_id: UserId,
-    pub email: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_name: Option<String>,
-    pub roles: Vec<String>,
-}
 
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
@@ -45,9 +35,10 @@ pub async fn handle(
         .ok_or_else(|| BridgeError::UserNotFound(claims.user_id.clone()))?;
 
     Ok(Json(WhoamiResponse {
-        user_id: claims.user_id,
-        email: user.email,
+        user_id: Some(claims.user_id),
+        email: Some(user.email),
         display_name: user.display_name.or(user.full_name),
         roles: user.roles,
+        ..WhoamiResponse::default()
     }))
 }

@@ -9,9 +9,10 @@ use std::sync::Arc;
 use axum::Json;
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_api::routes::gateway::bridge_device::{SelfEnrollRequest, enroll_self};
+use systemprompt_api::routes::gateway::bridge_device::enroll_self;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_models::api::ErrorCode;
+use systemprompt_models::bridge::gateway::{SelfEnrollRequest, SelfEnrollResponse};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     AuthedFixture, ensure_test_bootstrap, seed_bridge_credential, test_app_context,
@@ -63,8 +64,7 @@ async fn enroll(
     h: &Harness,
     headers: HeaderMap,
     fingerprint: String,
-) -> Result<Json<systemprompt_api::routes::gateway::bridge_device::SelfEnrollResponse>, ApiHttpError>
-{
+) -> Result<Json<SelfEnrollResponse>, ApiHttpError> {
     enroll_self(
         Arc::clone(&h.extractor),
         (*h.ctx).clone(),

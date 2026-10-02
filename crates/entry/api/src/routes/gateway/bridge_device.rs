@@ -12,8 +12,7 @@ use std::sync::Arc;
 
 use axum::Json;
 use axum::http::HeaderMap;
-use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{DeviceId, UserId};
+use systemprompt_models::bridge::gateway::{SelfEnrollRequest, SelfEnrollResponse};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{
     DEVICE_FINGERPRINT_FOREIGN_USER, DeviceCertService, EnrollDeviceCertServiceParams, UserError,
@@ -22,20 +21,6 @@ use systemprompt_users::{
 use super::bridge_error::{BridgeError, authenticate_bridge};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
-
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct SelfEnrollRequest {
-    pub fingerprint: String,
-    pub label: String,
-}
-
-#[derive(Debug, Serialize, schemars::JsonSchema)]
-pub struct SelfEnrollResponse {
-    pub device_id: DeviceId,
-    pub consumer_id: UserId,
-    pub credential: String,
-}
 
 pub async fn enroll_self(
     jwt_extractor: Arc<JwtContextExtractor>,

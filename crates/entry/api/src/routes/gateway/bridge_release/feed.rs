@@ -12,11 +12,12 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use systemprompt_models::bridge::gateway::ReleaseManifest;
 use systemprompt_models::services::BridgeReleasesSpec;
 
+use super::CACHE_TTL;
 use super::error::ReleaseError;
 use super::github::{asset_digest, resolve_release, sums_url};
-use super::{CACHE_TTL, ReleaseManifest};
 
 /// One platform's release as the feed resolved it: what `/latest` answers with
 /// plus the asset `/download` streams.

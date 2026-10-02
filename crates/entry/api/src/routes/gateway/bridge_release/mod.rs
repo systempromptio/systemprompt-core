@@ -24,8 +24,9 @@ use axum::body::Body;
 use axum::extract::{Path, Query};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use systemprompt_loader::ServicesBootstrap;
+use systemprompt_models::bridge::gateway::ReleaseManifest;
 use systemprompt_models::services::BridgeReleasesSpec;
 
 mod error;
@@ -46,19 +47,6 @@ pub const CACHE_TTL: Duration = Duration::from_secs(300);
 #[derive(Debug, Deserialize)]
 pub struct LatestQuery {
     pub platform: String,
-}
-
-/// Mirrors `ReleaseManifest` in the bridge's gateway client.
-///
-/// Keep the two in lockstep: this is a wire contract with an already-shipped
-/// binary, so a renamed field silently breaks every bridge in the field.
-#[derive(Debug, Clone, Serialize)]
-pub struct ReleaseManifest {
-    pub version: String,
-    pub sha256: String,
-    pub size: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub notes_url: Option<String>,
 }
 
 pub async fn latest(
