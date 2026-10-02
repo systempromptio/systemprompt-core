@@ -86,9 +86,9 @@ sqlx-prepare:
 # Prepare per-crate SQLx caches for publishing (requires a running database).
 #
 # Each published crate ships its own `.sqlx/` so crates.io can build it offline.
-# The crate set is derived from `cargo metadata`; `entry/api` is excluded there
-# because it issues no SQL via `query!` macros (confirmed by
-# `sqlx-verify-offline`). Every crate is cleaned before it is prepared so the
+# The crate set is derived from `cargo metadata` and narrowed to crates whose
+# src/ invokes a `query!`-family macro; `entry/api` is excluded because it
+# issues none. Every crate is cleaned before it is prepared so the
 # result does not depend on target/ state, and a cache that shrinks is rejected
 # unless PREPARE_ALLOW_PRUNE=1. `sqlx-verify-offline` is the correctness gate.
 sqlx-prepare-publish:
@@ -107,16 +107,14 @@ sqlx-audit-caches:
 # against. `cargo package` cannot be used here: pre-publish, the workspace's
 # own path dependencies do not yet exist at the new version on the index, so
 # it fails on resolution for reasons unrelated to the SQLx cache.
+# The crate set is the one `sqlx-prepare-publish` prepares (`sqlx-prepare.sh list`).
 sqlx-verify-offline:
     #!/usr/bin/env bash
-    set -e
-    echo "Verifying offline compilation for all SQLx crates..."
+    set -euo pipefail
+    mapfile -t crates < <(scripts/sqlx-prepare.sh list)
+    echo "Verifying offline compilation for ${#crates[@]} SQLx crates..."
     echo ""
-    for crate in crates/infra/database crates/infra/events crates/infra/logging crates/infra/security \
-                 crates/domain/analytics crates/domain/agent crates/domain/oauth crates/domain/users \
-                 crates/domain/content crates/domain/files crates/domain/ai \
-                 crates/domain/mcp crates/app/scheduler \
-                 crates/entry/cli crates/entry/api; do
+    for crate in "${crates[@]}"; do
         echo "  Checking $crate..."
         (cd "$crate" && SQLX_OFFLINE=true cargo check --all-features)
     done
