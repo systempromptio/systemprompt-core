@@ -5,7 +5,6 @@
 
 use anyhow::Result;
 use clap::Args;
-use systemprompt_identifiers::UserId;
 use systemprompt_oauth::services::issue_bridge_exchange_code;
 
 use super::types::ExchangeCodeIssuedOutput;
@@ -14,14 +13,18 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct IssueCodeArgs {
-    #[arg(long, help = "User id, email, or name to issue the exchange code for")]
-    pub user_id: UserId,
+    #[arg(
+        long = "user-id",
+        value_name = "USER_ID",
+        help = "User id, email, or name to issue the exchange code for"
+    )]
+    pub user_ref: String,
 }
 
 pub(super) async fn execute(args: IssueCodeArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
 
-    let user_id = super::resolve_user_id(app.db_pool(), &args.user_id).await?;
+    let user_id = super::resolve_user_id(app.db_pool(), &args.user_ref).await?;
 
     let issued = issue_bridge_exchange_code(&app.oauth_repositories().oauth, &user_id).await?;
 

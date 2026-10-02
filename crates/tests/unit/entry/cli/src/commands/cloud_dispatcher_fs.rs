@@ -52,7 +52,13 @@ async fn the_dockerfile_arm_renders_a_build_recipe() {
 #[tokio::test]
 async fn the_doctor_arm_runs_the_preflight_over_a_profile() {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    let profile = boot.profile_path.to_string_lossy().to_string();
+    let profile = boot
+        .profile_path
+        .parent()
+        .and_then(|dir| dir.file_name())
+        .expect("the fixture profile lives in a named directory")
+        .to_string_lossy()
+        .to_string();
 
     let result = cloud::execute(parse(&["doctor", "--profile", &profile]), &ctx()).await;
 
@@ -67,15 +73,18 @@ async fn the_doctor_arm_runs_the_preflight_over_a_profile() {
 
 #[tokio::test]
 async fn an_unknown_doctor_profile_is_rejected() {
-    let result = cloud::execute(
-        parse(&["doctor", "--profile", "/nonexistent/profile.yaml"]),
-        &ctx(),
-    )
-    .await;
+    let result = cloud::execute(parse(&["doctor", "--profile", "no-such-profile"]), &ctx()).await;
 
-    if let Err(e) = result {
-        assert!(!format!("{e:#}").is_empty());
-    }
+    let error = result.expect_err("a profile that does not exist cannot be checked");
+    assert!(!format!("{error:#}").is_empty());
+}
+
+#[test]
+fn a_doctor_profile_path_is_a_usage_error() {
+    let error =
+        Harness::try_parse_from(["cloud", "doctor", "--profile", "/nonexistent/profile.yaml"])
+            .expect_err("--profile takes a profile name, not a path");
+    assert_eq!(error.kind(), clap::error::ErrorKind::ValueValidation);
 }
 
 #[tokio::test]

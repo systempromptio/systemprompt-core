@@ -22,8 +22,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
-pub(super) async fn resolve_user_id(pool: &DbPool, reference: &UserId) -> Result<UserId> {
-    let reference = reference.as_str().trim();
+pub(super) async fn resolve_user_id(pool: &DbPool, user_ref: &str) -> Result<UserId> {
+    let reference = user_ref.trim();
     if reference.is_empty() {
         return Err(anyhow!("user_id cannot be empty"));
     }

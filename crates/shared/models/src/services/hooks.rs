@@ -11,7 +11,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use systemprompt_identifiers::HookId;
 
 use crate::errors::{ConfigValidationError, ParseEnumError};
@@ -136,9 +136,20 @@ impl FromStr for HookCategory {
     }
 }
 
+fn blank_hook_id_as_none<'de, D>(deserializer: D) -> Result<Option<HookId>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer)?
+        .filter(|raw| !raw.trim().is_empty())
+        .map(HookId::try_new)
+        .transpose()
+        .map_err(serde::de::Error::custom)
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct DiskHookConfig {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "blank_hook_id_as_none")]
     pub id: Option<HookId>,
     #[serde(default)]
     pub name: String,
