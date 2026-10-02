@@ -193,9 +193,10 @@ async fn the_profile_dispatcher_refuses_an_irreversible_down_migration() {
     let err = db::execute(parse(&["migrate-down", "logging", "1"]), &ctx(&app, false))
         .await
         .expect_err("no in-tree migration ships down SQL");
+    assert_eq!(err.to_string(), "Down migration failed");
     assert!(
-        err.to_string().contains("not reversible"),
-        "the refusal must say why, got {err}"
+        format!("{err:#}").contains("not reversible"),
+        "the refusal must keep why as its cause, got {err:#}"
     );
 
     assert_eq!(
