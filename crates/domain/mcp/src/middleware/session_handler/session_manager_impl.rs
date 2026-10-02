@@ -11,14 +11,14 @@ use rmcp::transport::common::server_side_http::ServerSseMessage;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use rmcp::transport::streamable_http_server::session::{RestoreOutcome, SessionId, SessionManager};
 
-use super::{DatabaseSessionHandler, DatabaseSessionManagerError};
+use super::{DatabaseSessionHandler, DatabaseSessionHandlerError};
 
 impl SessionManager for DatabaseSessionHandler {
-    type Error = DatabaseSessionManagerError;
+    type Error = DatabaseSessionHandlerError;
     type Transport = <LocalSessionManager as SessionManager>::Transport;
 
     async fn create_session(&self) -> Result<(SessionId, Self::Transport), Self::Error> {
-        let (id, transport) = self.local_manager.create_session().await?;
+        let (id, transport) = self.local_sessions.create_session().await?;
         tracing::info!(session_id = %id, "MCP session created");
         self.persist_create(&id).await;
         Ok((id, transport))
@@ -29,13 +29,13 @@ impl SessionManager for DatabaseSessionHandler {
         id: &SessionId,
         message: ClientJsonRpcMessage,
     ) -> Result<ServerJsonRpcMessage, Self::Error> {
-        let result = self.local_manager.initialize_session(id, message).await?;
+        let result = self.local_sessions.initialize_session(id, message).await?;
         self.update_activity(id).await;
         Ok(result)
     }
 
     async fn has_session(&self, id: &SessionId) -> Result<bool, Self::Error> {
-        if self.local_manager.has_session(id).await.unwrap_or(false) {
+        if self.local_sessions.has_session(id).await.unwrap_or(false) {
             return Ok(true);
         }
         if self.check_db_session(id).await == Some(true) {
@@ -49,7 +49,7 @@ impl SessionManager for DatabaseSessionHandler {
 
     async fn close_session(&self, id: &SessionId) -> Result<(), Self::Error> {
         tracing::info!(session_id = %id, "MCP session closing");
-        if let Err(e) = self.local_manager.close_session(id).await {
+        if let Err(e) = self.local_sessions.close_session(id).await {
             tracing::warn!(session_id = %id, error = %e, "Failed to close local session");
         }
         self.persist_close(id).await;
@@ -61,7 +61,7 @@ impl SessionManager for DatabaseSessionHandler {
         id: &SessionId,
         message: ClientJsonRpcMessage,
     ) -> Result<impl Stream<Item = ServerSseMessage> + Send + 'static, Self::Error> {
-        let stream = self.local_manager.create_stream(id, message).await?;
+        let stream = self.local_sessions.create_stream(id, message).await?;
         self.update_activity(id).await;
         Ok(stream)
     }
@@ -71,7 +71,7 @@ impl SessionManager for DatabaseSessionHandler {
         id: &SessionId,
         message: ClientJsonRpcMessage,
     ) -> Result<(), Self::Error> {
-        self.local_manager.accept_message(id, message).await?;
+        self.local_sessions.accept_message(id, message).await?;
         self.update_activity(id).await;
         Ok(())
     }
@@ -80,7 +80,7 @@ impl SessionManager for DatabaseSessionHandler {
         &self,
         id: &SessionId,
     ) -> Result<impl Stream<Item = ServerSseMessage> + Send + 'static, Self::Error> {
-        let stream = self.local_manager.create_standalone_stream(id).await?;
+        let stream = self.local_sessions.create_standalone_stream(id).await?;
         self.update_activity(id).await;
         Ok(stream)
     }
@@ -90,7 +90,7 @@ impl SessionManager for DatabaseSessionHandler {
         id: SessionId,
     ) -> Result<RestoreOutcome<Self::Transport>, Self::Error> {
         let outcome = self
-            .local_manager
+            .local_sessions
             .restore_session(std::sync::Arc::<str>::clone(&id))
             .await?;
         if matches!(outcome, RestoreOutcome::Restored(_)) {
@@ -105,14 +105,14 @@ impl SessionManager for DatabaseSessionHandler {
         id: &SessionId,
         last_event_id: String,
     ) -> Result<impl Stream<Item = ServerSseMessage> + Send + 'static, Self::Error> {
-        if !self.local_manager.has_session(id).await.unwrap_or(false) {
+        if !self.local_sessions.has_session(id).await.unwrap_or(false) {
             if self.check_db_session(id).await == Some(true) {
                 tracing::info!(
                     session_id = %id,
                     "Session in DB but not memory (server restart?) — signaling reconnect"
                 );
                 self.persist_close(id).await;
-                return Err(DatabaseSessionManagerError::SessionNeedsReconnect(
+                return Err(DatabaseSessionHandlerError::SessionNeedsReconnect(
                     id.to_string(),
                 ));
             }
@@ -120,10 +120,10 @@ impl SessionManager for DatabaseSessionHandler {
                 session_id = %id,
                 "Resume called but session not found anywhere"
             );
-            return Err(DatabaseSessionManagerError::SessionNotFound(id.to_string()));
+            return Err(DatabaseSessionHandlerError::SessionNotFound(id.to_string()));
         }
 
-        match self.local_manager.resume(id, last_event_id).await {
+        match self.local_sessions.resume(id, last_event_id).await {
             Ok(stream) => {
                 tracing::info!(
                     session_id = %id,
@@ -138,7 +138,7 @@ impl SessionManager for DatabaseSessionHandler {
                     error = %e,
                     "Resume failed, attempting recovery via new standalone stream"
                 );
-                match self.local_manager.create_standalone_stream(id).await {
+                match self.local_sessions.create_standalone_stream(id).await {
                     Ok(stream) => {
                         tracing::info!(
                             session_id = %id,
@@ -153,11 +153,11 @@ impl SessionManager for DatabaseSessionHandler {
                             error = %e2,
                             "Session worker is dead, cleaning up"
                         );
-                        if let Err(e) = self.local_manager.close_session(id).await {
+                        if let Err(e) = self.local_sessions.close_session(id).await {
                             tracing::warn!(session_id = %id, error = %e, "Failed to close local session during recovery");
                         }
                         self.persist_close(id).await;
-                        Err(DatabaseSessionManagerError::SessionNotFound(id.to_string()))
+                        Err(DatabaseSessionHandlerError::SessionNotFound(id.to_string()))
                     },
                 }
             },

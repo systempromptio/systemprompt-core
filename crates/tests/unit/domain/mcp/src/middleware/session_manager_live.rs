@@ -125,7 +125,7 @@ async fn session_manager_drives_full_streamable_http_lifecycle() {
 
 #[tokio::test]
 async fn database_only_session_requires_reconnect_and_is_closed_durably() {
-    use systemprompt_mcp::middleware::session_handler::DatabaseSessionManagerError;
+    use systemprompt_mcp::middleware::session_handler::DatabaseSessionHandlerError;
     use systemprompt_test_fixtures::DisposableDb;
 
     let database = DisposableDb::with_schema("mcp_session_reconnect").await;
@@ -162,7 +162,7 @@ async fn database_only_session_requires_reconnect_and_is_closed_durably() {
     };
     assert!(matches!(
         error,
-        DatabaseSessionManagerError::SessionNeedsReconnect(ref value) if value == id.as_ref()
+        DatabaseSessionHandlerError::SessionNeedsReconnect(ref value) if value == id.as_ref()
     ));
     assert!(
         repository

@@ -263,11 +263,11 @@ where
     )));
     config.session_store = Some(session_store);
 
-    let session_manager =
+    let session_handler =
         DatabaseSessionHandler::with_timeouts(session_repository, session, server_id);
 
     let service =
-        StreamableHttpService::new(move || Ok(server.clone()), session_manager.into(), config);
+        StreamableHttpService::new(move || Ok(server.clone()), session_handler.into(), config);
 
     axum::Router::new()
         .nest_service("/mcp", service)

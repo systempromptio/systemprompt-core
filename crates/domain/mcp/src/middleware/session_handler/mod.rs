@@ -4,7 +4,7 @@
 //! the `session_manager_impl` submodule), wrapping rmcp's in-memory
 //! `LocalSessionManager` while mirroring session lifecycle (create, activity,
 //! close) into the `mcp_sessions` table for cross-restart visibility.
-//! [`DatabaseSessionManagerError`] models the local, database, and
+//! [`DatabaseSessionHandlerError`] models the local, database, and
 //! reconnect-signalling failure cases; database persistence is best-effort and
 //! never fails an in-memory operation.
 //!
@@ -27,7 +27,7 @@ use rmcp::transport::streamable_http_server::session::local::{
 use systemprompt_identifiers::McpServerId;
 
 #[derive(Debug)]
-pub enum DatabaseSessionManagerError {
+pub enum DatabaseSessionHandlerError {
     Local(LocalSessionManagerError),
     Database(crate::error::McpDomainError),
     SessionNotFound(String),
@@ -35,7 +35,7 @@ pub enum DatabaseSessionManagerError {
     SessionNeedsReconnect(String),
 }
 
-impl fmt::Display for DatabaseSessionManagerError {
+impl fmt::Display for DatabaseSessionHandlerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Local(e) => write!(f, "Local session error: {e}"),
@@ -47,7 +47,7 @@ impl fmt::Display for DatabaseSessionManagerError {
     }
 }
 
-impl std::error::Error for DatabaseSessionManagerError {
+impl std::error::Error for DatabaseSessionHandlerError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Local(e) => Some(e),
@@ -57,14 +57,14 @@ impl std::error::Error for DatabaseSessionManagerError {
     }
 }
 
-impl From<LocalSessionManagerError> for DatabaseSessionManagerError {
+impl From<LocalSessionManagerError> for DatabaseSessionHandlerError {
     fn from(e: LocalSessionManagerError) -> Self {
         Self::Local(e)
     }
 }
 
 pub struct DatabaseSessionHandler {
-    local_manager: LocalSessionManager,
+    local_sessions: LocalSessionManager,
     repository: Arc<McpSessionRepository>,
     server_id: Option<McpServerId>,
 }
@@ -72,7 +72,7 @@ pub struct DatabaseSessionHandler {
 impl fmt::Debug for DatabaseSessionHandler {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DatabaseSessionHandler")
-            .field("local_manager", &self.local_manager)
+            .field("local_sessions", &self.local_sessions)
             .field("repository", &self.repository)
             .field("server_id", &self.server_id)
             .finish()
@@ -89,12 +89,12 @@ impl DatabaseSessionHandler {
         timeouts: crate::SessionTimeouts,
         server_id: Option<McpServerId>,
     ) -> Self {
-        let mut local_manager = LocalSessionManager::default();
-        let cfg = &mut local_manager.session_config;
+        let mut local_sessions = LocalSessionManager::default();
+        let cfg = &mut local_sessions.session_config;
         cfg.init_timeout = timeouts.init.or(cfg.init_timeout);
         cfg.keep_alive = timeouts.keep_alive.or(cfg.keep_alive);
         Self {
-            local_manager,
+            local_sessions,
             repository,
             server_id,
         }
