@@ -61,7 +61,6 @@ impl From<AgentError> for ApiHttpError {
     fn from(err: AgentError) -> Self {
         let api = match err {
             AgentError::NotFound(msg) => ApiError::not_found(msg),
-            AgentError::Validation(msg) => ApiError::bad_request(msg),
             AgentError::Repository(inner) => ApiError::from(inner),
             other => ApiError::internal("Agent operation failed", other),
         };
@@ -94,10 +93,9 @@ impl From<MarketplaceError> for ApiHttpError {
             | MarketplaceError::Managed(ManagedError::Unavailable)) => {
                 ApiError::not_found(e.to_string())
             },
-            e @ (MarketplaceError::Validation(_)
-            | MarketplaceError::Managed(
+            e @ MarketplaceError::Managed(
                 ManagedError::Invalid(_) | ManagedError::InvalidInput { .. },
-            )) => ApiError::bad_request(e.to_string()),
+            ) => ApiError::bad_request(e.to_string()),
             e @ MarketplaceError::Managed(ManagedError::Conflict(_)) => {
                 ApiError::conflict(e.to_string())
             },
@@ -123,8 +121,7 @@ impl From<UserError> for ApiHttpError {
             | UserError::InvalidStatus(_)
             | UserError::InvalidRole(_)
             | UserError::InvalidRoles(_)) => ApiError::bad_request(e.to_string()),
-            e @ (UserError::Pool(_)
-            | UserError::MergeUnavailable
+            e @ (UserError::MergeUnavailable
             | UserError::PurgeIdentifier { .. }
             | UserError::OwnerReassignment { .. }) => {
                 ApiError::internal("User operation failed", e)

@@ -68,10 +68,6 @@ fn marketplace_error_variants_classify() {
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(MarketplaceError::Validation("v".to_owned()).into()),
-        StatusCode::BAD_REQUEST
-    );
-    assert_eq!(
         status_of(
             MarketplaceError::Signing(systemprompt_security::ManifestSigningError::KeyMissing)
                 .into()
@@ -354,11 +350,7 @@ fn agent_error_not_found_and_validation_are_distinguished_from_the_catch_all() {
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(AgentError::Validation("v".to_owned()).into()),
-        StatusCode::BAD_REQUEST
-    );
-    assert_eq!(
-        status_of(AgentError::Config("boom".to_owned()).into()),
+        status_of(AgentError::EmptyCorsAllowlist.into()),
         StatusCode::INTERNAL_SERVER_ERROR,
         "an unclassified agent failure must not be reported as a client error"
     );
@@ -388,14 +380,6 @@ fn a_stored_task_without_an_agent_name_is_a_server_error() {
         status_of(err.into()),
         StatusCode::INTERNAL_SERVER_ERROR,
         "corrupt stored data is the server's fault, not the caller's"
-    );
-}
-
-#[test]
-fn a_user_pool_failure_is_a_server_error() {
-    assert_eq!(
-        status_of(UserError::Pool("no connections".to_owned()).into()),
-        StatusCode::INTERNAL_SERVER_ERROR
     );
 }
 
