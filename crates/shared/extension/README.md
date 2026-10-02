@@ -23,7 +23,7 @@ An extension declares its schemas, API routes, scheduled jobs, providers, seeds,
 | `context` | `ExtensionContext` and `DynExtensionContext` handed to extensions during router resolution. |
 | `cost` | `CostDirective`, `CostDirectiveError`, `TriggerPolicy`. |
 | `error` | `LoaderError`, `ExtensionConfigError`. |
-| `frame_options` | Per-route `X-Frame-Options` override (`FrameOptions`, `FrameOptionsOverride`, `stamp_frame_options`) honoured by the host security-headers middleware. |
+| `frame_options` | Per-route `X-Frame-Options` override (`FrameOptionsOverride`, `stamp_frame_options`) over the provider-contracts `FrameOptions`, honoured by the host security-headers middleware. |
 | `gateway_guard` | `GatewayRequestGuard` and the `register_gateway_guard!` macro for gateway request guards. |
 | `metadata` | `ExtensionMetadata`, `ExtensionRole`, `SchemaDefinition`. |
 | `migration` | `Migration` value type for versioned extension migrations. |
