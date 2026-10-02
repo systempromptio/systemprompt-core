@@ -44,6 +44,7 @@ NAME_TABLE=(
     "approver_id:UserId"
     "owner_user_id:UserId"
     "jti:AccessTokenId"              # a JWT's jti is the access token's id
+    "ext_id:ExtensionId"
 )
 
 # Boundary values: `path|names|reason`. A listed name in the listed file is a
@@ -83,7 +84,6 @@ BOUNDARY=(
 # name is skipped by the scan until its sites convert; an entry that no longer
 # matches any line is stale and fails the gate, so the list only shrinks.
 PENDING=(
-    "extension_id|ExtensionId is new; extension metadata, migration status rows and installation args still take &str/String"
 )
 
 snake() {
