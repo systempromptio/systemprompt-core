@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
+use systemprompt_identifiers::TeamsAppId;
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 use systemprompt_models::services::TeamsAppConfig;
 use systemprompt_runtime::AppContext;
@@ -15,7 +16,7 @@ use systemprompt_teams::auth::ActivityTokenVerifier;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct VerifierKey {
-    app_id: String,
+    app_id: TeamsAppId,
     openid_config_url: String,
 }
 
@@ -47,7 +48,7 @@ impl TeamsState {
 
     pub fn verifier(&self, app: &TeamsAppConfig) -> Arc<ActivityTokenVerifier> {
         let key = VerifierKey {
-            app_id: app.app_id.clone(),
+            app_id: TeamsAppId::new(app.app_id.as_str()),
             openid_config_url: app.endpoints.openid_config_url.clone(),
         };
         let mut verifiers = self
@@ -57,7 +58,7 @@ impl TeamsState {
         Arc::clone(verifiers.entry(key).or_insert_with_key(|key| {
             Arc::new(ActivityTokenVerifier::with_openid_url(
                 self.http.clone(),
-                key.app_id.clone(),
+                key.app_id.as_str().to_owned(),
                 key.openid_config_url.clone(),
             ))
         }))

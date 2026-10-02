@@ -30,7 +30,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_identifiers::{TeamsConversationId, TeamsTenantId};
+use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::services::TeamsAppConfig;
 use systemprompt_runtime::AppContext;
@@ -122,7 +122,7 @@ async fn handle_messages(
     let reply = TeamsReply {
         service_url: normalized.service_url,
         conversation_id: normalized.conversation_id,
-        app_id: app.app_id,
+        app_id: TeamsAppId::new(app.app_id.as_str()),
         app_password,
         token_url: app.endpoints.token_url,
     };
@@ -133,7 +133,7 @@ async fn handle_messages(
 struct TeamsReply {
     service_url: String,
     conversation_id: TeamsConversationId,
-    app_id: String,
+    app_id: TeamsAppId,
     app_password: String,
     token_url: String,
 }
@@ -151,7 +151,7 @@ fn spawn_reply(state: TeamsState, inbound: MessagingInbound, reply: TeamsReply) 
         let attachments = systemprompt_teams::cards::render_card(&text);
         let client = TeamsClient::with_endpoints(
             state.http.clone(),
-            reply.app_id,
+            reply.app_id.as_str().to_owned(),
             reply.app_password,
             reply.token_url,
         );
