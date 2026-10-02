@@ -39,8 +39,8 @@ fn auth_error_hook_plugin_id_missing_display() {
 #[test]
 fn auth_error_hook_plugin_id_mismatch_display() {
     let e = AuthError::HookPluginIdMismatch {
-        expected: "plugin-a".to_owned(),
-        actual: "plugin-b".to_owned(),
+        expected: systemprompt_identifiers::PluginId::new("plugin-a"),
+        actual: systemprompt_identifiers::PluginId::new("plugin-b"),
     };
     let s = e.to_string();
     assert!(s.contains("plugin-a"), "got: {s}");

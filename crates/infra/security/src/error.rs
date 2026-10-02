@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::PluginId;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -37,7 +38,10 @@ pub enum AuthError {
     #[error(
         "hook token: plugin_id `{actual}` in claim does not match request plugin_id `{expected}`"
     )]
-    HookPluginIdMismatch { expected: String, actual: String },
+    HookPluginIdMismatch {
+        expected: PluginId,
+        actual: PluginId,
+    },
 
     #[error("token has unsupported algorithm `{got}`; only RS256 is accepted")]
     UnsupportedAlgorithm { got: String },
