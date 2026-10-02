@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
+use systemprompt_traits::OwnedTask;
 use tokio::sync::watch;
-use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
@@ -58,21 +58,20 @@ impl StatusCell {
 ///
 /// [`listening`](Self::listening) resolves once the relay's `LISTEN` is in
 /// place, so a notification committed afterwards is guaranteed to reach it,
-/// or with `false` once the relay has stopped. Dropping the handle does not
-/// stop the task; call
-/// [`EventBridgeHandle::shutdown`] so the listener session closes before
-/// the pool does. `shutdown` takes `&self` so the handle can live in a
-/// shared `OnceLock`; a second call is a no-op.
+/// or with `false` once the relay has stopped. Dropping the handle aborts the
+/// task; call [`EventBridgeHandle::shutdown`] so the listener session closes
+/// cleanly before the pool does. `shutdown` takes `&self` so the handle can
+/// live in a shared `OnceLock`; a second call is a no-op.
 #[derive(Debug)]
 pub struct EventBridgeHandle {
-    task: tokio::sync::Mutex<Option<JoinHandle<()>>>,
+    task: tokio::sync::Mutex<Option<OwnedTask<()>>>,
     status: Arc<StatusCell>,
     cancel: CancellationToken,
 }
 
 impl EventBridgeHandle {
     pub(super) fn new(
-        task: JoinHandle<()>,
+        task: OwnedTask<()>,
         status: Arc<StatusCell>,
         cancel: CancellationToken,
     ) -> Self {
@@ -96,7 +95,7 @@ impl EventBridgeHandle {
         self.cancel.cancel();
         let task = self.task.lock().await.take();
         if let Some(task) = task
-            && let Err(error) = task.await
+            && let Err(error) = task.join().await
         {
             warn!(error = %error, "event bridge task did not exit cleanly");
         }

@@ -22,6 +22,7 @@ use std::time::Duration;
 
 use sqlx::PgPool;
 use sqlx::postgres::PgListener;
+use systemprompt_traits::OwnedTask;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
@@ -66,7 +67,7 @@ impl PostgresEventBridge {
         EventRouter::install_relay(self.pool.clone(), self.outbox.instance_id().clone());
         let status = Arc::new(StatusCell::default());
         let cancel = CancellationToken::new();
-        let task = tokio::spawn({
+        let task = OwnedTask::spawn("event_bridge", {
             let status = Arc::clone(&status);
             let cancel = cancel.clone();
             async move {

@@ -49,28 +49,32 @@ pub fn execute(
         return Err(failed());
     };
     let (sender, receiver) = mpsc::channel();
-    let mut readers = Vec::new();
     let streams: [(bool, Box<dyn Read + Send>, u64); 2] = [
         (true, Box::new(stdout), limits.output_bytes),
         (false, Box::new(stderr), 64 * 1024),
     ];
-    for (is_stdout, stream, limit) in streams {
-        let sender = sender.clone();
-        readers.push(std::thread::spawn(move || {
-            let mut bytes = Vec::new();
-            let result = stream.take(limit + 1).read_to_end(&mut bytes);
-            let valid = result.is_ok() && bytes.len() as u64 <= limit;
-            let _sent = sender.send((is_stdout, valid, if is_stdout { bytes } else { Vec::new() }));
-        }));
-    }
-    drop(sender);
-    let result = collect(&mut child, &receiver, working_directory.as_deref(), limits);
-    let cleanup = terminate(&mut child);
-    cleanup?;
-    for reader in readers {
-        reader.join().map_err(|_error| failed())?;
-    }
-    result
+    std::thread::scope(|scope| {
+        let readers: Vec<_> = streams
+            .into_iter()
+            .map(|(is_stdout, stream, limit)| {
+                let sender = sender.clone();
+                scope.spawn(move || {
+                    let mut bytes = Vec::new();
+                    let result = stream.take(limit + 1).read_to_end(&mut bytes);
+                    let valid = result.is_ok() && bytes.len() as u64 <= limit;
+                    let _sent =
+                        sender.send((is_stdout, valid, if is_stdout { bytes } else { Vec::new() }));
+                })
+            })
+            .collect();
+        drop(sender);
+        let result = collect(&mut child, &receiver, working_directory.as_deref(), limits);
+        terminate(&mut child)?;
+        for reader in readers {
+            reader.join().map_err(|_error| failed())?;
+        }
+        result
+    })
 }
 
 fn collect(

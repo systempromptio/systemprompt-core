@@ -1,22 +1,29 @@
-//! Spawning and reaping the detached agent and MCP children the supervisor
-//! owns.
+//! Process supervision for the agent and MCP children this installation owns:
+//! the one place that spawns, identifies, probes and stops them.
 //!
 //! # Spawning
 //!
-//! [`spawn_supervised`] is the only sanctioned way to start a child. It runs
-//! every spawn on one dedicated thread and, where the platform offers it, asks
-//! the kernel to `SIGTERM` the child if this process dies, so a crash, panic,
-//! or `SIGKILL` of the supervisor cannot strand an agent holding a port. The
-//! spawner thread is started lazily; a failure to start it is returned to the
-//! caller and retried on the next spawn rather than cached for the life of
-//! the process.
+//! [`spawn_supervised`] is the only sanctioned way to start a child, and
+//! [`mark_child`] stamps it with the environment markers that later prove it
+//! is ours. Every spawn runs on one dedicated thread, which on Linux also arms
+//! the parent-death signal.
+//!
+//! # Control
+//!
+//! [`is_running`], [`owns`], [`pids_listening_on`], [`terminate_gracefully`],
+//! [`terminate_group_gracefully`] and [`stop_owned`] are async and never block
+//! a runtime worker. A stop signals only a pid that is provably ours: the pid
+//! the registry recorded *and* a matching [`ChildKind`] marker read back from
+//! the live process. Outcomes are typed ([`Termination`], [`StopOutcome`]);
+//! failures are [`SupervisionError`].
 //!
 //! # Identity
 //!
 //! The environment markers and the pure parsers that read them back live in
 //! [`systemprompt_models::subprocess`]; the platform probes here
-//! ([`live_pid_is_subprocess`], [`is_zombie`]) are what execute them against
-//! `/proc` or `sysctl`.
+//! ([`live_pid_is_subprocess`], [`is_zombie`]) execute them against `/proc`
+//! or `sysctl`. They are blocking primitives; async callers use [`owns`] and
+//! [`is_running`].
 //!
 //! # Platform support
 //!
@@ -41,10 +48,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod control;
+mod error;
+mod ports;
+mod spawn;
 
-use std::process::Command;
-use std::sync::mpsc::{Sender, channel};
-use std::sync::{Mutex, PoisonError};
+#[cfg(unix)]
+mod posix;
+#[cfg(windows)]
+mod winnt;
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -61,75 +73,28 @@ mod unsupported;
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 pub use unsupported::{is_zombie, live_pid_is_subprocess};
 
-type SpawnReply = Sender<std::io::Result<std::process::Child>>;
-type SpawnRequest = (Command, SpawnReply);
+pub use control::{
+    StopOutcome, Termination, is_running, owns, pids_listening_on, process_group, stop_owned,
+    terminate_gracefully, terminate_group_gracefully,
+};
+pub use error::SupervisionError;
+pub use ports::{parse_lsof_pids, parse_netstat_listeners};
+pub use spawn::{mark_child, place_in_own_process_group, spawn_owned_supervised, spawn_supervised};
 
-static SPAWNER: Mutex<Option<Sender<SpawnRequest>>> = Mutex::new(None);
-
-pub fn spawn_supervised(cmd: Command) -> std::io::Result<u32> {
-    let child = spawn_owned_supervised(cmd)?;
-    let pid = child.id();
-    drop(child);
-    Ok(pid)
+/// Which kind of supervised child a pid is claimed to be; selects the marker
+/// variable that names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ChildKind {
+    Agent,
+    Mcp,
 }
 
-pub fn spawn_owned_supervised(cmd: Command) -> std::io::Result<std::process::Child> {
-    let sender = spawner()?;
-    let (reply_tx, reply_rx) = channel();
-    sender
-        .send((cmd, reply_tx))
-        .map_err(std::io::Error::other)?;
-    reply_rx.recv().map_err(std::io::Error::other)?
-}
-
-fn spawner() -> std::io::Result<Sender<SpawnRequest>> {
-    let mut slot = SPAWNER.lock().unwrap_or_else(PoisonError::into_inner);
-    if let Some(sender) = slot.as_ref() {
-        return Ok(sender.clone());
+impl ChildKind {
+    #[must_use]
+    pub const fn marker_env(self) -> &'static str {
+        match self {
+            Self::Agent => systemprompt_models::subprocess::AGENT_NAME_ENV,
+            Self::Mcp => systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+        }
     }
-    let sender = start_spawner_thread()?;
-    Ok(slot.insert(sender).clone())
-}
-
-fn start_spawner_thread() -> std::io::Result<Sender<SpawnRequest>> {
-    let (tx, rx) = channel::<SpawnRequest>();
-    std::thread::Builder::new()
-        .name("subprocess-spawner".to_owned())
-        .spawn(move || {
-            while let Ok((mut cmd, reply)) = rx.recv() {
-                let outcome = spawn_on_this_thread(&mut cmd);
-                if let Err(undelivered) = reply.send(outcome)
-                    && let Ok(mut child) = undelivered.0
-                {
-                    if let Err(error) = child.kill() {
-                        tracing::warn!(error = %error, "Failed to stop unclaimed subprocess");
-                    }
-                    if let Err(error) = child.wait() {
-                        tracing::warn!(error = %error, "Failed to reap unclaimed subprocess");
-                    }
-                }
-            }
-        })
-        .map(|_handle| tx)
-}
-
-fn spawn_on_this_thread(cmd: &mut Command) -> std::io::Result<std::process::Child> {
-    #[cfg(target_os = "linux")]
-    linux::arm_parent_death_signal(cmd);
-    cmd.spawn()
-}
-
-// Why: On Unix, process group 0 assigns the child's PID as its process group
-// ID.
-#[cfg(unix)]
-pub fn place_in_own_process_group(command: &mut Command) {
-    use std::os::unix::process::CommandExt;
-    command.process_group(0);
-}
-
-#[cfg(windows)]
-pub fn place_in_own_process_group(command: &mut Command) {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-    command.creation_flags(CREATE_NEW_PROCESS_GROUP);
 }

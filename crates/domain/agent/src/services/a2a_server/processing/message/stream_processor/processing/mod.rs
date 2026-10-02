@@ -82,7 +82,7 @@ impl StreamProcessor {
         };
 
         let worker_cancel = cancel.clone();
-        let worker = tokio::spawn(async move {
+        let worker = systemprompt_traits::OwnedTask::spawn("a2a_message_stream", async move {
             tokio::select! {
                 () = worker_cancel.cancelled() => {
                     if tx.send(StreamEvent::Cancelled).await.is_err() {

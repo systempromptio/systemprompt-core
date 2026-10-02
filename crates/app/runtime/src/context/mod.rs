@@ -30,7 +30,7 @@ use systemprompt_models::{Config, ContentConfigRaw, ContentRouting, RouteClassif
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_security::policy::GovernanceEngine;
-use systemprompt_traits::FileStorage;
+use systemprompt_traits::{BackgroundTasks, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
 mod context_loaders;
@@ -94,6 +94,7 @@ pub struct Subsystems {
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
+    pub background_tasks: BackgroundTasks,
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
 }
 
@@ -259,6 +260,10 @@ impl AppContext {
 
     pub const fn shutdown_request(&self) -> &ShutdownRequest {
         &self.subsystems.shutdown
+    }
+
+    pub const fn background_tasks(&self) -> &BackgroundTasks {
+        &self.subsystems.background_tasks
     }
 
     pub fn request_restart(&self, reason: &str) {

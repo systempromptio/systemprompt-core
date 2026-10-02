@@ -94,6 +94,7 @@ pub fn gateway_repositories(
         ctx.db_pool(),
         journal,
         ctx.context_materializer(),
+        ctx.background_tasks().clone(),
     )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
     .with_session_store(ctx.session_store())

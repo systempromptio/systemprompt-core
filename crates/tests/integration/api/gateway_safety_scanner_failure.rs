@@ -85,7 +85,13 @@ async fn settled_categories(
     pool: &DbPool,
     id: &AiRequestId,
 ) -> Vec<String> {
-    repos.background.drain().await;
+    assert_eq!(
+        repos
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     let rows: Vec<(String,)> =
         sqlx::query_as("SELECT category FROM ai_safety_findings WHERE ai_request_id = $1")
             .bind(id.as_str())

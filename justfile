@@ -1008,6 +1008,10 @@ lint-tracing-messages:
 lint-async-trait:
     ./scripts/lint-async-trait.sh
 
+# Every task and thread has an owner (BackgroundTasks / OwnedTask); no detached spawns.
+lint-owned-tasks:
+    ./scripts/lint-owned-tasks.sh
+
 # serde_json::Value in a signature is a protocol boundary with a `// JSON:` line.
 lint-json-value:
     ./scripts/lint-json-value.sh

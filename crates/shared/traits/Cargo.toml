@@ -40,6 +40,5 @@ futures = { workspace = true }
 http = { workspace = true }
 xxhash-rust = { workspace = true }
 sqlx = { workspace = true, optional = true }
-
-[dev-dependencies]
-tokio = { workspace = true }
+tokio = { version = "1.53", default-features = false, features = ["rt", "time", "sync"] }
+tokio-util = { workspace = true }

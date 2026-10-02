@@ -119,7 +119,7 @@ pub(super) fn finalize(
     let audit = Arc::clone(audit);
     audit.mark_upstream_end();
     let background = audit.background().clone();
-    background.spawn(async move {
+    background.spawn("gateway_stream_finalize", async move {
         capture_signatures(&ctx, &audit, &summary).await;
         if let Some(model) = summary.served_model.as_deref() {
             audit.set_served_model(model).await;

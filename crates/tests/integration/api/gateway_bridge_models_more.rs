@@ -59,6 +59,7 @@ fn gw_repos(
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     )
 }
 

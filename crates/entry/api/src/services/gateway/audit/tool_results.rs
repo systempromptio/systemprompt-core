@@ -40,11 +40,12 @@ impl GatewayAudit {
             return;
         };
         let requests = Arc::clone(&self.requests);
-        self.background.spawn(async move {
-            for replayed in results {
-                ingest_one(&ingest, &requests, &ctx, replayed).await;
-            }
-        });
+        self.background
+            .spawn("gateway_tool_result_ingest", async move {
+                for replayed in results {
+                    ingest_one(&ingest, &requests, &ctx, replayed).await;
+                }
+            });
     }
 }
 

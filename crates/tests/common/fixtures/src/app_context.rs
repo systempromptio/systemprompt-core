@@ -314,6 +314,7 @@ fn fixture_app_context_assembled(
             geoip_reader: None,
             file_storage,
             shutdown: Default::default(),
+            background_tasks: Default::default(),
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),

@@ -230,6 +230,7 @@ async fn replay() -> Result<()> {
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(&db),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     );
     let cred = seed_admin_credential(
         &db,
