@@ -9,20 +9,23 @@
 //! All public service signatures use [`Result<T>`] (i.e. `Result<T, AiError>`).
 //! The dyn `AiProvider` seam returns
 //! [`AiInferenceError`](systemprompt_models::errors::AiInferenceError); the
-//! `From<AiError>` impl below is the single mapping onto it.
+//! `From<AiError>` impl in `inference` is the single mapping onto it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+mod inference;
+mod response;
 
 use std::time::Duration;
 
 use thiserror::Error;
 
-use systemprompt_database::resilience::Outcome;
 use systemprompt_identifiers::{McpServerId, McpToolName};
 use systemprompt_models::wire::error::WireStreamError;
 use systemprompt_traits::{AiProviderError, FileStorageError, RepositoryError};
 
+use crate::services::config::AiConfigError;
 use crate::services::storage::StorageConfigError;
 
 #[derive(Debug, Error)]
@@ -165,118 +168,43 @@ pub enum AiError {
     #[error(transparent)]
     WireParse(#[from] systemprompt_models::wire::error::WireParseError),
 
-    #[error("internal: {0}")]
-    Internal(String),
+    #[error(transparent)]
+    Config(#[from] AiConfigError),
+
+    #[error("provider {provider} is not configured")]
+    ProviderNotFound { provider: String },
+
+    #[error("provider {provider} is disabled")]
+    ProviderDisabled { provider: String },
+
+    #[error("provider {provider} does not support {capability}")]
+    CapabilityUnsupported {
+        provider: String,
+        capability: ProviderCapability,
+    },
+
+    #[error("no configured provider supports {capability}")]
+    NoProviderWithCapability { capability: ProviderCapability },
 }
 
-impl From<AiError> for systemprompt_models::errors::AiInferenceError {
-    fn from(err: AiError) -> Self {
-        match err {
-            AiError::ModelNotSpecified { ref provider }
-            | AiError::EmptyProviderResponse { ref provider } => Self::Provider {
-                provider: provider.clone(),
-                message: err.to_string(),
-            },
-            AiError::ProviderError { provider, message } => Self::Provider { provider, message },
-            AiError::NoProviderForModel { model } => Self::NoProviderForModel { model },
-            AiError::RateLimit { provider, details } => Self::RateLimited { provider, details },
-            AiError::AuthenticationFailed { provider } => Self::AuthenticationFailed { provider },
-            AiError::HttpStatus { ref provider, .. }
-            | AiError::Timeout { ref provider, .. }
-            | AiError::CircuitOpen { ref provider }
-            | AiError::DependencyUnavailable { ref provider } => Self::Unavailable {
-                provider: provider.clone(),
-                message: err.to_string(),
-            },
-            AiError::MissingMetadata { .. }
-            | AiError::MissingUserContext
-            | AiError::InvalidToolSchema { .. }
-            | AiError::StructuredOutputFailed { .. }
-            | AiError::MessageSerializationFailed
-            | AiError::MissingToolField { .. }
-            | AiError::EmptyToolDescription { .. }
-            | AiError::InvalidInput(_)
-            | AiError::ImageDecode(_)
-            | AiError::InvalidFileId(_)
-            | AiError::WireParse(_) => Self::InvalidRequest(Box::new(err)),
-            AiError::NoToolCalls
-            | AiError::McpServiceNotFound { .. }
-            | AiError::McpAuthenticationMissing { .. }
-            | AiError::ServiceAuthCheckFailed { .. }
-            | AiError::ToolDiscovery(_)
-            | AiError::ToolProvider(_) => Self::Tool(Box::new(err)),
-            AiError::UnknownModel { .. }
-            | AiError::AuthenticationRequired { .. }
-            | AiError::ConfigurationError { .. }
-            | AiError::Secrets(_)
-            | AiError::StorageConfig(_)
-            | AiError::Upstream(_) => Self::Configuration(Box::new(err)),
-            AiError::Repository(_)
-            | AiError::FilePersistence(_)
-            | AiError::Storage { .. }
-            | AiError::ImageTooLarge { .. } => Self::Storage(Box::new(err)),
-            AiError::Stream(_)
-            | AiError::SerializationError(_)
-            | AiError::Http(_)
-            | AiError::Io(_)
-            | AiError::Regex(_)
-            | AiError::Internal(_) => Self::Internal(Box::new(err)),
-        }
-    }
+/// An optional provider feature a request can depend on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProviderCapability {
+    Streaming,
+    ToolStreaming,
+    GoogleSearch,
+    ImageGeneration,
 }
 
-impl AiError {
-    pub async fn from_error_response(provider: &str, response: reqwest::Response) -> Self {
-        let status = response.status().as_u16();
-        let retry_after = parse_retry_after(response.headers());
-        let body = response
-            .text()
-            .await
-            .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
-        Self::HttpStatus {
-            provider: provider.to_owned(),
-            status,
-            retry_after,
-            body,
-        }
+impl std::fmt::Display for ProviderCapability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Streaming => "streaming",
+            Self::ToolStreaming => "tool streaming",
+            Self::GoogleSearch => "Google Search grounding",
+            Self::ImageGeneration => "image generation",
+        })
     }
-
-    #[must_use]
-    pub fn classify(&self) -> Outcome {
-        match self {
-            Self::HttpStatus {
-                status,
-                retry_after,
-                ..
-            } => {
-                if matches!(*status, 408 | 425 | 429 | 500 | 502 | 503 | 504) {
-                    Outcome::Transient {
-                        retry_after: *retry_after,
-                    }
-                } else {
-                    Outcome::Permanent
-                }
-            },
-            Self::RateLimit { .. } | Self::Timeout { .. } => {
-                Outcome::Transient { retry_after: None }
-            },
-            Self::Http(err) if err.is_timeout() || err.is_connect() => {
-                Outcome::Transient { retry_after: None }
-            },
-            _ => Outcome::Permanent,
-        }
-    }
-}
-
-fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
-    headers
-        .get(reqwest::header::RETRY_AFTER)?
-        .to_str()
-        .ok()?
-        .trim()
-        .parse::<u64>()
-        .ok()
-        .map(Duration::from_secs)
 }
 
 pub type Result<T> = std::result::Result<T, AiError>;

@@ -1,7 +1,7 @@
 //! Tests for error module types and implementations.
 
 use std::time::Duration;
-use systemprompt_ai::error::AiError;
+use systemprompt_ai::error::{AiError, ProviderCapability};
 use systemprompt_database::resilience::Outcome;
 use systemprompt_identifiers::{McpServerId, McpToolName};
 use systemprompt_models::errors::AiInferenceError;
@@ -334,10 +334,25 @@ mod classify_tests {
     }
 
     #[test]
-    fn internal_error_displays_message() {
-        let err = AiError::Internal("unexpected state".to_string());
-        assert!(err.to_string().contains("unexpected state"));
+    fn capability_unsupported_names_provider_and_capability() {
+        let err = AiError::CapabilityUnsupported {
+            provider: "minimal".to_string(),
+            capability: ProviderCapability::ToolStreaming,
+        };
+        assert_eq!(
+            err.to_string(),
+            "provider minimal does not support tool streaming"
+        );
         assert!(matches!(err.classify(), Outcome::Permanent));
+    }
+
+    #[test]
+    fn provider_not_found_is_a_configuration_failure() {
+        let err: AiInferenceError = AiError::ProviderNotFound {
+            provider: "absent".to_string(),
+        }
+        .into();
+        assert!(matches!(err, AiInferenceError::Configuration(_)));
     }
 
     #[test]

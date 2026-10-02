@@ -220,8 +220,8 @@ async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
         .expect_err("an unconfigured provider cannot be dispatched");
     assert!(matches!(
         err,
-        AiInferenceError::Internal(message)
-            if message.to_string().contains("Provider not-configured not found")
+        AiInferenceError::Configuration(cause)
+            if cause.to_string() == "provider not-configured is not configured"
     ));
     assert!(
         server

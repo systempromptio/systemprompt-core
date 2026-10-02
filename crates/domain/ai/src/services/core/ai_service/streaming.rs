@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{AiError, Result};
+use crate::error::{AiError, ProviderCapability, Result};
 use futures::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -27,10 +27,10 @@ impl AiService {
         let provider = self.get_provider(request.provider())?;
 
         if !provider.supports_streaming() {
-            return Err(AiError::Internal(format!(
-                "Provider {} does not support streaming",
-                request.provider()
-            )));
+            return Err(AiError::CapabilityUnsupported {
+                provider: request.provider().to_owned(),
+                capability: ProviderCapability::Streaming,
+            });
         }
 
         let mut params = GenerationParams::new(
@@ -69,10 +69,10 @@ impl AiService {
         let provider = self.get_provider(request.provider())?;
 
         if !provider.supports_streaming() {
-            return Err(AiError::Internal(format!(
-                "Provider {} does not support streaming",
-                request.provider()
-            )));
+            return Err(AiError::CapabilityUnsupported {
+                provider: request.provider().to_owned(),
+                capability: ProviderCapability::Streaming,
+            });
         }
 
         let tools = request.tools.clone().unwrap_or_else(Vec::new);
@@ -112,8 +112,8 @@ impl AiService {
             .providers
             .values()
             .find(|p| p.supports_google_search())
-            .ok_or_else(|| {
-                AiError::Internal("No provider with Google Search support available".to_owned())
+            .ok_or(AiError::NoProviderWithCapability {
+                capability: ProviderCapability::GoogleSearch,
             })?;
         let model = params
             .model

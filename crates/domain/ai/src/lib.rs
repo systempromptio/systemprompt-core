@@ -31,8 +31,9 @@
 //!   for persistence
 //! - common transport errors ([`reqwest::Error`], [`serde_json::Error`],
 //!   [`std::io::Error`], [`regex::Error`]) and typed storage / stream causes
-//! - an `Internal(String)` variant for invariant violations the crate itself
-//!   describes (no underlying error)
+//! - structured variants for conditions the crate itself detects (an
+//!   unconfigured or disabled provider, an unsupported capability, a rejected
+//!   AI policy), each carrying the values that caused it
 //!
 //! The cross-domain [`AiProvider`](systemprompt_models::ai::AiProvider) seam
 //! returns [`AiInferenceResult`](systemprompt_models::errors::AiInferenceResult)

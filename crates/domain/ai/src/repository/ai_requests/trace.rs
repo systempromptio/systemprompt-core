@@ -180,7 +180,7 @@ fn usage_from_row(row: UsageRow) -> AiProviderResult<TraceRequestUsage> {
         input_tokens: row.input_tokens,
         output_tokens: row.output_tokens,
         tool_calls: u64::try_from(row.tool_calls)
-            .map_err(|_e| AiProviderError::Internal("Negative tool-call count".into()))?,
+            .map_err(|e| AiProviderError::Internal(Box::new(e)))?,
     })
 }
 

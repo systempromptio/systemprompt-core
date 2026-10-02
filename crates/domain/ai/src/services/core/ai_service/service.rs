@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crate::models::RequestStatus;
 use crate::models::ai::AiRequest;
 use crate::repository::AiRepositories;
-use crate::services::config::ConfigValidator;
+use crate::services::config::{AiConfigError, ConfigValidator};
 use crate::services::providers::{ProviderClient, ProviderClientParams, ProviderFactory};
 use crate::services::tooled::{ResponseSynthesizer, TooledExecutor};
 use crate::services::tools::ToolDiscovery;
@@ -73,10 +73,11 @@ impl AiService {
 
         let default_provider = ai_config.default_provider.clone();
         let provider = providers.get(&default_provider).ok_or_else(|| {
-            crate::error::AiError::Internal(format!(
-                "Default provider '{default_provider}' is not enabled or has no registry \
-                 connectivity"
-            ))
+            crate::error::AiError::from(AiConfigError::DefaultProviderNoConnectivity {
+                provider: default_provider.clone(),
+                connected: providers.keys().cloned().collect(),
+                withheld: None,
+            })
         })?;
 
         let default_model = ai_config
@@ -205,7 +206,9 @@ impl AiService {
         self.providers
             .get(name)
             .cloned()
-            .ok_or_else(|| crate::error::AiError::Internal(format!("Provider {name} not found")))
+            .ok_or_else(|| crate::error::AiError::ProviderNotFound {
+                provider: name.to_owned(),
+            })
     }
 
     pub(super) async fn audit(&self, params: &StoreParams<'_>) {
