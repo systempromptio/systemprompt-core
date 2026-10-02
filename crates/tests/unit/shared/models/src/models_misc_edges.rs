@@ -64,10 +64,13 @@ fn path_not_configured_error_names_field_and_profile() {
 #[test]
 fn repository_error_variants_map_to_http_statuses() {
     let cases: Vec<(RepositoryError, u16)> = vec![
-        (RepositoryError::NotFound("row".into()), 404),
-        (RepositoryError::Conflict("stale version".into()), 409),
-        (RepositoryError::InvalidArgument("bad".into()), 400),
-        (RepositoryError::InvalidData("corrupt".into()), 500),
+        (RepositoryError::not_found("row", "r1"), 404),
+        (
+            RepositoryError::conflict("task", "t1", "stale version"),
+            409,
+        ),
+        (RepositoryError::invalid_argument("state", "bad"), 400),
+        (RepositoryError::invalid_data("agent_name", "corrupt"), 500),
         (RepositoryError::Internal("boom".into()), 500),
         (
             RepositoryError::database(std::io::Error::other("down")),

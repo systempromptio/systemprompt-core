@@ -20,7 +20,7 @@
 
 use systemprompt_identifiers::JobName;
 use systemprompt_models::profile::OtlpSignal;
-use systemprompt_provider_contracts::ProviderError;
+use systemprompt_provider_contracts::{MissingDependency, ProviderError};
 use systemprompt_traits::{BoxedSource, RepositoryError};
 use thiserror::Error;
 
@@ -75,8 +75,8 @@ pub enum SchedulerError {
     #[error("Scheduler not initialized")]
     NotInitialized,
 
-    #[error("Job context missing dependency: {0}")]
-    MissingContext(String),
+    #[error("Job context: {0}")]
+    MissingContext(#[from] MissingDependency),
 
     #[error("Job panicked: {0}")]
     Panic(String),
@@ -123,10 +123,6 @@ impl SchedulerError {
         Self::ConfigError {
             message: message.into(),
         }
-    }
-
-    pub fn missing_context(name: impl Into<String>) -> Self {
-        Self::MissingContext(name.into())
     }
 
     pub fn panic(message: impl Into<String>) -> Self {

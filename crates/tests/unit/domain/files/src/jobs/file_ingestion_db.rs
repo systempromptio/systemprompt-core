@@ -10,15 +10,15 @@ use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, test_database_url, test_db_pool, test_pg_pool,
 };
-use systemprompt_traits::{Job, JobContext};
+use systemprompt_traits::{Dependencies, Job, JobContext};
 
-fn job_ctx(pool_any: Arc<dyn std::any::Any + Send + Sync>) -> JobContext {
+fn job_ctx(dependencies: Dependencies) -> JobContext {
     let actor = Actor::job(UserId::new("files-job-test"), "test".to_owned());
-    JobContext::new(actor, pool_any, Arc::new(()), Arc::new(()))
+    JobContext::new(actor, dependencies)
 }
 
 fn pool_ctx(pool: &DbPool) -> JobContext {
-    job_ctx(Arc::new(Arc::clone(pool)))
+    job_ctx(Dependencies::new().with(Arc::clone(pool)))
 }
 
 #[tokio::test]
@@ -100,12 +100,12 @@ async fn execute_ingests_images_then_skips_on_rerun() {
 async fn execute_without_db_pool_is_configuration_error() {
     ensure_test_bootstrap();
     let job = FileIngestionJob::new();
-    let ctx = job_ctx(Arc::new(()));
+    let ctx = job_ctx(Dependencies::new());
 
     let err = job.execute(&ctx).await.expect_err("no pool");
     let message = err.to_string();
     assert!(
-        message.contains("Database pool not available in job context"),
+        message.contains("Database") && message.contains("dependency"),
         "unexpected error: {message}"
     );
 }

@@ -6,28 +6,34 @@ use systemprompt_traits::RepositoryError;
 
 #[test]
 fn test_not_found_from_string() {
-    let error = RepositoryError::not_found("user-123");
-    assert!(matches!(error, RepositoryError::NotFound(_)));
+    let error = RepositoryError::not_found("user", "user-123");
+    assert!(matches!(
+        error,
+        RepositoryError::NotFound { entity: "user", key: Some(ref key) } if key == "user-123"
+    ));
     assert!(error.to_string().contains("user-123"));
 }
 
 #[test]
 fn test_not_found_from_integer() {
-    let error = RepositoryError::not_found(42);
-    assert!(matches!(error, RepositoryError::NotFound(_)));
+    let error = RepositoryError::not_found("row", 42);
+    assert!(matches!(error, RepositoryError::NotFound { .. }));
     assert!(error.to_string().contains("42"));
 }
 
 #[test]
 fn test_conflict_from_string() {
-    let error = RepositoryError::conflict("stale task update");
-    assert!(matches!(error, RepositoryError::Conflict(_)));
+    let error = RepositoryError::conflict("task", "t1", "stale task update");
+    assert!(matches!(
+        error,
+        RepositoryError::Conflict { entity: "task", ref key, .. } if key == "t1"
+    ));
     assert!(error.to_string().contains("stale task update"));
 }
 
 #[test]
 fn test_conflict_is_a_conflict_but_not_a_constraint() {
-    let error = RepositoryError::conflict(String::from("invalid transition"));
+    let error = RepositoryError::conflict("task", "t1", String::from("invalid transition"));
     assert!(error.is_conflict());
     assert!(!error.is_constraint());
 }
@@ -36,6 +42,7 @@ fn test_conflict_is_a_conflict_but_not_a_constraint() {
 fn test_row_not_found_classifies_as_not_found() {
     let error = RepositoryError::from(sqlx::Error::RowNotFound);
     assert!(error.is_not_found());
+    assert_eq!(error.to_string(), "row not found");
 }
 
 #[test]
@@ -65,15 +72,18 @@ fn test_database_constructor_boxes_a_foreign_error() {
 
 #[test]
 fn test_invalid_argument_from_str() {
-    let error = RepositoryError::invalid_argument("email cannot be empty");
-    assert!(matches!(error, RepositoryError::InvalidArgument(_)));
-    assert!(error.to_string().contains("email cannot be empty"));
+    let error = RepositoryError::invalid_argument("email", "cannot be empty");
+    assert!(matches!(
+        error,
+        RepositoryError::InvalidArgument { field: "email", .. }
+    ));
+    assert_eq!(error.to_string(), "invalid argument email: cannot be empty");
 }
 
 #[test]
 fn test_invalid_argument_from_owned_string() {
-    let error = RepositoryError::invalid_argument(String::from("invalid format"));
-    assert!(matches!(error, RepositoryError::InvalidArgument(_)));
+    let error = RepositoryError::invalid_argument("email", String::from("invalid format"));
+    assert!(matches!(error, RepositoryError::InvalidArgument { .. }));
     assert!(error.to_string().contains("invalid format"));
 }
 
@@ -93,19 +103,19 @@ fn test_internal_from_owned_string() {
 
 #[test]
 fn test_is_not_found_returns_true_for_not_found() {
-    let error = RepositoryError::not_found("id");
+    let error = RepositoryError::not_found("row", "id");
     assert!(error.is_not_found());
 }
 
 #[test]
 fn test_is_not_found_returns_false_for_conflict() {
-    let error = RepositoryError::conflict("violation");
+    let error = RepositoryError::conflict("row", "r1", "violation");
     assert!(!error.is_not_found());
 }
 
 #[test]
 fn test_is_not_found_returns_false_for_invalid_argument() {
-    let error = RepositoryError::invalid_argument("bad input");
+    let error = RepositoryError::invalid_argument("input", "bad input");
     assert!(!error.is_not_found());
 }
 
@@ -117,13 +127,13 @@ fn test_is_not_found_returns_false_for_internal() {
 
 #[test]
 fn test_is_constraint_returns_false_for_not_found() {
-    let error = RepositoryError::not_found("id");
+    let error = RepositoryError::not_found("row", "id");
     assert!(!error.is_constraint());
 }
 
 #[test]
 fn test_is_constraint_returns_false_for_invalid_argument() {
-    let error = RepositoryError::invalid_argument("bad");
+    let error = RepositoryError::invalid_argument("input", "bad");
     assert!(!error.is_constraint());
 }
 
@@ -135,15 +145,13 @@ fn test_is_constraint_returns_false_for_internal() {
 
 #[test]
 fn test_not_found_display() {
-    let error = RepositoryError::not_found("user-456");
-    let display = error.to_string();
-    assert!(display.contains("not found") || display.contains("Not found"));
-    assert!(display.contains("user-456"));
+    let error = RepositoryError::not_found("user", "user-456");
+    assert_eq!(error.to_string(), "user not found: user-456");
 }
 
 #[test]
 fn test_conflict_display() {
-    let error = RepositoryError::conflict("duplicate key");
+    let error = RepositoryError::conflict("user", "u1", "duplicate key");
     let display = error.to_string();
     assert!(
         display.contains("conflict") && display.contains("duplicate key"),
@@ -154,7 +162,7 @@ fn test_conflict_display() {
 
 #[test]
 fn test_invalid_argument_display() {
-    let error = RepositoryError::invalid_argument("missing field");
+    let error = RepositoryError::invalid_argument("name", "missing field");
     let display = error.to_string();
     assert!(
         display.contains("Invalid") || display.contains("invalid"),

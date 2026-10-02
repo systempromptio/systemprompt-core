@@ -174,20 +174,20 @@ fn content_item_serde_roundtrip() {
 
 #[test]
 fn repository_not_found_display() {
-    let e = RepositoryError::NotFound("user-1".to_owned());
-    assert!(format!("{e}").contains("user-1"));
+    let e = RepositoryError::not_found("user", "user-1");
+    assert_eq!(format!("{e}"), "user not found: user-1");
 }
 
 #[test]
 fn repository_invalid_data_display() {
-    let e = RepositoryError::InvalidData("bad uuid".to_owned());
-    assert!(format!("{e}").contains("bad uuid"));
+    let e = RepositoryError::invalid_data("user_id", "bad uuid");
+    assert_eq!(format!("{e}"), "invalid stored data in user_id: bad uuid");
 }
 
 #[test]
 fn repository_conflict_display() {
-    let e = RepositoryError::Conflict("unique_email".to_owned());
-    assert!(format!("{e}").contains("unique_email"));
+    let e = RepositoryError::conflict("user", "u1", "unique_email");
+    assert_eq!(format!("{e}"), "user u1 conflicts: unique_email");
 }
 
 #[test]

@@ -74,9 +74,7 @@ impl DatabaseAdminService {
         .await?;
 
         if rows.is_empty() {
-            return Err(RepositoryError::not_found(format!(
-                "Table '{table_name}' not found"
-            )));
+            return Err(RepositoryError::not_found("table", table_name));
         }
 
         let pk_rows = sqlx::query(

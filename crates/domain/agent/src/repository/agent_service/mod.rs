@@ -146,6 +146,6 @@ impl AgentServiceRepository {
 
 fn db_pid(pid: u32) -> Result<i32, RepositoryError> {
     i32::try_from(pid).map_err(|_overflow| {
-        RepositoryError::InvalidData(format!("pid {pid} exceeds the services.pid column"))
+        RepositoryError::invalid_data("services.pid", format!("{pid} exceeds the column range"))
     })
 }

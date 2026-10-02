@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_identifiers::LocaleCode;
 
+use crate::dependencies::{Dependencies, MissingDependency};
 use crate::error::ProviderResult;
 use crate::web_config::WebConfig;
 
@@ -20,8 +21,7 @@ pub struct PageContext<'a> {
     pub page_type: &'a str,
     pub web_config: &'a WebConfig,
     pub locale: &'a LocaleCode,
-    content_config: &'a (dyn Any + Send + Sync),
-    db_pool: &'a (dyn Any + Send + Sync),
+    dependencies: &'a Dependencies,
     // JSON: Handlebars template context item; the page data model is dynamic.
     content_item: Option<&'a Value>,
     // JSON: Handlebars template context item; the page data model is dynamic.
@@ -33,8 +33,7 @@ impl std::fmt::Debug for PageContext<'_> {
         f.debug_struct("PageContext")
             .field("page_type", &self.page_type)
             .field("web_config", &"<WebConfig>")
-            .field("content_config", &"<dyn Any>")
-            .field("db_pool", &"<dyn Any>")
+            .field("dependencies", self.dependencies)
             .field("content_item", &self.content_item.is_some())
             .field("all_items_count", &self.all_items.map(<[_]>::len))
             .finish()
@@ -43,18 +42,16 @@ impl std::fmt::Debug for PageContext<'_> {
 
 impl<'a> PageContext<'a> {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         page_type: &'a str,
         web_config: &'a WebConfig,
-        content_config: &'a (dyn Any + Send + Sync),
-        db_pool: &'a (dyn Any + Send + Sync),
+        dependencies: &'a Dependencies,
     ) -> Self {
         Self {
             page_type,
             web_config,
             locale: &web_config.i18n.default_locale,
-            content_config,
-            db_pool,
+            dependencies,
             content_item: None,
             all_items: None,
         }
@@ -80,14 +77,8 @@ impl<'a> PageContext<'a> {
         self
     }
 
-    #[must_use]
-    pub fn content_config<T: 'static>(&self) -> Option<&T> {
-        self.content_config.downcast_ref::<T>()
-    }
-
-    #[must_use]
-    pub fn db_pool<T: 'static>(&self) -> Option<&T> {
-        self.db_pool.downcast_ref::<T>()
+    pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {
+        self.dependencies.get::<T>()
     }
 
     #[must_use]

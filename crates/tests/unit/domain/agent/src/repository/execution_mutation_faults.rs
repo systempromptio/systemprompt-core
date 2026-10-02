@@ -126,7 +126,7 @@ async fn completing_a_planning_step_against_a_dead_pool_is_an_error() {
 #[test]
 fn the_step_write_error_names_the_step_in_its_message() {
     let step_id = StepId::new();
-    let error = AgentError::step_write(&step_id, RepositoryError::NotFound("row".to_owned()));
+    let error = AgentError::step_write(&step_id, RepositoryError::not_found("row", "r1"));
 
     assert!(error.to_string().contains(step_id.as_str()));
 }

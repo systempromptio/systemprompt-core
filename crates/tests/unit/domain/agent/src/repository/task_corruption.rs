@@ -51,7 +51,10 @@ async fn task_without_agent_name_is_an_error() {
         .find_task(&task_id)
         .await
         .expect_err("a task row without an agent must not read as agent \"\"");
-    assert!(matches!(err, RepositoryError::InvalidData(_)), "got {err}");
+    assert!(
+        matches!(err, RepositoryError::InvalidData { .. }),
+        "got {err}"
+    );
 
     r.tasks.delete_task(&task_id).await.ok();
 }

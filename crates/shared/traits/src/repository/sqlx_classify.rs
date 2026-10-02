@@ -12,7 +12,10 @@ const UNNAMED_CONSTRAINT: &str = "<unnamed>";
 impl From<sqlx::Error> for RepositoryError {
     fn from(err: sqlx::Error) -> Self {
         if matches!(err, sqlx::Error::RowNotFound) {
-            return Self::NotFound("row not found".to_owned());
+            return Self::NotFound {
+                entity: "row",
+                key: None,
+            };
         }
         let classified = err.as_database_error().map(|db_error| {
             let kind = match db_error.kind() {

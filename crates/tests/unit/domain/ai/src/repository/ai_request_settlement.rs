@@ -247,7 +247,7 @@ async fn a_different_terminal_response_is_rejected() {
         .await
         .expect_err("conflicting response");
 
-    assert!(matches!(err, RepositoryError::Conflict(_)), "{err}");
+    assert!(matches!(err, RepositoryError::Conflict { .. }), "{err}");
 }
 
 #[tokio::test]
@@ -269,7 +269,7 @@ async fn another_owner_cannot_settle_the_request() {
         .await
         .expect_err("owner mismatch");
 
-    assert!(matches!(err, RepositoryError::Conflict(_)), "{err}");
+    assert!(matches!(err, RepositoryError::Conflict { .. }), "{err}");
     assert_eq!(row(&pool, &id).await.0, "pending");
 }
 
@@ -290,7 +290,7 @@ async fn a_missing_request_row_is_a_settlement_conflict_not_a_database_error() {
         .await
         .expect_err("no row");
 
-    assert!(matches!(err, RepositoryError::Conflict(_)), "{err}");
+    assert!(matches!(err, RepositoryError::Conflict { .. }), "{err}");
 }
 
 #[tokio::test]
@@ -465,7 +465,7 @@ async fn accounting_failure_preserves_paid_completion_across_identical_and_confl
                 native_priced_completion(&json!({"different":true}), "native-receipt-b")
             )
             .await,
-            Err(RepositoryError::Conflict(_))
+            Err(RepositoryError::Conflict { .. })
         ),
         "conflicting provider terminal receipt stays rejected"
     );

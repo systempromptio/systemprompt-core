@@ -6,13 +6,13 @@ use std::fs;
 use std::sync::{Arc, Mutex};
 
 use systemprompt_generator::{ContentPrerenderJob, PagePrerenderJob};
-use systemprompt_provider_contracts::{Job, JobContext, JobScope, ProviderError};
+use systemprompt_provider_contracts::{Dependencies, Job, JobContext, JobScope, ProviderError};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_actor, test_db_pool};
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
 
 fn empty_ctx() -> JobContext {
-    JobContext::new(fixture_actor(), Arc::new(()), Arc::new(()), Arc::new(()))
+    JobContext::new(fixture_actor(), Dependencies::new())
 }
 
 #[test]
@@ -44,7 +44,7 @@ async fn content_prerender_job_without_db_pool_is_configuration_error() {
         .await
         .expect_err("missing db pool");
     assert!(
-        matches!(err, ProviderError::Configuration(ref m) if m.contains("DbPool")),
+        matches!(err, ProviderError::MissingDependency(ref m) if m.type_name().contains("Database")),
         "unexpected error: {err:?}"
     );
 }
@@ -56,7 +56,7 @@ async fn page_prerender_job_without_db_pool_is_configuration_error() {
         .await
         .expect_err("missing db pool");
     assert!(
-        matches!(err, ProviderError::Configuration(ref m) if m.contains("DbPool")),
+        matches!(err, ProviderError::MissingDependency(ref m) if m.type_name().contains("Database")),
         "unexpected error: {err:?}"
     );
 }
@@ -64,13 +64,13 @@ async fn page_prerender_job_without_db_pool_is_configuration_error() {
 #[tokio::test]
 async fn content_prerender_job_without_app_paths_is_configuration_error() {
     let db = test_db_pool().await;
-    let ctx = JobContext::new(fixture_actor(), Arc::new(db), Arc::new(()), Arc::new(()));
+    let ctx = JobContext::new(fixture_actor(), Dependencies::new().with(db));
     let err = ContentPrerenderJob
         .execute(&ctx)
         .await
         .expect_err("missing app paths");
     assert!(
-        matches!(err, ProviderError::Configuration(ref m) if m.contains("AppPaths")),
+        matches!(err, ProviderError::MissingDependency(ref m) if m.type_name().contains("AppPaths")),
         "unexpected error: {err:?}"
     );
 }
@@ -78,13 +78,13 @@ async fn content_prerender_job_without_app_paths_is_configuration_error() {
 #[tokio::test]
 async fn page_prerender_job_without_app_paths_is_configuration_error() {
     let db = test_db_pool().await;
-    let ctx = JobContext::new(fixture_actor(), Arc::new(db), Arc::new(()), Arc::new(()));
+    let ctx = JobContext::new(fixture_actor(), Dependencies::new().with(db));
     let err = PagePrerenderJob
         .execute(&ctx)
         .await
         .expect_err("missing app paths");
     assert!(
-        matches!(err, ProviderError::Configuration(ref m) if m.contains("AppPaths")),
+        matches!(err, ProviderError::MissingDependency(ref m) if m.type_name().contains("AppPaths")),
         "unexpected error: {err:?}"
     );
 }
@@ -110,9 +110,9 @@ async fn prerender_jobs_run_to_success_with_empty_sources() {
 
     let ctx = JobContext::new(
         fixture_actor(),
-        Arc::new(db.clone()),
-        Arc::new(()),
-        Arc::new(Arc::new(boot.app_paths.clone())),
+        Dependencies::new()
+            .with(db.clone())
+            .with(Arc::new(boot.app_paths.clone())),
     );
 
     let result = ContentPrerenderJob

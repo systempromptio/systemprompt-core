@@ -181,9 +181,10 @@ impl ArtifactRepository {
 
         match result {
             Some(_) => Ok(()),
-            None => Err(RepositoryError::NotFound(format!(
-                "Artifact {artifact_id} not found or user {user_id} does not have access"
-            ))),
+            None => Err(RepositoryError::not_found(
+                "artifact",
+                format!("{artifact_id} for user {user_id}"),
+            )),
         }
     }
 

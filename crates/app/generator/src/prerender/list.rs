@@ -7,9 +7,9 @@
 
 use std::path::Path;
 
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::LocaleCode;
-use systemprompt_models::{ContentConfigRaw, ParentRoute, WebConfig};
+use systemprompt_models::{ParentRoute, WebConfig};
+use systemprompt_provider_contracts::Dependencies;
 use systemprompt_template_provider::{ComponentContext, PageContext};
 use systemprompt_templates::TemplateRegistry;
 use tokio::fs;
@@ -20,7 +20,6 @@ use crate::prerender::utils::{merge_json_data, render_components};
 pub(super) struct RenderListParams<'a> {
     // JSON: Handlebars page context item; the page data model is dynamic.
     pub items: &'a [serde_json::Value],
-    pub config: &'a ContentConfigRaw,
     pub web_config: &'a WebConfig,
     pub list_config: &'a ParentRoute,
     pub source_name: &'a str,
@@ -30,7 +29,7 @@ pub(super) struct RenderListParams<'a> {
     pub dist_dir: &'a Path,
     // JSON: Handlebars page context item; the page data model is dynamic.
     pub index_content: Option<&'a serde_json::Value>,
-    pub db_pool: &'a DbPool,
+    pub dependencies: &'a Dependencies,
 }
 
 impl std::fmt::Debug for RenderListParams<'_> {
@@ -46,7 +45,6 @@ impl std::fmt::Debug for RenderListParams<'_> {
 pub(super) async fn render_list_route(params: RenderListParams<'_>) -> GeneratorResult<()> {
     let RenderListParams {
         items,
-        config,
         web_config,
         list_config,
         source_name,
@@ -55,7 +53,7 @@ pub(super) async fn render_list_route(params: RenderListParams<'_>) -> Generator
         template_registry,
         dist_dir,
         index_content,
-        db_pool,
+        dependencies,
     } = params;
 
     let list_content_type = format!("{source_name}-list");
@@ -75,7 +73,7 @@ pub(super) async fn render_list_route(params: RenderListParams<'_>) -> Generator
         "locale": locale.as_str(),
     });
 
-    let mut page_ctx = PageContext::new(&list_content_type, web_config, config, db_pool)
+    let mut page_ctx = PageContext::new(&list_content_type, web_config, dependencies)
         .with_all_items(items)
         .with_locale(locale);
 

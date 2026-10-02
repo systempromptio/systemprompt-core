@@ -14,6 +14,8 @@
 
 use thiserror::Error;
 
+use crate::dependencies::MissingDependency;
+
 #[derive(Debug, Error)]
 pub enum ProviderError {
     #[error("Provider configuration error: {0}")]
@@ -33,6 +35,9 @@ pub enum ProviderError {
         #[source]
         source: Box<dyn std::error::Error + Send + Sync + 'static>,
     },
+
+    #[error(transparent)]
+    MissingDependency(#[from] MissingDependency),
 
     #[error("Resource not found: {0}")]
     NotFound(String),

@@ -13,6 +13,7 @@ use std::any::Any;
 use async_trait::async_trait;
 use serde_json::Value;
 
+use crate::dependencies::{Dependencies, MissingDependency};
 use crate::error::ProviderResult;
 use crate::web_config::WebConfig;
 
@@ -27,7 +28,7 @@ pub struct ExtenderContext<'a> {
     pub content_html: &'a str,
     pub url_pattern: &'a str,
     pub source_name: &'a str,
-    db_pool: &'a (dyn Any + Send + Sync),
+    dependencies: &'a Dependencies,
 }
 
 impl std::fmt::Debug for ExtenderContext<'_> {
@@ -41,7 +42,7 @@ impl std::fmt::Debug for ExtenderContext<'_> {
             )
             .field("url_pattern", &self.url_pattern)
             .field("source_name", &self.source_name)
-            .field("db_pool", &"<dyn Any>")
+            .field("dependencies", self.dependencies)
             .finish()
     }
 }
@@ -54,7 +55,7 @@ pub struct ExtenderContextBuilder<'a> {
     // JSON: Extension config block from the profile YAML, owned by the extension.
     config: &'a serde_yaml::Value,
     web_config: &'a WebConfig,
-    db_pool: &'a (dyn Any + Send + Sync),
+    dependencies: &'a Dependencies,
     content_html: &'a str,
     url_pattern: &'a str,
     source_name: &'a str,
@@ -71,7 +72,7 @@ impl std::fmt::Debug for ExtenderContextBuilder<'_> {
             )
             .field("url_pattern", &self.url_pattern)
             .field("source_name", &self.source_name)
-            .field("db_pool", &"<dyn Any>")
+            .field("dependencies", self.dependencies)
             .finish()
     }
 }
@@ -79,20 +80,20 @@ impl std::fmt::Debug for ExtenderContextBuilder<'_> {
 impl<'a> ExtenderContextBuilder<'a> {
     #[must_use]
     // JSON: Handlebars page context item; the page data model is dynamic.
-    pub fn new(
+    pub const fn new(
         item: &'a Value,
         all_items: &'a [Value],
         // JSON: Extension config block from the profile YAML, owned by the extension.
         config: &'a serde_yaml::Value,
         web_config: &'a WebConfig,
-        db_pool: &'a (dyn Any + Send + Sync),
+        dependencies: &'a Dependencies,
     ) -> Self {
         Self {
             item,
             all_items,
             config,
             web_config,
-            db_pool,
+            dependencies,
             content_html: "",
             url_pattern: "",
             source_name: "",
@@ -118,7 +119,7 @@ impl<'a> ExtenderContextBuilder<'a> {
     }
 
     #[must_use]
-    pub fn build(self) -> ExtenderContext<'a> {
+    pub const fn build(self) -> ExtenderContext<'a> {
         ExtenderContext {
             item: self.item,
             all_items: self.all_items,
@@ -127,7 +128,7 @@ impl<'a> ExtenderContextBuilder<'a> {
             content_html: self.content_html,
             url_pattern: self.url_pattern,
             source_name: self.source_name,
-            db_pool: self.db_pool,
+            dependencies: self.dependencies,
         }
     }
 }
@@ -135,20 +136,19 @@ impl<'a> ExtenderContextBuilder<'a> {
 impl<'a> ExtenderContext<'a> {
     #[must_use]
     // JSON: Handlebars page context item; the page data model is dynamic.
-    pub fn builder(
+    pub const fn builder(
         item: &'a Value,
         all_items: &'a [Value],
         // JSON: Extension config block from the profile YAML, owned by the extension.
         config: &'a serde_yaml::Value,
         web_config: &'a WebConfig,
-        db_pool: &'a (dyn Any + Send + Sync),
+        dependencies: &'a Dependencies,
     ) -> ExtenderContextBuilder<'a> {
-        ExtenderContextBuilder::new(item, all_items, config, web_config, db_pool)
+        ExtenderContextBuilder::new(item, all_items, config, web_config, dependencies)
     }
 
-    #[must_use]
-    pub fn db_pool<T: 'static>(&self) -> Option<&T> {
-        self.db_pool.downcast_ref::<T>()
+    pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {
+        self.dependencies.get::<T>()
     }
 }
 

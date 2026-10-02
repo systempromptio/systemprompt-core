@@ -10,9 +10,8 @@ use futures::stream::{self, StreamExt};
 use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::Content;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_provider_contracts::{ContentDataContext, ContentDataProvider};
+use systemprompt_provider_contracts::{ContentDataContext, ContentDataProvider, Dependencies};
 
 use crate::error::{GeneratorResult, PublishError};
 use crate::prerender::context::PrerenderContext;
@@ -71,7 +70,7 @@ pub(super) async fn contents_to_json(
     contents: &[Content],
     source_name: &str,
     providers: &[Arc<dyn ContentDataProvider>],
-    db_pool: &DbPool,
+    dependencies: &Dependencies,
 ) -> Vec<serde_json::Value> {
     const ENRICHMENT_CONCURRENCY: usize = 8;
 
@@ -106,7 +105,7 @@ pub(super) async fn contents_to_json(
                         continue;
                     }
 
-                    let ctx = ContentDataContext::new(&content_id, source_name, db_pool);
+                    let ctx = ContentDataContext::new(&content_id, source_name, dependencies);
 
                     if let Err(e) = provider.enrich_content(&ctx, &mut item).await {
                         tracing::warn!(

@@ -1,7 +1,8 @@
 //! Identifiers the bridge binary carries between coding-agent hosts and the
 //! gateway: the MCP transport session a probe negotiated, the hook session a
-//! host reports, the id of a comms announcement, and the Claude Desktop
-//! deployment organisation.
+//! host reports, the id of a comms announcement, the Claude Desktop
+//! deployment organisation, and the UUID that pairs an elevated helper job's
+//! request with its result.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,6 +18,7 @@ crate::define_id!(HookSessionId, checked, |value| {
 crate::define_id!(CommsMessageId, checked, |value| {
     crate::macros::validate_non_empty("CommsMessageId", value)
 });
+crate::define_id!(ElevatedJobId, uuid);
 crate::define_id!(
     DeploymentOrganizationUuid,
     checked,

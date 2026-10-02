@@ -19,9 +19,9 @@ const REPOSITORY_FAILURE: &str = "Repository operation failed";
 impl From<RepositoryError> for ApiError {
     fn from(err: RepositoryError) -> Self {
         match err {
-            RepositoryError::NotFound(message) => Self::not_found(message),
-            RepositoryError::Conflict(message) => Self::conflict(message),
-            RepositoryError::InvalidArgument(message) => Self::bad_request(message),
+            RepositoryError::NotFound { .. } => Self::not_found(err.to_string()),
+            RepositoryError::Conflict { .. } => Self::conflict(err.to_string()),
+            RepositoryError::InvalidArgument { .. } => Self::bad_request(err.to_string()),
             other => classify_failure(other),
         }
     }

@@ -1,9 +1,8 @@
 //! Behavioral tests for the default page-data providers and prerenderer.
 //!
-//! Each provider resolves its `ContentConfigRaw` out of the type-erased
-//! `PageContext`/`PagePrepareContext`; the tests exercise both the successful
-//! projection and the configuration-error branch that fires when the erased
-//! value is not a `ContentConfigRaw`.
+//! Each provider resolves its `ContentConfigRaw` from the context's
+//! `Dependencies`; the tests exercise both the successful projection and the
+//! `MissingDependency` error when no `ContentConfigRaw` was inserted.
 
 use std::collections::HashMap;
 use systemprompt_content::{
@@ -14,7 +13,7 @@ use systemprompt_models::content_config::{
     StructuredData,
 };
 use systemprompt_provider_contracts::{
-    PageContext, PageDataProvider, PagePrepareContext, PagePrerenderer, ProviderError,
+    Dependencies, PageContext, PageDataProvider, PagePrepareContext, PagePrerenderer, ProviderError,
 };
 use systemprompt_test_fixtures::web_config;
 
@@ -53,7 +52,8 @@ fn source_with_branding(branding: Option<SourceBranding>) -> ContentSourceConfig
 async fn branding_provider_projects_org_and_branding_fields() {
     let wc = web_config();
     let cfg = config_with_org();
-    let ctx = PageContext::new("homepage", &wc, &cfg, &());
+    let deps = Dependencies::new().with(cfg);
+    let ctx = PageContext::new("homepage", &wc, &deps);
 
     let data = DefaultBrandingProvider
         .provide_page_data(&ctx)
@@ -70,21 +70,23 @@ async fn branding_provider_projects_org_and_branding_fields() {
 async fn branding_provider_errors_when_content_config_absent() {
     let wc = web_config();
     let not_a_config = 42_u32;
-    let ctx = PageContext::new("homepage", &wc, &not_a_config, &());
+    let deps = Dependencies::new().with(not_a_config);
+    let ctx = PageContext::new("homepage", &wc, &deps);
 
     let err = DefaultBrandingProvider
         .provide_page_data(&ctx)
         .await
         .expect_err("missing ContentConfig must error");
 
-    assert!(matches!(err, ProviderError::Configuration(_)));
+    assert!(matches!(err, ProviderError::MissingDependency(_)));
 }
 
 #[tokio::test]
 async fn list_branding_provider_returns_empty_for_non_list_page() {
     let wc = web_config();
     let cfg = config_with_org();
-    let ctx = PageContext::new("homepage", &wc, &cfg, &());
+    let deps = Dependencies::new().with(cfg);
+    let ctx = PageContext::new("homepage", &wc, &deps);
 
     let data = DefaultListBrandingProvider
         .provide_page_data(&ctx)
@@ -98,14 +100,15 @@ async fn list_branding_provider_returns_empty_for_non_list_page() {
 async fn list_branding_provider_errors_when_content_config_absent() {
     let wc = web_config();
     let not_a_config = "nope";
-    let ctx = PageContext::new("blog-list", &wc, &not_a_config, &());
+    let deps = Dependencies::new().with(not_a_config);
+    let ctx = PageContext::new("blog-list", &wc, &deps);
 
     let err = DefaultListBrandingProvider
         .provide_page_data(&ctx)
         .await
         .expect_err("list page without ContentConfig must error");
 
-    assert!(matches!(err, ProviderError::Configuration(_)));
+    assert!(matches!(err, ProviderError::MissingDependency(_)));
 }
 
 #[tokio::test]
@@ -124,7 +127,8 @@ async fn list_branding_provider_prefers_source_branding_over_defaults() {
     );
     cfg.content_sources = sources;
 
-    let ctx = PageContext::new("blog-list", &wc, &cfg, &());
+    let deps = Dependencies::new().with(cfg);
+    let ctx = PageContext::new("blog-list", &wc, &deps);
     let data = DefaultListBrandingProvider
         .provide_page_data(&ctx)
         .await
@@ -145,7 +149,8 @@ async fn list_branding_provider_falls_back_to_web_config_branding() {
     sources.insert("blog".to_owned(), source_with_branding(None));
     cfg.content_sources = sources;
 
-    let ctx = PageContext::new("blog-list", &wc, &cfg, &());
+    let deps = Dependencies::new().with(cfg);
+    let ctx = PageContext::new("blog-list", &wc, &deps);
     let data = DefaultListBrandingProvider
         .provide_page_data(&ctx)
         .await
@@ -162,7 +167,8 @@ async fn homepage_prerenderer_emits_index_spec() {
     let wc = web_config();
     let cfg = config_with_org();
     let dist = std::path::Path::new("/tmp");
-    let ctx = PagePrepareContext::new(&wc, &cfg, &(), dist);
+    let deps = Dependencies::new().with(cfg);
+    let ctx = PagePrepareContext::new(&wc, &deps, dist);
 
     let spec = DefaultHomepagePrerenderer::new()
         .prepare(&ctx)
@@ -180,12 +186,13 @@ async fn homepage_prerenderer_errors_when_content_config_absent() {
     let wc = web_config();
     let not_a_config = 7_i64;
     let dist = std::path::Path::new("/tmp");
-    let ctx = PagePrepareContext::new(&wc, &not_a_config, &(), dist);
+    let deps = Dependencies::new().with(not_a_config);
+    let ctx = PagePrepareContext::new(&wc, &deps, dist);
 
     let err = DefaultHomepagePrerenderer::new()
         .prepare(&ctx)
         .await
         .expect_err("missing ContentConfig must error");
 
-    assert!(matches!(err, ProviderError::Configuration(_)));
+    assert!(matches!(err, ProviderError::MissingDependency(_)));
 }

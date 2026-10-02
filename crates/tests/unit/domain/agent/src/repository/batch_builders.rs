@@ -256,7 +256,7 @@ fn build_artifacts_rejects_an_unknown_part_kind() {
     let rows = vec![&row];
 
     let err = build_artifacts(Some(&rows), &parts).expect_err("unknown part kind is malformed");
-    assert!(err.to_string().contains("Unknown part kind"), "{err}");
+    assert!(err.to_string().contains("unknown part kind"), "{err}");
 }
 
 #[test]

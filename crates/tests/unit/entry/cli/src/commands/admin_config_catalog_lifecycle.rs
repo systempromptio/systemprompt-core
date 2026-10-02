@@ -272,9 +272,7 @@ providers:
     use systemprompt_traits::{Job, JobContext};
     let context = JobContext::new(
         systemprompt_test_fixtures::fixture_actor(),
-        std::sync::Arc::new(()),
-        std::sync::Arc::new(()),
-        std::sync::Arc::new(()),
+        systemprompt_traits::Dependencies::new(),
     );
     let result = VertexDiscoveryJob
         .execute(&context)

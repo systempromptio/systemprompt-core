@@ -10,25 +10,22 @@ use std::sync::Arc;
 
 use systemprompt_scheduler::{BehavioralAnalysisJob, DatabaseCleanupJob, MaliciousIpBlacklistJob};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
-use systemprompt_traits::{Job, JobContext};
+use systemprompt_traits::{Dependencies, Job, JobContext};
 
 fn make_test_ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
     use systemprompt_identifiers::{Actor, UserId};
 
     let app_ctx = test_app_context(pool, url);
 
-    // Why: JobContext stores type-erased Arcs; jobs downcast to the concrete
-    // type. The production make_job_context wraps each value in Arc::new so
-    // the downcast target is the original concrete type.
-    let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
-        Arc::new(Arc::clone(app_ctx.app_paths_arc()));
-    let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(pool));
-    let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_ctx);
+    let dependencies = Dependencies::new()
+        .with(Arc::clone(app_ctx.app_paths_arc()))
+        .with(Arc::clone(pool))
+        .with(app_ctx);
 
     let owner = UserId::new("job-test-admin");
     let actor = Actor::job(owner, "test".to_string());
 
-    JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
+    JobContext::new(actor, dependencies)
 }
 
 mod behavioral_analysis_db {
@@ -270,13 +267,13 @@ mod closed_pool_error_propagation {
         let app_ctx = test_app_context(&real_pool, url);
         let closed = closed_db_pool().await;
 
-        let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
-            Arc::new(Arc::clone(app_ctx.app_paths_arc()));
-        let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(closed);
-        let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_ctx);
+        let dependencies = Dependencies::new()
+            .with(Arc::clone(app_ctx.app_paths_arc()))
+            .with(closed)
+            .with(app_ctx);
 
         let actor = Actor::job(UserId::new("job-test-admin"), "test".to_string());
-        JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
+        JobContext::new(actor, dependencies)
     }
 
     #[tokio::test]

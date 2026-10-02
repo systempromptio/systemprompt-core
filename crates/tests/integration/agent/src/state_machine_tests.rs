@@ -23,7 +23,7 @@ async fn completed_cannot_be_reopened_to_working() -> Result<()> {
         .await
         .expect_err("completed -> working must be rejected");
     assert!(
-        matches!(err, RepositoryError::Conflict(_)),
+        matches!(err, RepositoryError::Conflict { .. }),
         "expected Conflict, got {err:?}"
     );
 
@@ -52,7 +52,7 @@ async fn failed_cannot_be_reopened_to_working() -> Result<()> {
         .update_task_state(&task_id, TaskState::Working, &now)
         .await
         .expect_err("failed -> working must be rejected");
-    assert!(matches!(err, RepositoryError::Conflict(_)));
+    assert!(matches!(err, RepositoryError::Conflict { .. }));
 
     let status = fx.current_status(&task_id).await?;
     assert_eq!(status, "TASK_STATE_FAILED");
@@ -82,7 +82,7 @@ async fn canceled_cannot_transition_anywhere() -> Result<()> {
             .update_task_state(&task_id, target, &now)
             .await
             .expect_err(&format!("canceled -> {target:?} must be rejected"));
-        assert!(matches!(err, RepositoryError::Conflict(_)));
+        assert!(matches!(err, RepositoryError::Conflict { .. }));
     }
 
     let status = fx.current_status(&task_id).await?;

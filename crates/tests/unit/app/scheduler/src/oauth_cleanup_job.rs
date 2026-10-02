@@ -1,19 +1,17 @@
-use std::sync::Arc;
-
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_oauth::jobs::OauthCleanupJob;
-use systemprompt_provider_contracts::{Job, JobContext, ProviderError};
+use systemprompt_provider_contracts::{Dependencies, Job, JobContext, ProviderError};
 use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
 
 #[tokio::test]
 async fn oauth_cleanup_job_requires_pool_and_removes_only_expired_rows() {
     let owner = UserId::new(format!("oauth-cleanup-{}", uuid::Uuid::new_v4().simple()));
     let actor = Actor::user(owner.clone());
-    let missing = JobContext::new(actor.clone(), Arc::new(()), Arc::new(()), Arc::new(()));
+    let missing = JobContext::new(actor.clone(), Dependencies::new());
     assert!(matches!(
         OauthCleanupJob.execute(&missing).await,
-        Err(ProviderError::Configuration(message)) if message.contains("DbPool")
+        Err(ProviderError::MissingDependency(missing)) if missing.type_name().contains("Database")
     ));
 
     let database = DisposableDb::with_schema("oauth_cleanup_job").await;
@@ -53,7 +51,7 @@ async fn oauth_cleanup_job_requires_pool_and_removes_only_expired_rows() {
         .await
         .expect("expired replay marker");
 
-    let context = JobContext::new(actor, Arc::new(db.clone()), Arc::new(()), Arc::new(()));
+    let context = JobContext::new(actor, Dependencies::new().with(db.clone()));
     let result = OauthCleanupJob
         .execute(&context)
         .await

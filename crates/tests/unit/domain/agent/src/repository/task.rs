@@ -154,7 +154,7 @@ async fn validate_task_ownership() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -224,7 +224,7 @@ async fn update_task_state_invalid_transition_errors() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::Conflict(_)
+        systemprompt_traits::RepositoryError::Conflict { .. }
     ));
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -242,7 +242,7 @@ async fn update_task_state_unknown_task_not_found() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 }
 
@@ -268,7 +268,7 @@ async fn apply_notification_status_parses_state() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::InvalidArgument(_)
+        systemprompt_traits::RepositoryError::InvalidArgument { .. }
     ));
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -310,7 +310,7 @@ async fn update_task_failed_unknown_is_not_found() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 }
 

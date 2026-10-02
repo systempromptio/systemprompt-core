@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_files::FileIngestionJob;
 use systemprompt_identifiers::{Actor, UserId};
-use systemprompt_traits::{Job, JobContext};
+use systemprompt_traits::{Dependencies, Job, JobContext};
 
 use crate::bootstrap::test_env;
 use systemprompt_test_fixtures::test_db_pool;
@@ -45,11 +45,12 @@ async fn file_ingestion_executes_against_real_pool() {
 
     let job = FileIngestionJob::new();
     let actor = Actor::system(UserId::new("test-system"));
-    let db_arc: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db);
-    let app_paths_arc: Arc<dyn std::any::Any + Send + Sync> = Arc::new(env.app_paths.clone());
-    let app_ctx_arc: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-
-    let ctx = JobContext::new(actor, db_arc, app_ctx_arc, app_paths_arc);
+    let ctx = JobContext::new(
+        actor,
+        Dependencies::new()
+            .with(db)
+            .with(Arc::new(env.app_paths.clone())),
+    );
 
     let result = job.execute(&ctx).await.expect("job should execute");
     assert!(result.success, "ingestion job reports success");

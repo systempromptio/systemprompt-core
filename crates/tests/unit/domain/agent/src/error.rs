@@ -43,7 +43,7 @@ fn test_agent_error_artifact_display() {
 
 #[test]
 fn test_agent_error_repository_keeps_its_classification() {
-    let agent_error: AgentError = RepositoryError::not_found("task t1").into();
+    let agent_error: AgentError = RepositoryError::not_found("task", "t1").into();
     match agent_error {
         AgentError::Repository(inner) => assert!(inner.is_not_found()),
         other => panic!("expected Repository, got {other:?}"),

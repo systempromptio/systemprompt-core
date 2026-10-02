@@ -34,11 +34,7 @@ impl Job for McpSessionCleanupJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = Arc::clone(ctx.db_pool::<DbPool>().ok_or_else(|| {
-            systemprompt_provider_contracts::ProviderError::Internal(
-                "DbPool not available in job context".into(),
-            )
-        })?);
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
         let repo = McpSessionRepository::new(&db_pool);
 

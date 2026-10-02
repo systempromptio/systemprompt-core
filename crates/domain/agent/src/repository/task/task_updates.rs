@@ -76,9 +76,9 @@ impl TaskRepository {
 
         self.count_messages(session_id, messages.len()).await;
 
-        self.find_task(&task.id).await?.ok_or_else(|| {
-            RepositoryError::NotFound(format!("Task not found after update: {}", task.id))
-        })
+        self.find_task(&task.id)
+            .await?
+            .ok_or_else(|| RepositoryError::not_found("task", &task.id))
     }
 
     pub async fn persist_messages(
@@ -174,10 +174,7 @@ async fn update_task_metadata(
     .await?;
 
     if result.rows_affected() == 0 {
-        return Err(RepositoryError::NotFound(format!(
-            "Task not found for update: {}",
-            task.id
-        )));
+        return Err(RepositoryError::not_found("task", &task.id));
     }
 
     Ok(())

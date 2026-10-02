@@ -71,10 +71,13 @@ impl AiRequestRepository {
         error: &str,
     ) -> Result<(), RepositoryError> {
         if error.is_empty() || error.len() > 4096 {
-            return Err(RepositoryError::invalid_argument(format!(
-                "accounting failure of AI request {request_id} must contain bounded diagnostic \
-                 evidence"
-            )));
+            return Err(RepositoryError::invalid_argument(
+                "error",
+                format!(
+                    "accounting failure of AI request {request_id} must contain bounded \
+                     diagnostic evidence"
+                ),
+            ));
         }
         let affected = sqlx::query!(
             "UPDATE ai_requests SET status='failed', accounting_failed_at=COALESCE(accounting_failed_at,CURRENT_TIMESTAMP), accounting_error=COALESCE(accounting_error,$3), error_message=COALESCE(accounting_error,$3), updated_at=CASE WHEN accounting_failed_at IS NULL THEN CURRENT_TIMESTAMP ELSE updated_at END WHERE id=$1 AND user_id=$2 AND (accounting_error IS NULL OR accounting_error=$3)",
@@ -284,7 +287,9 @@ fn tokens(value: u32) -> Result<i32, RepositoryError> {
 }
 
 fn settlement_conflict(request_id: &AiRequestId, reason: &str) -> RepositoryError {
-    RepositoryError::conflict(format!(
-        "settlement of AI request {request_id} rejected: {reason}"
-    ))
+    RepositoryError::conflict(
+        "AI request",
+        request_id,
+        format!("settlement rejected: {reason}"),
+    )
 }

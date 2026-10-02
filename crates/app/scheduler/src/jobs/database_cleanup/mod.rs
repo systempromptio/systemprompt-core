@@ -31,7 +31,6 @@ use systemprompt_models::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
-use crate::error::SchedulerError;
 use crate::services::scheduling::job_app_context;
 
 use self::orphans::{delete_orphaned_logs, fail_orphaned_requests};
@@ -59,10 +58,7 @@ impl Job for DatabaseCleanupJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = Instant::now();
-        let db_pool = Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
-        );
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
         let app = job_app_context(ctx)?;
         let mut retention = app.config().retention;
         // Why: the parameter predates the profile block and operators still

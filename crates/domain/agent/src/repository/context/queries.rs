@@ -48,10 +48,9 @@ impl ContextRepository {
         .fetch_one(&*self.pool)
         .await
         .map_err(|e| match e {
-            sqlx::Error::RowNotFound => RepositoryError::NotFound(format!(
-                "Context {} not found for user {}",
-                context_id, user_id
-            )),
+            sqlx::Error::RowNotFound => {
+                RepositoryError::not_found("context", format!("{context_id} for user {user_id}"))
+            },
             _ => RepositoryError::database(e),
         })?;
 

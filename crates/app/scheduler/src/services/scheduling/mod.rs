@@ -23,7 +23,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, JobName, UserId};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Job as JobTrait, JobContext};
+use systemprompt_traits::{Dependencies, Job as JobTrait, JobContext};
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
@@ -260,14 +260,13 @@ pub(crate) fn make_job_context(
     db_pool: DbPool,
     app_context: Arc<AppContext>,
 ) -> JobContext {
-    let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
-        Arc::new(Arc::clone(app_context.app_paths_arc()));
-    let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
-    let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_context);
-    JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
+    let dependencies = Dependencies::new()
+        .with(Arc::clone(app_context.app_paths_arc()))
+        .with(db_pool)
+        .with(app_context);
+    JobContext::new(actor, dependencies)
 }
 
 pub(crate) fn job_app_context(ctx: &JobContext) -> SchedulerResult<&Arc<AppContext>> {
-    ctx.app_context::<Arc<AppContext>>()
-        .ok_or_else(|| SchedulerError::missing_context("AppContext"))
+    Ok(ctx.get::<Arc<AppContext>>()?)
 }

@@ -229,13 +229,13 @@ mod ai_error_tests {
 
     #[test]
     fn repository_error_converts_to_ai_error_without_losing_the_variant() {
-        let ai_err: AiError = RepositoryError::conflict("AI request x already exists").into();
+        let ai_err: AiError = RepositoryError::conflict("AI request", "x", "already exists").into();
         assert!(matches!(ai_err, AiError::Repository(ref e) if e.is_conflict()));
     }
 
     #[test]
     fn repository_failures_surface_as_storage_on_the_inference_seam() {
-        let ai_err: AiError = RepositoryError::not_found("AI request x").into();
+        let ai_err: AiError = RepositoryError::not_found("AI request", "x").into();
         assert!(matches!(
             AiInferenceError::from(ai_err),
             AiInferenceError::Storage(_)

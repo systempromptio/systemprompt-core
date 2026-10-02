@@ -1,7 +1,6 @@
 //! DB-backed `execute` paths for `ThoughtSignatureCleanupJob`, which drops
 //! expired gateway thought signatures.
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
@@ -10,7 +9,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, GatewayConversationId, UserId};
 use systemprompt_scheduler::jobs::ThoughtSignatureCleanupJob;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
-use systemprompt_traits::{Job, JobContext};
+use systemprompt_traits::{Dependencies, Job, JobContext};
 use uuid::Uuid;
 
 async fn pool() -> DbPool {
@@ -18,19 +17,19 @@ async fn pool() -> DbPool {
     test_db_pool().await
 }
 
-fn ctx(db_pool_any: Arc<dyn std::any::Any + Send + Sync>) -> JobContext {
+fn ctx(dependencies: Dependencies) -> JobContext {
     let actor = Actor::job(UserId::new("multi-replica-jobs-test"), "test".to_owned());
-    JobContext::new(actor, db_pool_any, Arc::new(()), Arc::new(()))
+    JobContext::new(actor, dependencies)
 }
 
 #[tokio::test]
 async fn thought_signature_cleanup_fails_without_a_db_pool_in_context() {
     ensure_test_bootstrap();
     let err = ThoughtSignatureCleanupJob
-        .execute(&ctx(Arc::new(())))
+        .execute(&ctx(Dependencies::new()))
         .await
         .expect_err("a job with no pool must not report success");
-    assert!(err.to_string().contains("DbPool"), "{err}");
+    assert!(err.to_string().contains("Database"), "{err}");
 }
 
 #[tokio::test]
@@ -80,7 +79,7 @@ async fn thought_signature_cleanup_drops_expired_rows_and_keeps_live_ones() {
     .expect("age the expired row");
 
     let result = ThoughtSignatureCleanupJob
-        .execute(&ctx(Arc::new(pool.clone())))
+        .execute(&ctx(Dependencies::new().with(pool.clone())))
         .await
         .expect("cleanup execute");
 

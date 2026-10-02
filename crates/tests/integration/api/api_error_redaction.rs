@@ -41,7 +41,7 @@ async fn a_context_lookup_failure_is_a_500_without_its_cause() -> anyhow::Result
 #[tokio::test]
 async fn stored_data_corruption_is_a_500_not_a_400() -> anyhow::Result<()> {
     let corrupt =
-        RepositoryError::invalid_data(format!("task t-1 has no agent_name {SECRET_CAUSE}"));
+        RepositoryError::invalid_data("agent_name", format!("missing for task t-1 {SECRET_CAUSE}"));
     let (status, body) = status_and_body(corrupt.into()).await?;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert!(
@@ -72,9 +72,10 @@ async fn content_errors_classify_by_variant() -> anyhow::Result<()> {
         status_and_body(ContentError::InvalidRequest("bad".to_owned()).into()).await?;
     assert_eq!(invalid, StatusCode::BAD_REQUEST);
 
-    let (repo_missing, _) =
-        status_and_body(ContentError::Repository(RepositoryError::not_found("content x")).into())
-            .await?;
+    let (repo_missing, _) = status_and_body(
+        ContentError::Repository(RepositoryError::not_found("content", "x")).into(),
+    )
+    .await?;
     assert_eq!(repo_missing, StatusCode::NOT_FOUND);
 
     let (failed, body) = status_and_body(ContentError::DatabaseNotPostgres.into()).await?;

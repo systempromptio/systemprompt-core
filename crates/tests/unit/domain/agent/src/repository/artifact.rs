@@ -243,7 +243,7 @@ async fn validate_artifact_ownership() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 
     r.tasks.delete_task(&task_id).await.ok();

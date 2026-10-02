@@ -4,7 +4,7 @@
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use systemprompt_provider_contracts::{
-    ExtendedData, ExtenderContext, ProviderResult, TemplateDataExtender,
+    Dependencies, ExtendedData, ExtenderContext, ProviderResult, TemplateDataExtender,
 };
 
 use crate::support::web_config;
@@ -15,9 +15,9 @@ fn builder_defaults_are_empty_strings() {
     let all = vec![item.clone()];
     let cfg = serde_yaml::Value::Null;
     let wc = web_config();
-    let pool: &(dyn std::any::Any + Send + Sync) = &7i32;
+    let deps = Dependencies::new().with(7i32);
 
-    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, pool).build();
+    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, &deps).build();
 
     assert_eq!(ctx.content_html, "");
     assert_eq!(ctx.url_pattern, "");
@@ -32,9 +32,9 @@ fn builder_with_setters_populate_fields() {
     let all: Vec<Value> = vec![];
     let cfg = serde_yaml::Value::Null;
     let wc = web_config();
-    let pool: &(dyn std::any::Any + Send + Sync) = &();
+    let deps = Dependencies::new();
 
-    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, pool)
+    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, &deps)
         .with_content_html("<p>hi</p>")
         .with_url_pattern("/blog/{slug}")
         .with_source_name("blog")
@@ -46,17 +46,22 @@ fn builder_with_setters_populate_fields() {
 }
 
 #[test]
-fn db_pool_downcast_correct_and_wrong_type() {
+fn get_returns_the_inserted_dependency_and_names_a_missing_one() {
     let item = json!({});
     let all: Vec<Value> = vec![];
     let cfg = serde_yaml::Value::Null;
     let wc = web_config();
-    let pool: &(dyn std::any::Any + Send + Sync) = &99u64;
+    let deps = Dependencies::new().with(99u64);
 
-    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, pool).build();
+    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, &deps).build();
 
-    assert_eq!(ctx.db_pool::<u64>(), Some(&99u64));
-    assert!(ctx.db_pool::<String>().is_none());
+    assert_eq!(ctx.get::<u64>(), Ok(&99u64));
+    assert!(
+        ctx.get::<String>()
+            .unwrap_err()
+            .type_name()
+            .contains("String")
+    );
 }
 
 #[test]
@@ -65,9 +70,9 @@ fn context_debug_summarizes_collections() {
     let all = vec![json!({}), json!({})];
     let cfg = serde_yaml::Value::Null;
     let wc = web_config();
-    let pool: &(dyn std::any::Any + Send + Sync) = &();
+    let deps = Dependencies::new();
 
-    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, pool)
+    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, &deps)
         .with_content_html("abcde")
         .with_url_pattern("/x")
         .with_source_name("src")
@@ -77,7 +82,7 @@ fn context_debug_summarizes_collections() {
     assert!(dbg.contains("ExtenderContext"));
     assert!(dbg.contains("[2 items]"));
     assert!(dbg.contains("[5 chars]"));
-    assert!(dbg.contains("<dyn Any>"));
+    assert!(dbg.contains("Dependencies"));
 }
 
 #[test]
@@ -86,9 +91,9 @@ fn builder_debug_summarizes_collections() {
     let all = vec![json!({})];
     let cfg = serde_yaml::Value::Null;
     let wc = web_config();
-    let pool: &(dyn std::any::Any + Send + Sync) = &();
+    let deps = Dependencies::new();
 
-    let builder = ExtenderContext::builder(&item, &all, &cfg, &wc, pool).with_content_html("ab");
+    let builder = ExtenderContext::builder(&item, &all, &cfg, &wc, &deps).with_content_html("ab");
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("ExtenderContextBuilder"));
     assert!(dbg.contains("[1 items]"));
@@ -129,8 +134,8 @@ async fn extend_mutates_data_from_context() {
     let all: Vec<Value> = vec![];
     let cfg = serde_yaml::Value::Null;
     let wc = web_config();
-    let pool: &(dyn std::any::Any + Send + Sync) = &();
-    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, pool)
+    let deps = Dependencies::new();
+    let ctx = ExtenderContext::builder(&item, &all, &cfg, &wc, &deps)
         .with_source_name("docs")
         .build();
 

@@ -72,6 +72,7 @@ mod email;
 mod engagement;
 mod events;
 mod execution;
+mod extension;
 mod gateway_boot;
 mod gateway_conversation;
 mod hook;
@@ -113,10 +114,12 @@ pub use ai::{
 pub use auth::{
     ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, DeviceId, JwtToken, SessionToken,
 };
-pub use bridge::{CommsMessageId, DeploymentOrganizationUuid, HookSessionId, McpSessionId};
+pub use bridge::{
+    CommsMessageId, DeploymentOrganizationUuid, ElevatedJobId, HookSessionId, McpSessionId,
+};
 pub use client::{ClientId, ClientType};
 pub use client_session::ClientSessionId;
-pub use cloud::{CloudUserId, PriceId};
+pub use cloud::{CloudAppId, CloudUserId, PriceId};
 pub use connection::ConnectionId;
 pub use content::{CategoryId, ContentId, FileId, SkillId, SkillName, SourceId, TagId};
 pub use context::ContextId;
@@ -124,6 +127,7 @@ pub use email::Email;
 pub use engagement::EngagementEventId;
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
+pub use extension::ExtensionId;
 pub use gateway_boot::{DepartmentId, DepartmentName, ModelId, ProviderId, RouteId, SecretName};
 pub use gateway_conversation::GatewayConversationId;
 pub use hook::HookId;
@@ -150,7 +154,7 @@ pub use service::ServiceName;
 pub use session::{SessionId, SessionSource};
 pub use slack::{SlackChannelId, SlackUserId, SlackWorkspaceId};
 pub use task::TaskId;
-pub use teams::{TeamsConversationId, TeamsTenantId, TeamsUserId};
+pub use teams::{TeamsAppId, TeamsConversationId, TeamsTenantId, TeamsUserId};
 pub use tenant::TenantId;
 pub use trace::TraceId;
 pub use url::ValidatedUrl;

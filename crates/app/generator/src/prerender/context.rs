@@ -12,7 +12,7 @@ use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_models::{ContentConfigRaw, WebConfig};
-use systemprompt_provider_contracts::ContentDataProvider;
+use systemprompt_provider_contracts::{ContentDataProvider, Dependencies};
 use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
 use systemprompt_templates::{
     CoreTemplateProvider, EmbeddedDefaultsProvider, TemplateRegistry, TemplateRegistryBuilder,
@@ -32,8 +32,8 @@ pub(super) struct PrerenderAssets {
 }
 
 pub(super) struct PrerenderContext {
-    pub db_pool: DbPool,
     pub content_repo: ContentRepository,
+    pub dependencies: Dependencies,
     assets: Arc<PrerenderAssets>,
 }
 
@@ -52,6 +52,7 @@ impl std::fmt::Debug for PrerenderContext {
             .field("web_config", &self.web_config)
             .field("template_registry", &self.template_registry)
             .field("dist_dir", &self.dist_dir)
+            .field("dependencies", &self.dependencies)
             .field(
                 "content_data_providers_count",
                 &self.content_data_providers.len(),
@@ -71,9 +72,12 @@ pub(super) async fn load_prerender_context(
         .get_or_try_init(|| async { load_prerender_assets(paths).await.map(Arc::new) })
         .await?;
 
+    let dependencies = Dependencies::new()
+        .with(db_pool)
+        .with(assets.config.clone());
     Ok(PrerenderContext {
-        db_pool,
         content_repo,
+        dependencies,
         assets: Arc::clone(assets),
     })
 }

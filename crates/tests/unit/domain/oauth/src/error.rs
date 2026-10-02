@@ -261,7 +261,7 @@ fn unknown_account_and_missing_passkey_share_one_classification() {
 
 #[test]
 fn unique_violation_is_detected_from_the_repository_constraint() {
-    let err = OauthError::Repository(RepositoryError::conflict("stale"));
+    let err = OauthError::Repository(RepositoryError::conflict("client", "c1", "stale"));
     assert!(!err.is_unique_violation());
 }
 

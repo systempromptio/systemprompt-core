@@ -91,7 +91,7 @@ async fn concurrent_working_writes_converge_to_working() -> Result<()> {
             let s = format!("{e:?}");
             // CAS contention is the expected loser path; anything else is a bug.
             assert!(
-                s.contains("stale task update") || s.contains("invalid task state transition"),
+                s.contains("stale update") || s.contains("invalid state transition"),
                 "unexpected failure: {s}"
             );
             hard_failures = hard_failures.saturating_add(0);

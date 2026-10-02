@@ -144,18 +144,14 @@ mod job_result_tests {
 
 mod job_context_tests {
     use super::*;
+    use systemprompt_provider_contracts::{Dependencies, ProviderError};
 
     fn create_context() -> JobContext {
-        let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
-        let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("app".to_string());
         JobContext::new(
             test_actor(),
-            db_pool,
-            app_context,
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
+            Dependencies::new().with(42i32).with("app".to_string()),
         )
     }
-
 
     #[test]
     fn parameters_is_empty_by_default() {
@@ -188,114 +184,42 @@ mod job_context_tests {
     }
 
     #[test]
-    fn db_pool_downcast_correct_type() {
-        let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
-        let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-        let ctx = JobContext::new(
-            test_actor(),
-            db_pool,
-            app_context,
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-        );
-
-        let pool: Option<&i32> = ctx.db_pool();
-        assert_eq!(pool, Some(&42));
+    fn get_returns_each_inserted_handle_by_type() {
+        let ctx = create_context();
+        assert_eq!(ctx.get::<i32>().copied(), Ok(42));
+        assert_eq!(ctx.get::<String>().map(String::as_str), Ok("app"));
     }
 
     #[test]
-    fn db_pool_downcast_wrong_type() {
-        let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
-        let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-        let ctx = JobContext::new(
-            test_actor(),
-            db_pool,
-            app_context,
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-        );
-
-        let pool: Option<&String> = ctx.db_pool();
-        assert!(pool.is_none());
+    fn get_of_an_absent_type_names_it() {
+        let ctx = create_context();
+        let err = ctx.get::<u64>().expect_err("u64 was never inserted");
+        assert_eq!(err.type_name(), "u64");
+        let provider: ProviderError = err.into();
+        assert!(matches!(provider, ProviderError::MissingDependency(_)));
+        assert!(provider.to_string().contains("u64"));
     }
 
     #[test]
-    fn app_context_downcast_correct_type() {
-        let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-        let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("test".to_string());
-        let ctx = JobContext::new(
-            test_actor(),
-            db_pool,
-            app_context,
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-        );
-
-        let app: Option<&String> = ctx.app_context();
-        assert_eq!(app, Some(&"test".to_string()));
+    fn an_arc_and_its_target_are_distinct_keys() {
+        let ctx = JobContext::new(test_actor(), Dependencies::new().with(Arc::new(7u8)));
+        assert_eq!(ctx.get::<Arc<u8>>().map(|v| **v), Ok(7));
+        ctx.get::<u8>().expect_err("u8 is not Arc<u8>");
     }
 
     #[test]
-    fn app_context_downcast_wrong_type() {
-        let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-        let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("test".to_string());
-        let ctx = JobContext::new(
-            test_actor(),
-            db_pool,
-            app_context,
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-        );
-
-        let app: Option<&i32> = ctx.app_context();
-        assert!(app.is_none());
-    }
-
-    #[test]
-    fn db_pool_arc_returns_clone() {
-        let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
-        let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-        let ctx = JobContext::new(
-            test_actor(),
-            db_pool.clone(),
-            app_context,
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-        );
-
-        let returned_arc = ctx.db_pool_arc();
-        assert!(Arc::ptr_eq(&db_pool, &returned_arc));
-    }
-
-    #[test]
-    fn app_context_arc_returns_clone() {
-        let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-        let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("test".to_string());
-        let ctx = JobContext::new(
-            test_actor(),
-            db_pool,
-            app_context.clone(),
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-        );
-
-        let returned_arc = ctx.app_context_arc();
-        assert!(Arc::ptr_eq(&app_context, &returned_arc));
-    }
-
-    #[test]
-    fn context_is_debug() {
+    fn context_is_debug_and_lists_dependency_types() {
         let ctx = create_context();
         let debug = format!("{:?}", ctx);
-        assert!(debug.contains("type-erased"));
+        assert!(debug.contains("i32"), "{debug}");
+        assert!(debug.contains("String"), "{debug}");
     }
 
     #[test]
-    fn actor_and_app_paths_arc_expose_the_constructed_values() {
-        let app_paths: Arc<dyn std::any::Any + Send + Sync> = Arc::new(7u8);
-        let ctx = JobContext::new(
-            test_actor(),
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-            app_paths.clone(),
-        );
-
+    fn actor_and_dependencies_expose_the_constructed_values() {
+        let ctx = create_context();
         assert_eq!(ctx.actor().user_id, test_actor().user_id);
-        assert!(Arc::ptr_eq(&app_paths, &ctx.app_paths_arc()));
+        assert_eq!(ctx.dependencies().get::<i32>().copied(), Ok(42));
     }
 }
 
@@ -372,9 +296,7 @@ mod get_parameter_parsed_tests {
             .collect();
         JobContext::new(
             test_actor(),
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
-            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
+            systemprompt_provider_contracts::Dependencies::new(),
         )
         .with_parameters(map)
     }

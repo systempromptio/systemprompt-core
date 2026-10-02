@@ -31,9 +31,7 @@ impl Job for OauthCleanupJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
-        let db_pool = Arc::clone(ctx.db_pool::<DbPool>().ok_or_else(|| {
-            ProviderError::Configuration("DbPool not available in job context".into())
-        })?);
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
         debug!("Job started");
 
