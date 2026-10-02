@@ -39,7 +39,7 @@ let user_service = UserService::new(&db_pool)?;
 
 let user = user_service.find_by_email("user@example.com").await?;
 
-let admins = user_service.find_by_role(UserRole::Admin).await?;
+let admins = user_service.list_by_role(UserRole::Admin).await?;
 
 let stats = user_service.get_stats().await?;
 ```
