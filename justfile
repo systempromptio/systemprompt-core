@@ -410,7 +410,7 @@ lint-no-untyped-admin:
 # from the root workspace, so a bare root-level scan silently skips them — which is
 # how a 7.5-high advisory sat unnoticed in the bridge lockfile. Keep this list in
 # sync with the tracked Cargo.lock files (`git ls-files '*Cargo.lock'`).
-workspaces := ". bin/bridge crates/tests crates/tests/bench crates/tests/fuzz crates/tests/loadtest crates/tests/mock-inference"
+workspaces := ". bin/bridge crates/tests crates/tests/bench crates/tests/fuzz crates/tests/loadtest crates/tests/mock-inference scripts/rust-contracts"
 
 # Run cargo-deny across every workspace: licenses, advisories, bans, sources.
 # All workspaces share the root deny.toml so the ignore rationales live in one file.
