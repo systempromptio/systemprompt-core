@@ -50,6 +50,8 @@ mod otlp_export;
 #[cfg(test)]
 mod plans;
 #[cfg(test)]
+mod port_holder;
+#[cfg(test)]
 mod posix_backend;
 #[cfg(test)]
 mod process_cleanup;

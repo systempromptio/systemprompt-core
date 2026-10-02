@@ -3,9 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::num::NonZeroU16;
 use std::process::Command;
 
-use super::ProcessInfo;
+use super::listener::parse_lsof_pids;
 
 const TERMINATION_POLL_INTERVAL_MS: u64 = 50;
 
@@ -16,30 +17,37 @@ fn is_safe_pattern(p: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/'))
 }
 
-pub(super) fn check_port(port: u16) -> Option<u32> {
-    let output = match Command::new("lsof")
-        .args(["-ti", &format!(":{}", port)])
+pub(super) fn listener_pids(port: NonZeroU16) -> Vec<u32> {
+    let port_filter = format!("-iTCP:{port}");
+    match Command::new("lsof")
+        .args(["-nP", &port_filter, "-sTCP:LISTEN", "-t"])
+        .output()
+    {
+        Ok(output) => parse_lsof_pids(&String::from_utf8_lossy(&output.stdout)),
+        Err(e) => {
+            tracing::warn!(
+                port = port.get(),
+                error = %e,
+                "Failed to run lsof while checking port; treating as unknown",
+            );
+            vec![]
+        },
+    }
+}
+
+pub(super) fn process_name(pid: u32) -> Option<String> {
+    let output = match Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "comm="])
         .output()
     {
         Ok(output) => output,
         Err(e) => {
-            tracing::warn!(
-                port = port,
-                error = %e,
-                "Failed to run lsof while checking port; treating as unknown",
-            );
+            tracing::warn!(pid, error = %e, "Failed to run ps while inspecting process");
             return None;
         },
     };
-
-    if output.stdout.is_empty() {
-        None
-    } else {
-        String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .next()
-            .and_then(|pid| pid.trim().parse::<u32>().ok())
-    }
+    let name = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    (!name.is_empty()).then_some(name)
 }
 
 pub(super) fn kill_process(pid: u32) -> bool {
@@ -147,49 +155,4 @@ pub(super) fn kill_by_pattern(pattern: &str) -> usize {
             0
         },
     }
-}
-
-pub(super) fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
-    let output = match Command::new("lsof")
-        .args(["-ti", &format!(":{}", port)])
-        .output()
-    {
-        Ok(output) => output,
-        Err(e) => {
-            tracing::warn!(
-                port = port,
-                error = %e,
-                "Failed to run lsof while inspecting port; treating as unknown",
-            );
-            return None;
-        },
-    };
-
-    let pid: u32 = String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .next()?
-        .trim()
-        .parse()
-        .ok()?;
-
-    let comm_output = match Command::new("ps")
-        .args(["-p", &pid.to_string(), "-o", "comm="])
-        .output()
-    {
-        Ok(output) => output,
-        Err(e) => {
-            tracing::warn!(
-                pid = pid,
-                error = %e,
-                "Failed to run ps while inspecting process",
-            );
-            return None;
-        },
-    };
-
-    let name = String::from_utf8_lossy(&comm_output.stdout)
-        .trim()
-        .to_owned();
-
-    Some(ProcessInfo { pid, name, port })
 }

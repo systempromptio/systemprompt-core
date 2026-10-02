@@ -13,7 +13,7 @@ use systemprompt_database::{
     CreateServiceInput, ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus,
 };
 use systemprompt_identifiers::ServiceName;
-use systemprompt_scheduler::{OrphanDisposition, ServiceManagementService};
+use systemprompt_scheduler::{OrphanDisposition, SchedulerError, ServiceManagementService};
 use systemprompt_test_fixtures::test_db_pool;
 
 // A PID that is never a live process: kill(2) on i32::MAX fails with ESRCH.
@@ -592,36 +592,37 @@ mod live_child_stop_paths {
         (child, port)
     }
 
-    #[tokio::test]
-    async fn stop_api_by_port_terminates_the_listener_gracefully() {
-        let pool = test_db_pool().await;
-        let _ = pool;
-
+    async fn assert_foreign_holder_is_refused(force: bool) {
         let (mut child, port) = spawn_port_holder();
         let pid = child.id();
 
-        let stopped = ServiceManagementService::stop_api_by_port(port, false)
+        let err = ServiceManagementService::stop_api_by_port(port, force)
             .await
-            .expect("stop_api_by_port must free the port");
-        assert_eq!(stopped, Some(pid), "the listener PID must be reported");
+            .expect_err("a holder that is not a peer instance must be refused");
+        assert!(
+            matches!(
+                err,
+                SchedulerError::ForeignPortHolder { port: p, pid: holder } if p == port && holder == pid
+            ),
+            "the refusal must name the port and its holder: {err}"
+        );
+        assert!(
+            child.try_wait().expect("poll holder").is_none(),
+            "a refused holder must not be signalled"
+        );
 
-        wait_until_dead(&mut child).await;
+        let _ = child.kill();
+        let _ = child.wait();
     }
 
     #[tokio::test]
-    async fn stop_api_by_port_force_kills_the_listener() {
-        let pool = test_db_pool().await;
-        let _ = pool;
+    async fn stop_api_by_port_refuses_a_listener_that_is_not_a_peer_instance() {
+        assert_foreign_holder_is_refused(false).await;
+    }
 
-        let (mut child, port) = spawn_port_holder();
-        let pid = child.id();
-
-        let stopped = ServiceManagementService::stop_api_by_port(port, true)
-            .await
-            .expect("forced stop_api_by_port must free the port");
-        assert_eq!(stopped, Some(pid));
-
-        wait_until_dead(&mut child).await;
+    #[tokio::test]
+    async fn forced_stop_api_by_port_refuses_a_listener_that_is_not_a_peer_instance() {
+        assert_foreign_holder_is_refused(true).await;
     }
 }
 

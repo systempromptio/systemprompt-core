@@ -8,10 +8,12 @@ use std::future::Future;
 
 use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::live_pid_is_subprocess;
+use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV};
 
 use super::process_cleanup::ProcessCleanup;
 use super::service_records::ServiceConfig;
-use super::state_types::ServiceAction;
+use super::state_types::{ServiceAction, ServiceType};
 use super::state_verifier::ServiceStateVerifier;
 use super::verified_state::VerifiedServiceState;
 use crate::error::SchedulerResult;
@@ -173,7 +175,7 @@ impl ServiceReconciler {
     }
 
     async fn stop_service(&self, state: &VerifiedServiceState) -> SchedulerResult<()> {
-        if let Some(pid) = state.pid {
+        if let Some(pid) = verified_pid(state) {
             ProcessCleanup::terminate_gracefully(pid, 100).await;
             ProcessCleanup::kill_port(state.port, pid);
         }
@@ -182,7 +184,7 @@ impl ServiceReconciler {
     }
 
     async fn cleanup_process(&self, state: &VerifiedServiceState) {
-        if let Some(pid) = state.pid {
+        if let Some(pid) = verified_pid(state) {
             ProcessCleanup::terminate_gracefully(pid, 100).await;
             ProcessCleanup::kill_port(state.port, pid);
         }
@@ -197,4 +199,21 @@ impl ServiceReconciler {
         self.services.update_service_stopped(name).await?;
         Ok(())
     }
+}
+
+fn verified_pid(state: &VerifiedServiceState) -> Option<u32> {
+    let pid = state.pid?;
+    let verified = match state.service_type {
+        ServiceType::Agent => live_pid_is_subprocess(pid, AGENT_NAME_ENV, &state.name),
+        ServiceType::Mcp => live_pid_is_subprocess(pid, MCP_SERVICE_ID_ENV, &state.name),
+        ServiceType::Api => ProcessCleanup::is_peer_instance(pid),
+    };
+    if !verified {
+        tracing::warn!(
+            service = %state.name,
+            pid,
+            "PID is not a verified child of this installation; leaving it untouched"
+        );
+    }
+    verified.then_some(pid)
 }

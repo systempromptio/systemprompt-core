@@ -3,9 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::num::NonZeroU16;
 use std::process::Command;
 
-use super::ProcessInfo;
+use super::listener::parse_netstat_listeners;
 
 fn is_safe_pattern(p: &str) -> bool {
     !p.is_empty()
@@ -14,33 +15,38 @@ fn is_safe_pattern(p: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
 }
 
-pub(super) fn check_port(port: u16) -> Option<u32> {
-    let output = match Command::new("netstat").args(["-ano", "-p", "TCP"]).output() {
-        Ok(output) => output,
+pub(super) fn listener_pids(port: NonZeroU16) -> Vec<u32> {
+    match Command::new("netstat").args(["-ano", "-p", "TCP"]).output() {
+        Ok(output) => parse_netstat_listeners(&String::from_utf8_lossy(&output.stdout), port),
         Err(e) => {
             tracing::warn!(
-                port = port,
+                port = port.get(),
                 error = %e,
                 "failed to run `netstat -ano -p TCP` while checking port; treating as unknown",
             );
+            vec![]
+        },
+    }
+}
+
+pub(super) fn process_name(pid: u32) -> Option<String> {
+    let output = match Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+        .output()
+    {
+        Ok(output) => output,
+        Err(e) => {
+            tracing::warn!(pid, error = %e, "failed to run `tasklist` while inspecting process");
             return None;
         },
     };
-
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let port_pattern = format!(":{} ", port);
-
-    for line in stdout.lines() {
-        if line.contains(&port_pattern) {
-            if let Some(pid_str) = line.split_whitespace().last() {
-                if let Ok(pid) = pid_str.parse::<u32>() {
-                    return Some(pid);
-                }
-            }
-        }
+    let line = stdout.trim();
+    if !line.starts_with('"') {
+        return None;
     }
-
-    None
+    let name = line.split(',').next()?.trim_matches('"').to_owned();
+    (!name.is_empty()).then_some(name)
 }
 
 pub(super) fn kill_process(pid: u32) -> bool {
@@ -136,34 +142,4 @@ pub(super) fn kill_by_pattern(pattern: &str) -> usize {
             0
         },
     }
-}
-
-pub(super) fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
-    let pid = check_port(port)?;
-
-    let output = match Command::new("tasklist")
-        .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
-        .output()
-    {
-        Ok(output) => output,
-        Err(e) => {
-            tracing::warn!(
-                pid = pid,
-                error = %e,
-                "failed to run `tasklist` while inspecting process",
-            );
-            return None;
-        },
-    };
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let parts: Vec<&str> = stdout.trim().split(',').collect();
-
-    let name = if !parts.is_empty() {
-        parts[0].trim_matches('"').to_string()
-    } else {
-        "unknown".to_string()
-    };
-
-    Some(ProcessInfo { pid, name, port })
 }

@@ -6,10 +6,11 @@
 //! [`systemprompt_loader::subprocess::live_pid_is_subprocess`] confirms the
 //! live process still carries this installation's spawn markers — registry
 //! PIDs outlive the processes that minted them and are recycled by the
-//! kernel, so an unverified PID is cleared without signalling. Port-derived
-//! PIDs ([`ServiceManagementService::stop_api_by_port`], the API sweep in
-//! [`ServiceManagementService::cleanup_all_orphans`]) carry no service
-//! identity; port 0 means no port and never resolves to a PID.
+//! kernel, so an unverified PID is cleared without signalling. A PID found
+//! on the API port ([`ServiceManagementService::stop_api_by_port`], the API
+//! sweep in [`ServiceManagementService::cleanup_all_orphans`]) is signalled
+//! only when [`ProcessCleanup::is_peer_instance`] confirms it runs this
+//! executable; port 0 means no port and never resolves to a PID.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,7 +26,6 @@ use super::orchestration::ProcessCleanup;
 use crate::error::{SchedulerError, SchedulerResult};
 
 const STOP_GRACE_MS: u64 = 100;
-const API_SERVE_PATTERN: &str = "systemprompt serve api";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OrphanDisposition {
@@ -138,18 +138,21 @@ impl ServiceManagementService {
     }
 
     pub async fn stop_api_by_port(port: u16, force: bool) -> SchedulerResult<Option<u32>> {
-        let listener = ProcessCleanup::check_port(port);
-        if let Some(pid) = listener {
-            if force {
-                ProcessCleanup::kill_process(pid);
-            } else {
-                ProcessCleanup::terminate_gracefully(pid, STOP_GRACE_MS).await;
-            }
-            ProcessCleanup::kill_port(port, pid);
+        let Some(pid) = ProcessCleanup::check_port(port) else {
+            return Ok(None);
+        };
+        if !ProcessCleanup::is_peer_instance(pid) {
+            return Err(SchedulerError::ForeignPortHolder { port, pid });
         }
+        if force {
+            ProcessCleanup::kill_process(pid);
+        } else {
+            ProcessCleanup::terminate_gracefully(pid, STOP_GRACE_MS).await;
+        }
+        ProcessCleanup::kill_port(port, pid);
 
         ProcessCleanup::wait_for_port_free(port, 5, 200).await?;
-        Ok(listener)
+        Ok(Some(pid))
     }
 
     pub async fn cleanup_all_orphans(&self, api_port: u16) -> SchedulerResult<OrphanCleanupReport> {
@@ -195,9 +198,17 @@ impl ServiceManagementService {
 }
 
 async fn sweep_api_port(api_port: u16) -> SchedulerResult<bool> {
-    let killed = ProcessCleanup::check_port(api_port)
-        .map_or_else(Vec::new, |pid| ProcessCleanup::kill_port(api_port, pid));
-    ProcessCleanup::kill_by_pattern(API_SERVE_PATTERN);
+    let Some(pid) = ProcessCleanup::check_port(api_port) else {
+        return Ok(false);
+    };
+    if !ProcessCleanup::is_peer_instance(pid) {
+        warn!(
+            port = api_port,
+            pid, "API port is held by a process that is not a peer instance; leaving it untouched"
+        );
+        return Ok(false);
+    }
+    let killed = ProcessCleanup::kill_port(api_port, pid);
     ProcessCleanup::wait_for_port_free(api_port, 3, 1000).await?;
     Ok(!killed.is_empty())
 }

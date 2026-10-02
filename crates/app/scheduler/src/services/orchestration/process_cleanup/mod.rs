@@ -4,17 +4,31 @@
 //! implementations live in `posix` (Unix) and `winnt` (Windows) and are
 //! gated by `#[cfg(unix)]` / `#[cfg(windows)]`.
 //!
+//! A port lookup only ever reports listening sockets, and port 0 ("no port")
+//! is never looked up: asking the OS for it matches unrelated sockets on the
+//! host. A PID found on a port is a holder, not an identity — callers verify
+//! it (spawn marker, recorded PID or [`ProcessCleanup::is_peer_instance`])
+//! before signalling it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{PortHolder, SchedulerError, SchedulerResult};
-
+pub mod listener;
 #[cfg(unix)]
 mod posix;
 #[cfg(windows)]
 mod winnt;
 
-const NO_PORT: u16 = 0;
+#[cfg(unix)]
+use posix as platform;
+#[cfg(windows)]
+use winnt as platform;
+
+use std::num::NonZeroU16;
+use std::path::Path;
+
+use crate::error::{PortHolder, SchedulerError, SchedulerResult};
+
 const PROTECTED_PORTS: &[u16] = &[5432, 6432];
 const PROTECTED_PROCESSES: &[&str] = &["postgres", "pgbouncer", "psql"];
 
@@ -29,32 +43,24 @@ pub struct ProcessInfo {
 }
 
 impl ProcessCleanup {
-    #[cfg(unix)]
-    pub fn check_port(port: u16) -> Option<u32> {
-        if !is_inspectable(port) {
-            return None;
+    pub fn listener_pids(port: NonZeroU16) -> Vec<u32> {
+        if PROTECTED_PORTS.contains(&port.get()) {
+            return vec![];
         }
-        posix::check_port(port)
+        platform::listener_pids(port)
     }
 
-    #[cfg(windows)]
     pub fn check_port(port: u16) -> Option<u32> {
-        if !is_inspectable(port) {
-            return None;
-        }
-        winnt::check_port(port)
+        let port = NonZeroU16::new(port)?;
+        Self::listener_pids(port).into_iter().next()
     }
 
     pub fn kill_port(port: u16, owner: u32) -> Vec<u32> {
-        if !is_inspectable(port) {
-            return vec![];
-        }
-
         let Some(holder) = Self::check_port(port) else {
             return vec![];
         };
 
-        if holder != owner && Self::process_group(holder) != Some(owner) {
+        if holder != owner && platform::process_group(holder) != Some(owner) {
             tracing::warn!(
                 port,
                 holder,
@@ -71,74 +77,52 @@ impl ProcessCleanup {
         }
     }
 
-    #[cfg(unix)]
-    fn process_group(pid: u32) -> Option<u32> {
-        posix::process_group(pid)
-    }
-
-    #[cfg(windows)]
-    fn process_group(pid: u32) -> Option<u32> {
-        winnt::process_group(pid)
-    }
-
-    #[cfg(unix)]
-    pub fn kill_process(pid: u32) -> bool {
-        posix::kill_process(pid)
-    }
-
-    #[cfg(windows)]
-    pub fn kill_process(pid: u32) -> bool {
-        winnt::kill_process(pid)
-    }
-
-    #[cfg(unix)]
-    pub async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool {
-        posix::terminate_gracefully(pid, grace_period_ms).await
-    }
-
-    #[cfg(windows)]
-    pub async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool {
-        winnt::terminate_gracefully(pid, grace_period_ms).await
-    }
-
-    #[cfg(unix)]
-    pub async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
-        posix::terminate_group_gracefully(pgid, grace_period_ms).await
-    }
-
-    #[cfg(windows)]
-    pub async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
-        winnt::terminate_group_gracefully(pgid, grace_period_ms).await
-    }
-
-    #[cfg(unix)]
-    pub fn process_exists(pid: u32) -> bool {
-        posix::process_exists(pid)
-    }
-
-    #[cfg(windows)]
-    pub fn process_exists(pid: u32) -> bool {
-        winnt::process_exists(pid)
-    }
-
-    #[cfg(unix)]
-    pub fn kill_by_pattern(pattern: &str) -> usize {
-        for protected in PROTECTED_PROCESSES {
-            if pattern.contains(protected) {
-                return 0;
-            }
+    pub fn is_peer_instance(pid: u32) -> bool {
+        if pid == std::process::id() {
+            return false;
         }
-        posix::kill_by_pattern(pattern)
+        let Some(own_name) = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.file_name().and_then(|n| n.to_str()).map(str::to_owned))
+        else {
+            tracing::warn!(
+                pid,
+                "cannot resolve the running executable; treating holder as foreign"
+            );
+            return false;
+        };
+        platform::process_name(pid).is_some_and(|name| {
+            Path::new(&name)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|holder| listener::executable_names_match(holder, &own_name))
+        })
     }
 
-    #[cfg(windows)]
+    pub fn kill_process(pid: u32) -> bool {
+        platform::kill_process(pid)
+    }
+
+    pub async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool {
+        platform::terminate_gracefully(pid, grace_period_ms).await
+    }
+
+    pub async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
+        platform::terminate_group_gracefully(pgid, grace_period_ms).await
+    }
+
+    pub fn process_exists(pid: u32) -> bool {
+        platform::process_exists(pid)
+    }
+
     pub fn kill_by_pattern(pattern: &str) -> usize {
-        for protected in PROTECTED_PROCESSES {
-            if pattern.contains(protected) {
-                return 0;
-            }
+        if PROTECTED_PROCESSES
+            .iter()
+            .any(|protected| pattern.contains(protected))
+        {
+            return 0;
         }
-        winnt::kill_by_pattern(pattern)
+        platform::kill_by_pattern(pattern)
     }
 
     pub async fn wait_for_port_free(
@@ -146,7 +130,7 @@ impl ProcessCleanup {
         max_retries: u8,
         retry_delay_ms: u64,
     ) -> SchedulerResult<()> {
-        if port == NO_PORT {
+        if NonZeroU16::new(port).is_none() {
             return Ok(());
         }
         for attempt in 1..=max_retries {
@@ -166,25 +150,9 @@ impl ProcessCleanup {
         })
     }
 
-    #[cfg(unix)]
     pub fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
-        if port == NO_PORT {
-            return None;
-        }
-        posix::get_process_by_port(port)
+        let pid = Self::check_port(port)?;
+        let name = platform::process_name(pid)?;
+        Some(ProcessInfo { pid, name, port })
     }
-
-    #[cfg(windows)]
-    pub fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
-        if port == NO_PORT {
-            return None;
-        }
-        winnt::get_process_by_port(port)
-    }
-}
-
-// Why: `lsof -ti :0` and a `:0 ` netstat match report unrelated sockets on
-// macOS and Windows, so port 0 (no port assigned) must never resolve to a PID.
-fn is_inspectable(port: u16) -> bool {
-    port != NO_PORT && !PROTECTED_PORTS.contains(&port)
 }

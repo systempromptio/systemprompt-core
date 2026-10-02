@@ -170,12 +170,6 @@ async fn bind_early(
     Ok(Some(early))
 }
 
-const NO_PORT: u16 = 0;
-
-// Why: Linux truncates a process `comm` to 15 bytes (TASK_COMM_LEN), so a
-// longer executable name is only ever reported as its 15-byte prefix.
-const COMM_NAME_LIMIT: usize = 15;
-
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PortConflict {
     pub port: u16,
@@ -183,41 +177,20 @@ pub(crate) struct PortConflict {
 }
 
 fn check_port_available(port: u16) -> Option<u32> {
-    if port == NO_PORT {
-        return None;
-    }
     ProcessCleanup::check_port(port)
-}
-
-fn names_match(holder: &str, own: &str) -> bool {
-    !holder.is_empty()
-        && (holder == own || (holder.len() == COMM_NAME_LIMIT && own.starts_with(holder)))
 }
 
 pub(crate) fn verify_port_holder(conflict: PortConflict) -> Result<()> {
     let PortConflict { port, pid } = conflict;
-    let own_exe = std::env::current_exe()
-        .context("Cannot resolve the running executable to verify the port holder")?;
-    let own_name = own_exe
-        .file_name()
-        .and_then(|name| name.to_str())
-        .context("The running executable has no UTF-8 file name")?;
-    let holder = ProcessCleanup::get_process_by_port(port)
-        .filter(|info| info.pid == pid)
-        .with_context(|| {
-            format!("Cannot identify the process holding port {port}; refusing to kill PID {pid}")
-        })?;
-    let holder_name = std::path::Path::new(&holder.name)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default();
-    if names_match(holder_name, own_name) {
+    if ProcessCleanup::check_port(port) != Some(pid) {
+        anyhow::bail!("PID {pid} no longer holds port {port}; refusing to kill it");
+    }
+    if ProcessCleanup::is_peer_instance(pid) {
         return Ok(());
     }
     anyhow::bail!(
-        "Port {port} is held by PID {pid} ({}), which is not a {own_name} process; refusing to \
-         kill it",
-        holder.name
+        "Port {port} is held by PID {pid}, which is not another instance of this executable; \
+         refusing to kill it"
     )
 }
 

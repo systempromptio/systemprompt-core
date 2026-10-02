@@ -73,6 +73,11 @@ pub enum SchedulerError {
         attempts: u8,
     },
 
+    #[error(
+        "Port {port} is held by PID {pid}, which is not a peer instance; refusing to signal it"
+    )]
+    ForeignPortHolder { port: u16, pid: u32 },
+
     #[error("Scheduler already running")]
     AlreadyRunning,
 

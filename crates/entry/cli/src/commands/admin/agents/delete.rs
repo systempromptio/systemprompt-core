@@ -19,9 +19,11 @@ use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWeb
 use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_loader::ConfigLoader;
+use systemprompt_loader::subprocess::live_pid_is_subprocess;
 use systemprompt_logging::CliService;
+use systemprompt_models::subprocess::AGENT_NAME_ENV;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_scheduler::ProcessCleanup;
 
@@ -265,9 +267,11 @@ pub fn stop_verified_port_holder(
         return true;
     };
 
-    if recorded_pid != Some(holder) {
+    if recorded_pid != Some(holder)
+        || !live_pid_is_subprocess(holder, AGENT_NAME_ENV, &ServiceName::of_agent(agent_name))
+    {
         CliService::warning(&format!(
-            "Process {holder} holds port {port} but is not the recorded process of agent \
+            "Process {holder} holds port {port} but is not the verified process of agent \
              '{agent_name}'; refusing to kill it"
         ));
         return false;
