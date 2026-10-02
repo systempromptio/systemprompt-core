@@ -28,7 +28,7 @@ fn target(pid: u32) -> Result<Pid, SupervisionError> {
 }
 
 pub(super) fn exists(pid: u32) -> bool {
-    target(pid).is_ok_and(|pid| signal::kill(pid, None).is_ok())
+    target(pid).is_ok_and(|pid| signal::kill(pid, None) != Err(Errno::ESRCH))
 }
 
 pub(super) fn reap_if_child(pid: u32) -> bool {

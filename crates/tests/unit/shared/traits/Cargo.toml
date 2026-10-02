@@ -15,6 +15,8 @@ systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 futures = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }

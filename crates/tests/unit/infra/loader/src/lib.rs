@@ -72,6 +72,8 @@ mod services_loader;
 mod services_root_cell;
 #[cfg(test)]
 mod subprocess;
+#[cfg(all(test, unix))]
+mod subprocess_control;
 #[cfg(test)]
 mod vertex_discovery_classify;
 #[cfg(test)]
