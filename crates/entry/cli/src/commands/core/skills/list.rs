@@ -17,7 +17,7 @@ use systemprompt_models::SKILL_CONFIG_FILENAME;
 use crate::CommandContext;
 use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
-use super::types::{SkillDetailOutput, SkillListOutput, SkillSummary, parse_skill_from_config};
+use super::types::{SkillDetail, SkillListOutput, SkillSummary, parse_skill_from_config};
 use systemprompt_marketplace::ManagedSkillResolution;
 use systemprompt_marketplace::managed::ResourceKind;
 
@@ -165,7 +165,7 @@ pub async fn show_resolved_skill(
             },
             ManagedSkillResolution::NotManaged => {},
             ManagedSkillResolution::Published(skill) => {
-                let output = SkillDetailOutput {
+                let output = SkillDetail {
                     file_path: Some(format!(
                         "managed://{}@{}",
                         skill.id.as_str(),
@@ -219,7 +219,7 @@ pub fn show_skill_detail(skill_id: &SkillId, skills_path: &Path) -> Result<Comma
 
     let instructions_preview = truncate_with_ellipsis(&parsed.instructions, 200);
 
-    let output = SkillDetailOutput {
+    let output = SkillDetail {
         skill_id: skill_id.clone(),
         name: parsed.name.clone(),
         display_name: parsed.name,

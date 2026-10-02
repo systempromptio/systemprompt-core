@@ -90,7 +90,7 @@ impl axum::response::IntoResponse for RejectionError {
         }
         super::dispatch::errors::build_error_response(
             self.status,
-            super::dispatch::errors::error_type_for(self.status),
+            crate::services::gateway::protocol::inbound::error_type_for_status(self.status),
             self.public_message(),
         )
     }

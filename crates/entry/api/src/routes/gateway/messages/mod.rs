@@ -30,10 +30,10 @@ use systemprompt_models::wire::origin::RequestOrigin;
 use systemprompt_runtime::AppContext;
 
 use crate::services::gateway::audit::GatewayAccessLog;
-use crate::services::gateway::protocol::inbound::InboundAdapter;
+use crate::services::gateway::protocol::inbound::{InboundAdapter, error_type_for_status};
 use crate::services::middleware::JwtContextExtractor;
 
-use dispatch::{RejectionError, build_error_response, dispatch_to_provider, error_type_for};
+use dispatch::{RejectionError, build_error_response, dispatch_to_provider};
 use extract::{RejectionPartial, extract_request_context};
 use rejection::persist_rejection;
 
@@ -90,7 +90,7 @@ pub async fn handle(
                 .header("content-type", "application/json")
                 .body(Body::from(body))
                 .unwrap_or_else(|_| {
-                    build_error_response(status, error_type_for(status), public_message)
+                    build_error_response(status, error_type_for_status(status), public_message)
                 })
         },
     };

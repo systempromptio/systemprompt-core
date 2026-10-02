@@ -198,7 +198,7 @@ pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
         .context("Failed to initialize configuration")?;
     if discover_models {
         systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
-            Box::pin(systemprompt_runtime::discover_models(providers))
+            Box::pin(systemprompt_runtime::discover_vertex_models(providers))
         })
         .await
         .context("Failed to load the services configuration")?;

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use systemprompt_models::{DiskSkillConfig, strip_frontmatter};
 
-pub use systemprompt_models::services::{SkillDetail as SkillDetailOutput, SkillSummary};
+pub use systemprompt_models::services::{SkillDetail, SkillSummary};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillListOutput {

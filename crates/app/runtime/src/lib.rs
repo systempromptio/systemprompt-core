@@ -32,7 +32,7 @@ mod startup_validation;
 pub mod trace;
 mod validation;
 
-pub use builder::{AppContextBuilder, discover_models, owner_reassignments};
+pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};

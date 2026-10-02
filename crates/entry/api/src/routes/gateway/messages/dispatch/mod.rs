@@ -22,8 +22,8 @@ pub mod errors;
 pub use self::errors::map_upstream_error;
 
 pub use self::errors::{
-    build_error_response, build_policy_denial, classify_dispatch_error, error_type_for,
-    map_dispatch_error, policy_denial_message,
+    build_error_response, build_policy_denial, classify_dispatch_error, map_dispatch_error,
+    policy_denial_message,
 };
 
 pub(super) async fn dispatch_to_provider(

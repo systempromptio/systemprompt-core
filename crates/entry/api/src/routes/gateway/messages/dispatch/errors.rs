@@ -18,8 +18,6 @@ use axum::response::{IntoResponse, Response};
 use crate::services::gateway::protocol::outbound::UpstreamError;
 use crate::services::gateway::service::{DispatchError, GatewayError, upstream_status};
 
-pub use crate::services::gateway::protocol::inbound::error_type_for_status as error_type_for;
-
 use super::RejectionError;
 
 const ERROR_TYPE_PERMISSION: &str = "permission_error";
