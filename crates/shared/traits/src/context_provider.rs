@@ -1,13 +1,16 @@
 //! Conversation context provider trait used by chat and agent surfaces.
 //!
-//! Dispatched as a trait object (`dyn _`), so it uses `#[async_trait]`;
-//! native `async fn` in traits is not yet `dyn`-compatible.
+//! `ContextMaterializer` is dispatched as a trait object
+//! (`dyn ContextMaterializer`), so it uses `#[async_trait]`; native `async fn`
+//! in traits is not yet `dyn`-compatible. `ContextProvider` is only used
+//! through concrete types and declares native `async` methods.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use std::future::Future;
 use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
@@ -78,47 +81,39 @@ impl ContextWithStats {
     }
 }
 
-#[async_trait]
 pub trait ContextProvider: Send + Sync {
-    async fn list_contexts_with_stats(
+    fn list_contexts_with_stats(
         &self,
         user_id: &UserId,
-    ) -> Result<Vec<ContextWithStats>, ContextProviderError>;
+    ) -> impl Future<Output = Result<Vec<ContextWithStats>, ContextProviderError>> + Send;
 
-    async fn get_context(
+    fn get_context(
         &self,
         context_id: &ContextId,
         user_id: &UserId,
-    ) -> Result<ContextWithStats, ContextProviderError>;
+    ) -> impl Future<Output = Result<ContextWithStats, ContextProviderError>> + Send;
 
-    async fn create_context(
+    fn create_context(
         &self,
         user_id: &UserId,
         session_id: Option<&SessionId>,
         name: &str,
-    ) -> Result<ContextId, ContextProviderError>;
+    ) -> impl Future<Output = Result<ContextId, ContextProviderError>> + Send;
 
-    async fn update_context_name(
+    fn update_context_name(
         &self,
         context_id: &ContextId,
         user_id: &UserId,
         name: &str,
-    ) -> Result<(), ContextProviderError>;
+    ) -> impl Future<Output = Result<(), ContextProviderError>> + Send;
 
-    async fn delete_context(
+    fn delete_context(
         &self,
         context_id: &ContextId,
         user_id: &UserId,
-    ) -> Result<(), ContextProviderError>;
+    ) -> impl Future<Output = Result<(), ContextProviderError>> + Send;
 }
 
-pub type DynContextProvider = Arc<dyn ContextProvider>;
-
-/// Idempotent materialization of derived contexts.
-///
-/// Boundaries that mint a `ContextId` deterministically (session, evaluation
-/// run, probe) call this so the id resolves to a real `user_contexts` row and
-/// joins/audit queries see it. Existing rows are never modified.
 #[derive(Debug, Clone, Copy)]
 pub struct EnsureContextParams<'a> {
     pub context_id: &'a ContextId,
@@ -128,6 +123,13 @@ pub struct EnsureContextParams<'a> {
     pub kind: &'a str,
 }
 
+/// Idempotent materialization of derived contexts.
+///
+/// Boundaries that mint a `ContextId` deterministically (session, evaluation
+/// run, probe) call this so the id resolves to a real `user_contexts` row and
+/// joins/audit queries see it. Existing rows are never modified.
+///
+/// Injected as `dyn ContextMaterializer`, hence `#[async_trait]`.
 #[async_trait]
 pub trait ContextMaterializer: Send + Sync {
     async fn ensure_context(

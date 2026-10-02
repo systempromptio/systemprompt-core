@@ -92,7 +92,7 @@ pub use managed_resources::{
 
 pub use context_provider::{
     ContextMaterializer, ContextProvider, ContextProviderError, ContextStats, ContextWithStats,
-    DynContextMaterializer, DynContextProvider, EnsureContextParams,
+    DynContextMaterializer, EnsureContextParams,
 };
 
 pub use validation::{MetadataValidation, MetadataValidationError, Validate, ValidationResult};
@@ -104,7 +104,7 @@ pub use analytics::{
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, DynRoleProvider, FederatedIdentityClaims,
+    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims,
     RoleProvider, SenderIdentity, UserProvider,
 };
 
@@ -120,7 +120,7 @@ pub use ai_providers::{
 };
 
 pub use registry::{
-    AgentInfo, AgentRegistryProvider, DynAgentRegistryProvider, McpRegistryProvider, McpServerInfo,
+    AgentInfo, AgentRegistryProvider, McpRegistryProvider, McpServerInfo,
     RegistryError, ServiceOAuthConfig,
 };
 
