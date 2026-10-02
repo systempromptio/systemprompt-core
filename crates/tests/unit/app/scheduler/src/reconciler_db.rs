@@ -505,12 +505,16 @@ mod reconciler_action_arms {
             .map(|r| (r.status, r.pid))
     }
 
-    fn spawn_port_holder() -> (Child, u16) {
+    // The holder carries the spawn markers of the MCP service it stands in
+    // for, so the reconciler can verify it as that service's child.
+    fn spawn_port_holder(service: &str) -> (Child, u16) {
         let mut child = Command::new("python3")
             .args([
                 "-c",
                 "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
             ])
+            .env("SYSTEMPROMPT_SUBPROCESS", "1")
+            .env("MCP_SERVICE_ID", service)
             .stdout(Stdio::piped())
             .spawn()
             .expect("spawn python3 port holder");
@@ -718,8 +722,8 @@ mod reconciler_action_arms {
             ),
         );
 
-        let (mut child, port) = spawn_port_holder();
         let name = unique_name("rec-orphan-proc");
+        let (mut child, port) = spawn_port_holder(&name);
         insert_service(&pg, &name, "stopped", None, i32::from(port)).await;
 
         let result = reconciler
@@ -750,8 +754,8 @@ mod reconciler_action_arms {
             ),
         );
 
-        let (mut child, port) = spawn_port_holder();
         let name = unique_name("rec-stop");
+        let (mut child, port) = spawn_port_holder(&name);
         insert_service(
             &pg,
             &name,

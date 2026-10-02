@@ -196,13 +196,15 @@ impl Drop for OwnedListenerChild {
     }
 }
 
-fn spawn_owned_listener() -> (OwnedListenerChild, u32, u16) {
+fn spawn_owned_listener(agent: &str) -> (OwnedListenerChild, u32, u16) {
     use std::io::BufRead;
     use std::process::Stdio;
 
     let mut child = OwnedListenerChild(
         std::process::Command::new(std::env::current_exe().expect("unit-test binary path"))
             .args(["--exact", OWNED_LISTENER_HELPER, "--ignored", "--nocapture"])
+            .env("SYSTEMPROMPT_SUBPROCESS", "1")
+            .env("AGENT_NAME", agent)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -229,7 +231,7 @@ fn spawn_owned_listener() -> (OwnedListenerChild, u32, u16) {
 fn an_unverified_port_holder_is_never_killed() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    let (_child, child_pid, port) = spawn_owned_listener();
+    let (_child, child_pid, port) = spawn_owned_listener("owned-other");
     assert_eq!(ProcessCleanup::check_port(port), Some(child_pid));
 
     assert!(!stop_verified_port_holder(
@@ -242,6 +244,10 @@ fn an_unverified_port_holder_is_never_killed() {
         Some(port),
         Some(child_pid.wrapping_add(1))
     ));
+    assert!(
+        !stop_verified_port_holder(&AgentName::new("stranger"), Some(port), Some(child_pid)),
+        "a recorded pid whose spawn markers name another agent must not be killed"
+    );
     assert_eq!(
         ProcessCleanup::check_port(port),
         Some(child_pid),
@@ -253,7 +259,7 @@ fn an_unverified_port_holder_is_never_killed() {
 fn the_recorded_agent_process_is_stopped() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    let (mut child, child_pid, port) = spawn_owned_listener();
+    let (mut child, child_pid, port) = spawn_owned_listener("owned-running");
     assert_eq!(ProcessCleanup::check_port(port), Some(child_pid));
 
     assert!(stop_verified_port_holder(
