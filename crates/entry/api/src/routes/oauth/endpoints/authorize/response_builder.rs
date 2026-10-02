@@ -69,7 +69,7 @@ pub fn generate_webauthn_form(
     context.insert("resource", resource);
     context.insert("api_external_url", api_external_url);
 
-    let allow_registration = Config::get().map_or(true, |c| c.allow_registration);
+    let allow_registration = Config::get().is_ok_and(|c| c.allow_registration);
     let register_class = if allow_registration { "" } else { "hidden" };
     context.insert("register_class", register_class);
 

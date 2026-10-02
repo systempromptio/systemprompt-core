@@ -18,8 +18,7 @@ use systemprompt_models::Config;
 use crate::routes::oauth::OAuthHttpError;
 
 fn ensure_registration_enabled() -> Result<(), OAuthHttpError> {
-    let allowed = Config::get().map_or(true, |c| c.allow_registration);
-    if allowed {
+    if Config::get()?.allow_registration {
         Ok(())
     } else {
         Err(OAuthHttpError::access_denied("registration_disabled")
