@@ -21,6 +21,7 @@ use systemprompt_api::services::gateway::service::{
     DispatchError, GatewayError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded,
     SafetyBlocked,
 };
+use systemprompt_identifiers::ProviderRequestId;
 
 fn rejection(e: DispatchError) -> (StatusCode, String, bool) {
     let err = map_dispatch_error(e).expect_err("this error must not render a response");
@@ -302,7 +303,8 @@ fn upstream(
         message: "upstream said no".to_owned(),
         body: Box::new(bytes::Bytes::from(body.to_owned())),
         retry_after: retry_after.map(ToOwned::to_owned),
-        request_id: request_id.map(ToOwned::to_owned),
+        request_id: request_id
+            .map(|id| ProviderRequestId::try_new(id).expect("valid provider request id")),
     }
 }
 
@@ -520,7 +522,9 @@ async fn coverage_upstream_passthrough_preserves_body_and_retry_correlation_head
             message: "rate limited".into(),
             body: Box::new(body.clone()),
             retry_after: Some("15".into()),
-            request_id: Some("upstream-123".into()),
+            request_id: Some(
+                ProviderRequestId::try_new("upstream-123").expect("valid provider request id"),
+            ),
         },
     )))
     .unwrap();
@@ -549,7 +553,8 @@ fn coverage_invalid_upstream_headers_fall_back_to_a_classified_rejection() {
                 message: "safe reason".into(),
                 body: Box::new(bytes::Bytes::from_static(b"{}")),
                 retry_after: retry_after.map(str::to_owned),
-                request_id: request_id.map(str::to_owned),
+                request_id: request_id
+                    .map(|id| ProviderRequestId::try_new(id).expect("valid provider request id")),
             },
         )))
         .unwrap_err();

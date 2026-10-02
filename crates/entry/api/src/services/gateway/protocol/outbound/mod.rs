@@ -20,6 +20,7 @@ pub mod openai_responses;
 pub mod retry;
 
 use std::sync::Arc;
+use systemprompt_identifiers::ProviderRequestId;
 
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
@@ -46,7 +47,7 @@ pub enum UpstreamError {
         message: String,
         body: Box<bytes::Bytes>,
         retry_after: Option<String>,
-        request_id: Option<String>,
+        request_id: Option<ProviderRequestId>,
     },
     #[error("{provider} request failed: {source}")]
     Transport {
@@ -103,7 +104,9 @@ impl UpstreamError {
                 .map(ToOwned::to_owned)
         };
         let retry_after = header("retry-after");
-        let request_id = header("request-id").or_else(|| header("x-request-id"));
+        let request_id = header("request-id")
+            .or_else(|| header("x-request-id"))
+            .and_then(|id| ProviderRequestId::try_new(id).ok());
         let body = response
             .bytes()
             .await
