@@ -19,6 +19,7 @@ use composition::{build_data_plane, build_repositories, ensure_legacy_context};
 use std::sync::{Arc, OnceLock};
 
 use systemprompt_database::MigrationConfig;
+use systemprompt_events::EventRouter;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
@@ -49,6 +50,7 @@ pub struct AppContextBuilder {
     migration_config: MigrationConfig,
     shutdown: Option<ShutdownRequest>,
     background_tasks: Option<BackgroundTasks>,
+    event_router: Option<EventRouter>,
 }
 
 impl std::fmt::Debug for AppContextBuilder {
@@ -62,6 +64,7 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("migration_config", &self.migration_config)
             .field("shutdown", &self.shutdown.is_some())
             .field("background_tasks", &self.background_tasks.is_some())
+            .field("event_router", &self.event_router)
             .finish()
     }
 }
@@ -124,6 +127,12 @@ impl AppContextBuilder {
     }
 
     #[must_use]
+    pub fn with_event_router(mut self, router: EventRouter) -> Self {
+        self.event_router = Some(router);
+        self
+    }
+
+    #[must_use]
     pub const fn with_migration_config(mut self, config: MigrationConfig) -> Self {
         self.migration_config = config;
         self
@@ -169,6 +178,12 @@ impl AppContextBuilder {
         let marketplace_filter = self
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
+        let event_router = self.event_router.unwrap_or_else(|| {
+            EventRouter::with_outbox(
+                database.write_pool().as_ref().clone(),
+                config.instance_id.clone(),
+            )
+        });
 
         let subsystems = Subsystems {
             ai_service: ai_service::build_ai_service(&database, &repositories, &mcp_registry)?,
@@ -178,6 +193,7 @@ impl AppContextBuilder {
             governance,
             schema_install: Arc::new(schema_install),
             event_bridge: Arc::new(OnceLock::new()),
+            event_router,
             geoip_reader,
             file_storage,
             shutdown,

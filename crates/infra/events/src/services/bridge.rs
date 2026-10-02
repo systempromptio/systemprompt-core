@@ -1,12 +1,12 @@
 //! Cross-replica event relay over Postgres `LISTEN`/`NOTIFY`.
 //!
-//! In a multi-replica deployment the in-process [`crate::EventRouter`]
-//! broadcasters only reach SSE connections held by the current process.
-//! [`PostgresEventBridge`] closes that gap: every replica runs one bridge
-//! task that `LISTEN`s on [`OUTBOX_CHANNEL`]. When any replica routes an
-//! event it appends a row to `event_outbox` and emits a `NOTIFY` carrying
-//! that row's id. Each bridge receives the notification, loads the row,
-//! deserializes the payload by its `channel`, and re-injects the event
+//! In a multi-replica deployment the in-process broadcasters an
+//! [`crate::EventRouter`] fans out to only reach SSE connections held by the
+//! current process. [`PostgresEventBridge`] closes that gap: every replica runs
+//! one bridge task that `LISTEN`s on [`OUTBOX_CHANNEL`]. When any replica
+//! routes an event it appends a row to `event_outbox` and emits a `NOTIFY`
+//! carrying that row's id. Each bridge receives the notification, loads the
+//! row, deserializes the payload by its `channel`, and re-injects the event
 //! through the router's *local-only* path — which deliberately does **not**
 //! touch the outbox, so the relay cannot loop.
 //!
@@ -63,8 +63,12 @@ impl PostgresEventBridge {
         }
     }
 
+    #[must_use]
+    pub fn router(&self) -> EventRouter {
+        EventRouter::from_outbox(self.outbox.clone())
+    }
+
     pub fn start(self) -> EventBridgeHandle {
-        EventRouter::install_relay(self.pool.clone(), self.outbox.instance_id().clone());
         let status = Arc::new(StatusCell::default());
         let cancel = CancellationToken::new();
         let task = OwnedTask::spawn("event_bridge", {

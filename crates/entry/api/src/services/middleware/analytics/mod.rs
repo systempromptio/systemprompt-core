@@ -1,9 +1,10 @@
 //! Request analytics middleware.
 //!
 //! [`AnalyticsMiddleware`] records tracked requests after the response is
-//! produced, spawning detached tasks for session activity, velocity-based
-//! scanner detection, behavioural bot scoring, and analytics-event capture so
-//! the request path is never blocked on persistence.
+//! produced, running session activity, velocity-based scanner detection,
+//! behavioural bot scoring, and analytics-event capture on the process's
+//! [`BackgroundTasks`] so the request path is never blocked on persistence and
+//! shutdown drains every pending write.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,7 +24,7 @@ use systemprompt_logging::AnalyticsRepository;
 use systemprompt_models::{RequestContext, RouteClassifier};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::ScannerDetector;
-use systemprompt_traits::DynSessionStore;
+use systemprompt_traits::{BackgroundTasks, DynSessionStore};
 
 pub use events::AnalyticsEventParams;
 
@@ -45,6 +46,7 @@ pub struct AnalyticsMiddleware {
     signals: Arc<SessionSignalsRepository>,
     analytics_repo: Arc<AnalyticsRepository>,
     route_classifier: Arc<RouteClassifier>,
+    background: BackgroundTasks,
 }
 
 impl std::fmt::Debug for AnalyticsMiddleware {
@@ -53,6 +55,7 @@ impl std::fmt::Debug for AnalyticsMiddleware {
             .field("signals", &self.signals)
             .field("analytics_repo", &self.analytics_repo)
             .field("route_classifier", &self.route_classifier)
+            .field("background", &self.background)
             .finish_non_exhaustive()
     }
 }
@@ -70,6 +73,7 @@ impl AnalyticsMiddleware {
             signals,
             analytics_repo,
             route_classifier,
+            background: app_context.background_tasks().clone(),
         }
     }
 
@@ -157,6 +161,7 @@ impl AnalyticsMiddleware {
         self.spawn_session_tracking_task(req_ctx.request.session_id.clone());
 
         detection::spawn_behavioral_detection_task(
+            &self.background,
             Arc::clone(&self.sessions),
             Arc::clone(&self.signals),
             detection::DetectionSubject {
@@ -168,6 +173,7 @@ impl AnalyticsMiddleware {
         );
 
         events::spawn_analytics_event_task(
+            &self.background,
             Arc::clone(&self.analytics_repo),
             Arc::clone(&self.route_classifier),
             AnalyticsEventParams {
@@ -190,47 +196,49 @@ impl AnalyticsMiddleware {
 
         // Why: one UPDATE per request — the increment also stamps
         // last_activity_at and duration_seconds.
-        tokio::spawn(async move {
-            if let Err(e) = sessions.increment_request_count(&session_id).await {
-                tracing::error!(error = %e, "Failed to record session request");
-            }
-        });
+        self.background
+            .spawn("analytics_session_activity", async move {
+                if let Err(e) = sessions.increment_request_count(&session_id).await {
+                    tracing::error!(error = %e, "Failed to record session request");
+                }
+            });
     }
 
     fn spawn_velocity_scanner_check(&self, session_id: SessionId) {
         let sessions = Arc::clone(&self.sessions);
 
-        tokio::spawn(async move {
-            let (request_count, duration_seconds) =
-                match sessions.get_session_velocity(&session_id).await {
-                    Ok(velocity) => velocity,
-                    Err(e) => {
-                        tracing::warn!(
-                            error = %e,
-                            session_id = %session_id,
-                            "Failed to read session velocity; scanner check skipped"
-                        );
-                        return;
-                    },
-                };
+        self.background
+            .spawn("analytics_velocity_check", async move {
+                let (request_count, duration_seconds) =
+                    match sessions.get_session_velocity(&session_id).await {
+                        Ok(velocity) => velocity,
+                        Err(e) => {
+                            tracing::warn!(
+                                error = %e,
+                                session_id = %session_id,
+                                "Failed to read session velocity; scanner check skipped"
+                            );
+                            return;
+                        },
+                    };
 
-            if let (Some(count), Some(duration)) = (request_count, duration_seconds)
-                && ScannerDetector::is_high_velocity(count, duration)
-                && let Err(e) = sessions.mark_as_scanner(&session_id).await
-            {
-                tracing::warn!(
-                    error = %e,
-                    session_id = %session_id,
-                    "Failed to mark high-velocity session as scanner"
-                );
-            }
-        });
+                if let (Some(count), Some(duration)) = (request_count, duration_seconds)
+                    && ScannerDetector::is_high_velocity(count, duration)
+                    && let Err(e) = sessions.mark_as_scanner(&session_id).await
+                {
+                    tracing::warn!(
+                        error = %e,
+                        session_id = %session_id,
+                        "Failed to mark high-velocity session as scanner"
+                    );
+                }
+            });
     }
 
     fn spawn_mark_scanner_task(&self, session_id: SessionId) {
         let sessions = Arc::clone(&self.sessions);
 
-        tokio::spawn(async move {
+        self.background.spawn("analytics_mark_scanner", async move {
             if let Err(e) = sessions.mark_as_scanner(&session_id).await {
                 tracing::warn!(error = %e, session_id = %session_id, "Failed to mark session as scanner");
             }

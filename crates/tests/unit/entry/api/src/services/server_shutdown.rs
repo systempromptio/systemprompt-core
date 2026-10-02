@@ -8,14 +8,18 @@
 
 use systemprompt_api::services::server::readiness::init_readiness;
 use systemprompt_api::services::server::shutdown;
+use systemprompt_runtime::ShutdownRequest;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_app_context};
 
 #[tokio::test]
 async fn a_server_that_finishes_first_has_its_own_result_returned_unchanged() {
     init_readiness();
 
-    let outcome =
-        shutdown::join_within_drain_grace(async { Err(anyhow::anyhow!("bind lost")) }).await;
+    let outcome = shutdown::join_within_drain_grace(
+        async { Err(anyhow::anyhow!("bind lost")) },
+        &ShutdownRequest::default(),
+    )
+    .await;
 
     let error = outcome.expect_err("the server's failure is the caller's failure");
     assert_eq!(

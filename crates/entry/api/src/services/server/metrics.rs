@@ -15,6 +15,7 @@ use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
 };
 use systemprompt_identifiers::InstanceId;
+use systemprompt_traits::OwnedTask;
 
 const METRICS_CONTENT_TYPE: &str = "text/plain; version=0.0.4; charset=utf-8";
 
@@ -54,7 +55,7 @@ pub fn metrics_router(handle: PrometheusHandle) -> axum::Router {
 pub async fn serve_metrics_listener(
     addr: std::net::SocketAddr,
     handle: PrometheusHandle,
-) -> anyhow::Result<tokio::task::JoinHandle<()>> {
+) -> anyhow::Result<OwnedTask<()>> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     let mut readiness = super::readiness::get_readiness_receiver();
     let shutdown = async move {
@@ -66,7 +67,7 @@ pub async fn serve_metrics_listener(
         }
     };
     tracing::info!(%addr, "metrics listener bound");
-    Ok(tokio::spawn(async move {
+    Ok(OwnedTask::spawn("metrics_listener", async move {
         if let Err(error) = axum::serve(listener, metrics_router(handle))
             .with_graceful_shutdown(shutdown)
             .await

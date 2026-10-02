@@ -8,7 +8,6 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
-use systemprompt_events::EventRouter;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
@@ -23,7 +22,7 @@ fn user_mismatch() -> ApiHttpError {
 
 pub async fn broadcast_a2a_event(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
-    State(_app_context): State<AppContext>,
+    State(app_context): State<AppContext>,
     Json(request): Json<A2ABroadcastRequest>,
 ) -> Result<Response, ApiHttpError> {
     let authenticated_user_id = &req_ctx.auth.actor.user_id;
@@ -37,7 +36,9 @@ pub async fn broadcast_a2a_event(
         return Err(user_mismatch());
     }
 
-    let (a2a_count, context_count) = EventRouter::route_a2a(&request_user_id, request.event)
+    let (a2a_count, context_count) = app_context
+        .event_router()
+        .route_a2a(&request_user_id, request.event)
         .await
         .into_local_logged();
     let count = a2a_count + context_count;
@@ -56,7 +57,7 @@ pub async fn broadcast_a2a_event(
 
 pub async fn broadcast_agui_event(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
-    State(_app_context): State<AppContext>,
+    State(app_context): State<AppContext>,
     Json(request): Json<AgUiBroadcastRequest>,
 ) -> Result<Response, ApiHttpError> {
     let authenticated_user_id = &req_ctx.auth.actor.user_id;
@@ -70,7 +71,9 @@ pub async fn broadcast_agui_event(
         return Err(user_mismatch());
     }
 
-    let (agui_count, context_count) = EventRouter::route_agui(&request_user_id, request.event)
+    let (agui_count, context_count) = app_context
+        .event_router()
+        .route_agui(&request_user_id, request.event)
         .await
         .into_local_logged();
     let count = agui_count + context_count;

@@ -311,6 +311,7 @@ fn fixture_app_context_assembled(
             artifact_ingest: fixture_artifact_ingest(pool)?,
             schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
             event_bridge: Arc::new(OnceLock::new()),
+            event_router: systemprompt_events::EventRouter::local_only(),
             geoip_reader: None,
             file_storage,
             shutdown: Default::default(),

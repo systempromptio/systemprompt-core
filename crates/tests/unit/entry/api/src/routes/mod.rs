@@ -5,6 +5,8 @@
 //! - Type serialization and deserialization
 //! - Default implementations
 
+#[cfg(unix)]
+mod admin_cli_disconnect;
 mod admin_services;
 mod admin_services_refresh;
 mod agent;

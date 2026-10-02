@@ -10,7 +10,7 @@ use systemprompt_analytics::{
     BehavioralAnalysisInput, BehavioralBotDetector, SessionSignalsRepository,
 };
 use systemprompt_identifiers::SessionId;
-use systemprompt_traits::{DynSessionStore, SessionStore};
+use systemprompt_traits::{BackgroundTasks, DynSessionStore, SessionStore};
 
 const BEHAVIORAL_FINGERPRINT_WINDOW_DAYS: i64 = 45;
 
@@ -23,11 +23,12 @@ pub struct DetectionSubject {
 }
 
 pub(super) fn spawn_behavioral_detection_task(
+    background: &BackgroundTasks,
     sessions: DynSessionStore,
     signals: Arc<SessionSignalsRepository>,
     subject: DetectionSubject,
 ) {
-    tokio::spawn(async move {
+    background.spawn("analytics_behavioral_detection", async move {
         let session_id = subject.session_id.clone();
         let input = collect_analysis_input(&*sessions, &signals, subject).await;
 

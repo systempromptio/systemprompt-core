@@ -7,7 +7,8 @@
 //! response leaves, and stamped into its `_meta`, so the client's own later
 //! report of the same result carries the exact server key. `record` composes
 //! the tap over the upstream body; the tap owns an [`McpAudit`] and finalizes
-//! it (once) on stream EOF or drop.
+//! it (once) on stream EOF or drop, writing on the process's
+//! [`BackgroundTasks`] so shutdown drains the row.
 //!
 //! The execution row is written first, then paired with the model's intent
 //! through [`IntentClaimService`], mirroring
@@ -34,6 +35,7 @@ use systemprompt_mcp::{
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
+use systemprompt_traits::BackgroundTasks;
 
 pub(crate) use jsonrpc::{ToolCallFrame, classify_tool_call, parse_tool_call};
 pub(crate) use tap::record;
@@ -49,6 +51,7 @@ pub struct McpAudit {
     invocation: ToolCallInvocation,
     started_at: DateTime<Utc>,
     mcp_execution_id: McpExecutionId,
+    background: BackgroundTasks,
 }
 
 impl McpAudit {
@@ -58,6 +61,7 @@ impl McpAudit {
         context: RequestContext,
         server_name: McpServerId,
         invocation: ToolCallInvocation,
+        background: BackgroundTasks,
     ) -> Self {
         Self {
             intent_claims,
@@ -67,6 +71,7 @@ impl McpAudit {
             invocation,
             started_at: Utc::now(),
             mcp_execution_id: McpExecutionId::generate(),
+            background,
         }
     }
 
@@ -111,7 +116,7 @@ impl McpAudit {
         let intent_claims = self.intent_claims;
         let ingest = self.ingest;
         let mcp_execution_id = self.mcp_execution_id;
-        tokio::spawn(async move {
+        self.background.spawn("mcp_proxy_audit", async move {
             let mut request = request;
             request.ai_tool_call_id = request.context.ai_tool_call_id().cloned();
             let exact = request.ai_tool_call_id.clone();

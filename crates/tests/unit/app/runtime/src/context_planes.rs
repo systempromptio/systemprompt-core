@@ -126,6 +126,7 @@ async fn plane_debug_impls_flag_optional_members() {
             .expect("artifact ingest"),
         schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
         event_bridge: Arc::new(OnceLock::new()),
+        event_router: systemprompt_events::EventRouter::local_only(),
         geoip_reader: None,
         file_storage: systemprompt_storage::build_file_storage(
             systemprompt_models::profile::StorageBackend::Local,
@@ -141,6 +142,10 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("Subsystems"), "got: {dbg}");
     assert!(dbg.contains("system_admin: \"planeadmin\""), "got: {dbg}");
     assert!(dbg.contains("event_bridge: false"), "got: {dbg}");
+    assert!(
+        dbg.contains("event_router: EventRouter { outbox: None }"),
+        "got: {dbg}"
+    );
     assert!(dbg.contains("geoip_reader: false"), "got: {dbg}");
 
     let ctx = AppContext::from_parts(data, cfg, plugins, subsystems);

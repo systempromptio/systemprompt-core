@@ -1145,6 +1145,10 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
     Ok(())
 }
 
+// Why: the gateway merges every global `ai_gateway_policies` row by
+// `(priority, name)`, so a response-policy test on the shared shard database
+// is overridden by whatever policy a concurrent test installed last; the tests
+// that assert on the resolved response policy own a disposable database.
 async fn install_response_block_policy(
     pool: &DbPool,
     name: &str,
@@ -1214,7 +1218,9 @@ async fn dispatch_against_jailbreak_upstream(
 #[tokio::test]
 async fn buffered_response_in_a_blocked_category_is_not_served() -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("gw_response_block").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-resp-block@example.invalid").await?;
     let policy_name = format!("gw-resp-block-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &["jailbreak"]).await?;
@@ -1223,7 +1229,7 @@ async fn buffered_response_in_a_blocked_category_is_not_served() -> anyhow::Resu
     let status = resp.status();
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
     let findings = settled_findings(&repos, &pool, &request_id).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    database.drop_now().await;
 
     assert_eq!(status, http::StatusCode::FORBIDDEN);
     let body = String::from_utf8_lossy(&bytes).into_owned();
@@ -1244,7 +1250,9 @@ async fn buffered_response_in_a_blocked_category_is_not_served() -> anyhow::Resu
 #[tokio::test]
 async fn the_same_response_is_served_intact_when_no_category_blocks() -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("gw_response_audit").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-resp-audit@example.invalid").await?;
     let policy_name = format!("gw-resp-audit-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &[]).await?;
@@ -1253,7 +1261,7 @@ async fn the_same_response_is_served_intact_when_no_category_blocks() -> anyhow:
     let status = resp.status();
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
     let findings = settled_findings(&repos, &pool, &request_id).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    database.drop_now().await;
 
     assert_eq!(status, http::StatusCode::OK);
     let body = String::from_utf8_lossy(&bytes).into_owned();

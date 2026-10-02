@@ -11,7 +11,6 @@ use systemprompt_runtime::AppContext;
 
 use super::super::responses::{api_error_response, single_response};
 use systemprompt_agent::models::context::UpdateContextRequest;
-use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, SystemEventBuilder};
 
 pub async fn update_context(
@@ -42,7 +41,8 @@ pub async fn update_context(
                 Ok(context) => {
                     let event =
                         SystemEventBuilder::context_updated(context_id.clone(), Some(request.name));
-                    EventRouter::route_system(user_id, event)
+                    ctx.event_router()
+                        .route_system(user_id, event)
                         .await
                         .into_local_logged();
 

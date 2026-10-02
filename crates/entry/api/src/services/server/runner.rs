@@ -7,7 +7,7 @@ use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
-use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
+use systemprompt_traits::{OwnedTask, Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
@@ -24,7 +24,7 @@ pub async fn run_server(
     let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
 
     start_event_bridge(&ctx);
-    let heartbeat = start_registry_heartbeat(&ctx);
+    start_registry_heartbeat(&ctx);
     reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;
 
     run_agents_phase(&ctx, events.as_ref()).await?;
@@ -34,7 +34,7 @@ pub async fn run_server(
         tx.phase_started(Phase::ApiServer);
     }
     let router = crate::services::server::setup_api_server(&ctx, events.as_ref())?;
-    let accounting_recovery = start_accounting_recovery(&ctx).await?;
+    start_accounting_recovery(&ctx).await?;
     let addr = ctx.server_address();
 
     early.activate(router);
@@ -51,15 +51,17 @@ pub async fn run_server(
 
     systemprompt_logging::set_startup_mode(false);
 
-    let serve_result = super::shutdown::join_within_drain_grace(early.join()).await;
+    let restart = ctx.shutdown_request().clone();
+    let serve_result = super::shutdown::join_within_drain_grace(early.join(), &restart).await;
 
-    super::shutdown::arm_forced_exit();
-    heartbeat.abort();
-    accounting_recovery.abort();
-    if let Some(listener) = metrics_listener {
-        listener.abort();
+    let forced_exit = super::shutdown::arm_forced_exit(restart);
+    if let Some(listener) = metrics_listener
+        && listener.abort_and_join().await.is_some()
+    {
+        tracing::debug!("Metrics listener had already stopped on the shutdown signal");
     }
     super::shutdown::drain(&ctx, scheduler_handle).await;
+    forced_exit.abort();
 
     serve_result
 }
@@ -151,7 +153,7 @@ fn create_mcp_orchestrator(
     Ok(Arc::new(manager))
 }
 
-async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<tokio::task::JoinHandle<()>>> {
+async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<OwnedTask<()>>> {
     let Some(port) = ctx.config().metrics_port else {
         return Ok(None);
     };
@@ -162,13 +164,12 @@ async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<tokio::task::
     ))
 }
 
-async fn start_accounting_recovery(ctx: &AppContext) -> Result<tokio::task::JoinHandle<()>> {
+async fn start_accounting_recovery(ctx: &AppContext) -> Result<()> {
     let settlement = crate::routes::gateway::gateway_repositories(ctx)?.settlement();
     let settled = crate::services::gateway::audit::journal::recover(&settlement).await?;
     if settled > 0 {
         tracing::info!(settled, "Gateway accounting receipts recovered at startup");
     }
-    Ok(crate::services::gateway::audit::journal::spawn_recovery(
-        settlement,
-    ))
+    crate::services::gateway::audit::journal::spawn_recovery(settlement, ctx.background_tasks());
+    Ok(())
 }

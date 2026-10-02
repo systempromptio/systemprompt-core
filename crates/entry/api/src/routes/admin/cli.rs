@@ -3,6 +3,9 @@
 //! Exposes a single authenticated endpoint that validates and forwards an argv
 //! to the CLI binary, propagating the caller's session/context/auth into the
 //! child's environment and relaying stdout/stderr as [`CliOutputEvent`] frames.
+//! The child runs in its own process group and is killed, with its output
+//! forwarders aborted, when the SSE stream is dropped — a client that
+//! disconnects does not leave the command running.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +24,7 @@ use systemprompt_logging::sanitize::redact_argv;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::{ApiError, CliExecuteRequest, CliOutputEvent};
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::OwnedTask;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
@@ -149,7 +153,9 @@ fn build_cli_command(binary: &CliBinaryPath, args: &[String], session_env: &Sess
         .env("SYSTEMPROMPT_CONTEXT_ID", &session_env.context)
         .env("SYSTEMPROMPT_USER_ID", &session_env.user)
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
+        .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true);
+    systemprompt_loader::subprocess::place_in_own_process_group(cmd.as_std_mut());
 
     if let Some(token) = &session_env.auth_token {
         cmd.env("SYSTEMPROMPT_AUTH_TOKEN", token);
@@ -161,17 +167,18 @@ fn spawn_line_forwarder<R>(
     reader: R,
     tx: tokio::sync::mpsc::Sender<CliOutputEvent>,
     make_event: fn(String) -> CliOutputEvent,
-) where
+) -> OwnedTask<()>
+where
     R: tokio::io::AsyncRead + Unpin + Send + 'static,
 {
-    tokio::spawn(async move {
+    OwnedTask::spawn("cli_output_forwarder", async move {
         let mut lines = BufReader::new(reader).lines();
         while let Ok(Some(line)) = lines.next_line().await {
             if tx.send(make_event(format!("{line}\n"))).await.is_err() {
                 break;
             }
         }
-    });
+    })
 }
 
 async fn kill_on_timeout(
@@ -236,12 +243,12 @@ fn create_cli_stream(
         yield Ok(cli_event_to_sse(&CliOutputEvent::Started { pid }));
 
         let (tx, mut rx) = tokio::sync::mpsc::channel::<CliOutputEvent>(100);
-        if let Some(stdout) = child.stdout.take() {
-            spawn_line_forwarder(stdout, tx.clone(), |data| CliOutputEvent::Stdout { data });
-        }
-        if let Some(stderr) = child.stderr.take() {
-            spawn_line_forwarder(stderr, tx.clone(), |data| CliOutputEvent::Stderr { data });
-        }
+        let _stdout_forwarder = child.stdout.take().map(|stdout| {
+            spawn_line_forwarder(stdout, tx.clone(), |data| CliOutputEvent::Stdout { data })
+        });
+        let _stderr_forwarder = child.stderr.take().map(|stderr| {
+            spawn_line_forwarder(stderr, tx.clone(), |data| CliOutputEvent::Stderr { data })
+        });
         drop(tx);
 
         let deadline = tokio::time::Instant::now() + timeout;

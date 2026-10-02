@@ -9,7 +9,7 @@
 //! # Modules
 //!
 //! - [`services`] — the [`GenericBroadcaster`] implementation, the per-event
-//!   broadcaster type aliases, and the static [`EventRouter`].
+//!   broadcaster type aliases, and the [`EventRouter`] value.
 //! - [`sse`] — the [`ToSse`] trait and `serde`-driven implementations that
 //!   convert [`systemprompt_models`] event types into `axum` SSE records.
 //! - [`error`] — the public [`EventError`] / [`EventResult`] surface.

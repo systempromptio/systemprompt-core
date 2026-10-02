@@ -11,14 +11,18 @@
 use anyhow::Result;
 use futures_util::future::join_all;
 use std::sync::Arc;
+use std::time::Duration;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_models::AgentConfig;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
+
+const AGENT_STOP_GRACE: Duration = Duration::from_secs(5);
 
 pub async fn reconcile_agents(
     ctx: &AppContext,
@@ -204,20 +208,7 @@ async fn enforce_clean_agent_state(
                     )
                 };
                 events.agent_cleanup(agent.to_owned(), reason);
-                let stopped = systemprompt_loader::subprocess::stop_owned(
-                    pid,
-                    systemprompt_loader::subprocess::ChildKind::Agent,
-                    &systemprompt_identifiers::ServiceName::of_agent(&agent_name),
-                    std::time::Duration::from_secs(5),
-                )
-                .await;
-                if let Err(e) = stopped {
-                    events.error(
-                        format!("Failed to stop agent {agent} (pid {pid}): {e}"),
-                        false,
-                    );
-                    return Err(e.into());
-                }
+                stop_recorded_agent(pid, &agent_name, events).await?;
                 if let Err(e) = orchestrator.delete_agent(&agent_name).await {
                     tracing::warn!(error = %e, agent = %agent, "Failed to delete agent during cleanup");
                 }
@@ -243,5 +234,31 @@ async fn enforce_clean_agent_state(
     match orchestrator.start_agent(&agent_name, events).await {
         Ok(_) => Ok(true),
         Err(e) => Err(e.into()),
+    }
+}
+
+async fn stop_recorded_agent(
+    pid: u32,
+    agent_name: &systemprompt_identifiers::AgentName,
+    events: Option<&StartupEventSender>,
+) -> Result<()> {
+    let service = systemprompt_identifiers::ServiceName::of_agent(agent_name);
+    match subprocess::stop_owned(pid, ChildKind::Agent, &service, AGENT_STOP_GRACE).await {
+        Ok(StopOutcome::NotRunning | StopOutcome::Stopped(_)) => Ok(()),
+        Ok(StopOutcome::NotOurs) => {
+            tracing::warn!(
+                pid,
+                agent = %agent_name,
+                "Recorded PID is alive but is not our child (recycled/stale); skipping signal"
+            );
+            Ok(())
+        },
+        Err(e) => {
+            events.error(
+                format!("Failed to stop agent {agent_name} (pid {pid}): {e}"),
+                false,
+            );
+            Err(e.into())
+        },
     }
 }

@@ -7,7 +7,8 @@
 //! bundle, and receipts belong to the node that admitted them, so the data
 //! directory must be a per-node writable volume. Admission only reserves a
 //! receipt; settlement of receipts left behind by a crash runs from
-//! [`spawn_recovery`], an owned task, never on the request path.
+//! [`spawn_recovery`], a cancellable task on the server's `BackgroundTasks`,
+//! never on the request path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,7 +28,7 @@ use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::aead::KeyInit;
 use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_models::Secrets;
-use tokio::task::JoinHandle;
+use systemprompt_traits::BackgroundTasks;
 
 pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);
 pub use systemprompt_ai::repository::ai_requests::ORPHAN_AGE;
@@ -192,17 +193,20 @@ pub async fn recover(settlement: &Settlement) -> Result<usize> {
     Ok(settled)
 }
 
-pub fn spawn_recovery(settlement: Settlement) -> JoinHandle<()> {
-    tokio::spawn(async move {
+pub fn spawn_recovery(settlement: Settlement, tasks: &BackgroundTasks) {
+    tasks.spawn_cancellable("gateway_accounting_recovery", |cancel| async move {
         let mut tick = tokio::time::interval(RECOVERY_INTERVAL);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
-            tick.tick().await;
+            tokio::select! {
+                () = cancel.cancelled() => break,
+                _ = tick.tick() => {},
+            }
             match recover(&settlement).await {
                 Ok(0) => {},
                 Ok(settled) => tracing::info!(settled, "Gateway accounting receipts recovered"),
                 Err(error) => tracing::error!(%error, "Gateway accounting recovery failed"),
             }
         }
-    })
+    });
 }

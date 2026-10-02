@@ -22,22 +22,42 @@ use systemprompt_models::wire::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
+fn shared_journal_dir() -> std::path::PathBuf {
+    systemprompt_test_fixtures::ensure_test_bootstrap()
+        .app_paths
+        .storage()
+        .data()
+        .to_path_buf()
+}
+
+// Why: `journal::recover` settles every receipt in the journal it is handed,
+// and the bootstrap's journal is shared by every test in the process; a test
+// that asserts recovery counts owns a journal no other test writes to.
+fn private_journal_dir() -> std::path::PathBuf {
+    shared_journal_dir().join(format!("recovery-{}", uuid::Uuid::new_v4().simple()))
+}
+
+fn gateway_journal(
+    state_dir: &std::path::Path,
+) -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
     systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
-        systemprompt_test_fixtures::ensure_test_bootstrap()
-            .app_paths
-            .storage()
-            .data(),
+        state_dir,
         systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
     )
     .expect("gateway journal opens")
 }
 
-
 fn gateway_repos(db: &DbPool) -> systemprompt_api::services::gateway::GatewayRepositories {
+    gateway_repos_in(db, &shared_journal_dir())
+}
+
+fn gateway_repos_in(
+    db: &DbPool,
+    state_dir: &std::path::Path,
+) -> systemprompt_api::services::gateway::GatewayRepositories {
     systemprompt_api::services::gateway::GatewayRepositories::new(
         db,
-        gateway_journal(),
+        gateway_journal(state_dir),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
@@ -180,7 +200,7 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
         let db = setup_db().await;
         let owner = seed_user(&db).await;
         let id = AiRequestId::generate();
-        let repos = gateway_repos(&db);
+        let repos = gateway_repos_in(&db, &private_journal_dir());
         let context = request_ctx(owner.clone(), id.clone());
         let audit = GatewayAudit::new(&repos, context.clone());
         audit

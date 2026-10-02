@@ -10,14 +10,14 @@
 use anyhow::Result;
 use std::time::Duration;
 use systemprompt_database::ServiceRepository;
-use systemprompt_scheduler::ProcessCleanup;
-use tokio::task::JoinHandle;
+use systemprompt_loader::subprocess;
+use systemprompt_traits::OwnedTask;
 use tracing::{info, warn};
 
 #[derive(Debug)]
 pub struct ProcessMonitor {
     repository: ServiceRepository,
-    monitor_handle: Option<JoinHandle<()>>,
+    monitor_handle: Option<OwnedTask<()>>,
     check_interval: Duration,
 }
 
@@ -45,7 +45,9 @@ impl ProcessMonitor {
         let repository = self.repository.clone();
         let interval = self.check_interval;
 
-        let handle = tokio::spawn(async move { Self::monitor_loop(repository, interval).await });
+        let handle = OwnedTask::spawn("process_monitor", async move {
+            Self::monitor_loop(repository, interval).await;
+        });
 
         self.monitor_handle = Some(handle);
         info!("Centralized process monitoring started");
@@ -92,9 +94,7 @@ impl ProcessMonitor {
 
         for service in services {
             if let Some(pid) = service.pid {
-                let pid = pid as u32;
-
-                if Self::process_exists(pid) {
+                if Self::pid_is_running(pid).await {
                     healthy_count += 1;
                 } else {
                     repository.mark_service_crashed(&service.name).await?;
@@ -123,8 +123,11 @@ impl ProcessMonitor {
         Ok(())
     }
 
-    fn process_exists(pid: u32) -> bool {
-        ProcessCleanup::process_exists(pid)
+    async fn pid_is_running(pid: i32) -> bool {
+        match u32::try_from(pid) {
+            Ok(pid) => subprocess::is_running(pid).await,
+            Err(_) => false,
+        }
     }
 
     pub async fn health_check_all(&self) -> Result<HealthSummary> {
@@ -136,8 +139,7 @@ impl ProcessMonitor {
 
         for service in services {
             if let Some(pid) = service.pid {
-                let pid = pid as u32;
-                let healthy = Self::process_exists(pid);
+                let healthy = Self::pid_is_running(pid).await;
 
                 info!(
                     module = %service.module_name,
@@ -178,14 +180,6 @@ impl ProcessMonitor {
         }
 
         Ok(summary)
-    }
-}
-
-impl Drop for ProcessMonitor {
-    fn drop(&mut self) {
-        if let Some(handle) = self.monitor_handle.take() {
-            handle.abort();
-        }
     }
 }
 

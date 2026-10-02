@@ -10,7 +10,6 @@ use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::AppContext;
 
 use super::super::responses::api_error_response;
-use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, SystemEventBuilder};
 
 pub async fn delete_context(
@@ -34,7 +33,8 @@ pub async fn delete_context(
             );
 
             let event = SystemEventBuilder::context_deleted(context_id);
-            EventRouter::route_system(user_id, event)
+            ctx.event_router()
+                .route_system(user_id, event)
                 .await
                 .into_local_logged();
 

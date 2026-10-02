@@ -81,7 +81,7 @@ async fn the_metrics_listener_binds_and_serves_its_own_address() {
     let port = free_port_in_range(19_400..19_500).expect("a free port");
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
 
-    serve_metrics_listener(addr, handle)
+    let listener = serve_metrics_listener(addr, handle)
         .await
         .expect("the listener binds");
 
@@ -89,6 +89,11 @@ async fn the_metrics_listener_binds_and_serves_its_own_address() {
     assert!(
         connected.is_ok(),
         "the metrics listener must accept connections on its own address: {connected:?}"
+    );
+    drop(connected);
+    assert!(
+        listener.abort_and_join().await.is_none(),
+        "an aborted listener yields no value"
     );
 }
 

@@ -104,7 +104,9 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
             .register(&user, &connection, sender)
             .await
     );
-    let bridge = PostgresEventBridge::new(pool.clone(), instance).start();
+    let bridge = PostgresEventBridge::new(pool.clone(), instance);
+    let router = bridge.router();
+    let bridge = bridge.start();
     assert!(
         tokio::time::timeout(Duration::from_secs(10), bridge.listening())
             .await
@@ -112,7 +114,8 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         "bridge stopped before listening"
     );
     assert_eq!(
-        EventRouter::route_analytics(&user, event.clone())
+        router
+            .route_analytics(&user, event.clone())
             .await
             .into_local_logged(),
         1
@@ -264,7 +267,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     delivery.acknowledge().await.unwrap();
 
     drop(listener);
-    verify_all_channels(&pool, &outbox).await;
+    verify_all_channels(&pool, &outbox, &router).await;
     bridge.shutdown().await;
     ANALYTICS_BROADCASTER.unregister(&user, &connection).await;
     pool.close().await;
@@ -344,7 +347,7 @@ async fn verify_upgrade(pool: &sqlx::PgPool) {
     tx.rollback().await.unwrap();
 }
 
-async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox) {
+async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox, router: &EventRouter) {
     use systemprompt_events::{A2A_BROADCASTER, AGUI_BROADCASTER, CONTEXT_BROADCASTER};
     use systemprompt_identifiers::{ContextId, TaskId};
     use systemprompt_models::a2a::TaskState;
@@ -397,17 +400,20 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox) {
     ] {
         match &event {
             SseEvent::AgUi(value) => {
-                EventRouter::route_agui(&actor.user_id, (*value).clone())
+                router
+                    .route_agui(&actor.user_id, (*value).clone())
                     .await
                     .into_local_logged();
             },
             SseEvent::A2A(value) => {
-                EventRouter::route_a2a(&actor.user_id, (*value).clone())
+                router
+                    .route_a2a(&actor.user_id, (*value).clone())
                     .await
                     .into_local_logged();
             },
             SseEvent::Analytics(value) => {
-                EventRouter::route_analytics(&actor.user_id, (*value).clone())
+                router
+                    .route_analytics(&actor.user_id, (*value).clone())
                     .await
                     .into_local_logged();
             },
@@ -447,7 +453,8 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox) {
     assert_eq!(context_events[0], context_events[1]);
     assert_eq!(context_events[2], context_events[3]);
     assert!(context_rx.try_recv().is_err());
-    EventRouter::route_system(&actor.user_id, system.clone())
+    router
+        .route_system(&actor.user_id, system.clone())
         .await
         .into_local_logged();
     let expected = context_rx.recv().await.unwrap().unwrap();

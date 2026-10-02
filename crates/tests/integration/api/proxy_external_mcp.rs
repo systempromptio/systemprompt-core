@@ -23,6 +23,7 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId,
 use systemprompt_models::RequestContext;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
 use uuid::Uuid;
 use wiremock::matchers::{header, method, path};
@@ -233,22 +234,22 @@ async fn mount_accessor(server: &MockServer) {
         .await;
 }
 
-async fn wait_for_execution_row(pool: &DbPool, tool: &str) -> Option<(String, String)> {
-    let p = pool.pool();
-    for _ in 0..100 {
-        let row: Option<(String, String)> = sqlx::query_as(
-            "SELECT status, server_name FROM mcp_tool_executions WHERE tool_name = $1",
-        )
+async fn drained_execution_row(
+    ctx: &AppContext,
+    pool: &DbPool,
+    tool: &str,
+) -> Option<(String, String)> {
+    assert_eq!(
+        ctx.background_tasks()
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        DrainOutcome::Drained
+    );
+    sqlx::query_as("SELECT status, server_name FROM mcp_tool_executions WHERE tool_name = $1")
         .bind(tool)
-        .fetch_optional(p.as_ref())
+        .fetch_optional(pool.pool().as_ref())
         .await
-        .expect("query executions");
-        if row.is_some() {
-            return row;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-    None
+        .expect("query executions")
 }
 
 #[tokio::test]
@@ -314,7 +315,7 @@ async fn external_tools_call_mints_bearer_forwards_and_audits() -> anyhow::Resul
         "the systemprompt JWT must be replaced by the provider bearer"
     );
 
-    let (exec_status, server_name) = wait_for_execution_row(&h.pool, &tool)
+    let (exec_status, server_name) = drained_execution_row(&h.ctx, &h.pool, &tool)
         .await
         .expect("tools/call audited under the external server");
     assert_eq!(server_name, h.ext_name);

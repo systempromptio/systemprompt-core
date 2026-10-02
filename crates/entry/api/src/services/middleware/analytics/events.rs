@@ -16,6 +16,7 @@ use std::sync::Arc;
 use systemprompt_logging::{AnalyticsEvent, AnalyticsRepository};
 use systemprompt_models::routing::EventMetadata;
 use systemprompt_models::{RequestContext, RouteClassifier};
+use systemprompt_traits::BackgroundTasks;
 
 #[derive(Debug)]
 pub struct AnalyticsEventParams {
@@ -41,13 +42,14 @@ pub fn event_metadata_for(classified: EventMetadata, html_response: bool) -> Eve
 }
 
 pub(super) fn spawn_analytics_event_task(
+    background: &BackgroundTasks,
     analytics_repo: Arc<AnalyticsRepository>,
     route_classifier: Arc<RouteClassifier>,
     params: AnalyticsEventParams,
 ) {
     let sanitized_uri = sanitize_uri(&params.uri);
 
-    tokio::spawn(async move {
+    background.spawn("analytics_event", async move {
         let message = format!(
             "HTTP {} - {} {}",
             params.status_code, params.method, sanitized_uri

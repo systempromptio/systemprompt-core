@@ -84,6 +84,7 @@ impl std::fmt::Debug for Subsystems {
             .field("artifact_ingest", &self.artifact_ingest)
             .field("schema_install_clean", &self.schema_install.is_clean())
             .field("event_bridge", &self.event_bridge.get().is_some())
+            .field("event_router", &self.event_router)
             .field("geoip_reader", &self.geoip_reader.is_some())
             .field("file_storage", &"FileStorage")
             .field("shutdown", &"ShutdownRequest")
