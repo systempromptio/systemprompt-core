@@ -6,9 +6,10 @@
 //! it is signalled.
 
 use systemprompt_agent::services::agent_orchestration::port_service::{
-    find_process_using_port, get_process_info, is_agent_process,
+    find_process_using_port, get_process_info,
 };
-use systemprompt_agent::services::shared::AgentServiceError;
+use systemprompt_agent::services::agent_orchestration::process::pid_is_agent_child;
+use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::bind_in_range;
 
 #[test]
@@ -67,22 +68,16 @@ fn a_pid_no_process_holds_yields_no_info_rather_than_an_error() {
 // let the orchestrator signal an unrelated process.
 #[test]
 fn the_test_runner_is_not_mistaken_for_an_agent_process() {
-    let verdict = is_agent_process(std::process::id())
-        .expect("a live pid yields a verdict rather than an error");
-
     assert!(
-        !verdict,
-        "the test binary is not an agent worker and must not be claimed as one"
+        !pid_is_agent_child(std::process::id(), &AgentName::new("port-test-agent")),
+        "the test binary carries no agent spawn markers and must not be claimed as one"
     );
 }
 
 #[test]
-fn a_pid_that_does_not_exist_is_reported_as_an_error_not_as_not_an_agent() {
-    let err = is_agent_process(u32::MAX)
-        .expect_err("an absent process is an error, not a negative verdict");
-
-    assert!(
-        matches!(err, AgentServiceError::ProcessInfoMissing { pid: u32::MAX }),
-        "the caller must be able to tell 'gone' from 'not ours': {err}"
-    );
+fn a_pid_that_does_not_exist_is_never_an_agent_child() {
+    assert!(!pid_is_agent_child(
+        u32::MAX,
+        &AgentName::new("port-test-agent")
+    ));
 }

@@ -1,18 +1,23 @@
 // The reclaim path of `PortService`, which the refusal-oriented suites in
-// `port_service_cleanup` never reach: a listener whose command line looks like
-// `systemprompt admin agents run` is identified as an orphaned agent, killed,
-// and the port is then observed to free up.
+// `port_service_cleanup` never reach: a listener carrying this installation's
+// spawn markers for the agent is identified as an orphaned agent, killed, and
+// the port is then observed to free up.
 //
-// The stand-in listener is a python process whose trailing argv carries the
-// agent command pattern, so `is_agent_process` (which matches on `ps -o args`)
-// classifies it exactly as it would a real orphaned agent.
+// The stand-in listener is a python process started with the
+// `SYSTEMPROMPT_SUBPROCESS` and `AGENT_NAME` environment markers, so
+// `pid_is_agent_child` verifies it exactly as it would a real orphaned agent.
+// Where the platform withholds the child's environment (a hardened python on
+// macOS), the stand-in never verifies and the test skips.
 
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::services::agent_orchestration::port_service::{
-    PortService, find_process_using_port, is_agent_process,
+    PortService, find_process_using_port,
 };
+use systemprompt_agent::services::agent_orchestration::process::pid_is_agent_child;
+use systemprompt_models::subprocess::{AGENT_NAME_ENV, SUBPROCESS_MARKER_ENV};
 
 const LISTENER: &str = "import socket,sys,time\n\
 s=socket.socket()\n\
@@ -35,15 +40,15 @@ fn spawn_fake_agent(port: u16) -> Option<(Child, u32)> {
         .arg("-c")
         .arg(LISTENER)
         .arg(port.to_string())
-        .arg("systemprompt")
-        .arg("admin agents run")
+        .env(SUBPROCESS_MARKER_ENV, "1")
+        .env(AGENT_NAME_ENV, "port-test-agent")
         .spawn()
         .ok()?;
 
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         if let Ok(Some(pid)) = find_process_using_port(port)
-            && matches!(is_agent_process(pid), Ok(true))
+            && pid_is_agent_child(pid, &AgentName::new("port-test-agent"))
         {
             return Some((child, pid));
         }
@@ -64,7 +69,9 @@ async fn kill_process_on_port_reclaims_a_port_held_by_an_orphaned_agent() {
         return;
     };
 
-    let result = PortService::new().kill_process_on_port(port).await;
+    let result = PortService::new()
+        .kill_process_on_port(port, &AgentName::new("port-test-agent"))
+        .await;
     let _ = child.kill();
     let _ = child.wait();
 
@@ -88,7 +95,9 @@ async fn cleanup_port_if_needed_kills_an_orphaned_agent_and_returns_ok() {
         return;
     };
 
-    let result = PortService::new().cleanup_port_if_needed(port).await;
+    let result = PortService::new()
+        .cleanup_port_if_needed(port, &AgentName::new("port-test-agent"))
+        .await;
     let _ = child.kill();
     let _ = child.wait();
 
@@ -104,7 +113,10 @@ async fn cleanup_agent_ports_counts_each_port_it_reclaims() {
     };
 
     let result = PortService::new()
-        .cleanup_agent_ports(&[reserve_port(), port])
+        .cleanup_agent_ports(&[
+            (reserve_port(), AgentName::new("port-test-agent")),
+            (port, AgentName::new("port-test-agent")),
+        ])
         .await;
     let _ = child.kill();
     let _ = child.wait();

@@ -7,9 +7,11 @@ mod probe;
 
 use std::time::Duration;
 
+use systemprompt_identifiers::AgentName;
+
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult, process};
 
-pub use probe::{ProcessInfo, find_process_using_port, get_process_info, is_agent_process};
+pub use probe::{ProcessInfo, find_process_using_port, get_process_info};
 
 #[derive(Debug, Copy, Clone)]
 pub struct PortService;
@@ -26,7 +28,11 @@ impl PortService {
         Self
     }
 
-    pub async fn kill_process_on_port(&self, port: u16) -> OrchestrationResult<bool> {
+    pub async fn kill_process_on_port(
+        &self,
+        port: u16,
+        agent_name: &AgentName,
+    ) -> OrchestrationResult<bool> {
         let pid = match find_process_using_port(port) {
             Ok(Some(p)) => p,
             Ok(None) => {
@@ -40,24 +46,14 @@ impl PortService {
             },
         };
 
-        match is_agent_process(pid) {
-            Ok(true) => {},
-            Ok(false) => {
-                return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                    "Port {} is in use by non-agent process (PID {}). Please free the port \
-                     manually.",
-                    port, pid
-                )));
-            },
-            Err(e) => {
-                return Err(OrchestrationError::spawn(
-                    format!("Port {port} is in use but failed to identify process (PID {pid})"),
-                    e,
-                ));
-            },
+        if !process::pid_is_agent_child(pid, agent_name) {
+            return Err(OrchestrationError::ProcessSpawnFailed(format!(
+                "Port {port} is in use by PID {pid}, which is not a verified process of agent \
+                 '{agent_name}'. Please free the port manually."
+            )));
         }
 
-        tracing::warn!(pid = %pid, port = %port, "Killing orphaned agent process");
+        tracing::warn!(pid = %pid, port = %port, agent = %agent_name, "Killing orphaned agent process");
 
         if !process::kill_process(pid) {
             return Err(OrchestrationError::ProcessSpawnFailed(format!(
@@ -93,63 +89,56 @@ impl PortService {
         )))
     }
 
-    pub async fn cleanup_port_if_needed(&self, port: u16) -> OrchestrationResult<()> {
+    pub async fn cleanup_port_if_needed(
+        &self,
+        port: u16,
+        agent_name: &AgentName,
+    ) -> OrchestrationResult<()> {
         if !process::is_port_in_use(port) {
             return Ok(());
         }
 
         match find_process_using_port(port) {
-            Ok(Some(pid)) => match is_agent_process(pid) {
-                Ok(true) => {
-                    tracing::warn!(port = %port, pid = %pid, "Port occupied by orphaned agent process");
-                    self.kill_process_on_port(port).await?;
-                },
-                Ok(false) => {
-                    let info = get_process_info(pid)
-                        .map_err(|e| {
-                            tracing::trace!(pid = %pid, error = %e, "Failed to get process info for error message");
-                            e
-                        })
-                        .ok()
-                        .flatten()
-                        .map_or_else(|| "unknown".to_owned(), |i| i.command);
+            Ok(Some(pid)) if process::pid_is_agent_child(pid, agent_name) => {
+                tracing::warn!(port = %port, pid = %pid, agent = %agent_name, "Port occupied by orphaned agent process");
+                self.kill_process_on_port(port, agent_name).await?;
+                Ok(())
+            },
+            Ok(Some(pid)) => {
+                let info = get_process_info(pid)
+                    .inspect_err(|e| {
+                        tracing::trace!(pid = %pid, error = %e, "Failed to get process info for error message");
+                    })
+                    .ok()
+                    .flatten()
+                    .map_or_else(|| "unknown".to_owned(), |i| i.command);
 
-                    return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                        "Port {} is in use by non-agent process (PID {}): {}\nPlease stop the \
-                         process manually or choose a different port.",
-                        port, pid, info
-                    )));
-                },
-                Err(e) => {
-                    return Err(OrchestrationError::spawn(
-                        format!("Port {port} is in use but failed to identify process (PID {pid})"),
-                        e,
-                    ));
-                },
+                Err(OrchestrationError::ProcessSpawnFailed(format!(
+                    "Port {port} is in use by PID {pid}, which is not a verified process of agent \
+                     '{agent_name}': {info}\nPlease stop the process manually or choose a \
+                     different port."
+                )))
             },
-            Ok(None) => {
-                return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                    "Port {} appears to be in use but process cannot be identified",
-                    port
-                )));
-            },
-            Err(e) => {
-                return Err(OrchestrationError::spawn(
-                    format!("Failed to check port {port}"),
-                    e,
-                ));
-            },
+            Ok(None) => Err(OrchestrationError::ProcessSpawnFailed(format!(
+                "Port {} appears to be in use but process cannot be identified",
+                port
+            ))),
+            Err(e) => Err(OrchestrationError::spawn(
+                format!("Failed to check port {port}"),
+                e,
+            )),
         }
-
-        Ok(())
     }
 
-    pub async fn cleanup_agent_ports(&self, ports: &[u16]) -> OrchestrationResult<u32> {
+    pub async fn cleanup_agent_ports(
+        &self,
+        ports: &[(u16, AgentName)],
+    ) -> OrchestrationResult<u32> {
         let mut cleaned = 0;
 
-        for &port in ports {
-            if process::is_port_in_use(port) {
-                self.cleanup_port_if_needed(port).await?;
+        for (port, agent_name) in ports {
+            if process::is_port_in_use(*port) {
+                self.cleanup_port_if_needed(*port, agent_name).await?;
                 cleaned += 1;
             }
         }

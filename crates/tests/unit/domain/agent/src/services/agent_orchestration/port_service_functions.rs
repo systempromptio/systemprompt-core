@@ -1,6 +1,8 @@
 use systemprompt_agent::services::agent_orchestration::port_service::{
-    PortService, find_process_using_port, get_process_info, is_agent_process,
+    PortService, find_process_using_port, get_process_info,
 };
+use systemprompt_agent::services::agent_orchestration::process::pid_is_agent_child;
+use systemprompt_identifiers::AgentName;
 
 #[test]
 fn find_process_using_port_zero_is_no_port() {
@@ -10,7 +12,7 @@ fn find_process_using_port_zero_is_no_port() {
 #[tokio::test]
 async fn kill_process_on_port_zero_signals_nothing() {
     let killed = PortService::new()
-        .kill_process_on_port(0)
+        .kill_process_on_port(0, &AgentName::new("port-test-agent"))
         .await
         .expect("port 0 has no holder");
     assert!(!killed);
@@ -20,7 +22,9 @@ async fn kill_process_on_port_zero_signals_nothing() {
 async fn port_service_kill_unused_port_returns_false() {
     let svc = PortService::new();
     // High port unlikely to be in use
-    let result = svc.kill_process_on_port(64739).await;
+    let result = svc
+        .kill_process_on_port(64739, &AgentName::new("port-test-agent"))
+        .await;
     // returns Ok(false) for no process found
     assert!(result.is_ok() || result.is_err());
     if let Ok(killed) = result {
@@ -39,7 +43,7 @@ async fn port_service_wait_for_port_available_succeeds_when_free() {
 #[tokio::test]
 async fn port_service_cleanup_port_if_not_in_use_returns_ok() {
     let svc = PortService::new();
-    svc.cleanup_port_if_needed(64769)
+    svc.cleanup_port_if_needed(64769, &AgentName::new("port-test-agent"))
         .await
         .expect("cleanup of a free port must succeed");
 }
@@ -55,7 +59,11 @@ async fn port_service_cleanup_agent_ports_handles_empty() {
 async fn port_service_cleanup_agent_ports_with_unused_returns_zero_cleaned() {
     let svc = PortService::new();
     let result = svc
-        .cleanup_agent_ports(&[64789, 64790, 64791])
+        .cleanup_agent_ports(&[
+            (64789, AgentName::new("port-test-agent")),
+            (64790, AgentName::new("port-test-agent")),
+            (64791, AgentName::new("port-test-agent")),
+        ])
         .await
         .expect("ok");
     assert_eq!(result, 0);
@@ -101,11 +109,11 @@ fn find_process_using_port_for_unused_port() {
 }
 
 #[test]
-fn is_agent_process_for_self_pid() {
-    let me = std::process::id();
-    // Whether or not it's an agent doesn't matter — we exercise the
-    // /proc/<pid>/cmdline inspection.
-    let _ = is_agent_process(me);
+fn the_test_runner_is_not_an_agent_child() {
+    assert!(!pid_is_agent_child(
+        std::process::id(),
+        &AgentName::new("port-test-agent")
+    ));
 }
 
 #[test]
@@ -133,7 +141,9 @@ async fn port_service_wait_for_port_available_returns_quickly_when_free() {
 #[tokio::test]
 async fn port_service_kill_process_on_unused_port_returns_false() {
     let svc = PortService::new();
-    let result = svc.kill_process_on_port(54322).await;
+    let result = svc
+        .kill_process_on_port(54322, &AgentName::new("port-test-agent"))
+        .await;
     // Empty port — function should return Ok(false) or Err, exercising the path.
     let _ = result;
 }
@@ -148,7 +158,9 @@ async fn port_service_cleanup_agent_ports_empty_list() {
 #[tokio::test]
 async fn port_service_cleanup_port_if_needed_for_free_port() {
     let svc = PortService::new();
-    let result = svc.cleanup_port_if_needed(54323).await;
+    let result = svc
+        .cleanup_port_if_needed(54323, &AgentName::new("port-test-agent"))
+        .await;
     // Free port — returns Ok(())
     let _ = result;
 }

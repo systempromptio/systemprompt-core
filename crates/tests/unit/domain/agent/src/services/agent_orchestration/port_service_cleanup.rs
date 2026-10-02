@@ -4,6 +4,7 @@
 // unrelated listeners from being killed.
 
 use systemprompt_agent::services::agent_orchestration::port_service::PortService;
+use systemprompt_identifiers::AgentName;
 use tokio::net::TcpListener;
 
 async fn held_port() -> (TcpListener, u16) {
@@ -22,7 +23,7 @@ async fn free_port() -> u16 {
 async fn kill_process_on_port_free_port_is_false() {
     let service = PortService::new();
     let killed = service
-        .kill_process_on_port(free_port().await)
+        .kill_process_on_port(free_port().await, &AgentName::new("port-test-agent"))
         .await
         .expect("free port");
     assert!(!killed);
@@ -32,7 +33,9 @@ async fn kill_process_on_port_free_port_is_false() {
 async fn kill_process_on_port_non_agent_holder_is_refused() {
     let service = PortService::new();
     let (listener, port) = held_port().await;
-    let result = service.kill_process_on_port(port).await;
+    let result = service
+        .kill_process_on_port(port, &AgentName::new("port-test-agent"))
+        .await;
     drop(listener);
     assert!(result.is_err(), "non-agent listener must not be killed");
 }
@@ -41,7 +44,7 @@ async fn kill_process_on_port_non_agent_holder_is_refused() {
 async fn cleanup_port_if_needed_free_port_is_ok() {
     let service = PortService::new();
     service
-        .cleanup_port_if_needed(free_port().await)
+        .cleanup_port_if_needed(free_port().await, &AgentName::new("port-test-agent"))
         .await
         .expect("free port");
 }
@@ -50,7 +53,9 @@ async fn cleanup_port_if_needed_free_port_is_ok() {
 async fn cleanup_port_if_needed_non_agent_holder_is_refused() {
     let service = PortService::new();
     let (listener, port) = held_port().await;
-    let result = service.cleanup_port_if_needed(port).await;
+    let result = service
+        .cleanup_port_if_needed(port, &AgentName::new("port-test-agent"))
+        .await;
     drop(listener);
     assert!(result.is_err());
 }
@@ -112,13 +117,18 @@ async fn cleanup_agent_ports_skips_free_and_fails_on_held() {
     let service = PortService::new();
 
     let cleaned = service
-        .cleanup_agent_ports(&[free_port().await, free_port().await])
+        .cleanup_agent_ports(&[
+            (free_port().await, AgentName::new("port-test-agent")),
+            (free_port().await, AgentName::new("port-test-agent")),
+        ])
         .await
         .expect("free ports");
     assert_eq!(cleaned, 0);
 
     let (listener, port) = held_port().await;
-    let result = service.cleanup_agent_ports(&[port]).await;
+    let result = service
+        .cleanup_agent_ports(&[(port, AgentName::new("port-test-agent"))])
+        .await;
     drop(listener);
     assert!(result.is_err());
 }

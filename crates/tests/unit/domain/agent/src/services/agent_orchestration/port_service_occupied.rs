@@ -9,6 +9,7 @@
 use std::net::TcpListener;
 use std::process::Command;
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::services::agent_orchestration::port_service::{
     PortService, find_process_using_port,
@@ -20,9 +21,9 @@ fn held_port() -> (TcpListener, u16) {
     (listener, port)
 }
 
-// The marker tokens are the two `is_agent_process` looks for in the `ps` args:
-// the binary name and the agent-run subcommand. Passing them as extra argv
-// entries puts them in the command line without changing what the process does.
+// The listener carries the spawn markers `pid_is_agent_child` verifies:
+// `SYSTEMPROMPT_SUBPROCESS=1` and `AGENT_NAME=port-test-agent` in its
+// environment.
 //
 // The listener is orphaned rather than kept as a direct child: a killed child
 // this process has not `wait`ed on lingers as a zombie and still answers
@@ -36,7 +37,8 @@ fn spawn_agent_looking_listener(port: u16) -> Option<u32> {
     let output = Command::new("sh")
         .arg("-c")
         .arg(format!(
-            "python3 -c '{python}' systemprompt admin agents run >/dev/null 2>&1 & echo $!"
+            "SYSTEMPROMPT_SUBPROCESS=1 AGENT_NAME=port-test-agent python3 -c '{python}' \
+             >/dev/null 2>&1 & echo $!"
         ))
         .output()
         .ok()?;
@@ -77,13 +79,13 @@ async fn a_port_held_by_a_non_agent_process_is_refused_with_its_command_line() {
     let (listener, port) = held_port();
 
     let err = service
-        .cleanup_port_if_needed(port)
+        .cleanup_port_if_needed(port, &AgentName::new("port-test-agent"))
         .await
         .expect_err("a non-agent holder must not be reclaimed");
 
     let message = err.to_string();
     assert!(
-        message.contains("non-agent process"),
+        message.contains("not a verified process of agent"),
         "the refusal must say why it refused: {message}"
     );
     assert!(
@@ -110,12 +112,12 @@ async fn a_batch_cleanup_aborts_on_the_first_port_it_may_not_reclaim() {
     let (listener, port) = held_port();
 
     let err = service
-        .cleanup_agent_ports(&[port])
+        .cleanup_agent_ports(&[(port, AgentName::new("port-test-agent"))])
         .await
         .expect_err("the batch must surface the refusal");
 
     assert!(
-        err.to_string().contains("non-agent process"),
+        err.to_string().contains("not a verified process of agent"),
         "the underlying reason must not be flattened: {err}"
     );
     drop(listener);
@@ -131,7 +133,9 @@ async fn a_port_held_by_an_orphaned_agent_process_is_reclaimed() {
         panic!("could not stand up an agent-looking listener on port {port}");
     };
 
-    let outcome = PortService::new().cleanup_port_if_needed(port).await;
+    let outcome = PortService::new()
+        .cleanup_port_if_needed(port, &AgentName::new("port-test-agent"))
+        .await;
 
     if outcome.is_err() {
         kill(pid);
@@ -205,7 +209,7 @@ async fn malformed_lsof_identity_fails_closed_without_disturbing_the_listener() 
     unsafe { std::env::set_var("PATH", shim.path()) };
 
     let error = PortService::new()
-        .cleanup_port_if_needed(port)
+        .cleanup_port_if_needed(port, &AgentName::new("port-test-agent"))
         .await
         .expect_err("an unparseable holder identity must fail closed");
     let diagnosis = error.to_string();
@@ -264,7 +268,7 @@ async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener
     unsafe { std::env::set_var("PATH", unavailable.path()) };
 
     let error = PortService::new()
-        .cleanup_port_if_needed(port)
+        .cleanup_port_if_needed(port, &AgentName::new("port-test-agent"))
         .await
         .expect_err("a missing port probe must fail closed");
     let diagnosis = error.to_string();
@@ -280,11 +284,13 @@ async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener
 
     drop(path);
     let restored = PortService::new()
-        .cleanup_port_if_needed(port)
+        .cleanup_port_if_needed(port, &AgentName::new("port-test-agent"))
         .await
         .expect_err("the restored probe must still refuse the non-agent listener");
     assert!(
-        restored.to_string().contains("non-agent process"),
+        restored
+            .to_string()
+            .contains("not a verified process of agent"),
         "{restored}"
     );
     assert!(
@@ -295,7 +301,7 @@ async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener
 
 #[cfg(unix)]
 #[tokio::test]
-async fn missing_ps_fails_identity_check_without_reclaiming_the_listener() {
+async fn missing_ps_still_refuses_the_listener_without_reclaiming_it() {
     let (listener, port) = held_port();
     let shim = tempfile::tempdir().expect("private probe shim directory");
     let lsof = shim.path().join("lsof");
@@ -309,30 +315,32 @@ async fn missing_ps_fails_identity_check_without_reclaiming_the_listener() {
     unsafe { std::env::set_var("PATH", shim.path()) };
 
     let error = PortService::new()
-        .cleanup_port_if_needed(port)
+        .cleanup_port_if_needed(port, &AgentName::new("port-test-agent"))
         .await
-        .expect_err("an unavailable identity probe must fail closed");
+        .expect_err("a holder without the agent's spawn markers must be refused");
     let diagnosis = error.to_string();
     assert!(
-        diagnosis.contains(&format!(
-            "failed to identify process (PID {})",
-            std::process::id()
-        )),
+        diagnosis.contains("not a verified process of agent"),
         "{diagnosis}"
     );
-    assert!(diagnosis.contains("failed to run `ps -p"), "{diagnosis}");
+    assert!(
+        diagnosis.contains(&format!("PID {}", std::process::id())),
+        "{diagnosis}"
+    );
     assert!(
         listener_is_alive(&listener),
-        "an unavailable identity probe must not reclaim the listener"
+        "a refused holder must not be reclaimed"
     );
 
     drop(path);
     let restored = PortService::new()
-        .cleanup_port_if_needed(port)
+        .cleanup_port_if_needed(port, &AgentName::new("port-test-agent"))
         .await
         .expect_err("the restored probe must classify the listener as non-agent");
     assert!(
-        restored.to_string().contains("non-agent process"),
+        restored
+            .to_string()
+            .contains("not a verified process of agent"),
         "{restored}"
     );
 }

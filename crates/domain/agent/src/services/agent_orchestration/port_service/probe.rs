@@ -9,7 +9,6 @@
 
 use crate::services::shared::{AgentServiceError, Result};
 use std::process::Command;
-use systemprompt_models::CliPaths;
 
 #[derive(Debug, Clone)]
 pub struct ProcessInfo {
@@ -149,20 +148,4 @@ pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
     let command = parts[0].trim_matches('"').to_string();
 
     Ok(Some(ProcessInfo { pid, command }))
-}
-
-pub fn is_agent_process(pid: u32) -> Result<bool> {
-    match get_process_info(pid) {
-        Ok(Some(info)) => {
-            let is_agent = info.command.contains("systemprompt")
-                && (info.command.contains(CliPaths::agent_run_cmd_pattern())
-                    || info.command.contains("agent-worker"));
-            Ok(is_agent)
-        },
-        Ok(None) => Err(AgentServiceError::ProcessInfoMissing { pid }),
-        Err(e) => Err(AgentServiceError::operation(
-            format!("Failed to get process info for PID {pid}"),
-            e,
-        )),
-    }
 }

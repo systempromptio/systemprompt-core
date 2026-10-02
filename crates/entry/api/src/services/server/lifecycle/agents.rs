@@ -220,7 +220,7 @@ async fn enforce_clean_agent_state(
 
     if desired_port != 0
         && let Err(e) = PortService::new()
-            .cleanup_port_if_needed(desired_port)
+            .cleanup_port_if_needed(desired_port, &agent_name)
             .await
     {
         events.error(

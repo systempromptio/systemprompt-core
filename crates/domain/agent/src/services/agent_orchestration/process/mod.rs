@@ -21,8 +21,8 @@ use systemprompt_models::Config;
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
 pub use signals::{
-    force_kill_process, kill_process, kill_process_verified, process_exists, terminate_gracefully,
-    terminate_gracefully_verified, terminate_process,
+    force_kill_process, kill_process, kill_process_verified, pid_is_agent_child, process_exists,
+    terminate_gracefully, terminate_gracefully_verified, terminate_process,
 };
 
 pub fn spawn_detached(

@@ -14,13 +14,19 @@ use crate::services::agent_orchestration::{
 };
 
 impl AgentLifecycle {
-    pub async fn validate_prerequisites(&self, port: u16) -> OrchestrationResult<()> {
+    pub async fn validate_prerequisites(
+        &self,
+        port: u16,
+        agent_name: &AgentName,
+    ) -> OrchestrationResult<()> {
         use super::super::port_service::PortService;
 
         let port_service = PortService::new();
 
         if process::is_port_in_use(port) {
-            port_service.cleanup_port_if_needed(port).await?;
+            port_service
+                .cleanup_port_if_needed(port, agent_name)
+                .await?;
             tracing::info!(port = %port, "Cleaned up port");
         }
 

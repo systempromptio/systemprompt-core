@@ -63,7 +63,9 @@ async fn validate_prerequisites_free_port_is_ok() {
     let (listener, port) = ephemeral_listener().await;
     drop(listener);
 
-    lc.validate_prerequisites(port).await.expect("free port");
+    lc.validate_prerequisites(port, &AgentName::new("port-test-agent"))
+        .await
+        .expect("free port");
 }
 
 #[tokio::test]
@@ -73,7 +75,9 @@ async fn validate_prerequisites_port_held_by_non_agent_fails() {
     let lc = lifecycle(&pool);
 
     let (listener, port) = ephemeral_listener().await;
-    let result = lc.validate_prerequisites(port).await;
+    let result = lc
+        .validate_prerequisites(port, &AgentName::new("port-test-agent"))
+        .await;
     drop(listener);
 
     assert!(

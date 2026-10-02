@@ -150,7 +150,7 @@ pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
 }
 
 // Why: The kernel can recycle a recorded PID for an unrelated process.
-fn pid_is_agent_child(pid: u32, agent_name: &AgentName) -> bool {
+pub fn pid_is_agent_child(pid: u32, agent_name: &AgentName) -> bool {
     systemprompt_loader::subprocess::live_pid_is_subprocess(
         pid,
         systemprompt_models::subprocess::AGENT_NAME_ENV,
