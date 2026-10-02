@@ -13,8 +13,8 @@ use systemprompt_database::{
     CreateServiceInput, ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus,
 };
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
-use systemprompt_scheduler::{OrphanDisposition, ServiceManagementService};
+use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome, Termination};
+use systemprompt_scheduler::{ApiListenerStop, OrphanDisposition, ServiceManagementService};
 use systemprompt_test_fixtures::test_db_pool;
 
 // A PID that is never a live process: kill(2) on i32::MAX fails with ESRCH.
@@ -517,15 +517,22 @@ mod live_child_stop_paths {
         database.drop_now().await;
     }
 
-    fn spawn_port_holder() -> (Child, u16) {
-        let mut child = Command::new("python3")
+    fn spawn_port_holder(stamped_as_api: bool) -> (Child, u16) {
+        let mut command = Command::new("python3");
+        command
             .args([
                 "-c",
                 "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
             ])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("spawn python3 port holder");
+            .stdout(Stdio::piped());
+        if stamped_as_api {
+            subprocess::mark_child(
+                &mut command,
+                ChildKind::Api,
+                &subprocess::api_server_service(),
+            );
+        }
+        let mut child = command.spawn().expect("spawn python3 port holder");
         let stdout = child.stdout.take().expect("holder stdout");
         let port = {
             use std::io::{BufRead, BufReader};
@@ -543,13 +550,20 @@ mod live_child_stop_paths {
         let pool = test_db_pool().await;
         let _ = pool;
 
-        let (child, port) = spawn_port_holder();
+        let (child, port) = spawn_port_holder(true);
         let pid = child.id();
 
         let stopped = ServiceManagementService::stop_api_by_port(port, false)
             .await
             .expect("stop_api_by_port must free the port");
-        assert_eq!(stopped, vec![pid], "the listener PID must be reported");
+        assert_eq!(
+            stopped,
+            vec![ApiListenerStop {
+                pid,
+                outcome: StopOutcome::Stopped(Termination::Exited),
+            }],
+            "the stamped listener PID must be reported stopped"
+        );
 
         drop(child);
         assert_stopped(pid).await;
@@ -560,16 +574,41 @@ mod live_child_stop_paths {
         let pool = test_db_pool().await;
         let _ = pool;
 
-        let (child, port) = spawn_port_holder();
+        let (child, port) = spawn_port_holder(true);
         let pid = child.id();
 
         let stopped = ServiceManagementService::stop_api_by_port(port, true)
             .await
             .expect("forced stop_api_by_port must free the port");
-        assert_eq!(stopped, vec![pid]);
+        assert!(matches!(
+            stopped.as_slice(),
+            [ApiListenerStop { pid: stopped_pid, outcome: StopOutcome::Stopped(_) }]
+                if *stopped_pid == pid
+        ));
 
         drop(child);
         assert_stopped(pid).await;
+    }
+
+    #[tokio::test]
+    async fn stop_api_by_port_leaves_an_unverified_listener_running() {
+        let (mut child, port) = spawn_port_holder(false);
+        let pid = child.id();
+
+        let stopped = ServiceManagementService::stop_api_by_port(port, true)
+            .await
+            .expect("an unverified listener is reported, not an error");
+        assert_eq!(
+            stopped,
+            vec![ApiListenerStop {
+                pid,
+                outcome: StopOutcome::NotOurs,
+            }]
+        );
+        assert!(subprocess::is_running(pid).await);
+
+        child.kill().expect("kill the test's own listener");
+        child.wait().expect("reap the test's own listener");
     }
 }
 

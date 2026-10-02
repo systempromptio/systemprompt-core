@@ -53,7 +53,7 @@ pub async fn owns(pid: u32, kind: ChildKind, service: &ServiceName) -> bool {
     let service = service.clone();
     let verdict = tokio::task::spawn_blocking(move || {
         !platform::has_exited(pid)
-            && super::live_pid_is_subprocess(pid, kind.marker_env(), &service)
+            && super::live_environ(pid).is_some_and(|environ| kind.identifies(&environ, &service))
     })
     .await;
     match verdict {

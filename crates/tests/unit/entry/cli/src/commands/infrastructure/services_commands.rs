@@ -11,8 +11,11 @@ use systemprompt_cli::infrastructure::services::{self, ServicesCommands, cleanup
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::{DbPool, ServiceConfig, ServiceModule, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::{StopOutcome, Termination};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_scheduler::{OrphanCleanupReport, OrphanDisposition, OrphanOutcome};
+use systemprompt_scheduler::{
+    ApiListenerStop, OrphanCleanupReport, OrphanDisposition, OrphanOutcome,
+};
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
@@ -96,9 +99,19 @@ fn cleanup_helpers_render_reports_and_messages() {
                 disposition: OrphanDisposition::Stopped,
             },
         ],
-        api_stopped: true,
+        api: vec![
+            ApiListenerStop {
+                pid: 789,
+                outcome: StopOutcome::Stopped(Termination::Exited),
+            },
+            ApiListenerStop {
+                pid: 790,
+                outcome: StopOutcome::NotOurs,
+            },
+        ],
         stale_entries_removed: 1,
     };
+    assert_eq!(report.services_cleaned(), 3);
     cleanup::render_cleanup_report(&report, false);
     cleanup::render_cleanup_report(&report, true);
 

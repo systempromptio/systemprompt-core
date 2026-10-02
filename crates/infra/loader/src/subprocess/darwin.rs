@@ -31,23 +31,21 @@ struct UnusableArgMax(#[source] std::num::TryFromIntError);
 
 #[must_use]
 pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &ServiceName) -> bool {
-    let Ok(pid) = i32::try_from(pid) else {
-        return false;
-    };
+    live_environ(pid).is_some_and(|environ| {
+        systemprompt_models::subprocess::environ_identifies_child(&environ, name_key, service_name)
+    })
+}
+
+pub(super) fn live_environ(pid: u32) -> Option<Vec<u8>> {
+    let pid = i32::try_from(pid).ok()?;
 
     match process_args_blob(pid) {
         Ok(blob) => {
-            systemprompt_models::subprocess::environ_from_procargs2(&blob).is_some_and(|environ| {
-                systemprompt_models::subprocess::environ_identifies_child(
-                    environ,
-                    name_key,
-                    service_name,
-                )
-            })
+            systemprompt_models::subprocess::environ_from_procargs2(&blob).map(<[u8]>::to_vec)
         },
         Err(e) => {
             tracing::warn!(pid, error = %e, "Could not read process environ to verify child identity");
-            false
+            None
         },
     }
 }

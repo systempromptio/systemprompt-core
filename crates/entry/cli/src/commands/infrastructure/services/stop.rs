@@ -50,8 +50,7 @@ pub(super) async fn execute(
         if !config.is_json_output() {
             CliService::section("Stopping API Server");
         }
-        stop_api(force, config.is_json_output()).await?;
-        true
+        stop_api(force, config.is_json_output()).await?
     } else {
         false
     };
@@ -71,20 +70,34 @@ pub(super) async fn execute(
     Ok(CommandOutput::card_value("Stop Services", &output))
 }
 
-async fn stop_api(force: bool, quiet: bool) -> Result<()> {
+async fn stop_api(force: bool, quiet: bool) -> Result<bool> {
     let port = get_api_port();
 
-    let stopped = ServiceManagementService::stop_api_by_port(port, force).await?;
-    if !quiet {
-        for pid in stopped {
-            CliService::info(&format!("Stopped API server (PID: {})", pid));
+    let stops = ServiceManagementService::stop_api_by_port(port, force).await?;
+    let mut cleared = true;
+    for stop in &stops {
+        match stop.outcome {
+            StopOutcome::Stopped(_) => {
+                if !quiet {
+                    CliService::info(&format!("Stopped API server (PID: {})", stop.pid));
+                }
+            },
+            StopOutcome::NotOurs => {
+                cleared = false;
+                CliService::warning(&format!(
+                    "Left PID {} running on port {port}: it is not a verified systemprompt API \
+                     server. Stop it by hand, or use `infra services serve --kill-port-process`.",
+                    stop.pid
+                ));
+            },
+            StopOutcome::NotRunning => {},
         }
     }
 
-    if !quiet {
+    if cleared && !quiet {
         CliService::success("API server stopped");
     }
-    Ok(())
+    Ok(cleared)
 }
 
 async fn stop_agents(

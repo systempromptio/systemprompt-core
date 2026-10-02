@@ -1,4 +1,5 @@
-//! The one sanctioned way to start an agent or MCP child.
+//! The one sanctioned way to start an agent or MCP child, and the in-place
+//! re-exec that stamps the API server with its identity marker.
 //!
 //! Every spawn runs on one dedicated thread and, where the platform offers
 //! it, the kernel is asked to `SIGTERM` the child if this process dies. The
@@ -24,9 +25,51 @@ type SpawnRequest = (Command, SpawnReply);
 
 static SPAWNER: Mutex<Option<Sender<SpawnRequest>>> = Mutex::new(None);
 
+/// How [`stamp_api_server`] returned instead of re-executing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiServerStamp {
+    Stamped,
+    Unverifiable,
+}
+
 pub fn mark_child(cmd: &mut Command, kind: ChildKind, service: &ServiceName) {
-    cmd.env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
-        .env(kind.marker_env(), service.as_str());
+    match kind {
+        ChildKind::Agent | ChildKind::Mcp => {
+            cmd.env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1");
+        },
+        ChildKind::Api => {},
+    }
+    cmd.env(kind.marker_env(), service.as_str());
+}
+
+// Why: the API server is launched by an operator, a service manager or a
+// container runtime, never spawned by us, so the marker that later proves its
+// identity cannot be stamped at spawn. `execve` keeps the pid, so replacing
+// the image once with the marker added is invisible to whatever supervises
+// the process. An environment that cannot be read back (no platform probe, a
+// hardened binary) is left unstamped rather than re-executed in a loop.
+#[cfg(unix)]
+pub fn stamp_api_server() -> std::io::Result<ApiServerStamp> {
+    use std::os::unix::process::CommandExt;
+
+    let service = super::api_server_service();
+    let Some(environ) = super::live_environ(std::process::id())
+        .filter(|environ| systemprompt_models::subprocess::environ_has_entries(environ))
+    else {
+        return Ok(ApiServerStamp::Unverifiable);
+    };
+    if ChildKind::Api.identifies(&environ, &service) {
+        return Ok(ApiServerStamp::Stamped);
+    }
+    let mut cmd = Command::new(std::env::current_exe()?);
+    cmd.args(std::env::args_os().skip(1));
+    mark_child(&mut cmd, ChildKind::Api, &service);
+    Err(cmd.exec())
+}
+
+#[cfg(not(unix))]
+pub const fn stamp_api_server() -> std::io::Result<ApiServerStamp> {
+    Ok(ApiServerStamp::Unverifiable)
 }
 
 pub fn spawn_supervised(cmd: Command) -> std::io::Result<u32> {

@@ -1,6 +1,7 @@
-use systemprompt_loader::subprocess::live_pid_is_subprocess;
+use systemprompt_loader::subprocess::{ChildKind, api_server_service, live_pid_is_subprocess};
 use systemprompt_models::subprocess::{
-    AGENT_NAME_ENV, MCP_SERVICE_ID_ENV, environ_from_procargs2, environ_identifies_child,
+    AGENT_NAME_ENV, MCP_SERVICE_ID_ENV, environ_from_procargs2, environ_has_entries,
+    environ_identifies_api_server, environ_identifies_child,
 };
 
 fn environ(vars: &[&str]) -> Vec<u8> {
@@ -34,6 +35,32 @@ fn matches_mcp_child_with_marker_and_name() {
         MCP_SERVICE_ID_ENV,
         &systemprompt_identifiers::ServiceName::new("files")
     ));
+}
+
+#[test]
+fn api_server_marker_identifies_without_the_subprocess_marker() {
+    let env = environ(&["PATH=/usr/bin", "SYSTEMPROMPT_API_SERVER=api"]);
+    assert!(environ_identifies_api_server(&env, &api_server_service()));
+    assert!(ChildKind::Api.identifies(&env, &api_server_service()));
+}
+
+#[test]
+fn api_server_identity_rejects_child_markers_and_other_names() {
+    let child = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "AGENT_NAME=api"]);
+    assert!(!ChildKind::Api.identifies(&child, &api_server_service()));
+
+    let renamed = environ(&["SYSTEMPROMPT_API_SERVER=apix"]);
+    assert!(!ChildKind::Api.identifies(&renamed, &api_server_service()));
+
+    let api = environ(&["SYSTEMPROMPT_API_SERVER=api"]);
+    assert!(!ChildKind::Agent.identifies(&api, &api_server_service()));
+}
+
+#[test]
+fn an_environ_without_entries_is_unreadable() {
+    assert!(!environ_has_entries(&[]));
+    assert!(!environ_has_entries(&[0, 0, 0]));
+    assert!(environ_has_entries(&environ(&["HOME=/root"])));
 }
 
 #[test]

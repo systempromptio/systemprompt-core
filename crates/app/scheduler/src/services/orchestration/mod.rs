@@ -17,6 +17,7 @@ pub use service_records::{DbServiceRecord, ServiceConfig};
 pub use state_types::{DesiredStatus, RuntimeStatus, ServiceAction, ServiceType};
 pub use state_verifier::ServiceStateVerifier;
 pub use supervision::{
-    child_kind, port_holders, stop_owned_port_holders, stop_port_listeners, wait_for_port_free,
+    ApiListenerStop, child_kind, port_holders, stop_api_listeners, stop_owned_port_holders,
+    wait_for_port_free,
 };
 pub use verified_state::VerifiedServiceState;

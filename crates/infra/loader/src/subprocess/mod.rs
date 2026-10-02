@@ -1,5 +1,6 @@
-//! Process supervision for the agent and MCP children this installation owns:
-//! the one place that spawns, identifies, probes and stops them.
+//! Process supervision for the agent and MCP children this installation owns,
+//! and for its API server: the one place that spawns, identifies, probes and
+//! stops them.
 //!
 //! # Spawning
 //!
@@ -48,6 +49,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::ServiceName;
+
 mod control;
 mod error;
 mod ports;
@@ -61,15 +64,21 @@ mod winnt;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
+use linux::live_environ;
+#[cfg(target_os = "linux")]
 pub use linux::{is_zombie, live_pid_is_subprocess};
 
 #[cfg(target_os = "macos")]
 mod darwin;
 #[cfg(target_os = "macos")]
+use darwin::live_environ;
+#[cfg(target_os = "macos")]
 pub use darwin::{is_zombie, live_pid_is_subprocess};
 
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 mod unsupported;
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+use unsupported::live_environ;
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 pub use unsupported::{is_zombie, live_pid_is_subprocess};
 
@@ -79,14 +88,19 @@ pub use control::{
 };
 pub use error::SupervisionError;
 pub use ports::{parse_lsof_pids, parse_netstat_listeners};
-pub use spawn::{mark_child, place_in_own_process_group, spawn_owned_supervised, spawn_supervised};
+pub use spawn::{
+    ApiServerStamp, mark_child, place_in_own_process_group, spawn_owned_supervised,
+    spawn_supervised, stamp_api_server,
+};
 
-/// Which kind of supervised child a pid is claimed to be; selects the marker
-/// variable that names it.
+/// Which kind of supervised process a pid is claimed to be; selects the
+/// marker variable that names it. `Api` is the API server, stamped by
+/// [`stamp_api_server`] rather than spawned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChildKind {
     Agent,
     Mcp,
+    Api,
 }
 
 impl ChildKind {
@@ -95,6 +109,26 @@ impl ChildKind {
         match self {
             Self::Agent => systemprompt_models::subprocess::AGENT_NAME_ENV,
             Self::Mcp => systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+            Self::Api => systemprompt_models::subprocess::API_SERVER_ENV,
         }
     }
+
+    #[must_use]
+    pub fn identifies(self, environ: &[u8], service: &ServiceName) -> bool {
+        match self {
+            Self::Agent | Self::Mcp => systemprompt_models::subprocess::environ_identifies_child(
+                environ,
+                self.marker_env(),
+                service,
+            ),
+            Self::Api => {
+                systemprompt_models::subprocess::environ_identifies_api_server(environ, service)
+            },
+        }
+    }
+}
+
+#[must_use]
+pub fn api_server_service() -> ServiceName {
+    ServiceName::new(systemprompt_models::subprocess::API_SERVER_SERVICE)
 }

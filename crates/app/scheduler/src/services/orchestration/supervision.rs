@@ -6,11 +6,13 @@
 //! the service's spawn marker. A port holder is stopped on a service's behalf
 //! only when it carries that same marker ([`stop_owned_port_holders`]).
 //!
-//! The API server carries no spawn marker. [`stop_port_listeners`] is the one
-//! unverified stop: it serves operator commands that name the API port
-//! (`services stop api`, `services restart api`, a confirmed
-//! `services cleanup`) and signals exactly the listeners on that port, never a
-//! protected database port.
+//! The API server is not spawned by us; `infra services serve` stamps itself
+//! with the API marker ([`subprocess::stamp_api_server`]).
+//! [`stop_api_listeners`] serves the operator commands that name the API port
+//! (`services stop api`, `services restart api`, a confirmed `services
+//! cleanup`): it signals only a listener carrying that marker, and reports any
+//! other listener as [`StopOutcome::NotOurs`] without signalling it. A
+//! protected database port is never examined.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +20,7 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome, Termination};
+use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_models::services::ServiceModule;
 
 use crate::error::{SchedulerError, SchedulerResult};
@@ -58,16 +60,29 @@ pub async fn stop_owned_port_holders(
     Ok(stopped)
 }
 
-pub async fn stop_port_listeners(
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ApiListenerStop {
+    pub pid: u32,
+    pub outcome: StopOutcome,
+}
+
+pub async fn stop_api_listeners(
     port: u16,
     grace: Duration,
-) -> SchedulerResult<Vec<(u32, Termination)>> {
-    let mut stopped = Vec::new();
-    for holder in port_holders(port).await? {
-        let termination = subprocess::terminate_gracefully(holder, grace).await?;
-        stopped.push((holder, termination));
+) -> SchedulerResult<Vec<ApiListenerStop>> {
+    let service = subprocess::api_server_service();
+    let mut stops = Vec::new();
+    for pid in port_holders(port).await? {
+        let outcome = if !subprocess::is_running(pid).await {
+            StopOutcome::NotRunning
+        } else if subprocess::owns(pid, ChildKind::Api, &service).await {
+            StopOutcome::Stopped(subprocess::terminate_gracefully(pid, grace).await?)
+        } else {
+            StopOutcome::NotOurs
+        };
+        stops.push(ApiListenerStop { pid, outcome });
     }
-    Ok(stopped)
+    Ok(stops)
 }
 
 pub async fn wait_for_port_free(port: u16, within: Duration) -> SchedulerResult<()> {

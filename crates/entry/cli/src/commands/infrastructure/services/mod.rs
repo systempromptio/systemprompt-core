@@ -63,6 +63,10 @@ pub enum StopTarget {
     },
 }
 
+const KILL_PORT_PROCESS_HELP: &str = "Signal the process holding the API port even when it is \
+                                      not a verified systemprompt API server (asks for \
+                                      confirmation naming the PID; refused when non-interactive)";
+
 #[derive(Debug, Subcommand)]
 pub enum ServicesCommands {
     #[command(
@@ -93,7 +97,7 @@ pub enum ServicesCommands {
         #[arg(long, help = "Skip database migrations")]
         skip_migrate: bool,
 
-        #[arg(long, help = "Kill process using the port if occupied")]
+        #[arg(long, help = KILL_PORT_PROCESS_HELP)]
         kill_port_process: bool,
     },
 
@@ -164,9 +168,31 @@ pub enum ServicesCommands {
         #[arg(long, help = "Run in foreground mode")]
         foreground: bool,
 
-        #[arg(long, help = "Kill process using the port if occupied")]
+        #[arg(long, help = KILL_PORT_PROCESS_HELP)]
         kill_port_process: bool,
     },
+}
+
+impl ServicesCommands {
+    #[must_use]
+    pub const fn serves_api(&self) -> bool {
+        match self {
+            Self::Serve { .. }
+            | Self::Restart {
+                target: Some(RestartTarget::Api),
+                ..
+            } => true,
+            Self::Start {
+                target: None,
+                all,
+                api,
+                agents,
+                mcp,
+                ..
+            } => *all || *api || !(*agents || *mcp),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Subcommand)]

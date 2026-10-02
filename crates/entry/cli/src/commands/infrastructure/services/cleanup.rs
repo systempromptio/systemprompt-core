@@ -94,7 +94,15 @@ pub fn render_cleanup_report(report: &OrphanCleanupReport, quiet: bool) {
             },
         }
     }
-    CliService::info("Stopping API server...");
+    for stop in report.api_stopped() {
+        CliService::info(&format!("Stopped API server (PID: {})", stop.pid));
+    }
+    for stop in report.api_not_ours() {
+        CliService::warning(&format!(
+            "Left PID {} running on the API port: it is not a verified systemprompt API server",
+            stop.pid
+        ));
+    }
     if report.stale_entries_removed > 0 {
         CliService::info(&format!(
             "Cleaned {} stale database entries",

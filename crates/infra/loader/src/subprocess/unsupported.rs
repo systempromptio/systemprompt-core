@@ -27,3 +27,7 @@ pub fn live_pid_is_subprocess(pid: u32, _name_key: &str, service_name: &ServiceN
 pub const fn is_zombie(_pid: u32) -> bool {
     false
 }
+
+pub(super) const fn live_environ(_pid: u32) -> Option<Vec<u8>> {
+    None
+}

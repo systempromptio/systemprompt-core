@@ -8,7 +8,7 @@ use crate::interactive::{Prompter, confirm_optional};
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_loader::subprocess;
+use systemprompt_loader::subprocess::{self, ChildKind};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, ShutdownRequest, validate_system};
 use systemprompt_scheduler::{port_holders, wait_for_port_free};
@@ -200,23 +200,46 @@ async fn handle_port_conflict(
         CliService::warning(&format!("Port {} is already in use by PID {}", port, pid));
     }
 
-    let should_kill = kill_port_process
-        || confirm_optional(
+    let verified = subprocess::owns(pid, ChildKind::Api, &subprocess::api_server_service()).await;
+    let should_kill = if verified {
+        kill_port_process
+            || confirm_optional(
+                prompter,
+                &format!("Stop the running API server (PID {pid}) and restart?"),
+                false,
+                config,
+            )?
+    } else if kill_port_process {
+        confirm_optional(
             prompter,
-            &format!("Kill process {} and restart?", pid),
+            &format!(
+                "PID {pid} holding port {port} is not a verified systemprompt API server. Signal \
+                 PID {pid} anyway?"
+            ),
             false,
             config,
-        )?;
+        )?
+    } else {
+        false
+    };
 
     if should_kill {
         if events.is_none() {
-            CliService::info(&format!("Killing process {}...", pid));
+            CliService::info(&format!("Stopping process {}...", pid));
         }
         stop_confirmed_holder(port, pid).await?;
         if events.is_none() {
             CliService::success(&format!("Port {} is now available", port));
         }
         return Ok(());
+    }
+
+    if !verified {
+        return Err(anyhow::anyhow!(
+            "Port {port} is held by PID {pid}, which is not a verified systemprompt API server; \
+             it was not signalled. Stop it by hand, or rerun interactively with \
+             --kill-port-process and confirm."
+        ));
     }
 
     if config.is_interactive() {
@@ -229,7 +252,7 @@ async fn handle_port_conflict(
 
     if events.is_none() {
         CliService::error(&format!("Port {} is already in use by PID {}", port, pid));
-        CliService::info("Use --kill-port-process to terminate the process, or:");
+        CliService::info("Use --kill-port-process to stop it, or:");
         CliService::info("   - systemprompt infra services restart api");
         CliService::info("   - systemprompt infra services stop --all --force");
         CliService::info(&format!(

@@ -164,6 +164,14 @@ impl DescribeCommand for Commands {
 }
 
 impl Commands {
+    #[must_use]
+    pub const fn serves_api(&self) -> bool {
+        match self {
+            Self::Infra(infrastructure::InfraCommands::Services(cmd)) => cmd.serves_api(),
+            _ => false,
+        }
+    }
+
     fn bootstrap_descriptor(&self) -> CommandDescriptor {
         match self {
             Self::Cloud(cmd) => cmd.descriptor(),

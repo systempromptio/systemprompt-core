@@ -9,8 +9,8 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{self, ChildKind};
 use systemprompt_models::services::ServiceModule;
 use systemprompt_scheduler::{
-    SchedulerError, child_kind, port_holders, stop_owned_port_holders, stop_port_listeners,
-    wait_for_port_free,
+    ApiListenerStop, SchedulerError, child_kind, port_holders, stop_api_listeners,
+    stop_owned_port_holders, wait_for_port_free,
 };
 
 const POSTGRES_PORT: u16 = 5432;
@@ -45,7 +45,7 @@ async fn protected_database_ports_report_no_holders() {
 
 #[tokio::test]
 async fn protected_database_ports_are_never_signalled() {
-    let stopped = stop_port_listeners(POSTGRES_PORT, Duration::ZERO)
+    let stopped = stop_api_listeners(POSTGRES_PORT, Duration::ZERO)
         .await
         .expect("protected port stop");
     assert!(stopped.is_empty());
@@ -94,7 +94,7 @@ mod live_holders {
         }
     }
 
-    fn spawn_holder(marked_as: Option<&ServiceName>) -> (Holder, u32, u16) {
+    fn spawn_holder(marked_as: Option<(ChildKind, &ServiceName)>) -> (Holder, u32, u16) {
         let mut command = Command::new("python3");
         command
             .args([
@@ -102,8 +102,8 @@ mod live_holders {
                 "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
             ])
             .stdout(Stdio::piped());
-        if let Some(service) = marked_as {
-            subprocess::mark_child(&mut command, ChildKind::Mcp, service);
+        if let Some((kind, service)) = marked_as {
+            subprocess::mark_child(&mut command, kind, service);
         }
         let mut child = command.spawn().expect("spawn python3 port holder");
         let stdout = child.stdout.take().expect("holder stdout");
@@ -119,7 +119,7 @@ mod live_holders {
     #[tokio::test]
     async fn a_holder_marked_for_the_service_is_stopped() {
         let service = ServiceName::new(format!("sup-owned-{}", uuid::Uuid::new_v4().simple()));
-        let (_holder, pid, port) = spawn_holder(Some(&service));
+        let (_holder, pid, port) = spawn_holder(Some((ChildKind::Mcp, &service)));
 
         let stopped = stop_owned_port_holders(port, ChildKind::Mcp, &service, Duration::ZERO)
             .await
@@ -150,7 +150,7 @@ mod live_holders {
     async fn a_holder_marked_for_another_service_is_left_running() {
         let other = ServiceName::new(format!("sup-other-{}", uuid::Uuid::new_v4().simple()));
         let service = ServiceName::new(format!("sup-this-{}", uuid::Uuid::new_v4().simple()));
-        let (_holder, pid, port) = spawn_holder(Some(&other));
+        let (_holder, pid, port) = spawn_holder(Some((ChildKind::Mcp, &other)));
 
         let stopped = stop_owned_port_holders(port, ChildKind::Mcp, &service, Duration::ZERO)
             .await
@@ -161,15 +161,52 @@ mod live_holders {
     }
 
     #[tokio::test]
-    async fn an_operator_port_stop_terminates_the_listener() {
+    async fn a_listener_stamped_as_the_api_server_is_stopped() {
+        let api = subprocess::api_server_service();
+        let (_holder, pid, port) = spawn_holder(Some((ChildKind::Api, &api)));
+
+        let stopped = stop_api_listeners(port, Duration::from_secs(1))
+            .await
+            .expect("api listener stop");
+
+        assert!(matches!(
+            stopped.as_slice(),
+            [ApiListenerStop {
+                pid: stopped_pid,
+                outcome: subprocess::StopOutcome::Stopped(_),
+            }] if *stopped_pid == pid
+        ));
+        assert!(!subprocess::is_running(pid).await);
+    }
+
+    #[tokio::test]
+    async fn an_unstamped_api_port_listener_is_reported_and_left_running() {
         let (_holder, pid, port) = spawn_holder(None);
 
-        let stopped = stop_port_listeners(port, Duration::from_secs(1))
+        let stopped = stop_api_listeners(port, Duration::ZERO)
             .await
-            .expect("listener stop");
+            .expect("foreign api port listener");
 
-        assert_eq!(stopped.len(), 1);
-        assert_eq!(stopped[0].0, pid);
-        assert!(!subprocess::is_running(pid).await);
+        assert_eq!(
+            stopped,
+            vec![ApiListenerStop {
+                pid,
+                outcome: subprocess::StopOutcome::NotOurs,
+            }]
+        );
+        assert!(subprocess::is_running(pid).await);
+    }
+
+    #[tokio::test]
+    async fn an_agent_marker_does_not_pass_as_the_api_server() {
+        let (_holder, pid, port) =
+            spawn_holder(Some((ChildKind::Agent, &subprocess::api_server_service())));
+
+        let stopped = stop_api_listeners(port, Duration::ZERO)
+            .await
+            .expect("agent-marked api port listener");
+
+        assert_eq!(stopped[0].outcome, subprocess::StopOutcome::NotOurs);
+        assert!(subprocess::is_running(pid).await);
     }
 }

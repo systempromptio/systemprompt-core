@@ -9,6 +9,7 @@ use crate::shared::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, ServiceName};
+use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ServiceManagementService, port_holders};
@@ -44,7 +45,18 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
         CliService::info(&format!("Stopping API server (PID: {})...", pid));
     }
 
-    ServiceManagementService::stop_api_by_port(port, false).await?;
+    let stops = ServiceManagementService::stop_api_by_port(port, false).await?;
+    if let Some(foreign) = stops
+        .iter()
+        .find(|stop| stop.outcome == StopOutcome::NotOurs)
+    {
+        anyhow::bail!(
+            "Port {port} is held by PID {}, which is not a verified systemprompt API server; it \
+             was not signalled. Stop it by hand, or use `infra services serve \
+             --kill-port-process`.",
+            foreign.pid
+        );
+    }
 
     if !quiet {
         CliService::success("API server stopped");

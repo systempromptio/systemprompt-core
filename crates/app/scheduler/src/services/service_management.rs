@@ -10,8 +10,9 @@
 //! [`StopOutcome::NotOurs`]. A port holder is stopped on a service's behalf
 //! only when it carries the same marker. The API port stops
 //! ([`ServiceManagementService::stop_api_by_port`], the API sweep in
-//! [`ServiceManagementService::cleanup_all_orphans`]) are operator commands
-//! that name the API port; the API carries no marker to verify.
+//! [`ServiceManagementService::cleanup_all_orphans`]) signal only a listener
+//! carrying the API server marker; any other listener is reported as
+//! [`StopOutcome::NotOurs`] and left running.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,7 +26,7 @@ use systemprompt_models::services::ServiceModule;
 use tracing::warn;
 
 use super::orchestration::{
-    child_kind, stop_owned_port_holders, stop_port_listeners, wait_for_port_free,
+    ApiListenerStop, child_kind, stop_api_listeners, stop_owned_port_holders, wait_for_port_free,
 };
 use crate::error::{SchedulerError, SchedulerResult};
 
@@ -50,14 +51,26 @@ pub struct OrphanOutcome {
 #[derive(Debug, Clone, Default)]
 pub struct OrphanCleanupReport {
     pub outcomes: Vec<OrphanOutcome>,
-    pub api_stopped: bool,
+    pub api: Vec<ApiListenerStop>,
     pub stale_entries_removed: u64,
 }
 
 impl OrphanCleanupReport {
     #[must_use]
     pub fn services_cleaned(&self) -> usize {
-        self.outcomes.len() + usize::from(self.api_stopped)
+        self.outcomes.len() + self.api_stopped().count()
+    }
+
+    pub fn api_stopped(&self) -> impl Iterator<Item = &ApiListenerStop> {
+        self.api
+            .iter()
+            .filter(|stop| matches!(stop.outcome, StopOutcome::Stopped(_)))
+    }
+
+    pub fn api_not_ours(&self) -> impl Iterator<Item = &ApiListenerStop> {
+        self.api
+            .iter()
+            .filter(|stop| stop.outcome == StopOutcome::NotOurs)
     }
 }
 
@@ -120,10 +133,10 @@ impl ServiceManagementService {
         self.stop_recorded(service, STOP_GRACE).await.map(Some)
     }
 
-    pub async fn stop_api_by_port(port: u16, force: bool) -> SchedulerResult<Vec<u32>> {
-        let stopped = stop_port_listeners(port, stop_grace(force)).await?;
-        wait_for_port_free(port, API_PORT_RELEASE).await?;
-        Ok(stopped.into_iter().map(|(pid, _)| pid).collect())
+    pub async fn stop_api_by_port(port: u16, force: bool) -> SchedulerResult<Vec<ApiListenerStop>> {
+        let stops = stop_api_listeners(port, stop_grace(force)).await?;
+        await_api_port_release(port, &stops).await?;
+        Ok(stops)
     }
 
     pub async fn cleanup_all_orphans(&self, api_port: u16) -> SchedulerResult<OrphanCleanupReport> {
@@ -146,8 +159,8 @@ impl ServiceManagementService {
             });
         }
 
-        let api_stopped = !stop_port_listeners(api_port, STOP_GRACE).await?.is_empty();
-        wait_for_port_free(api_port, API_PORT_RELEASE).await?;
+        let api = stop_api_listeners(api_port, STOP_GRACE).await?;
+        await_api_port_release(api_port, &api).await?;
 
         let stale_entries_removed = match self.cleanup_stale_entries().await {
             Ok(removed) => removed,
@@ -159,7 +172,7 @@ impl ServiceManagementService {
 
         Ok(OrphanCleanupReport {
             outcomes,
-            api_stopped,
+            api,
             stale_entries_removed,
         })
     }
@@ -183,6 +196,16 @@ impl ServiceManagementService {
         }
         Ok(outcome)
     }
+}
+
+async fn await_api_port_release(port: u16, stops: &[ApiListenerStop]) -> SchedulerResult<()> {
+    if stops
+        .iter()
+        .any(|stop| stop.outcome == StopOutcome::NotOurs)
+    {
+        return Ok(());
+    }
+    wait_for_port_free(port, API_PORT_RELEASE).await
 }
 
 const fn stop_grace(force: bool) -> Duration {
