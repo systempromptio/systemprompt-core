@@ -45,3 +45,11 @@ id_parsers! {
     parse_secret_name => SecretName,
     parse_skill_id => SkillId,
 }
+
+// Why: clap stores a subcommand `--profile` and the global `--profile` in one
+// value slot under the shared id, and the global flag reads that slot as a
+// `String`; a subcommand flag must therefore store a `String` too. This parser
+// still rejects anything that is not a valid profile name.
+pub fn parse_profile_name_arg(s: &str) -> Result<String, IdValidationError> {
+    ProfileName::try_new(s).map(|name| name.as_str().to_owned())
+}

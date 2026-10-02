@@ -19,10 +19,10 @@ use crate::shared::CommandOutput;
 pub struct LogoutArgs {
     #[arg(
         long,
-        value_parser = crate::shared::parse_profile_name,
+        value_parser = crate::shared::parse_profile_name_arg,
         help = "Profile name to log out (defaults to active session)"
     )]
-    pub profile: Option<ProfileName>,
+    pub profile: Option<String>,
 
     #[arg(short = 'y', long, help = "Skip confirmation prompt")]
     pub yes: bool,
@@ -143,7 +143,12 @@ fn resolve_target_key(
     paths: &ResolvedPaths,
     store: &SessionStore,
 ) -> Result<SessionKey> {
-    if let Some(ref profile_name) = args.profile {
+    if let Some(profile_name) = args
+        .profile
+        .as_deref()
+        .map(ProfileName::try_new)
+        .transpose()?
+    {
         let target_dir = paths.profiles_dir().join(profile_name.as_str());
         let profile_config_path = ProfilePath::Config.resolve(&target_dir);
 

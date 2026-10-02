@@ -60,6 +60,8 @@ mod presentation_startup_renderer;
 #[cfg(test)]
 mod presentation_tables;
 #[cfg(test)]
+mod profile_flag_parsing;
+#[cfg(test)]
 mod runner_args;
 #[cfg(test)]
 mod runner_routing;
