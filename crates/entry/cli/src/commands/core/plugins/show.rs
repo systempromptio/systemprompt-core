@@ -41,7 +41,7 @@ pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<Command
     let plugin = &plugin_file.plugin;
 
     let output = PluginDetailOutput {
-        id: systemprompt_identifiers::PluginId::new(plugin.id.clone()),
+        id: PluginId::new(plugin.id.clone()),
         name: plugin.name.clone(),
         description: plugin.description.clone(),
         version: plugin.version.clone(),

@@ -24,10 +24,10 @@ pub enum BuildError {
     },
 
     #[error("Validation failed: dist directory not found at {}", path.display())]
-    MissingDist { path: std::path::PathBuf },
+    MissingDist { path: PathBuf },
 
     #[error("Validation failed: index.html not found at {}", path.display())]
-    MissingIndex { path: std::path::PathBuf },
+    MissingIndex { path: PathBuf },
 
     #[error("Validation failed: {missing} URLs missing corresponding HTML files")]
     MissingSitemapPages { missing: usize },

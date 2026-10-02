@@ -80,7 +80,7 @@ pub(super) fn process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
     }))
 }
 
-fn parse_ps_field(field: &'static str, value: &str) -> crate::error::McpDomainResult<u32> {
+fn parse_ps_field(field: &'static str, value: &str) -> McpDomainResult<u32> {
     value
         .parse()
         .map_err(|source| crate::error::McpDomainError::InvalidPsField {

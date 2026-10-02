@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 
-use super::{Result, TraceRepository};
+use super::{Result, TraceError, TraceRepository};
 use crate::trace::models::{LevelCount, LogTimeRange, ModuleCount};
 
 struct LevelRow {

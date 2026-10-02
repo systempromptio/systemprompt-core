@@ -448,7 +448,7 @@ async fn coverage_profile_menu_declining_deletion_preserves_profile_and_secrets(
 async fn coverage_profile_menu_confirmed_deletion_removes_only_selected_profile() {
     let project = Project::new("unused", false);
     let unrelated = project
-        ._root
+        .root
         .path()
         .join(".systemprompt/profiles/not-a-profile");
     std::fs::create_dir(&unrelated).unwrap();
