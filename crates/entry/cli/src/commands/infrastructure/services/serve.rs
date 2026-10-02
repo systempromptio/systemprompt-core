@@ -133,7 +133,14 @@ async fn ensure_port_free(
         {
             tracing::debug!(error = %e, "startup event channel closed: PortConflict");
         }
-        handle_port_conflict(prompter, port, pid, kill_port_process, config, events).await?;
+        handle_port_conflict(
+            prompter,
+            PortConflict { port, pid },
+            kill_port_process,
+            config,
+            events,
+        )
+        .await?;
         if let Some(tx) = events
             && let Err(e) = tx.unbounded_send(StartupEvent::PortConflictResolved { port })
         {
@@ -163,26 +170,65 @@ async fn bind_early(
     Ok(Some(early))
 }
 
+const NO_PORT: u16 = 0;
+
+// Why: Linux truncates a process `comm` to 15 bytes (TASK_COMM_LEN), so a
+// longer executable name is only ever reported as its 15-byte prefix.
+const COMM_NAME_LIMIT: usize = 15;
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct PortConflict {
+    pub port: u16,
+    pub pid: u32,
+}
+
 fn check_port_available(port: u16) -> Option<u32> {
+    if port == NO_PORT {
+        return None;
+    }
     ProcessCleanup::check_port(port)
 }
 
-fn kill_process(pid: u32) {
-    ProcessCleanup::kill_process(pid);
+fn names_match(holder: &str, own: &str) -> bool {
+    !holder.is_empty()
+        && (holder == own || (holder.len() == COMM_NAME_LIMIT && own.starts_with(holder)))
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "port-conflict handling threads discrete CLI flags plus the prompt seam"
-)]
+pub(crate) fn verify_port_holder(conflict: PortConflict) -> Result<()> {
+    let PortConflict { port, pid } = conflict;
+    let own_exe = std::env::current_exe()
+        .context("Cannot resolve the running executable to verify the port holder")?;
+    let own_name = own_exe
+        .file_name()
+        .and_then(|name| name.to_str())
+        .context("The running executable has no UTF-8 file name")?;
+    let holder = ProcessCleanup::get_process_by_port(port)
+        .filter(|info| info.pid == pid)
+        .with_context(|| {
+            format!("Cannot identify the process holding port {port}; refusing to kill PID {pid}")
+        })?;
+    let holder_name = std::path::Path::new(&holder.name)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    if names_match(holder_name, own_name) {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "Port {port} is held by PID {pid} ({}), which is not a {own_name} process; refusing to \
+         kill it",
+        holder.name
+    )
+}
+
 async fn handle_port_conflict(
     prompter: &dyn Prompter,
-    port: u16,
-    pid: u32,
+    conflict: PortConflict,
     kill_port_process: bool,
     config: &CliConfig,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
+    let PortConflict { port, pid } = conflict;
     if events.is_none() {
         CliService::warning(&format!("Port {} is already in use by PID {}", port, pid));
     }
@@ -196,10 +242,13 @@ async fn handle_port_conflict(
         )?;
 
     if should_kill {
+        verify_port_holder(conflict)?;
         if events.is_none() {
             CliService::info(&format!("Killing process {}...", pid));
         }
-        kill_process(pid);
+        if !ProcessCleanup::kill_process(pid) {
+            anyhow::bail!("Failed to kill PID {pid} holding port {port}");
+        }
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
         if check_port_available(port).is_some() {

@@ -44,6 +44,7 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
         CliService::info(&format!("Stopping API server (PID: {})...", pid));
     }
 
+    super::super::serve::verify_port_holder(super::super::serve::PortConflict { port, pid })?;
     ProcessCleanup::terminate_gracefully(pid, 100).await;
     ProcessCleanup::kill_port(port, pid);
 

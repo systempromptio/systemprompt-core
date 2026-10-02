@@ -256,7 +256,7 @@ pub fn stop_verified_port_holder(
     agent_port: Option<u16>,
     recorded_pid: Option<u32>,
 ) -> bool {
-    let Some(port) = agent_port else {
+    let Some(port) = agent_port.filter(|port| *port != 0) else {
         return recorded_pid.is_none();
     };
 
