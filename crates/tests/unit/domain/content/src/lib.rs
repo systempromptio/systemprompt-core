@@ -17,7 +17,6 @@ mod models;
 mod error;
 
 #[cfg(test)]
-mod error_extra;
 
 #[cfg(test)]
 mod services;
