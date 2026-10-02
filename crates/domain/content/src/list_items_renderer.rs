@@ -85,6 +85,7 @@ fn extract_url_prefix(ctx: &ComponentContext<'_>) -> String {
         })
 }
 
+// JSON: Handlebars page context item; only the card fields are decoded.
 fn render_card_html(item: &Value, url_prefix: &str) -> Option<String> {
     let card = ListItemCard::deserialize(item)
         .inspect_err(|e| tracing::debug!(error = %e, "Skipping list item without card fields"))
