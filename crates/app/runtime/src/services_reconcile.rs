@@ -91,13 +91,12 @@ pub async fn reconcile_fetched_services(
                 .ok_or_else(|| RuntimeError::ServicesBundleNotCached {
                     name: name.to_owned(),
                 })?;
-        let manifest = cache.read_manifest(name, &fetched.content_hash).map_err(|err| {
-            tracing::error!(source = %name, error = %err, "Cached services bundle manifest is unreadable");
-            RuntimeError::ServicesBundleManifest {
+        let manifest = cache
+            .read_manifest(name, &fetched.content_hash)
+            .map_err(|err| RuntimeError::ServicesBundleManifest {
                 name: name.to_owned(),
                 source: err,
-            }
-        })?;
+            })?;
         signed.push((name.to_owned(), manifest));
     }
 
@@ -108,24 +107,12 @@ pub async fn reconcile_fetched_services(
 
     let reports = reconcile_composed_bundles(database, services, &root.path, &bundles)
         .await
-        .map_err(|err| {
-            tracing::error!(
-                composed_hash = %composed_hash,
-                error = %err,
-                "Refused to boot on a fetched services composition that could not be reconciled"
-            );
-            RuntimeError::ServicesReconcile(err)
-        })?;
+        .map_err(RuntimeError::ServicesReconcile)?;
 
     state.last_reconciled_hash = Some(composed_hash.clone());
-    cache.write_state(&state).map_err(|err| {
-        tracing::error!(
-            composed_hash = %composed_hash,
-            error = %err,
-            "Reconciled a fetched services composition but could not record it"
-        );
-        RuntimeError::ServicesReconcileState(err)
-    })?;
+    cache
+        .write_state(&state)
+        .map_err(RuntimeError::ServicesReconcileState)?;
 
     tracing::info!(
         composed_hash = %composed_hash,
