@@ -53,7 +53,7 @@ fn to_a2a_artifact(target: &RenderTarget<'_>) -> McpDomainResult<Artifact> {
         .payload
         .as_object()
         .cloned()
-        .ok_or_else(|| McpDomainError::ArtifactPayloadNotObject)?;
+        .ok_or(McpDomainError::ArtifactPayloadNotObject)?;
 
     Ok(Artifact {
         id: target.artifact_id.clone(),
