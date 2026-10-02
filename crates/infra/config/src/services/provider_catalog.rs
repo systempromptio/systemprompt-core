@@ -78,9 +78,7 @@ impl ProviderCatalogService {
             .providers
             .retain(|p| p.name.as_str() != name.as_str());
         if registry.providers.len() == before {
-            return Err(ConfigError::ProviderNotFound {
-                name: name.to_string(),
-            });
+            return Err(ConfigError::ProviderNotFound { name: name.clone() });
         }
         Ok(())
     }
@@ -91,7 +89,7 @@ impl ProviderCatalogService {
             .iter_mut()
             .find(|p| p.name.as_str() == spec.provider.as_str())
             .ok_or_else(|| ConfigError::ProviderNotFound {
-                name: spec.provider.to_string(),
+                name: spec.provider.clone(),
             })?;
         provider
             .models
@@ -119,14 +117,14 @@ impl ProviderCatalogService {
             .iter_mut()
             .find(|p| p.name.as_str() == provider_name.as_str())
             .ok_or_else(|| ConfigError::ProviderNotFound {
-                name: provider_name.to_string(),
+                name: provider_name.clone(),
             })?;
         let before = provider.models.len();
         provider.models.retain(|m| m.id.as_str() != id.as_str());
         if provider.models.len() == before {
             return Err(ConfigError::ModelNotFound {
-                id: id.to_string(),
-                provider: provider_name.to_string(),
+                id: id.clone(),
+                provider: provider_name.clone(),
             });
         }
         Ok(())

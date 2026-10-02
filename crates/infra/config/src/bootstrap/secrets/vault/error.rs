@@ -89,8 +89,27 @@ pub enum VaultError {
         key: String,
     },
 
-    #[error("vault was unreachable after {attempts} attempt(s): {message}")]
-    Exhausted { attempts: u32, message: String },
+    #[error("vault request failed: {0}")]
+    Transport(#[source] reqwest::Error),
+
+    #[error("vault was unreachable after {attempts} attempt(s): {last}")]
+    Exhausted {
+        attempts: u32,
+        last: VaultAttemptFailure,
+    },
+}
+
+/// Why the final retryable Vault attempt failed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum VaultAttemptFailure {
+    #[error("HTTP {0}")]
+    Status(u16),
+
+    #[error("request timed out")]
+    Timeout,
+
+    #[error("could not connect")]
+    Connect,
 }
 
 #[must_use]

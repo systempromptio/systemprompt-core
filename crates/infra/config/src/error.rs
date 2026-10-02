@@ -15,6 +15,7 @@
 
 use std::path::PathBuf;
 
+use systemprompt_identifiers::{ModelId, ProviderId};
 use systemprompt_models::errors::{GlobalConfigError, SecretsError};
 use systemprompt_models::profile::ProfileError;
 
@@ -101,10 +102,10 @@ pub enum ConfigError {
     MissingSystemAdmin,
 
     #[error("No provider named {name}")]
-    ProviderNotFound { name: String },
+    ProviderNotFound { name: ProviderId },
 
     #[error("No model with id {id} under provider {provider}")]
-    ModelNotFound { id: String, provider: String },
+    ModelNotFound { id: ModelId, provider: ProviderId },
 
     #[error("Access token expiry must be positive")]
     NonPositiveAccessTokenExpiry,
@@ -115,14 +116,9 @@ pub enum ConfigError {
     #[error("No trusted issuer found with issuer {issuer}")]
     TrustedIssuerNotFound { issuer: String },
 
-    #[error("{message}")]
-    Other { message: String },
-}
+    #[error("Profile path has no parent directory: {path}")]
+    ProfilePathWithoutParent { path: PathBuf },
 
-impl ConfigError {
-    pub fn other(message: impl Into<String>) -> Self {
-        Self::Other {
-            message: message.into(),
-        }
-    }
+    #[error("Secrets file root is not a JSON object: {path}")]
+    SecretsFileNotObject { path: PathBuf },
 }

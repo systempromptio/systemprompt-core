@@ -21,6 +21,6 @@ pub use master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key, generate_ma
 pub use profile::{ProfileBootstrap, ProfileBootstrapError};
 pub use secrets::{
     ResolvedSource, SecretsBootstrap, SecretsBootstrapError, SecretsDocument, SecretsProvider,
-    VaultError, VaultKvProvider, build_loaded_secrets_message, load_secrets_from_path,
-    resolve_source,
+    VaultAttemptFailure, VaultError, VaultKvProvider, build_loaded_secrets_message,
+    load_secrets_from_path, resolve_source,
 };

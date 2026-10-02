@@ -17,9 +17,6 @@ pub enum ConfigValidationError {
 
     #[error("Failed to parse YAML config: {0}")]
     Parse(#[from] serde_yaml::Error),
-
-    #[error("Schema validation failed: {0}")]
-    Schema(String),
 }
 
 pub fn validate_config<T: DeserializeOwned + JsonSchema>(

@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use systemprompt_models::profile::resolve_with_home;
 use systemprompt_models::secrets::Secrets;
@@ -18,9 +18,12 @@ pub(in crate::bootstrap::secrets) fn resolve_and_load_file(
     let profile_path =
         ProfileBootstrap::get_path().map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
 
-    let profile_dir = Path::new(profile_path)
-        .parent()
-        .ok_or_else(|| ConfigError::other("Invalid profile path - no parent directory"))?;
+    let profile_dir =
+        Path::new(profile_path)
+            .parent()
+            .ok_or_else(|| ConfigError::ProfilePathWithoutParent {
+                path: PathBuf::from(profile_path),
+            })?;
 
     let resolved_path = resolve_with_home(profile_dir, path_str);
     load_from_file(&resolved_path)

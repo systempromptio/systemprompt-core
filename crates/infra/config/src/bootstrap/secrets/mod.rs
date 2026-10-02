@@ -53,7 +53,7 @@ pub use io::load_secrets_from_path;
 pub use logging::build_loaded_secrets_message;
 pub use provider::{SecretsDocument, SecretsProvider};
 pub use resolve::{ResolvedSource, resolve_source};
-pub use vault::{VaultError, VaultKvProvider};
+pub use vault::{VaultAttemptFailure, VaultError, VaultKvProvider};
 
 static SECRETS: OnceLock<Secrets> = OnceLock::new();
 
@@ -228,9 +228,11 @@ impl SecretsBootstrap {
             .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
         let profile_path = ProfileBootstrap::get_path()
             .map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
-        let profile_dir = Path::new(profile_path)
-            .parent()
-            .ok_or_else(|| ConfigError::other("Invalid profile path - no parent directory"))?;
+        let profile_dir = Path::new(profile_path).parent().ok_or_else(|| {
+            ConfigError::ProfilePathWithoutParent {
+                path: PathBuf::from(profile_path),
+            }
+        })?;
         let secrets_path = secrets_config
             .secrets_path()
             .map_err(SecretsBootstrapError::SecretsConfigInvalid)?;
