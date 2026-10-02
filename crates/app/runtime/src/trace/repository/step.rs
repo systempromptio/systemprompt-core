@@ -3,45 +3,40 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::TraceError;
-pub(super) type Result<T> = std::result::Result<T, TraceError>;
 use serde_json::json;
-use sqlx::PgPool;
-use std::sync::Arc;
 
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 
-use super::models::{ExecutionStepSummary, McpExecutionSummary, TraceEvent};
+use super::{Result, TraceRepository};
+use crate::trace::models::{ExecutionStepSummary, McpExecutionSummary, TraceEvent};
 
-pub(super) async fn fetch_mcp_execution_summary(
-    pool: &Arc<PgPool>,
-    trace_id: &TraceId,
-) -> Result<McpExecutionSummary> {
-    let row = sqlx::query!(
-        r#"
+impl TraceRepository {
+    pub async fn fetch_mcp_execution_summary(
+        &self,
+        trace_id: &TraceId,
+    ) -> Result<McpExecutionSummary> {
+        let row = sqlx::query!(
+            r#"
         SELECT
             COUNT(*)::bigint as execution_count,
             COALESCE(SUM(execution_time_ms), 0)::bigint as total_execution_time_ms
         FROM mcp_tool_executions
         WHERE trace_id = $1
         "#,
-        trace_id.as_str()
-    )
-    .fetch_one(&**pool)
-    .await?;
+            trace_id.as_str()
+        )
+        .fetch_one(&*self.pool)
+        .await?;
 
-    Ok(McpExecutionSummary {
-        execution_count: row.execution_count.unwrap_or(0),
-        total_execution_time_ms: row.total_execution_time_ms.unwrap_or(0),
-    })
-}
+        Ok(McpExecutionSummary {
+            execution_count: row.execution_count.unwrap_or(0),
+            total_execution_time_ms: row.total_execution_time_ms.unwrap_or(0),
+        })
+    }
 
-pub(super) async fn fetch_mcp_execution_events(
-    pool: &Arc<PgPool>,
-    trace_id: &TraceId,
-) -> Result<Vec<TraceEvent>> {
-    let rows = sqlx::query!(
-        r#"
+    pub async fn fetch_mcp_execution_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
+        let rows = sqlx::query!(
+            r#"
         SELECT
             started_at as timestamp,
             tool_name,
@@ -57,12 +52,12 @@ pub(super) async fn fetch_mcp_execution_events(
         WHERE trace_id = $1
         ORDER BY started_at ASC
         "#,
-        trace_id.as_str()
-    )
-    .fetch_all(&**pool)
-    .await?;
+            trace_id.as_str()
+        )
+        .fetch_all(&*self.pool)
+        .await?;
 
-    Ok(rows
+        Ok(rows
         .into_iter()
         .map(|row| {
             let base_details = format!(
@@ -114,27 +109,24 @@ pub(super) async fn fetch_mcp_execution_events(
             }
         })
         .collect())
-}
+    }
 
-pub(super) async fn fetch_task_id_for_trace(
-    pool: &Arc<PgPool>,
-    trace_id: &TraceId,
-) -> Result<Option<String>> {
-    let row = sqlx::query!(
-        "SELECT task_id FROM agent_tasks WHERE trace_id = $1 LIMIT 1",
-        trace_id.as_str()
-    )
-    .fetch_optional(&**pool)
-    .await?;
+    pub async fn fetch_task_id_for_trace(&self, trace_id: &TraceId) -> Result<Option<String>> {
+        let row = sqlx::query!(
+            "SELECT task_id FROM agent_tasks WHERE trace_id = $1 LIMIT 1",
+            trace_id.as_str()
+        )
+        .fetch_optional(&*self.pool)
+        .await?;
 
-    Ok(row.map(|r| r.task_id))
-}
+        Ok(row.map(|r| r.task_id))
+    }
 
-pub(super) async fn fetch_execution_step_summary(
-    pool: &Arc<PgPool>,
-    trace_id: &TraceId,
-) -> Result<ExecutionStepSummary> {
-    let row = sqlx::query!(
+    pub async fn fetch_execution_step_summary(
+        &self,
+        trace_id: &TraceId,
+    ) -> Result<ExecutionStepSummary> {
+        let row = sqlx::query!(
         r#"
         SELECT
             COUNT(*)::bigint as step_count,
@@ -147,23 +139,20 @@ pub(super) async fn fetch_execution_step_summary(
         "#,
         trace_id.as_str()
     )
-    .fetch_one(&**pool)
+    .fetch_one(&*self.pool)
     .await?;
 
-    Ok(ExecutionStepSummary {
-        total: row.step_count.unwrap_or(0),
-        completed: row.completed_count.unwrap_or(0),
-        failed: row.failed_count.unwrap_or(0),
-        pending: row.pending_count.unwrap_or(0),
-    })
-}
+        Ok(ExecutionStepSummary {
+            total: row.step_count.unwrap_or(0),
+            completed: row.completed_count.unwrap_or(0),
+            failed: row.failed_count.unwrap_or(0),
+            pending: row.pending_count.unwrap_or(0),
+        })
+    }
 
-pub(super) async fn fetch_execution_step_events(
-    pool: &Arc<PgPool>,
-    trace_id: &TraceId,
-) -> Result<Vec<TraceEvent>> {
-    let rows = sqlx::query!(
-        r#"
+    pub async fn fetch_execution_step_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
+        let rows = sqlx::query!(
+            r#"
         SELECT
             s.started_at as timestamp,
             s.content,
@@ -178,12 +167,12 @@ pub(super) async fn fetch_execution_step_events(
         WHERE t.trace_id = $1
         ORDER BY s.started_at ASC
         "#,
-        trace_id.as_str()
-    )
-    .fetch_all(&**pool)
-    .await?;
+            trace_id.as_str()
+        )
+        .fetch_all(&*self.pool)
+        .await?;
 
-    Ok(rows
+        Ok(rows
         .into_iter()
         .map(|row| {
             let content = row.content.clone();
@@ -234,4 +223,5 @@ pub(super) async fn fetch_execution_step_events(
             }
         })
         .collect())
+    }
 }

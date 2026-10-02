@@ -1,29 +1,19 @@
-//! Shared query helpers for the trace module.
+//! Log-event and AI-request timeline queries for one trace.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::TraceError;
-pub(super) type Result<T> = std::result::Result<T, TraceError>;
 use serde_json::json;
-use sqlx::PgPool;
-use std::sync::Arc;
 
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 
-use super::models::{AiRequestSummary, TraceEvent};
+use super::{Result, TraceRepository};
+use crate::trace::models::{AiRequestSummary, TraceEvent};
 
-pub(super) use super::step_queries::{
-    fetch_execution_step_events, fetch_execution_step_summary, fetch_mcp_execution_events,
-    fetch_mcp_execution_summary, fetch_task_id_for_trace,
-};
-
-pub(super) async fn fetch_log_events(
-    pool: &Arc<PgPool>,
-    trace_id: &TraceId,
-) -> Result<Vec<TraceEvent>> {
-    let rows = sqlx::query!(
-        r#"
+impl TraceRepository {
+    pub async fn fetch_log_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
+        let rows = sqlx::query!(
+            r#"
         SELECT
             timestamp,
             level as type,
@@ -37,12 +27,12 @@ pub(super) async fn fetch_log_events(
         WHERE trace_id = $1
         ORDER BY timestamp ASC
         "#,
-        trace_id.as_str()
-    )
-    .fetch_all(&**pool)
-    .await?;
+            trace_id.as_str()
+        )
+        .fetch_all(&*self.pool)
+        .await?;
 
-    Ok(rows
+        Ok(rows
         .into_iter()
         .map(|row| TraceEvent {
             event_type: row.r#type,
@@ -62,13 +52,10 @@ pub(super) async fn fetch_log_events(
             metadata: row.metadata,
         })
         .collect())
-}
+    }
 
-pub(super) async fn fetch_ai_request_summary(
-    pool: &Arc<PgPool>,
-    trace_id: &TraceId,
-) -> Result<AiRequestSummary> {
-    let row = sqlx::query!(
+    pub async fn fetch_ai_request_summary(&self, trace_id: &TraceId) -> Result<AiRequestSummary> {
+        let row = sqlx::query!(
         r#"
         SELECT
             COALESCE(SUM(cost_microdollars), 0)::bigint as total_cost_microdollars,
@@ -82,25 +69,22 @@ pub(super) async fn fetch_ai_request_summary(
         "#,
         trace_id.as_str()
     )
-    .fetch_one(&**pool)
+    .fetch_one(&*self.pool)
     .await?;
 
-    Ok(AiRequestSummary {
-        total_cost_microdollars: row.total_cost_microdollars.unwrap_or(0),
-        total_tokens: row.total_tokens.unwrap_or(0),
-        total_input_tokens: row.total_input_tokens.unwrap_or(0),
-        total_output_tokens: row.total_output_tokens.unwrap_or(0),
-        request_count: row.request_count.unwrap_or(0),
-        total_latency_ms: row.total_latency_ms.unwrap_or(0),
-    })
-}
+        Ok(AiRequestSummary {
+            total_cost_microdollars: row.total_cost_microdollars.unwrap_or(0),
+            total_tokens: row.total_tokens.unwrap_or(0),
+            total_input_tokens: row.total_input_tokens.unwrap_or(0),
+            total_output_tokens: row.total_output_tokens.unwrap_or(0),
+            request_count: row.request_count.unwrap_or(0),
+            total_latency_ms: row.total_latency_ms.unwrap_or(0),
+        })
+    }
 
-pub(super) async fn fetch_ai_request_events(
-    pool: &Arc<PgPool>,
-    trace_id: &TraceId,
-) -> Result<Vec<TraceEvent>> {
-    let rows = sqlx::query!(
-        r#"
+    pub async fn fetch_ai_request_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
+        let rows = sqlx::query!(
+            r#"
         SELECT
             created_at as timestamp,
             provider,
@@ -118,12 +102,12 @@ pub(super) async fn fetch_ai_request_events(
         WHERE trace_id = $1
         ORDER BY created_at ASC
         "#,
-        trace_id.as_str()
-    )
-    .fetch_all(&**pool)
-    .await?;
+            trace_id.as_str()
+        )
+        .fetch_all(&*self.pool)
+        .await?;
 
-    Ok(rows
+        Ok(rows
         .into_iter()
         .map(|row| {
             let provider = row.provider.clone().unwrap_or_else(|| "-".to_owned());
@@ -163,4 +147,5 @@ pub(super) async fn fetch_ai_request_events(
             }
         })
         .collect())
+    }
 }

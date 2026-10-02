@@ -3,15 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::TraceError;
-pub(super) type Result<T> = std::result::Result<T, TraceError>;
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
-use std::sync::Arc;
 use systemprompt_identifiers::{
     ClientId, ContextId, InstanceId, LogId, SessionId, TaskId, TraceId, UserId,
 };
 
+use super::{Result, TraceRepository};
 use systemprompt_logging::models::{LogEntry, LogLevel};
 
 struct LogRow {
@@ -62,10 +59,11 @@ fn row_to_entry(r: LogRow) -> LogEntry {
     }
 }
 
-pub(super) async fn find_log_by_id(pool: &Arc<PgPool>, id: &LogId) -> Result<Option<LogEntry>> {
-    let row = sqlx::query_as!(
-        LogRow,
-        r#"
+impl TraceRepository {
+    pub async fn find_log_by_id(&self, id: &LogId) -> Result<Option<LogEntry>> {
+        let row = sqlx::query_as!(
+            LogRow,
+            r#"
         SELECT
             id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
             message as "message!", metadata,
@@ -78,22 +76,19 @@ pub(super) async fn find_log_by_id(pool: &Arc<PgPool>, id: &LogId) -> Result<Opt
             instance_id as "instance_id: InstanceId"
         FROM logs WHERE id = $1
         "#,
-        id.as_str()
-    )
-    .fetch_optional(&**pool)
-    .await?;
+            id.as_str()
+        )
+        .fetch_optional(&*self.pool)
+        .await?;
 
-    Ok(row.map(row_to_entry))
-}
+        Ok(row.map(row_to_entry))
+    }
 
-pub(super) async fn find_log_by_partial_id(
-    pool: &Arc<PgPool>,
-    id_prefix: &str,
-) -> Result<Option<LogEntry>> {
-    let pattern = format!("{id_prefix}%");
-    let row = sqlx::query_as!(
-        LogRow,
-        r#"
+    pub async fn find_log_by_partial_id(&self, id_prefix: &str) -> Result<Option<LogEntry>> {
+        let pattern = format!("{id_prefix}%");
+        let row = sqlx::query_as!(
+            LogRow,
+            r#"
         SELECT
             id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
             message as "message!", metadata,
@@ -109,21 +104,18 @@ pub(super) async fn find_log_by_partial_id(
         ORDER BY timestamp DESC
         LIMIT 1
         "#,
-        pattern
-    )
-    .fetch_optional(&**pool)
-    .await?;
+            pattern
+        )
+        .fetch_optional(&*self.pool)
+        .await?;
 
-    Ok(row.map(row_to_entry))
-}
+        Ok(row.map(row_to_entry))
+    }
 
-pub(super) async fn find_logs_by_trace_id(
-    pool: &Arc<PgPool>,
-    trace_id: &TraceId,
-) -> Result<Vec<LogEntry>> {
-    let rows = sqlx::query_as!(
-        LogRow,
-        r#"
+    pub async fn find_logs_by_trace_id(&self, trace_id: &TraceId) -> Result<Vec<LogEntry>> {
+        let rows = sqlx::query_as!(
+            LogRow,
+            r#"
         SELECT
             id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
             message as "message!", metadata,
@@ -138,19 +130,19 @@ pub(super) async fn find_logs_by_trace_id(
         WHERE trace_id = $1
         ORDER BY timestamp ASC
         "#,
-        trace_id.as_str()
-    )
-    .fetch_all(&**pool)
-    .await?;
+            trace_id.as_str()
+        )
+        .fetch_all(&*self.pool)
+        .await?;
 
-    if !rows.is_empty() {
-        return Ok(rows.into_iter().map(row_to_entry).collect());
-    }
+        if !rows.is_empty() {
+            return Ok(rows.into_iter().map(row_to_entry).collect());
+        }
 
-    let pattern = format!("{}%", trace_id.as_str());
-    let rows = sqlx::query_as!(
-        LogRow,
-        r#"
+        let pattern = format!("{}%", trace_id.as_str());
+        let rows = sqlx::query_as!(
+            LogRow,
+            r#"
         SELECT
             id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
             message as "message!", metadata,
@@ -166,23 +158,23 @@ pub(super) async fn find_logs_by_trace_id(
         ORDER BY timestamp ASC
         LIMIT 100
         "#,
-        pattern
-    )
-    .fetch_all(&**pool)
-    .await?;
+            pattern
+        )
+        .fetch_all(&*self.pool)
+        .await?;
 
-    Ok(rows.into_iter().map(row_to_entry).collect())
-}
+        Ok(rows.into_iter().map(row_to_entry).collect())
+    }
 
-pub(super) async fn list_logs_filtered(
-    pool: &Arc<PgPool>,
-    since: Option<DateTime<Utc>>,
-    level: Option<LogLevel>,
-    limit: i64,
-) -> Result<Vec<LogEntry>> {
-    let rows = sqlx::query_as!(
-        LogRow,
-        r#"
+    pub async fn list_logs_filtered(
+        &self,
+        since: Option<DateTime<Utc>>,
+        level: Option<LogLevel>,
+        limit: i64,
+    ) -> Result<Vec<LogEntry>> {
+        let rows = sqlx::query_as!(
+            LogRow,
+            r#"
         SELECT
             id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
             message as "message!", metadata,
@@ -199,12 +191,13 @@ pub(super) async fn list_logs_filtered(
         ORDER BY timestamp DESC
         LIMIT $3
         "#,
-        since,
-        level.map(LogLevel::as_str),
-        limit
-    )
-    .fetch_all(&**pool)
-    .await?;
+            since,
+            level.map(LogLevel::as_str),
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await?;
 
-    Ok(rows.into_iter().map(row_to_entry).collect())
+        Ok(rows.into_iter().map(row_to_entry).collect())
+    }
 }

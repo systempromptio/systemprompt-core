@@ -13,7 +13,7 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_identifiers::{TaskId, TraceId};
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AiTraceService, TraceEvent, TraceQueryService};
+use systemprompt_runtime::{AiTraceService, TraceEvent, TraceQueryService, TraceRepository};
 
 use super::ai_trace_display::{execute_ai_trace, filter_log_events};
 use super::display::{print_event, print_table};
@@ -84,7 +84,7 @@ async fn execute_with_pool_inner(
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let ai_service = AiTraceService::new(Arc::clone(pool));
+    let ai_service = AiTraceService::new(TraceRepository::new(Arc::clone(pool)));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
         return execute_ai_trace(&ai_service, &task_id, &args).await;
     }
@@ -97,7 +97,7 @@ async fn execute_trace_view(
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
     let trace_id = TraceId::try_new(args.id.as_str())?;
 
     let (

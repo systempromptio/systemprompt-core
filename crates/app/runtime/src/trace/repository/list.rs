@@ -3,15 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::TraceError;
-pub(super) type Result<T> = std::result::Result<T, TraceError>;
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
-use std::sync::Arc;
 
 use systemprompt_identifiers::TraceId;
 
-use super::models::{TraceListFilter, TraceListItem};
+use super::{Result, TraceRepository};
+use crate::trace::models::{TraceListFilter, TraceListItem};
 
 struct TraceRow {
     trace_id: TraceId,
@@ -23,36 +20,34 @@ struct TraceRow {
     mcp_calls: Option<i64>,
 }
 
-pub(super) async fn list_traces(
-    pool: &Arc<PgPool>,
-    filter: &TraceListFilter,
-) -> Result<Vec<TraceListItem>> {
-    let rows = fetch_trace_rows(pool, filter).await?;
+impl TraceRepository {
+    pub async fn list_traces(&self, filter: &TraceListFilter) -> Result<Vec<TraceListItem>> {
+        let rows = self.fetch_trace_rows(filter).await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| TraceListItem {
-            trace_id: r.trace_id,
-            first_timestamp: r.first_timestamp,
-            last_timestamp: r.last_timestamp,
-            agent: r.agent,
-            status: r.status,
-            ai_requests: r.ai_requests.unwrap_or(0),
-            mcp_calls: r.mcp_calls.unwrap_or(0),
-        })
-        .collect())
-}
+        Ok(rows
+            .into_iter()
+            .map(|r| TraceListItem {
+                trace_id: r.trace_id,
+                first_timestamp: r.first_timestamp,
+                last_timestamp: r.last_timestamp,
+                agent: r.agent,
+                status: r.status,
+                ai_requests: r.ai_requests.unwrap_or(0),
+                mcp_calls: r.mcp_calls.unwrap_or(0),
+            })
+            .collect())
+    }
 
-async fn fetch_trace_rows(pool: &Arc<PgPool>, filter: &TraceListFilter) -> Result<Vec<TraceRow>> {
-    let tool_pattern = filter.tool.as_deref();
-    let agent_pattern = filter.agent.as_ref().map(|a| format!("%{a}%"));
-    let agent_pat = agent_pattern.as_deref();
-    let status_lower = filter.status.as_ref().map(|s| s.to_lowercase());
-    let status_val = status_lower.as_deref();
-    let exclude_system = (!filter.include_system).then_some("1");
-    let require_tracked: Option<&str> = None;
+    async fn fetch_trace_rows(&self, filter: &TraceListFilter) -> Result<Vec<TraceRow>> {
+        let tool_pattern = filter.tool.as_deref();
+        let agent_pattern = filter.agent.as_ref().map(|a| format!("%{a}%"));
+        let agent_pat = agent_pattern.as_deref();
+        let status_lower = filter.status.as_ref().map(|s| s.to_lowercase());
+        let status_val = status_lower.as_deref();
+        let exclude_system = (!filter.include_system).then_some("1");
+        let require_tracked: Option<&str> = None;
 
-    sqlx::query_as!(
+        sqlx::query_as!(
         TraceRow,
         r#"
         WITH tool_traces AS (
@@ -113,7 +108,8 @@ async fn fetch_trace_rows(pool: &Arc<PgPool>, filter: &TraceListFilter) -> Resul
         require_tracked,
         filter.limit
     )
-    .fetch_all(&**pool)
+    .fetch_all(&*self.pool)
     .await
     .map_err(Into::into)
+    }
 }

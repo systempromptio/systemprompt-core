@@ -8,7 +8,7 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{ToolExecutionFilter, TraceQueryService};
+use systemprompt_runtime::{ToolExecutionFilter, TraceQueryService, TraceRepository};
 
 use super::{ToolExecutionRow, ToolsListOutput};
 use crate::CliConfig;
@@ -58,7 +58,7 @@ async fn execute_with_pool_inner(
         filter = filter.with_status(status);
     }
 
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
     let rows = service.list_tool_executions(&filter).await?;
 
     let executions: Vec<ToolExecutionRow> = rows

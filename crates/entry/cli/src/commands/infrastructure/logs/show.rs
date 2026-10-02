@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, LogId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_logging::{CliService, LogEntry, LogLevel};
-use systemprompt_runtime::TraceQueryService;
+use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
 use super::shared::print_level_line;
 use crate::CliConfig;
@@ -62,7 +62,7 @@ async fn execute_with_pool_inner(
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
 ) -> Result<()> {
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
     if let Ok(log_id) = LogId::try_new(args.id.as_str())
         && let Some(log) = service.find_log_by_id(&log_id).await?
