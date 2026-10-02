@@ -93,13 +93,9 @@ Thumbs.db
 audit.md
 audit.log
 audit.json
-audit/
-.audit/
-!crates/infra/security/src/authz/audit/
-!crates/shared/models/src/audit/
+/audit/
+/.audit/
 
-# Service implementations (moved to implementation repos)
-/crates/services/
 
 /plan
 /plan/*
@@ -188,8 +184,6 @@ youtube-walkthrough.md
 ci/
 .sentrux/
 Screenshot*.png
-!crates/entry/api/src/services/gateway/audit/
-!crates/entry/api/src/services/proxy/audit/
 
 # rustc internal compiler error dumps
 rustc-ice-*.txt
