@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::Path;
+
 use axum::Json;
 use serde_json::json;
 use systemprompt_models::services::ServiceModule;
@@ -31,8 +33,7 @@ async fn check_service_counts(ctx: &AppContext) -> (usize, &'static str, usize, 
     (ac, as_, mc, ms)
 }
 
-fn check_static_content(ctx: &AppContext) -> (bool, bool) {
-    let web_dir = ctx.app_paths().web().dist();
+fn check_static_content(web_dir: &Path) -> (bool, bool) {
     (
         web_dir.join("index.html").exists(),
         web_dir.join("sitemap.xml").exists(),
@@ -58,7 +59,14 @@ pub async fn handle_health_detail(
     };
 
     let (agent_count, agent_status, mcp_count, mcp_status) = check_service_counts(&ctx).await;
-    let (index_exists, sitemap_exists) = check_static_content(&ctx);
+    let web_dir = ctx.app_paths().web().dist().to_path_buf();
+    let (memory, (index_exists, sitemap_exists)) =
+        tokio::task::spawn_blocking(move || (get_process_memory(), check_static_content(&web_dir)))
+            .await
+            .unwrap_or_else(|error| {
+                tracing::warn!(%error, "Health filesystem probes did not complete");
+                (None, (false, false))
+            });
 
     let db_healthy = db_status == "healthy";
     let services_ok = agent_status != "error" && mcp_status != "error";
@@ -71,7 +79,6 @@ pub async fn handle_health_detail(
     };
 
     let system_stats = get_system_stats(ctx.db_pool().as_ref()).await;
-    let memory = get_process_memory();
     let check_duration_ms = start.elapsed().as_millis();
 
     let data = json!({
