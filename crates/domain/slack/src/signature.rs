@@ -50,16 +50,11 @@ pub fn verify_slack_signature(
         .map_err(SlackError::SignatureMismatch)
 }
 
-#[must_use]
-#[expect(
-    clippy::expect_used,
-    reason = "HMAC-SHA256 accepts any key length by construction; new_from_slice cannot fail here"
-)]
-pub fn sign(signing_secret: &[u8], timestamp: &str, body: &[u8]) -> String {
-    let mut mac = HmacSha256::new_from_slice(signing_secret).expect("HMAC accepts any key length");
+pub fn sign(signing_secret: &[u8], timestamp: &str, body: &[u8]) -> SlackResult<String> {
+    let mut mac = HmacSha256::new_from_slice(signing_secret).map_err(SlackError::SigningKey)?;
     mac.update(b"v0:");
     mac.update(timestamp.as_bytes());
     mac.update(b":");
     mac.update(body);
-    format!("v0={}", hex::encode(mac.finalize().into_bytes()))
+    Ok(format!("v0={}", hex::encode(mac.finalize().into_bytes())))
 }

@@ -28,7 +28,7 @@ fn signed_slack_post(path: &str, body: &str, secret: &str) -> Request<Body> {
         .expect("clock")
         .as_secs()
         .to_string();
-    let signature = sign(secret.as_bytes(), &ts, body.as_bytes());
+    let signature = sign(secret.as_bytes(), &ts, body.as_bytes()).expect("sign");
     Request::builder()
         .method("POST")
         .uri(path)

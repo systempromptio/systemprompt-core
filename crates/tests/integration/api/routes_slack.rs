@@ -45,7 +45,7 @@ fn now_ts() -> String {
 
 fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
     let ts = now_ts();
-    let signature = sign(secret.as_bytes(), &ts, body.as_bytes());
+    let signature = sign(secret.as_bytes(), &ts, body.as_bytes()).expect("sign");
     Request::builder()
         .method("POST")
         .uri(path)
