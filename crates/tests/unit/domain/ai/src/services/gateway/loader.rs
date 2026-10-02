@@ -1,6 +1,8 @@
 // Gateway-policy bootstrap: YAML file loading and DB ingestion semantics.
-// The delete_orphans reconcile arm is exercised only through config validation
-// here — a DB-level orphan sweep would race sibling tests sharing the table.
+// Why: `load_gateway_policies_from_yaml` reconciles the whole global
+// `ai_gateway_policies` table to its file, so a test that lets it reach the
+// sweep runs on its own disposable database — on the shared shard database it
+// deletes the rows every concurrently running gateway-policy test just wrote.
 
 use serde_json::json;
 use systemprompt_ai::{
@@ -8,7 +10,7 @@ use systemprompt_ai::{
     load_gateway_policies_from_yaml,
 };
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 async fn bootstrapped_pool() -> DbPool {
@@ -205,16 +207,10 @@ async fn duplicate_policy_names_fail_validation() {
     assert!(err.to_string().contains("duplicate policy name"));
 }
 
-// NOTE FOR THE nextest CONFIG OWNER: the two tests below drive
-// `load_gateway_policies_from_yaml`, which always ingests with
-// `delete_orphans: true` against the *global* scope — it therefore deletes
-// every `ai_gateway_policies` row not named by its YAML, including rows seeded
-// by sibling tests in this file. They must be serialised against the rest of
-// the gateway-policy suite (a `gateway-policy-db` test-group).
-
 #[tokio::test]
 async fn a_valid_policies_file_is_ingested_and_reconciles_the_table_to_it() {
-    let pool = bootstrapped_pool().await;
+    let database = DisposableDb::with_schema("gateway_policy_reconcile").await;
+    let pool = database.test_pool().await;
     let name = unique_name("loader-happy");
     let orphan = unique_name("loader-orphan");
     let service = GatewayPolicyIngestionService::from_repository(
@@ -240,29 +236,32 @@ async fn a_valid_policies_file_is_ingested_and_reconciles_the_table_to_it() {
     .await
     .expect("valid file ingests");
     assert_eq!(report.inserted, 1, "the file's one policy must be inserted");
+    assert_eq!(report.deleted, 1, "exactly the seeded orphan must be swept");
 
     let repo = systemprompt_ai::AiGatewayPolicyRepository::new(&pool);
+    assert_eq!(
+        repo.list_all_names().await.expect("list names"),
+        vec![name.clone()],
+        "the loader reconciles the table to its file, it does not merge"
+    );
     let served = repo.list_for_global().await.expect("list");
     assert_eq!(
         served.iter().filter(|r| r.name == name).count(),
         1,
         "the loaded policy must be served"
     );
-    assert!(
-        !served.iter().any(|r| r.name == orphan),
-        "a policy absent from the file must be swept — the loader reconciles, it does not merge"
-    );
-    assert!(report.deleted >= 1, "the orphan sweep must be reported");
 
-    // A second boot over the same file is idempotent, not a re-insert.
     let again = load_gateway_policies_from_yaml(
         &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
         dir.path(),
     )
     .await
     .expect("second boot");
-    assert_eq!(again.inserted, 0);
+    assert_eq!(again.inserted, 0, "a second boot must not re-insert");
     assert_eq!(again.updated + again.skipped, 1);
+    assert_eq!(again.deleted, 0);
+
+    database.drop_now().await;
 }
 
 #[tokio::test]
