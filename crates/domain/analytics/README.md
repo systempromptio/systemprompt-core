@@ -74,7 +74,6 @@ Schema DDL lives in `schema/*.sql` (`engagement_events`, `fingerprint_reputation
 
 | Model | Purpose |
 |-------|---------|
-| `AnalyticsSession` | Session data with tracking fields |
 | `EngagementEvent` | Client-side engagement metrics |
 | `FingerprintReputation` | Fingerprint tracking and flags |
 | `BehavioralAnalysisResult`, `BehavioralSignal` | Bot detection |

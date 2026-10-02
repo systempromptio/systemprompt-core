@@ -25,11 +25,11 @@ pub mod services;
 
 pub use extension::AnalyticsExtension;
 
-pub use error::{AnalyticsError, Result, Result as AnalyticsResult};
+pub use error::{AnalyticsError, Result};
 
 pub use models::{
-    AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType, AnalyticsSession,
-    ContextGroupRow, ContextSummaryRow, ConversionEventData, CreateAnalyticsEventBatchInput,
+    AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType, ContextGroupRow,
+    ContextSummaryRow, ConversionEventData, CreateAnalyticsEventBatchInput,
     CreateAnalyticsEventInput, CreateEngagementEventInput, EngagementEvent, EngagementEventData,
     EngagementOptionalMetrics, FingerprintAnalysisResult, FingerprintReputation, FlagReason,
     LinkClickEventData, RecentContextRow, ScrollEventData,

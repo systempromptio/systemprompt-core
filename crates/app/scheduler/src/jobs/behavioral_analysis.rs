@@ -182,7 +182,7 @@ fn log_flag_result(
     fingerprint: &str,
     reasons: &[FlagReason],
     new_score: i32,
-    result: &systemprompt_analytics::AnalyticsResult<()>,
+    result: &systemprompt_analytics::Result<()>,
 ) -> bool {
     match result {
         Ok(()) => {
