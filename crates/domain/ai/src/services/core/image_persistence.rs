@@ -121,10 +121,10 @@ async fn persist_file_record(
 
 pub(super) async fn find_generated_image(
     file_provider: &dyn AiFilePersistenceProvider,
-    uuid: &str,
+    file_id: &FileId,
 ) -> Result<Option<AiGeneratedFile>> {
     file_provider
-        .find_by_id(&FileId::new(uuid))
+        .find_by_id(file_id)
         .await
         .map_err(AiError::from)
 }
@@ -146,10 +146,9 @@ pub(super) async fn list_user_images(
 pub(super) async fn delete_image(
     file_provider: &dyn AiFilePersistenceProvider,
     storage: &crate::services::storage::ImageStorage,
-    uuid: &str,
+    file_id: &FileId,
 ) -> Result<()> {
-    let file_id = FileId::new(uuid);
-    let file = file_provider.find_by_id(&file_id).await?;
+    let file = file_provider.find_by_id(file_id).await?;
 
     if let Some(file_record) = file {
         storage
@@ -157,7 +156,7 @@ pub(super) async fn delete_image(
                 file_record.path.clone(),
             ))
             .await?;
-        file_provider.delete(&file_id).await?;
+        file_provider.delete(file_id).await?;
     }
 
     Ok(())
