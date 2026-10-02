@@ -1,12 +1,12 @@
 //! DB-backed tests for [`ServiceReconciler`] and [`ServiceStateVerifier`].
 //!
 //! Both types require a live Postgres pool. Tests fail when `DATABASE_URL`
-//! is unset. The `services` table may be empty on
-//! a freshly-migrated DB; tests seed rows they need and clean them up
-//! afterwards.
+//! is unset. Every test reconciles its own instance id: a reconcile sweeps
+//! every row of its instance, so a shared id would stop another test's
+//! children or delete its rows.
 
 use std::sync::Arc;
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{InstanceId, ServiceName};
 
 use systemprompt_models::ServiceType;
 use systemprompt_scheduler::{
@@ -14,6 +14,10 @@ use systemprompt_scheduler::{
     ServiceReconciler, ServiceStateVerifier,
 };
 use systemprompt_test_fixtures::test_db_pool;
+
+fn isolated_instance() -> InstanceId {
+    InstanceId::new(format!("reconciler-{}", uuid::Uuid::new_v4().simple()))
+}
 
 mod reconciler_db {
     use super::*;
@@ -23,10 +27,7 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let _reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
         );
     }
 
@@ -35,10 +36,7 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
         );
 
         let result = reconciler
@@ -50,10 +48,6 @@ mod reconciler_db {
             result.is_success(),
             "empty-config reconciliation must report success"
         );
-        // Pre-existing `services` rows become orphans under an empty config and
-        // are legitimately cleaned up; on a shared DB (the coverage job runs the
-        // whole workspace against one database) such rows leak in from other
-        // crates. Assert on config-driven actions, not on global DB emptiness.
         assert!(
             result.started.is_empty() && result.stopped.is_empty() && result.restarted.is_empty(),
             "no configs → no start/stop/restart actions (only orphan cleanup is allowed)"
@@ -65,10 +59,7 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
         );
 
         let configs = [ServiceConfig {
@@ -91,10 +82,7 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
         );
 
         let configs = [ServiceConfig {
@@ -140,10 +128,7 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
         );
 
         let configs = vec![
@@ -174,10 +159,7 @@ mod reconciler_db {
         let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
         );
 
         let configs = [ServiceConfig {
@@ -209,19 +191,13 @@ mod state_verifier_db {
     #[tokio::test]
     async fn new_constructs_against_migrated_db() {
         let pool = test_db_pool().await;
-        let _verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let _verifier = ServiceStateVerifier::new(Arc::clone(&pool), isolated_instance());
     }
 
     #[tokio::test]
     async fn get_verified_states_empty_configs_returns_empty_or_orphans() {
         let pool = test_db_pool().await;
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), isolated_instance());
 
         let states = verifier
             .get_verified_states(&[])
@@ -236,10 +212,7 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_verified_states_disabled_config_maps_to_cleanup_or_none() {
         let pool = test_db_pool().await;
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), isolated_instance());
 
         let configs = [ServiceConfig {
             name: ServiceName::new("sv-disabled-absent"),
@@ -281,10 +254,7 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_verified_states_enabled_config_absent_from_db_needs_start() {
         let pool = test_db_pool().await;
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), isolated_instance());
 
         let configs = [ServiceConfig {
             name: ServiceName::new("sv-enabled-absent"),
@@ -317,10 +287,7 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_services_needing_action_filters_correctly() {
         let pool = test_db_pool().await;
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), isolated_instance());
 
         let configs = [
             ServiceConfig {
@@ -353,10 +320,7 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_running_services_returns_only_running() {
         let pool = test_db_pool().await;
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), isolated_instance());
 
         let configs = [ServiceConfig {
             name: ServiceName::new("sv-not-running"),
@@ -383,10 +347,7 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_crashed_services_returns_only_crashed() {
         let pool = test_db_pool().await;
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), isolated_instance());
 
         let configs = [ServiceConfig {
             name: ServiceName::new("sv-not-crashed"),
@@ -413,10 +374,7 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_verified_states_multiple_configs_all_appear() {
         let pool = test_db_pool().await;
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), isolated_instance());
 
         let configs = vec![
             ServiceConfig {
@@ -457,411 +415,366 @@ mod state_verifier_db {
 // Seeded action-arm tests: rows are driven into each ServiceAction and the
 // reconciler's handling (restart, orphan sweep, process cleanup, stop) is
 // asserted on the DB row and the returned buckets. PIDs signalled are always
-// children this test spawned.
+// children this test spawned and marked as the seeded MCP service; an unmarked
+// holder proves the reconciler leaves a process it cannot identify alone.
 #[cfg(unix)]
 mod reconciler_action_arms {
     use super::*;
 
     use std::io::{BufRead, BufReader};
     use std::process::{Child, Command, Stdio};
-    use std::time::{Duration, Instant};
 
-    fn unique_name(prefix: &str) -> String {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static SEQ: AtomicU64 = AtomicU64::new(0);
-        let n = SEQ.fetch_add(1, Ordering::Relaxed);
-        format!("{prefix}-{}-{}", std::process::id(), n)
+    use systemprompt_database::{
+        CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus,
+    };
+    use systemprompt_loader::subprocess::{self, ChildKind};
+
+    struct Seeded {
+        pool: systemprompt_database::DbPool,
+        repo: ServiceRepository,
+        reconciler: ServiceReconciler,
+    }
+
+    async fn seeded() -> Seeded {
+        let pool = test_db_pool().await;
+        let instance = isolated_instance();
+        let repo = ServiceRepository::new(&pool, instance.clone());
+        let reconciler =
+            ServiceReconciler::new(Arc::clone(&pool), ServiceRepository::new(&pool, instance));
+        Seeded {
+            pool,
+            repo,
+            reconciler,
+        }
+    }
+
+    fn unique_name(prefix: &str) -> ServiceName {
+        ServiceName::new(format!("{prefix}-{}", uuid::Uuid::new_v4().simple()))
     }
 
     async fn insert_service(
-        pg: &sqlx::PgPool,
-        name: &str,
-        status: &str,
-        pid: Option<i32>,
-        port: i32,
+        repo: &ServiceRepository,
+        name: &ServiceName,
+        status: ServiceStatus,
+        pid: Option<u32>,
+        port: u16,
     ) {
-        sqlx::query!(
-            r#"
-            INSERT INTO services (instance_id, name, module_name, status, pid, port)
-            VALUES ('test-instance', $1, 'mcp', $2, $3, $4)
-            ON CONFLICT (instance_id, name) DO UPDATE SET
-                status = EXCLUDED.status, pid = EXCLUDED.pid, port = EXCLUDED.port
-            "#,
+        repo.create_service(CreateServiceInput {
             name,
+            module_name: ServiceModule::Mcp,
             status,
-            pid,
             port,
-        )
-        .execute(pg)
+            binary_mtime: None,
+        })
         .await
         .expect("seed services row");
+        if let Some(pid) = pid {
+            repo.update_service_pid(name, i32::try_from(pid).expect("pid fits i32"))
+                .await
+                .expect("seed services pid");
+        }
     }
 
-    async fn fetch_row(pg: &sqlx::PgPool, name: &str) -> Option<(String, Option<i32>)> {
-        sqlx::query!("SELECT status, pid FROM services WHERE name = $1", name)
-            .fetch_optional(pg)
+    async fn fetch_status(repo: &ServiceRepository, name: &ServiceName) -> Option<ServiceStatus> {
+        repo.find_service_by_name(name)
             .await
             .expect("fetch services row")
-            .map(|r| (r.status, r.pid))
+            .map(|row| row.status)
     }
 
-    fn spawn_port_holder() -> (Child, u16) {
-        let mut child = Command::new("python3")
+    struct PortHolder(Child);
+
+    impl Drop for PortHolder {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+
+    fn spawn_port_holder(marked_as: Option<&ServiceName>) -> (PortHolder, u32, u16) {
+        let mut command = Command::new("python3");
+        command
             .args([
                 "-c",
                 "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
             ])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("spawn python3 port holder");
+            .stdout(Stdio::piped());
+        if let Some(service) = marked_as {
+            subprocess::mark_child(&mut command, ChildKind::Mcp, service);
+        }
+        let mut child = command.spawn().expect("spawn python3 port holder");
         let stdout = child.stdout.take().expect("holder stdout");
         let mut line = String::new();
         BufReader::new(stdout)
             .read_line(&mut line)
             .expect("read holder port");
         let port = line.trim().parse::<u16>().expect("holder port number");
-        (child, port)
-    }
-
-    // A killed child is a zombie until reaped (kill(pid, 0) still succeeds),
-    // so death is observed via try_wait, never process_exists.
-    async fn wait_until_dead(child: &mut Child) {
-        let deadline = Instant::now() + Duration::from_secs(5);
-        loop {
-            if child.try_wait().expect("try_wait").is_some() {
-                return;
-            }
-            assert!(
-                Instant::now() < deadline,
-                "child was not terminated within the deadline"
-            );
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
+        let pid = child.id();
+        (PortHolder(child), pid, port)
     }
 
     #[tokio::test]
     async fn crashed_enabled_service_is_restarted() {
-        let pool = test_db_pool().await;
-        let pg = pool.write_pool();
-        let reconciler = ServiceReconciler::new(
-            Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
-
+        let t = seeded().await;
         let name = unique_name("rec-restart-ok");
-        insert_service(&pg, &name, "running", Some(i32::MAX), 27401).await;
+        insert_service(
+            &t.repo,
+            &name,
+            ServiceStatus::Running,
+            Some(i32::MAX as u32),
+            27401,
+        )
+        .await;
 
         let configs = [ServiceConfig {
-            name: ServiceName::new(name.as_str()),
+            name: name.clone(),
             service_type: ServiceType::Mcp,
             port: 27401,
             enabled: true,
         }];
-        let result = reconciler
+        let result = t
+            .reconciler
             .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
         assert!(
-            result.restarted.iter().any(|n| n == name.as_str()),
+            result.restarted.contains(&name),
             "Enabled + Crashed must be restarted, got {result:?}"
         );
-        let (status, pid) = fetch_row(&pg, &name).await.expect("row present");
-        assert_eq!(status, "stopped", "restart first marks the row stopped");
-        assert_eq!(pid, None, "restart clears the stale PID");
-
-        sqlx::query!("DELETE FROM services WHERE name = $1", name)
-            .execute(&*pg)
+        let row = t
+            .repo
+            .find_service_by_name(&name)
             .await
-            .ok();
+            .expect("fetch row")
+            .expect("row present");
+        assert_eq!(
+            row.status,
+            ServiceStatus::Stopped,
+            "restart first marks the row stopped"
+        );
+        assert_eq!(row.pid, None, "restart clears the stale PID");
+
+        t.repo.delete_service(&name).await.expect("cleanup row");
     }
 
     #[tokio::test]
     async fn restart_records_failure_when_start_callback_errors() {
-        let pool = test_db_pool().await;
-        let pg = pool.write_pool();
-        let reconciler = ServiceReconciler::new(
-            Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
-
+        let t = seeded().await;
         let name = unique_name("rec-restart-fail");
-        insert_service(&pg, &name, "running", Some(i32::MAX), 27402).await;
+        insert_service(
+            &t.repo,
+            &name,
+            ServiceStatus::Running,
+            Some(i32::MAX as u32),
+            27402,
+        )
+        .await;
 
         let configs = [ServiceConfig {
-            name: ServiceName::new(name.as_str()),
+            name: name.clone(),
             service_type: ServiceType::Mcp,
             port: 27402,
             enabled: true,
         }];
-        let result = reconciler
+        let result = t
+            .reconciler
             .reconcile(&configs, |_n: ServiceName, _p: u16| async {
                 Err(SchedulerError::Io(std::io::Error::other("boot refused")))
             })
             .await
             .expect("reconcile");
 
-        let (failed_name, failed_err) = result
+        let (_, failed_err) = result
             .failed
             .iter()
-            .find(|(n, _)| n.as_str() == name)
+            .find(|(n, _)| *n == name)
             .expect("the failed restart must be recorded");
-        assert_eq!(failed_name.as_str(), name);
         assert!(
             failed_err.contains("boot refused"),
             "the callback error must be captured, got: {failed_err}"
         );
 
-        sqlx::query!("DELETE FROM services WHERE name = $1", name)
-            .execute(&*pg)
-            .await
-            .ok();
+        t.repo.delete_service(&name).await.expect("cleanup row");
     }
 
     #[tokio::test]
     async fn stopped_orphan_row_is_swept_from_the_db() {
-        let pool = test_db_pool().await;
-        let pg = pool.write_pool();
-        let reconciler = ServiceReconciler::new(
-            Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
-
+        let t = seeded().await;
         let name = unique_name("rec-orphan-db");
-        insert_service(&pg, &name, "stopped", None, 27403).await;
+        insert_service(&t.repo, &name, ServiceStatus::Stopped, None, 27403).await;
 
-        let result = reconciler
+        let result = t
+            .reconciler
             .reconcile(&[], |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
+        assert_eq!(result.cleaned_up, vec![name.clone()], "{result:?}");
         assert!(
-            result.cleaned_up.iter().any(|n| n == name.as_str()),
-            "a stopped row absent from the config must be swept, got {result:?}"
-        );
-        assert!(
-            fetch_row(&pg, &name).await.is_none(),
+            fetch_status(&t.repo, &name).await.is_none(),
             "the orphan row must be deleted"
         );
     }
 
     #[tokio::test]
     async fn orphan_sweep_leaves_another_instances_row_alone() {
-        let pool = test_db_pool().await;
-        let pg = pool.write_pool();
-        let reconciler = ServiceReconciler::new(
-            Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
-
+        let t = seeded().await;
         let name = unique_name("rec-orphan-scoped");
-        insert_service(&pg, &name, "stopped", None, 27404).await;
-        sqlx::query(
-            "INSERT INTO services (instance_id, name, module_name, status, pid, port)
-             VALUES ('other-instance', $1, 'mcp', 'stopped', NULL, 27404)",
-        )
-        .bind(&name)
-        .execute(&*pg)
-        .await
-        .expect("seed the other instance's row");
+        insert_service(&t.repo, &name, ServiceStatus::Stopped, None, 27404).await;
+        let other_repo = ServiceRepository::new(&t.pool, isolated_instance());
+        insert_service(&other_repo, &name, ServiceStatus::Stopped, None, 27404).await;
 
-        let result = reconciler
+        let result = t
+            .reconciler
             .reconcile(&[], |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
-        assert!(
-            result.cleaned_up.iter().any(|n| n == name.as_str()),
-            "{result:?}"
-        );
+        assert_eq!(result.cleaned_up, vec![name.clone()], "{result:?}");
 
-        let other: Option<String> = sqlx::query_scalar(
-            "SELECT status FROM services WHERE instance_id = 'other-instance' AND name = $1",
-        )
-        .bind(&name)
-        .fetch_optional(&*pg)
-        .await
-        .expect("fetch the other instance's row");
         assert_eq!(
-            other.as_deref(),
-            Some("stopped"),
+            fetch_status(&other_repo, &name).await,
+            Some(ServiceStatus::Stopped),
             "a sweep on one instance must not delete a same-named row of another"
         );
 
-        sqlx::query("DELETE FROM services WHERE instance_id = 'other-instance' AND name = $1")
-            .bind(&name)
-            .execute(&*pg)
-            .await
-            .ok();
+        other_repo.delete_service(&name).await.expect("cleanup row");
     }
 
     #[tokio::test]
     async fn orphaned_process_is_terminated_and_row_swept() {
-        let pool = test_db_pool().await;
-        let pg = pool.write_pool();
-        let reconciler = ServiceReconciler::new(
-            Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
-
-        let (mut child, port) = spawn_port_holder();
+        let t = seeded().await;
         let name = unique_name("rec-orphan-proc");
-        insert_service(&pg, &name, "stopped", None, i32::from(port)).await;
+        let (_holder, pid, port) = spawn_port_holder(Some(&name));
+        insert_service(&t.repo, &name, ServiceStatus::Stopped, None, port).await;
 
-        let result = reconciler
+        let result = t
+            .reconciler
             .reconcile(&[], |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
+        assert_eq!(result.cleaned_up, vec![name.clone()], "{result:?}");
         assert!(
-            result.cleaned_up.iter().any(|n| n == name.as_str()),
-            "an orphan with a live port holder must be cleaned up, got {result:?}"
-        );
-        assert!(
-            fetch_row(&pg, &name).await.is_none(),
+            fetch_status(&t.repo, &name).await.is_none(),
             "the orphan row must be deleted"
         );
-        wait_until_dead(&mut child).await;
+        assert!(
+            !subprocess::is_running(pid).await,
+            "the marked orphan holding the service port must be stopped"
+        );
+    }
+
+    #[tokio::test]
+    async fn unmarked_port_holder_survives_the_orphan_sweep() {
+        let t = seeded().await;
+        let name = unique_name("rec-orphan-foreign");
+        let (_holder, pid, port) = spawn_port_holder(None);
+        insert_service(&t.repo, &name, ServiceStatus::Stopped, None, port).await;
+
+        let result = t
+            .reconciler
+            .reconcile(&[], |_n: ServiceName, _p: u16| async { Ok(()) })
+            .await
+            .expect("reconcile");
+
+        assert_eq!(result.cleaned_up, vec![name.clone()], "{result:?}");
+        assert!(
+            subprocess::is_running(pid).await,
+            "a port holder without this service's marker must never be signalled"
+        );
     }
 
     #[tokio::test]
     async fn disabled_running_service_is_stopped() {
-        let pool = test_db_pool().await;
-        let pg = pool.write_pool();
-        let reconciler = ServiceReconciler::new(
-            Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
-
-        let (mut child, port) = spawn_port_holder();
+        let t = seeded().await;
         let name = unique_name("rec-stop");
-        insert_service(
-            &pg,
-            &name,
-            "running",
-            Some(child.id() as i32),
-            i32::from(port),
-        )
-        .await;
+        let (_holder, pid, port) = spawn_port_holder(Some(&name));
+        insert_service(&t.repo, &name, ServiceStatus::Running, Some(pid), port).await;
 
         let configs = [ServiceConfig {
-            name: ServiceName::new(name.as_str()),
+            name: name.clone(),
             service_type: ServiceType::Mcp,
             port,
             enabled: false,
         }];
-        let result = reconciler
+        let result = t
+            .reconciler
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
+            .await
+            .expect("reconcile");
+
+        assert_eq!(result.stopped, vec![name.clone()], "{result:?}");
+        assert_eq!(
+            fetch_status(&t.repo, &name).await,
+            Some(ServiceStatus::Stopped)
+        );
+        assert!(
+            !subprocess::is_running(pid).await,
+            "the marked service process is stopped"
+        );
+
+        t.repo.delete_service(&name).await.expect("cleanup row");
+    }
+
+    #[tokio::test]
+    async fn disabled_service_with_an_unmarked_recorded_pid_fails_the_stop() {
+        let t = seeded().await;
+        let name = unique_name("rec-stop-foreign");
+        let (_holder, pid, port) = spawn_port_holder(None);
+        insert_service(&t.repo, &name, ServiceStatus::Running, Some(pid), port).await;
+
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port,
+            enabled: false,
+        }];
+        let result = t
+            .reconciler
             .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
         assert!(
-            result.stopped.iter().any(|n| n == name.as_str()),
-            "Disabled + Running must be stopped, got {result:?}"
+            result.failed.iter().any(|(n, _)| *n == name),
+            "a stop that cannot free the port is a failure, got {result:?}"
         );
-        let (status, _) = fetch_row(&pg, &name).await.expect("row present");
-        assert_eq!(status, "stopped");
-        wait_until_dead(&mut child).await;
+        assert!(
+            subprocess::is_running(pid).await,
+            "a recorded pid without this service's marker must never be signalled"
+        );
 
-        sqlx::query!("DELETE FROM services WHERE name = $1", name)
-            .execute(&*pg)
-            .await
-            .ok();
+        t.repo.delete_service(&name).await.expect("cleanup row");
     }
-}
-
-#[cfg(unix)]
-mod reconciler_noop_arm {
-    use super::*;
-
-    use std::io::{BufRead, BufReader};
-    use std::process::{Command, Stdio};
 
     #[tokio::test]
     async fn healthy_running_service_needs_no_action() {
-        let pool = test_db_pool().await;
-        let pg = pool.write_pool();
-        let reconciler = ServiceReconciler::new(
-            Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
-
-        let mut child = Command::new("python3")
-            .args([
-                "-c",
-                "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
-            ])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("spawn python3 port holder");
-        let stdout = child.stdout.take().expect("holder stdout");
-        let mut line = String::new();
-        BufReader::new(stdout)
-            .read_line(&mut line)
-            .expect("read holder port");
-        let port = line.trim().parse::<u16>().expect("holder port number");
-
-        let name = format!("rec-noop-{}", std::process::id());
-        sqlx::query!(
-            r#"
-            INSERT INTO services (instance_id, name, module_name, status, pid, port)
-            VALUES ('test-instance', $1, 'mcp', 'running', $2, $3)
-            ON CONFLICT (instance_id, name) DO UPDATE SET
-                status = EXCLUDED.status, pid = EXCLUDED.pid, port = EXCLUDED.port
-            "#,
-            name,
-            child.id() as i32,
-            i32::from(port),
-        )
-        .execute(&*pg)
-        .await
-        .expect("seed services row");
+        let t = seeded().await;
+        let name = unique_name("rec-noop");
+        let (_holder, pid, port) = spawn_port_holder(Some(&name));
+        insert_service(&t.repo, &name, ServiceStatus::Running, Some(pid), port).await;
 
         let configs = [ServiceConfig {
-            name: ServiceName::new(name.as_str()),
+            name: name.clone(),
             service_type: ServiceType::Mcp,
             port,
             enabled: true,
         }];
-        let result = reconciler
+        let result = t
+            .reconciler
             .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
         assert!(result.is_success());
-        assert!(
-            !result.started.iter().any(|n| n == name.as_str())
-                && !result.stopped.iter().any(|n| n == name.as_str())
-                && !result.restarted.iter().any(|n| n == name.as_str())
-                && !result.cleaned_up.iter().any(|n| n == name.as_str()),
+        assert_eq!(
+            result.total_actions(),
+            0,
             "Enabled + Running must take no action, got {result:?}"
         );
+        assert!(subprocess::is_running(pid).await);
 
-        child.kill().ok();
-        let _ = child.wait();
-        sqlx::query!("DELETE FROM services WHERE name = $1", name)
-            .execute(&*pg)
-            .await
-            .ok();
+        t.repo.delete_service(&name).await.expect("cleanup row");
     }
 }

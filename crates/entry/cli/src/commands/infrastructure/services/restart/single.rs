@@ -11,7 +11,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
-use systemprompt_scheduler::ProcessCleanup;
+use systemprompt_scheduler::{ServiceManagementService, port_holders};
 
 use super::super::lifecycle;
 use super::super::types::RestartOutput;
@@ -24,7 +24,7 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
     }
 
     let port = super::get_api_port();
-    let Some(pid) = ProcessCleanup::check_port(port) else {
+    let Some(pid) = port_holders(port).await?.first().copied() else {
         if !quiet {
             CliService::warning("API server is not running");
             CliService::info("Starting API server...");
@@ -44,10 +44,7 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
         CliService::info(&format!("Stopping API server (PID: {})...", pid));
     }
 
-    ProcessCleanup::terminate_gracefully(pid, 100).await;
-    ProcessCleanup::kill_port(port, pid);
-
-    ProcessCleanup::wait_for_port_free(port, 5, 500).await?;
+    ServiceManagementService::stop_api_by_port(port, false).await?;
 
     if !quiet {
         CliService::success("API server stopped");

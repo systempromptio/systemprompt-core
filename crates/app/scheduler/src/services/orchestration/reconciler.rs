@@ -5,16 +5,29 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
+use std::time::Duration;
 
 use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::{self, ChildKind};
 
-use super::process_cleanup::ProcessCleanup;
 use super::service_records::ServiceConfig;
-use super::state_types::ServiceAction;
+use super::state_types::{ServiceAction, ServiceType};
 use super::state_verifier::ServiceStateVerifier;
+use super::supervision::{stop_owned_port_holders, wait_for_port_free};
 use super::verified_state::VerifiedServiceState;
 use crate::error::SchedulerResult;
+
+const STOP_GRACE: Duration = Duration::from_millis(100);
+const PORT_RELEASE: Duration = Duration::from_secs(1);
+
+const fn child_kind_of(service_type: ServiceType) -> Option<ChildKind> {
+    match service_type {
+        ServiceType::Agent => Some(ChildKind::Agent),
+        ServiceType::Mcp => Some(ChildKind::Mcp),
+        ServiceType::Api => None,
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct ReconciliationResult {
@@ -165,7 +178,10 @@ impl ServiceReconciler {
         state: VerifiedServiceState,
         result: &mut ReconciliationResult,
     ) {
-        self.cleanup_process(&state).await;
+        if let Err(e) = self.cleanup_process(&state).await {
+            result.failed.push((state.name, e.to_string()));
+            return;
+        }
         match self.cleanup_db_entry(&state.name).await {
             Ok(()) => result.cleaned_up.push(state.name),
             Err(e) => result.failed.push((state.name, e.to_string())),
@@ -173,19 +189,20 @@ impl ServiceReconciler {
     }
 
     async fn stop_service(&self, state: &VerifiedServiceState) -> SchedulerResult<()> {
-        if let Some(pid) = state.pid {
-            ProcessCleanup::terminate_gracefully(pid, 100).await;
-            ProcessCleanup::kill_port(state.port, pid);
-        }
-        ProcessCleanup::wait_for_port_free(state.port, 5, 200).await?;
+        self.cleanup_process(state).await?;
+        wait_for_port_free(state.port, PORT_RELEASE).await?;
         self.update_service_stopped(&state.name).await
     }
 
-    async fn cleanup_process(&self, state: &VerifiedServiceState) {
+    async fn cleanup_process(&self, state: &VerifiedServiceState) -> SchedulerResult<()> {
+        let Some(kind) = child_kind_of(state.service_type) else {
+            return Ok(());
+        };
         if let Some(pid) = state.pid {
-            ProcessCleanup::terminate_gracefully(pid, 100).await;
-            ProcessCleanup::kill_port(state.port, pid);
+            subprocess::stop_owned(pid, kind, &state.name, STOP_GRACE).await?;
         }
+        stop_owned_port_holders(state.port, kind, &state.name, STOP_GRACE).await?;
+        Ok(())
     }
 
     async fn cleanup_db_entry(&self, name: &ServiceName) -> SchedulerResult<()> {

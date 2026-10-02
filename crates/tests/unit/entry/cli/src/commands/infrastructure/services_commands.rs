@@ -116,8 +116,8 @@ fn cleanup_helpers_render_reports_and_messages() {
     assert_eq!(json["title"], "Service Cleanup");
 }
 
-#[test]
-fn cleanup_dry_run_result_counts_services() {
+#[tokio::test]
+async fn cleanup_dry_run_result_counts_services() {
     let services = vec![ServiceConfig {
         instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: systemprompt_identifiers::ServiceName::new("svc-a"),
@@ -130,15 +130,16 @@ fn cleanup_dry_run_result_counts_services() {
         heartbeat_at: String::new(),
         updated_at: String::new(),
     }];
-    let out = cleanup::dry_run_result(&services, Some(999), 8080, false);
+    let out = cleanup::dry_run_result(&services, Some(999), 8080, false).await;
     let json = serde_json::to_value(out.artifact()).unwrap();
     assert_eq!(json["title"], "Service Cleanup (Dry Run)");
 
-    cleanup::log_service_state(&services[0]);
+    cleanup::log_service_state(&services[0]).await;
     cleanup::log_service_state(&ServiceConfig {
         pid: None,
         ..services[0].clone()
-    });
+    })
+    .await;
 }
 
 #[tokio::test]

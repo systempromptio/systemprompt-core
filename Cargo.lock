@@ -5100,7 +5100,6 @@ dependencies = [
  "hex",
  "inventory",
  "metrics",
- "nix",
  "opentelemetry-proto",
  "prost 0.14.4",
  "reqwest",

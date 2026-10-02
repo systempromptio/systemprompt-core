@@ -8,11 +8,14 @@ use std::fs;
 use std::path::Path;
 
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
-use systemprompt_cli::admin::agents::delete::{delete_single_agent, stop_verified_port_holder};
-use systemprompt_identifiers::AgentName;
+use systemprompt_cli::admin::agents::delete::delete_single_agent;
+use systemprompt_cli::admin::agents::process_stop::stop_verified_port_holder;
+use systemprompt_identifiers::{AgentName, ServiceName};
+use systemprompt_loader::subprocess::{self, ChildKind};
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
+use systemprompt_scheduler::port_holders;
 
 fn agent(name: &str) -> AgentConfig {
     AgentConfig {
@@ -66,35 +69,23 @@ fn write_agent(services: &Path, name: &str) {
     .unwrap();
 }
 
-#[test]
-fn nothing_recorded_and_no_port_is_stopped() {
-    assert!(stop_verified_port_holder(
-        &AgentName::new("ghost"),
-        None,
-        None
-    ));
+#[tokio::test]
+async fn nothing_recorded_and_no_port_is_stopped() {
+    assert!(stop_verified_port_holder(&AgentName::new("ghost"), None, None).await);
 }
 
-#[test]
-fn a_recorded_process_without_a_port_to_verify_is_not_assumed_stopped() {
-    assert!(!stop_verified_port_holder(
-        &AgentName::new("ghost"),
-        None,
-        Some(424242)
-    ));
+#[tokio::test]
+async fn a_recorded_process_without_a_port_to_verify_is_not_assumed_stopped() {
+    assert!(!stop_verified_port_holder(&AgentName::new("ghost"), None, Some(424242)).await);
 }
 
-#[test]
-fn an_unoccupied_port_is_stopped() {
+#[tokio::test]
+async fn an_unoccupied_port_is_stopped() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     drop(listener);
 
-    assert!(stop_verified_port_holder(
-        &AgentName::new("ghost"),
-        Some(port),
-        None
-    ));
+    assert!(stop_verified_port_holder(&AgentName::new("ghost"), Some(port), None).await);
 }
 
 #[test]
@@ -196,19 +187,25 @@ impl Drop for OwnedListenerChild {
     }
 }
 
-fn spawn_owned_listener() -> (OwnedListenerChild, u32, u16) {
+fn spawn_listener(marker: Option<&AgentName>) -> (OwnedListenerChild, u32, u16) {
     use std::io::BufRead;
     use std::process::Stdio;
 
-    let mut child = OwnedListenerChild(
-        std::process::Command::new(std::env::current_exe().expect("unit-test binary path"))
-            .args(["--exact", OWNED_LISTENER_HELPER, "--ignored", "--nocapture"])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect("spawn owned listener helper"),
-    );
+    let mut command =
+        std::process::Command::new(std::env::current_exe().expect("unit-test binary path"));
+    command
+        .args(["--exact", OWNED_LISTENER_HELPER, "--ignored", "--nocapture"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    if let Some(agent) = marker {
+        subprocess::mark_child(
+            &mut command,
+            ChildKind::Agent,
+            &ServiceName::of_agent(agent),
+        );
+    }
+    let mut child = OwnedListenerChild(command.spawn().expect("spawn owned listener helper"));
     let child_pid = child.0.id();
     let stdout = child.0.stdout.take().expect("helper stdout");
     let mut lines = std::io::BufReader::new(stdout).lines();
@@ -224,47 +221,71 @@ fn spawn_owned_listener() -> (OwnedListenerChild, u32, u16) {
     (child, child_pid, port)
 }
 
+async fn holders(port: u16) -> Vec<u32> {
+    port_holders(port).await.expect("read port holders")
+}
+
 // Why: agent delete used to kill whatever process held the agent's port.
-#[test]
-fn an_unverified_port_holder_is_never_killed() {
-    use systemprompt_scheduler::ProcessCleanup;
+#[tokio::test]
+async fn an_unverified_port_holder_is_never_killed() {
+    let (_child, child_pid, port) = spawn_listener(None);
+    assert_eq!(holders(port).await, vec![child_pid]);
 
-    let (_child, child_pid, port) = spawn_owned_listener();
-    assert_eq!(ProcessCleanup::check_port(port), Some(child_pid));
-
-    assert!(!stop_verified_port_holder(
-        &AgentName::new("stranger"),
-        Some(port),
-        None
-    ));
-    assert!(!stop_verified_port_holder(
-        &AgentName::new("stranger"),
-        Some(port),
-        Some(child_pid.wrapping_add(1))
-    ));
+    assert!(!stop_verified_port_holder(&AgentName::new("stranger"), Some(port), None).await);
+    assert!(
+        !stop_verified_port_holder(
+            &AgentName::new("stranger"),
+            Some(port),
+            Some(child_pid.wrapping_add(1))
+        )
+        .await
+    );
     assert_eq!(
-        ProcessCleanup::check_port(port),
-        Some(child_pid),
+        holders(port).await,
+        vec![child_pid],
         "a process that is not the agent's recorded pid must survive"
     );
 }
 
-#[test]
-fn the_recorded_agent_process_is_stopped() {
-    use systemprompt_scheduler::ProcessCleanup;
+#[tokio::test]
+async fn a_recorded_pid_without_the_agents_marker_is_never_killed() {
+    let (_child, child_pid, port) = spawn_listener(None);
 
-    let (mut child, child_pid, port) = spawn_owned_listener();
-    assert_eq!(ProcessCleanup::check_port(port), Some(child_pid));
-
-    assert!(stop_verified_port_holder(
-        &AgentName::new("owned-running"),
-        Some(port),
-        Some(child_pid)
-    ));
-
-    let status = child.0.wait().expect("reap owned listener helper");
     assert!(
-        !status.success(),
-        "the helper is terminated by the teardown path"
+        !stop_verified_port_holder(&AgentName::new("unmarked"), Some(port), Some(child_pid)).await
+    );
+    assert_eq!(
+        holders(port).await,
+        vec![child_pid],
+        "a recorded pid that carries no spawn marker must survive"
+    );
+}
+
+#[tokio::test]
+async fn a_recorded_pid_marked_for_another_agent_is_never_killed() {
+    let (_child, child_pid, port) = spawn_listener(Some(&AgentName::new("other-agent")));
+
+    assert!(
+        !stop_verified_port_holder(&AgentName::new("this-agent"), Some(port), Some(child_pid))
+            .await
+    );
+    assert_eq!(holders(port).await, vec![child_pid]);
+}
+
+#[tokio::test]
+async fn the_recorded_agent_process_is_stopped() {
+    let agent = AgentName::new("owned-running");
+    let (_child, child_pid, port) = spawn_listener(Some(&agent));
+    assert_eq!(holders(port).await, vec![child_pid]);
+
+    assert!(stop_verified_port_holder(&agent, Some(port), Some(child_pid)).await);
+
+    assert!(
+        !subprocess::is_running(child_pid).await,
+        "the marked, recorded holder is terminated by the teardown path"
+    );
+    assert!(
+        holders(port).await.is_empty(),
+        "the agent's port is released"
     );
 }

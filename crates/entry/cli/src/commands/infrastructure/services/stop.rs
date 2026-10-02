@@ -9,6 +9,7 @@ use crate::shared::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, ServiceName};
+use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
 use systemprompt_models::services::ServiceModule;
 use systemprompt_runtime::AppContext;
@@ -73,11 +74,11 @@ pub(super) async fn execute(
 async fn stop_api(force: bool, quiet: bool) -> Result<()> {
     let port = get_api_port();
 
-    let stopped_pid = ServiceManagementService::stop_api_by_port(port, force).await?;
-    if let Some(pid) = stopped_pid
-        && !quiet
-    {
-        CliService::info(&format!("Stopping API server (PID: {})...", pid));
+    let stopped = ServiceManagementService::stop_api_by_port(port, force).await?;
+    if !quiet {
+        for pid in stopped {
+            CliService::info(&format!("Stopped API server (PID: {})", pid));
+        }
     }
 
     if !quiet {
@@ -107,8 +108,13 @@ async fn stop_agents(
         if !quiet {
             CliService::info(&format!("Stopping {}...", agent.name));
         }
-        service_mgmt.stop_service(agent, force).await?;
-        stopped += 1;
+        if record_stop(
+            &agent.name,
+            service_mgmt.stop_service(agent, force).await?,
+            quiet,
+        ) {
+            stopped += 1;
+        }
     }
 
     if !quiet {
@@ -138,14 +144,33 @@ async fn stop_mcp_servers(
         if !quiet {
             CliService::info(&format!("Stopping {}...", server.name));
         }
-        service_mgmt.stop_service(server, force).await?;
-        stopped += 1;
+        if record_stop(
+            &server.name,
+            service_mgmt.stop_service(server, force).await?,
+            quiet,
+        ) {
+            stopped += 1;
+        }
     }
 
     if !quiet {
         CliService::success(&format!("Stopped {} MCP servers", stopped));
     }
     Ok(stopped)
+}
+
+fn record_stop(name: &ServiceName, outcome: StopOutcome, quiet: bool) -> bool {
+    match outcome {
+        StopOutcome::Stopped(_) | StopOutcome::NotRunning => true,
+        StopOutcome::NotOurs => {
+            if !quiet {
+                CliService::warning(&format!(
+                    "{name}: the recorded process is not this service's child; left it running"
+                ));
+            }
+            false
+        },
+    }
 }
 
 pub(super) async fn execute_individual_agent(
