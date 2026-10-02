@@ -223,13 +223,13 @@ async fn build_file_record(
     path: &Path,
 ) -> File {
     let now = Utc::now();
-    let size_bytes = tokio::fs::metadata(path)
-        .await
-        .map(|m| m.len() as i64)
-        .inspect_err(
-            |e| tracing::debug!(error = %e, path = %path.display(), "Failed to get file size"),
-        )
-        .ok();
+    let size_bytes = match tokio::fs::metadata(path).await {
+        Ok(metadata) => Some(metadata.len() as i64),
+        Err(e) => {
+            tracing::debug!(error = %e, path = %path.display(), "Failed to get file size");
+            None
+        },
+    };
 
     File {
         id: FileId::generate(),
