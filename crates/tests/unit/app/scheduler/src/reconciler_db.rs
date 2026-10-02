@@ -10,8 +10,8 @@ use systemprompt_identifiers::ServiceName;
 
 use systemprompt_models::ServiceType;
 use systemprompt_scheduler::{
-    DesiredStatus, ReconciliationResult, ServiceAction, ServiceConfig, ServiceReconciler,
-    ServiceStateVerifier,
+    DesiredStatus, ReconciliationResult, SchedulerError, ServiceAction, ServiceConfig,
+    ServiceReconciler, ServiceStateVerifier,
 };
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -189,8 +189,7 @@ mod reconciler_db {
 
         let result = reconciler
             .reconcile(&configs, |_name: ServiceName, _port: u16| async {
-                Err(Box::new(std::io::Error::other("simulated start failure"))
-                    as Box<dyn std::error::Error + Send + Sync>)
+                Err(SchedulerError::Io(std::io::Error::other("simulated start failure")))
             })
             .await
             .expect("reconcile itself must not fail even if start_service does");
@@ -601,8 +600,7 @@ mod reconciler_action_arms {
         }];
         let result = reconciler
             .reconcile(&configs, |_n: ServiceName, _p: u16| async {
-                Err(Box::new(std::io::Error::other("boot refused"))
-                    as Box<dyn std::error::Error + Send + Sync>)
+                Err(SchedulerError::Io(std::io::Error::other("boot refused")))
             })
             .await
             .expect("reconcile");
