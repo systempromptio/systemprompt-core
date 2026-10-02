@@ -46,7 +46,7 @@ async fn importing_captured_skills_retains_one_snapshot_and_immutable_files_per_
         imported
             .revisions
             .keys()
-            .map(String::as_str)
+            .map(SkillId::as_str)
             .collect::<Vec<_>>(),
         ["alpha", "beta"]
     );
@@ -62,7 +62,7 @@ async fn importing_captured_skills_retains_one_snapshot_and_immutable_files_per_
         let resource = resources
             .items
             .iter()
-            .find(|item| item.resource_key == *key)
+            .find(|item| item.resource_key == key.as_str())
             .unwrap();
         assert_eq!(resource.kind, ResourceKind::Skill);
         assert_eq!(resource.source_id, source);

@@ -70,7 +70,7 @@ async fn serve_default_marketplace_json(
 
     let (id, marketplace) = service.resolve_default()?;
 
-    let body = serde_json::to_vec_pretty(&render_marketplace_json(id.as_str(), marketplace))
+    let body = serde_json::to_vec_pretty(&render_marketplace_json(id, marketplace))
         .map_err(MarketplaceRouteError::Render)?;
 
     Ok((
@@ -112,7 +112,7 @@ async fn get_marketplace(
 
     let marketplace = service.get(&id)?;
 
-    let body = serde_json::to_vec_pretty(&render_marketplace_json(id.as_str(), marketplace))
+    let body = serde_json::to_vec_pretty(&render_marketplace_json(&id, marketplace))
         .map_err(MarketplaceRouteError::Render)?;
 
     Ok((

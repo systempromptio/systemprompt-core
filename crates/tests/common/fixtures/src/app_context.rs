@@ -36,7 +36,7 @@ pub fn fixture_analytics_repositories(
     Ok(
         systemprompt_analytics::repository::AnalyticsRepositories::new(
             db,
-            Arc::new(systemprompt_users::sessions::SessionRepository::new(db)),
+            Arc::new(systemprompt_users::SessionRepository::new(db)),
             Arc::new(systemprompt_logging::AnalyticsRepository::new(db)),
             Arc::new(systemprompt_content::repository::ContentRepository::new(db)),
         ),
@@ -46,7 +46,7 @@ pub fn fixture_analytics_repositories(
 pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintRepository> {
     Ok(FingerprintRepository::new(
         db,
-        Arc::new(systemprompt_users::sessions::SessionRepository::new(db)),
+        Arc::new(systemprompt_users::SessionRepository::new(db)),
     ))
 }
 

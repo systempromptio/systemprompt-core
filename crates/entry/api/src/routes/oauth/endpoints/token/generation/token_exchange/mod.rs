@@ -22,12 +22,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt_with_act};
+use systemprompt_oauth::services::{
+    DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_jwt_with_act,
+};
 
 use super::super::{TokenError, TokenResponse, TokenResult};
 use super::RequestOrigin;
@@ -115,14 +117,14 @@ pub async fn handle_token_exchange(
         issuer: &global.jwt_issuer,
     };
 
-    let access_token = generate_jwt_with_act(
-        &delegated_user,
+    let access_token = generate_jwt_with_act(DelegatedJwtParams {
+        user: &delegated_user,
         config,
-        systemprompt_identifiers::AccessTokenId::generate(),
-        &session_id,
-        &signing,
+        jti: AccessTokenId::generate(),
+        session_id: &session_id,
+        signing: &signing,
         act,
-    )
+    })
     .map_err(|e| TokenError::server("Access token signing failed", e))?;
 
     let scope_string = final_perms
