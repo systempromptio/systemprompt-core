@@ -71,7 +71,7 @@ fn repository_error_variants_map_to_http_statuses() {
         ),
         (RepositoryError::invalid_argument("state", "bad"), 400),
         (RepositoryError::invalid_data("agent_name", "corrupt"), 500),
-        (RepositoryError::Internal("boom".into()), 500),
+        (RepositoryError::TransactionConsumed, 500),
         (
             RepositoryError::database(std::io::Error::other("down")),
             500,

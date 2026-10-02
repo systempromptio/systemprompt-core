@@ -66,10 +66,14 @@ impl DatabaseProvider for ResultProvider {
         Ok(None)
     }
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
-        Err(RepositoryError::internal("unused fixture transaction"))
+        Err(RepositoryError::database(std::io::Error::other(
+            "unused fixture transaction",
+        )))
     }
     async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
-        Err(RepositoryError::internal("unused fixture info"))
+        Err(RepositoryError::database(std::io::Error::other(
+            "unused fixture info",
+        )))
     }
     async fn test_connection(&self) -> DatabaseResult<()> {
         Ok(())

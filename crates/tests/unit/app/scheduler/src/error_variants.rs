@@ -36,10 +36,12 @@ mod additional_variants {
 
     #[test]
     fn distributed_lock_message() {
-        let err = SchedulerError::DistributedLock(RepositoryError::internal("connection refused"));
+        let err = SchedulerError::DistributedLock(RepositoryError::database(
+            std::io::Error::other("connection refused"),
+        ));
         assert_eq!(
             err.to_string(),
-            "Distributed lock error: internal repository error: connection refused"
+            "Distributed lock error: database error: connection refused"
         );
     }
 
@@ -94,7 +96,9 @@ mod additional_variants {
             (SchedulerError::from(missing::<u8>()), "MissingContext"),
             (SchedulerError::panic("boom"), "Panic"),
             (
-                SchedulerError::DistributedLock(RepositoryError::internal("lock err")),
+                SchedulerError::DistributedLock(RepositoryError::database(std::io::Error::other(
+                    "lock err",
+                ))),
                 "DistributedLock",
             ),
             (SchedulerError::AlreadyRunning, "AlreadyRunning"),
@@ -129,7 +133,7 @@ mod error_source_chain {
     #[test]
     fn typed_cause_variants_expose_their_source() {
         assert!(
-            SchedulerError::DistributedLock(RepositoryError::internal("x"))
+            SchedulerError::DistributedLock(RepositoryError::database(std::io::Error::other("x")))
                 .source()
                 .is_some()
         );

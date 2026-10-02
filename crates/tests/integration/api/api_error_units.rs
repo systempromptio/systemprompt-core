@@ -457,7 +457,9 @@ fn oauth_error_variants_classify() {
             StatusCode::UNAUTHORIZED,
         ),
         (
-            OauthError::Repository(RepositoryError::internal("pool closed")),
+            OauthError::Repository(RepositoryError::database(std::io::Error::other(
+                "pool closed",
+            ))),
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
         (

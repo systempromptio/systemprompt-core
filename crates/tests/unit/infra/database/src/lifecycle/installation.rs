@@ -569,7 +569,9 @@ mod transaction_failures {
 
         async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
             if self.fail_at == FailAt::Begin {
-                return Err(RepositoryError::internal("cannot begin"));
+                return Err(RepositoryError::database(std::io::Error::other(
+                    "cannot begin",
+                )));
             }
             Ok(Box::new(FailingTx {
                 fail_at: self.fail_at,
@@ -619,7 +621,9 @@ mod transaction_failures {
             _params: &[&dyn ToDbValue],
         ) -> DatabaseResult<u64> {
             if self.fail_at == FailAt::Statement {
-                return Err(RepositoryError::internal("statement rejected"));
+                return Err(RepositoryError::database(std::io::Error::other(
+                    "statement rejected",
+                )));
             }
             Ok(0)
         }
@@ -650,7 +654,9 @@ mod transaction_failures {
 
         async fn commit(self: Box<Self>) -> DatabaseResult<()> {
             if self.fail_at == FailAt::Commit {
-                return Err(RepositoryError::internal("cannot commit"));
+                return Err(RepositoryError::database(std::io::Error::other(
+                    "cannot commit",
+                )));
             }
             Ok(())
         }

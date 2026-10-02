@@ -80,7 +80,9 @@ fn oauth_internal_kinds_map_to_server_error() {
     for err in [
         OauthError::Internal("i"),
         OauthError::WebAuthnConfig("not configured"),
-        OauthError::Repository(RepositoryError::internal("pool closed")),
+        OauthError::Repository(RepositoryError::database(std::io::Error::other(
+            "pool closed",
+        ))),
         OauthError::InvalidTokenLifetime { seconds: 0 },
     ] {
         let e: OAuthHttpError = err.into();

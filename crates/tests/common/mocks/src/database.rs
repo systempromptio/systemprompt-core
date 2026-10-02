@@ -137,7 +137,7 @@ impl MockDatabaseProviderBuilder {
 }
 
 fn convert_result<T>(result: std::result::Result<T, String>) -> DatabaseResult<T> {
-    result.map_err(RepositoryError::internal)
+    result.map_err(RepositoryError::database)
 }
 
 #[async_trait]
