@@ -1,7 +1,7 @@
 // JwtTokenValidator: config-driven construction and decode arms.
 
 use systemprompt_identifiers::UserId;
-use systemprompt_models::auth::{AuthError, JwtAudience};
+use systemprompt_models::auth::{AuthRequestError, JwtAudience};
 use systemprompt_oauth::TokenValidator;
 use systemprompt_oauth::services::JwtTokenValidator;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, mint_admin_jwt};
@@ -75,7 +75,7 @@ async fn validate_token_rejects_sentinel_subject() {
         .await
         .expect_err("the retired sentinel is not a subject");
     assert!(
-        matches!(err, AuthError::InvalidTokenFormat),
+        matches!(err, AuthRequestError::InvalidTokenFormat),
         "expected InvalidTokenFormat, got {err:?}"
     );
 }

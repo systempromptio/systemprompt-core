@@ -81,4 +81,4 @@ pub use services::{
 };
 
 pub use state::OAuthState;
-pub use systemprompt_models::auth::{AuthError, AuthenticatedUser, BEARER_PREFIX};
+pub use systemprompt_models::auth::{AuthRequestError, AuthenticatedUser, BEARER_PREFIX};

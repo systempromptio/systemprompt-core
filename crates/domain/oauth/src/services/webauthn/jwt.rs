@@ -6,7 +6,7 @@
 use crate::TokenValidator;
 use crate::error::OauthError;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::auth::{AuthError, AuthenticatedUser, JwtAudience};
+use systemprompt_models::auth::{AuthRequestError, AuthenticatedUser, JwtAudience};
 
 use crate::services::validation::jwt;
 
@@ -21,10 +21,10 @@ impl JwtTokenValidator {
         Self { issuer, audiences }
     }
 
-    pub fn from_config() -> Result<Self, AuthError> {
+    pub fn from_config() -> Result<Self, AuthRequestError> {
         let config = systemprompt_models::Config::get().map_err(|error| {
             tracing::error!(%error, "JWT validator could not read the configuration");
-            AuthError::AuthenticationFailed {
+            AuthRequestError::AuthenticationFailed {
                 message: "token validator is not configured".to_owned(),
             }
         })?;
@@ -41,14 +41,14 @@ impl TokenValidator for JwtTokenValidator {
         reason = "async signature required by the TokenValidator trait; this \
                   validator decodes the JWT synchronously"
     )]
-    async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthError> {
+    async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthRequestError> {
         let claims =
             jwt::validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|error| {
                 match error {
-                    OauthError::Expired(_) => AuthError::TokenExpired,
+                    OauthError::Expired(_) => AuthRequestError::TokenExpired,
                     other => {
                         tracing::debug!(error = %other, "JWT validation failed");
-                        AuthError::AuthenticationFailed {
+                        AuthRequestError::AuthenticationFailed {
                             message: "JWT validation failed".to_owned(),
                         }
                     },
@@ -56,7 +56,7 @@ impl TokenValidator for JwtTokenValidator {
             })?;
 
         let user_id = UserId::try_new(claims.sub.as_str())
-            .map_err(|_invalid| AuthError::InvalidTokenFormat)?;
+            .map_err(|_invalid| AuthRequestError::InvalidTokenFormat)?;
 
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();

@@ -129,7 +129,7 @@ pub use api::{
 pub use artifacts::{
     Alignment, ArtifactType, AxisType, ChartType, CliArtifact, ColumnType, TableArtifact,
 };
-pub use auth::{AuthError, BaseRoles};
+pub use auth::{AuthRequestError, BaseRoles};
 pub use config::{Config, PathNotConfiguredError};
 pub use content::IngestionReport;
 pub use content_config::{

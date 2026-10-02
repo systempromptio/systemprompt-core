@@ -1,8 +1,9 @@
 //! Authenticated-principal and OAuth request types.
 //!
 //! [`AuthenticatedUser`] is the resolved principal carried through a request;
-//! [`AuthError`] is the crate's authentication/OAuth error enum. [`PkceMethod`]
-//! and [`ResponseType`] model the OAuth authorization-request parameters.
+//! [`AuthRequestError`] is the crate's authentication/OAuth error enum.
+//! [`PkceMethod`] and [`ResponseType`] model the OAuth authorization-request
+//! parameters.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -103,7 +104,7 @@ impl AuthenticatedUser {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum AuthError {
+pub enum AuthRequestError {
     #[error("Invalid token format")]
     InvalidTokenFormat,
 
@@ -162,15 +163,15 @@ pub enum PkceMethod {
 }
 
 impl std::str::FromStr for PkceMethod {
-    type Err = AuthError;
+    type Err = AuthRequestError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "S256" => Ok(Self::S256),
-            "plain" => Err(AuthError::WeakPkceMethod {
+            "plain" => Err(AuthRequestError::WeakPkceMethod {
                 method: s.to_owned(),
             }),
-            _ => Err(AuthError::InvalidRequest {
+            _ => Err(AuthRequestError::InvalidRequest {
                 reason: format!("Unknown PKCE method: {s}"),
             }),
         }
@@ -192,13 +193,13 @@ pub enum ResponseType {
 }
 
 impl std::str::FromStr for ResponseType {
-    type Err = AuthError;
+    type Err = AuthRequestError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "code" => Ok(Self::Code),
             "token" => Ok(Self::Token),
-            _ => Err(AuthError::InvalidRequest {
+            _ => Err(AuthRequestError::InvalidRequest {
                 reason: format!("Unknown response type: {s}"),
             }),
         }

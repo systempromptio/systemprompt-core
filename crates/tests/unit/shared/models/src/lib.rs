@@ -9,7 +9,7 @@
 //!   etc.)
 //! - Configuration models (Environment)
 //! - Event system models (SystemEventType, A2AEventType)
-//! - Authentication models (BaseRoles, AuthError)
+//! - Authentication models (BaseRoles, AuthRequestError)
 //! - Execution models (ExecutionStep, RequestContext, CallSource)
 //! - Validators (AgentConfig, AiConfig, Content, Mcp, Skills, RateLimits, Web)
 

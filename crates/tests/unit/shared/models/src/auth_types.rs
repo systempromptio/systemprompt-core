@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_models::auth::{
-    AuthError, AuthenticatedUser, Permission, PkceMethod, ResponseType, UserType,
+    AuthRequestError, AuthenticatedUser, Permission, PkceMethod, ResponseType, UserType,
 };
 
 fn user_with_perms(perms: Vec<Permission>) -> AuthenticatedUser {
@@ -81,83 +81,87 @@ fn authenticated_user_user_type_derives_from_permissions() {
 #[test]
 fn auth_error_displays_have_useful_text() {
     assert!(
-        AuthError::InvalidTokenFormat
+        AuthRequestError::InvalidTokenFormat
             .to_string()
             .contains("Invalid")
     );
-    assert!(AuthError::TokenExpired.to_string().contains("expired"));
     assert!(
-        AuthError::InvalidSignature
+        AuthRequestError::TokenExpired
+            .to_string()
+            .contains("expired")
+    );
+    assert!(
+        AuthRequestError::InvalidSignature
             .to_string()
             .contains("signature")
     );
-    assert!(AuthError::UserNotFound.to_string().contains("User"));
+    assert!(AuthRequestError::UserNotFound.to_string().contains("User"));
     assert!(
-        AuthError::InsufficientPermissions
+        AuthRequestError::InsufficientPermissions
             .to_string()
             .contains("permission")
     );
     assert!(
-        AuthError::AuthenticationFailed {
+        AuthRequestError::AuthenticationFailed {
             message: "bad pwd".to_owned()
         }
         .to_string()
         .contains("bad pwd")
     );
     assert!(
-        AuthError::InvalidRequest {
+        AuthRequestError::InvalidRequest {
             reason: "missing".to_owned()
         }
         .to_string()
         .contains("missing")
     );
-    assert!(AuthError::MissingState.to_string().contains("CSRF"));
+    assert!(AuthRequestError::MissingState.to_string().contains("CSRF"));
     assert!(
-        AuthError::InvalidRedirectUri
+        AuthRequestError::InvalidRedirectUri
             .to_string()
             .contains("Redirect")
     );
     assert!(
-        AuthError::MissingCodeChallenge
+        AuthRequestError::MissingCodeChallenge
             .to_string()
             .contains("code_challenge")
     );
     assert!(
-        AuthError::WeakPkceMethod {
+        AuthRequestError::WeakPkceMethod {
             method: "plain".to_owned()
         }
         .to_string()
         .contains("plain")
     );
     assert!(
-        AuthError::ClientNotFound {
+        AuthRequestError::ClientNotFound {
             client_id: ClientId::new("c1")
         }
         .to_string()
         .contains("c1")
     );
     assert!(
-        AuthError::InvalidScope {
+        AuthRequestError::InvalidScope {
             scope: "x".to_owned()
         }
         .to_string()
         .contains("x")
     );
     assert!(
-        AuthError::UnauthenticatedRevocation
+        AuthRequestError::UnauthenticatedRevocation
             .to_string()
             .contains("revocation")
     );
-    assert!(AuthError::InvalidRpId.to_string().contains("RP"));
+    assert!(AuthRequestError::InvalidRpId.to_string().contains("RP"));
     assert!(
-        AuthError::RegistrationFailed {
+        AuthRequestError::RegistrationFailed {
             reason: "bad".to_owned()
         }
         .to_string()
         .contains("bad")
     );
     assert!(
-        AuthError::Internal("x".to_owned())
+        AuthRequestError::Internal("x".to_owned())
             .to_string()
             .contains("x")
     );
@@ -172,13 +176,13 @@ fn pkce_method_round_trips_s256() {
 #[test]
 fn pkce_method_rejects_plain_as_weak() {
     let err = PkceMethod::from_str("plain").unwrap_err();
-    assert!(matches!(err, AuthError::WeakPkceMethod { .. }));
+    assert!(matches!(err, AuthRequestError::WeakPkceMethod { .. }));
 }
 
 #[test]
 fn pkce_method_rejects_unknown_as_invalid_request() {
     let err = PkceMethod::from_str("other").unwrap_err();
-    assert!(matches!(err, AuthError::InvalidRequest { .. }));
+    assert!(matches!(err, AuthRequestError::InvalidRequest { .. }));
 }
 
 #[test]
@@ -195,5 +199,5 @@ fn response_type_round_trips_code_and_token() {
 #[test]
 fn response_type_rejects_unknown() {
     let err = ResponseType::from_str("garbage").unwrap_err();
-    assert!(matches!(err, AuthError::InvalidRequest { .. }));
+    assert!(matches!(err, AuthRequestError::InvalidRequest { .. }));
 }
