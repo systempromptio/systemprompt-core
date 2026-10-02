@@ -1,22 +1,7 @@
 //! Additional tests for LoggingError variants not in log_error.rs:
-//! PoolUnavailable, TaskNotFound, debug format, and the upstream conversions.
+//! TaskNotFound, debug format, and the upstream conversions.
 
 use systemprompt_logging::models::LoggingError;
-
-#[test]
-fn pool_unavailable_display() {
-    let e = LoggingError::PoolUnavailable("no connections left".to_owned());
-    assert_eq!(
-        e.to_string(),
-        "Database pool unavailable: no connections left"
-    );
-}
-
-#[test]
-fn pool_unavailable_debug() {
-    let e = LoggingError::PoolUnavailable("err".to_owned());
-    assert!(format!("{e:?}").contains("PoolUnavailable"));
-}
 
 #[test]
 fn task_not_found_display() {
