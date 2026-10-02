@@ -110,7 +110,11 @@ impl JtiRevocationCache {
     }
 
     pub fn peek(&self, jti: &AccessTokenId) -> Option<bool> {
-        let mut guard = self.cache.lock().ok()?;
+        let mut guard = self
+            .cache
+            .lock()
+            .inspect_err(|e| tracing::warn!(error = %e, "JTI revocation cache lock is poisoned"))
+            .ok()?;
         match guard.get(jti).copied()? {
             CacheEntry::Revoked => Some(true),
             CacheEntry::NotRevoked { inserted_at } => {

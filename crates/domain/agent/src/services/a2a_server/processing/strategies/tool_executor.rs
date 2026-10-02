@@ -72,10 +72,11 @@ impl ToolExecutorTrait for ContextToolExecutor {
         })?;
         Ok(ToolOutcome {
             output,
-            meta: result
-                .meta
-                .as_ref()
-                .and_then(|m| serde_json::to_value(m).ok()),
+            meta: result.meta.as_ref().and_then(|m| {
+                serde_json::to_value(m)
+                    .inspect_err(|e| tracing::warn!(error = %e, "Failed to serialize tool meta"))
+                    .ok()
+            }),
         })
     }
 }

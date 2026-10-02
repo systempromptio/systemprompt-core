@@ -158,10 +158,13 @@ impl ToolUsageRepository {
             .completed_at
             .map(|done| (done - request.started_at).num_milliseconds() as i32);
         let input_str = serde_json::to_string(&request.input)?;
-        let output_str = result
-            .output
-            .as_ref()
-            .and_then(|v| serde_json::to_string(v).ok());
+        let output_str = result.output.as_ref().and_then(|v| {
+            serde_json::to_string(v)
+                .inspect_err(|e| {
+                    tracing::warn!(error = %e, "Failed to serialize tool execution output");
+                })
+                .ok()
+        });
         let (actor_kind, actor_id) = request.context.auth.actor.audit_columns();
 
         sqlx::query!(

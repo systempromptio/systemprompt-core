@@ -99,14 +99,19 @@ impl TokenProvider {
             return Ok(cached);
         }
         let fresh = self.fetch(now_unix).await?;
-        if let Ok(mut guard) = self.cache.write() {
-            *guard = Some(fresh.clone());
+        match self.cache.write() {
+            Ok(mut guard) => *guard = Some(fresh.clone()),
+            Err(e) => tracing::warn!(error = %e, "Teams token cache lock is poisoned"),
         }
         Ok(fresh.access_token)
     }
 
     fn cached_valid(&self, now_unix: i64) -> Option<String> {
-        let guard = self.cache.read().ok()?;
+        let guard = self
+            .cache
+            .read()
+            .inspect_err(|e| tracing::warn!(error = %e, "Teams token cache lock is poisoned"))
+            .ok()?;
         let token = guard
             .as_ref()
             .filter(|cached| cached.is_valid(now_unix))

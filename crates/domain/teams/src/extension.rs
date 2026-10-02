@@ -28,7 +28,9 @@ impl Extension for TeamsExtension {
 
     // JSON: JSON Schema document for the extension's config block.
     fn config_schema(&self) -> Option<JsonValue> {
-        serde_json::to_value(schemars::schema_for!(BTreeMap<String, TeamsAppConfig>)).ok()
+        serde_json::to_value(schemars::schema_for!(BTreeMap<String, TeamsAppConfig>))
+            .inspect_err(|e| tracing::warn!(error = %e, "Failed to serialize Teams config schema"))
+            .ok()
     }
 
     // JSON: Extension config block from the profile YAML; the extension owns it.

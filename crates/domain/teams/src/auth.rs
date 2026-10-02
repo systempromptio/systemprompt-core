@@ -123,17 +123,24 @@ impl ActivityTokenVerifier {
         }
         let keys = self.fetch_keys().await?;
         let jwk = keys.get(kid).cloned();
-        if let Ok(mut guard) = self.cache.write() {
-            *guard = Some(KeyCache {
-                keys,
-                refreshed_at_unix: now_unix,
-            });
+        match self.cache.write() {
+            Ok(mut guard) => {
+                *guard = Some(KeyCache {
+                    keys,
+                    refreshed_at_unix: now_unix,
+                });
+            },
+            Err(e) => tracing::warn!(error = %e, "Teams signing-key cache lock is poisoned"),
         }
         jwk.ok_or_else(|| TeamsError::TokenValidation(format!("unknown signing key '{kid}'")))
     }
 
     fn cached_key(&self, kid: &str, now_unix: i64) -> Option<Jwk> {
-        let guard = self.cache.read().ok()?;
+        let guard = self
+            .cache
+            .read()
+            .inspect_err(|e| tracing::warn!(error = %e, "Teams signing-key cache lock is poisoned"))
+            .ok()?;
         let jwk = guard.as_ref().and_then(|cache| {
             if now_unix - cache.refreshed_at_unix >= JWKS_TTL_SECS {
                 None

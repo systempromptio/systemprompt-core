@@ -214,10 +214,11 @@ pub fn convert_to_call_tool_results(state: &ExecutionState) -> Vec<CallToolResul
                 CallToolResult::error(vec![ContentBlock::text(text_content)])
             };
             result.structured_content = Some(r.output.clone());
-            result.meta = r
-                .meta
-                .as_ref()
-                .and_then(|m| serde_json::from_value(m.clone()).ok());
+            result.meta = r.meta.as_ref().and_then(|m| {
+                serde_json::from_value(m.clone())
+                    .inspect_err(|e| tracing::warn!(error = %e, "Failed to decode tool meta"))
+                    .ok()
+            });
             result
         })
         .collect()

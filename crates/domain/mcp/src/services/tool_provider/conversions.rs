@@ -42,9 +42,10 @@ pub fn to_tool_result(rmcp_result: &rmcp::model::CallToolResult) -> ToolCallResu
         content,
         structured_content: rmcp_result.structured_content.clone(),
         is_error: rmcp_result.is_error,
-        meta: rmcp_result
-            .meta
-            .as_ref()
-            .and_then(|m| serde_json::to_value(m).ok()),
+        meta: rmcp_result.meta.as_ref().and_then(|m| {
+            serde_json::to_value(m)
+                .inspect_err(|e| tracing::warn!(error = %e, "Failed to serialize tool meta"))
+                .ok()
+        }),
     }
 }
