@@ -9,7 +9,7 @@
 //!
 //! Public re-exports:
 //!
-//! - [`ParseEnumError`], [`ConfigError`] — string parsing failures.
+//! - [`ParseEnumError`], [`GlobalConfigError`] — string parsing failures.
 //! - [`ServicesValidationError`] — services / agents / plugins validation.
 //! - [`MetadataError`] — MCP `_meta` payload decoding.
 //! - [`SecretsError`] — on-disk secrets document.

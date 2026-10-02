@@ -2,8 +2,7 @@
 //!
 //! The host's global security-headers middleware sets `X-Frame-Options`
 //! sitewide. An extension that must allow its pages to be framed (embed
-//! widgets, chrome-free tool pages) declares a
-//! [`FrameOptions`](systemprompt_provider_contracts::FrameOptions) on its
+//! widgets, chrome-free tool pages) declares a [`FrameOptions`] on its
 //! router; [`stamp_frame_options`] records the choice as a
 //! [`FrameOptionsOverride`] response extension, which the host middleware
 //! honours instead of the profile default. Setting the raw header without
