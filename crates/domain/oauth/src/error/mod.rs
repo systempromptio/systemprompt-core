@@ -115,6 +115,9 @@ pub enum OauthError {
     #[error("secrets unavailable: {0}")]
     Secrets(#[from] systemprompt_config::SecretsBootstrapError),
 
+    #[error("at-rest hashing failed: {0}")]
+    AtRestHash(#[from] systemprompt_security::AtRestHashError),
+
     #[error("signing key unavailable: {0}")]
     SigningKey(#[from] systemprompt_security::keys::TokenAuthorityError),
 

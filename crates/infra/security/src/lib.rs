@@ -74,7 +74,7 @@ pub mod policy;
 pub mod services;
 pub mod session;
 
-pub use at_rest::{hmac_sha256, hmac_sha256_hex};
+pub use at_rest::{AtRestHashError, hmac_sha256, hmac_sha256_hex};
 
 pub use auth::{AuthValidationService, HookTokenValidator, ValidatedHookClaims};
 pub use authz::CompositeAuthzHook;

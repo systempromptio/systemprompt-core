@@ -13,5 +13,5 @@ pub(super) fn hash_at_rest(value: &str) -> OauthResult<String> {
     Ok(systemprompt_security::hmac_sha256_hex(
         pepper.as_bytes(),
         value.as_bytes(),
-    ))
+    )?)
 }

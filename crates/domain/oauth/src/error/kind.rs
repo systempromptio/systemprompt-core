@@ -81,6 +81,7 @@ impl OauthError {
             | Self::Repository(_)
             | Self::Config(_)
             | Self::Secrets(_)
+            | Self::AtRestHash(_)
             | Self::SigningKey(_)
             | Self::Signing(_)
             | Self::InvalidTokenLifetime { .. }
