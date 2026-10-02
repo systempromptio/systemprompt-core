@@ -10,7 +10,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{CloudAppId, CloudUserId, TenantId};
 
 pub use systemprompt_models::profile::ProfileInfo;
 
@@ -65,7 +65,7 @@ pub struct LoginTenantInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LoginUserInfo {
-    pub id: String,
+    pub id: CloudUserId,
     pub email: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -123,7 +123,7 @@ pub struct TenantDetailOutput {
     pub name: String,
     pub tenant_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub app_id: Option<String>,
+    pub app_id: Option<CloudAppId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

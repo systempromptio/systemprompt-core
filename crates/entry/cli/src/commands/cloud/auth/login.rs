@@ -101,7 +101,7 @@ pub fn build_login_output(
     tenants_path: &std::path::Path,
 ) -> LoginOutput {
     let user = LoginUserInfo {
-        id: response.user.id.as_str().to_owned(),
+        id: response.user.id.clone(),
         email: response.user.email.clone(),
         name: response.user.name.clone(),
     };

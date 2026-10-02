@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::{Args, Subcommand};
 use serde::Serialize;
@@ -54,8 +54,8 @@ pub struct RevokeArgs {
     #[arg(long)]
     pub user: UserId,
 
-    #[arg(long)]
-    pub id: String,
+    #[arg(long, value_parser = crate::shared::parse_api_key_id)]
+    pub id: ApiKeyId,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -140,8 +140,7 @@ async fn list(service: &ApiKeyService, args: &ListArgs) -> Result<CommandOutput>
 }
 
 async fn revoke(service: &ApiKeyService, args: &RevokeArgs) -> Result<CommandOutput> {
-    let key_id = ApiKeyId::try_new(args.id.clone()).context("Invalid --id")?;
-    let revoked = service.revoke(&key_id, &args.user).await?;
+    let revoked = service.revoke(&args.id, &args.user).await?;
     if revoked {
         #[derive(Debug, Serialize)]
         struct RevokedOutput {
@@ -149,7 +148,7 @@ async fn revoke(service: &ApiKeyService, args: &RevokeArgs) -> Result<CommandOut
             message: String,
         }
         let output = RevokedOutput {
-            id: key_id,
+            id: args.id.clone(),
             message: "API key revoked".to_owned(),
         };
         Ok(CommandOutput::card_value("API Key Revoked", &output))

@@ -11,12 +11,13 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginComponentRef, PluginDetailOutput};
+use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
-    #[arg(help = "Plugin ID (directory name)")]
-    pub id: String,
+    #[arg(help = "Plugin ID (directory name)", value_parser = crate::shared::parse_plugin_id)]
+    pub id: PluginId,
 }
 
 pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
@@ -25,7 +26,7 @@ pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOut
 }
 
 pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<CommandOutput> {
-    let plugin_dir = plugins_path.join(&args.id);
+    let plugin_dir = plugins_path.join(args.id.as_str());
 
     if !plugin_dir.exists() {
         return Err(anyhow!("Plugin '{}' not found", args.id));
