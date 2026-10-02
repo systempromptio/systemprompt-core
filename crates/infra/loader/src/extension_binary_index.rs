@@ -14,13 +14,13 @@ use crate::ExtensionLoader;
 use crate::error::{ExtensionLoadError, ExtensionLoadResult};
 
 #[derive(Debug)]
-pub struct ExtensionRegistry {
+pub struct ExtensionBinaryIndex {
     discovered: HashMap<String, DiscoveredExtension>,
     bin_path: PathBuf,
     is_cloud: bool,
 }
 
-impl ExtensionRegistry {
+impl ExtensionBinaryIndex {
     #[must_use]
     pub fn build(project_root: &Path, is_cloud: bool, bin_path: &str) -> Self {
         let discovered = if is_cloud {

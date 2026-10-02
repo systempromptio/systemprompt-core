@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
-use systemprompt_loader::ExtensionRegistry as McpExtensionRegistry;
+use systemprompt_loader::ExtensionBinaryIndex;
 use systemprompt_models::mcp::McpServerType;
 use systemprompt_models::{Config, ServicesConfig};
 use systemprompt_traits::validation_report::ValidationIssue;
@@ -15,7 +15,7 @@ pub(super) fn validate_mcp_manifests(
     services_config: &ServicesConfig,
     report: &mut StartupValidationReport,
 ) {
-    let registry = McpExtensionRegistry::build(
+    let registry = ExtensionBinaryIndex::build(
         Path::new(&config.system_path),
         config.is_cloud,
         &config.bin_path,

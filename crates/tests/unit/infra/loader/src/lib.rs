@@ -55,11 +55,11 @@ mod coverage_gaps;
 #[cfg(test)]
 mod error_display;
 #[cfg(test)]
+mod extension_binary_index;
+#[cfg(test)]
 mod extension_loader;
 #[cfg(test)]
 mod extension_loader_extra;
-#[cfg(test)]
-mod extension_registry;
 #[cfg(test)]
 mod module_loader;
 #[cfg(test)]

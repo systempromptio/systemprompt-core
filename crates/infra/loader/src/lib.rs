@@ -10,7 +10,7 @@
 //!
 //! - [`config_loader`] — loads and merges `services.yaml` and its includes.
 //! - [`config_writer`] — creates, edits, and deletes agent files.
-//! - [`extension_loader`] / [`extension_registry`] — discover extension
+//! - [`extension_loader`] / [`extension_binary_index`] — discover extension
 //!   manifests and resolve binary paths.
 //! - [`module_loader`] — `inventory`-driven extension discovery for the
 //!   compiled-in extension trait registry.
@@ -35,8 +35,8 @@ pub mod bundle;
 pub mod config_loader;
 pub mod config_writer;
 pub mod error;
+pub mod extension_binary_index;
 pub mod extension_loader;
-pub mod extension_registry;
 pub mod module_loader;
 pub mod profile_loader;
 pub mod services_bootstrap;
@@ -51,8 +51,8 @@ pub use error::{
     ConfigLoadError, ConfigLoadResult, ConfigWriteError, ConfigWriteResult, ExtensionLoadError,
     ExtensionLoadResult, ProfileLoadError, ProfileLoadResult,
 };
+pub use extension_binary_index::ExtensionBinaryIndex;
 pub use extension_loader::{ExtensionLoader, ExtensionValidationResult};
-pub use extension_registry::ExtensionRegistry;
 pub use module_loader::ModuleLoader;
 pub use profile_loader::ProfileLoader;
 pub use services_bootstrap::ServicesBootstrap;

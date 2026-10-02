@@ -20,7 +20,7 @@ The loader isolates file I/O from the shared model types. It sits one level abov
 | `config_loader` | `ConfigLoader` reads `services.yaml`, resolves `includes:` recursively with cycle detection (`discovery.rs`, `includes.rs`), deep-merges fragments (`merge.rs`), and validates against a strict schema. |
 | `config_writer` | `ConfigWriter` creates, edits, and deletes agent configuration files. |
 | `extension_loader` | `ExtensionLoader` discovers on-disk extensions by scanning for `manifest.yaml`, returning an `ExtensionValidationResult`. |
-| `extension_registry` | `ExtensionRegistry` maps binary names to extension metadata and resolves binary paths. |
+| `extension_binary_index` | `ExtensionBinaryIndex` maps binary names to extension metadata and resolves binary paths. |
 | `module_loader` | `ModuleLoader` wraps the `inventory`-driven registry: `discover_extensions` returns every compiled-in `Extension`, `collect_extension_schemas` flattens their `SchemaDefinition`s. |
 | `profile_loader` | `ProfileLoader` reads, validates, and writes profile YAML. |
 | `error` | `ConfigLoadError`, `ConfigWriteError`, `ExtensionLoadError`, `ProfileLoadError` and their result aliases. |
@@ -41,7 +41,7 @@ systemprompt-loader = "0.62"
 ```rust
 use systemprompt_loader::{
     ConfigLoader, ProfileLoader,
-    ExtensionLoader, ExtensionRegistry, ModuleLoader,
+    ExtensionLoader, ExtensionBinaryIndex, ModuleLoader,
 };
 
 let config = ConfigLoader::load()?;

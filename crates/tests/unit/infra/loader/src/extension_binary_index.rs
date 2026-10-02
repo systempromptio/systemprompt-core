@@ -1,4 +1,4 @@
-//! Unit tests for ExtensionRegistry
+//! Unit tests for ExtensionBinaryIndex
 //!
 //! Tests cover:
 //! - Registry building for local and cloud modes
@@ -6,7 +6,7 @@
 //! - Extension lookup by binary name
 //! - Extension existence checking
 
-use systemprompt_loader::ExtensionRegistry;
+use systemprompt_loader::ExtensionBinaryIndex;
 use tempfile::TempDir;
 
 fn create_mcp_manifest(name: &str, binary: &str) -> String {
@@ -35,7 +35,7 @@ fn test_build_registry_local_mode() {
     )
     .expect("Failed to write manifest");
 
-    let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), false, "/usr/local/bin");
 
     assert!(registry.has_extension("test-binary"));
 }
@@ -48,7 +48,7 @@ fn test_build_registry_cloud_mode() {
 
     std::fs::write(bin_path.join("cloud-binary"), "binary").expect("Failed to write binary");
 
-    let registry = ExtensionRegistry::build(
+    let registry = ExtensionBinaryIndex::build(
         temp_dir.path(),
         true,
         bin_path.to_str().expect("Valid path"),
@@ -70,7 +70,7 @@ fn test_build_registry_cloud_mode_ignores_local_extensions() {
     )
     .expect("Failed to write manifest");
 
-    let registry = ExtensionRegistry::build(temp_dir.path(), true, "/usr/local/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), true, "/usr/local/bin");
 
     assert!(!registry.has_extension("local-binary"));
 }
@@ -88,7 +88,7 @@ fn test_get_path_local_mode() {
     )
     .expect("Failed to write manifest");
 
-    let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), false, "/usr/local/bin");
     let result = registry.get_path("path-binary");
 
     result.as_ref().expect("result should succeed");
@@ -99,7 +99,7 @@ fn test_get_path_local_mode() {
 #[test]
 fn test_get_path_local_mode_not_found() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), false, "/usr/local/bin");
 
     let result = registry.get_path("nonexistent");
     result.as_ref().expect_err("result should fail");
@@ -119,7 +119,7 @@ fn test_get_path_cloud_mode() {
 
     std::fs::write(bin_path.join("cloud-ext"), "binary").expect("Failed to write binary");
 
-    let registry = ExtensionRegistry::build(
+    let registry = ExtensionBinaryIndex::build(
         temp_dir.path(),
         true,
         bin_path.to_str().expect("Valid path"),
@@ -135,7 +135,7 @@ fn test_get_path_cloud_mode_not_found() {
     let bin_path = temp_dir.path().join("empty-bin");
     std::fs::create_dir_all(&bin_path).expect("Failed to create bin dir");
 
-    let registry = ExtensionRegistry::build(
+    let registry = ExtensionBinaryIndex::build(
         temp_dir.path(),
         true,
         bin_path.to_str().expect("Valid path"),
@@ -159,7 +159,7 @@ fn test_get_extension_found() {
     )
     .expect("Failed to write manifest");
 
-    let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), false, "/usr/local/bin");
     let ext = registry.get_extension("get-binary");
 
     ext.as_ref().expect("ext should be present");
@@ -170,7 +170,7 @@ fn test_get_extension_found() {
 #[test]
 fn test_get_extension_not_found() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), false, "/usr/local/bin");
 
     let ext = registry.get_extension("nonexistent");
     assert!(ext.is_none());
@@ -184,7 +184,7 @@ fn test_get_extension_cloud_mode_returns_none() {
 
     std::fs::write(bin_path.join("cloud-bin"), "binary").expect("Failed to write binary");
 
-    let registry = ExtensionRegistry::build(
+    let registry = ExtensionBinaryIndex::build(
         temp_dir.path(),
         true,
         bin_path.to_str().expect("Valid path"),
@@ -210,7 +210,7 @@ fn test_has_extension_local_discovered() {
     )
     .expect("Failed to write manifest");
 
-    let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), false, "/usr/local/bin");
 
     assert!(registry.has_extension("has-binary"));
 }
@@ -223,7 +223,7 @@ fn test_has_extension_cloud_in_bin_path() {
 
     std::fs::write(bin_path.join("exists-binary"), "binary").expect("Failed to write binary");
 
-    let registry = ExtensionRegistry::build(
+    let registry = ExtensionBinaryIndex::build(
         temp_dir.path(),
         true,
         bin_path.to_str().expect("Valid path"),
@@ -241,7 +241,7 @@ fn test_has_extension_local_checks_bin_path_too() {
 
     std::fs::write(bin_path.join("bin-only"), "binary").expect("Failed to write binary");
 
-    let registry = ExtensionRegistry::build(
+    let registry = ExtensionBinaryIndex::build(
         temp_dir.path(),
         false,
         bin_path.to_str().expect("Valid path"),
@@ -256,7 +256,7 @@ fn test_has_extension_local_checks_bin_path_too() {
 #[test]
 fn test_has_extension_not_found() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let registry = ExtensionRegistry::build(temp_dir.path(), false, "/nonexistent/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), false, "/nonexistent/bin");
 
     assert!(!registry.has_extension("anything"));
 }
@@ -276,7 +276,7 @@ fn test_registry_with_multiple_extensions() {
         .expect("Failed to write manifest");
     }
 
-    let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), false, "/usr/local/bin");
 
     for i in 1..=5 {
         assert!(registry.has_extension(&format!("binary-{}", i)));
@@ -291,7 +291,7 @@ fn test_registry_with_multiple_extensions() {
 #[test]
 fn test_registry_empty_project() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), false, "/usr/local/bin");
 
     assert!(!registry.has_extension("any"));
     assert!(registry.get_extension("any").is_none());
@@ -301,7 +301,7 @@ fn test_registry_empty_project() {
 #[test]
 fn test_registry_with_empty_bin_path() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let registry = ExtensionRegistry::build(temp_dir.path(), true, "");
+    let registry = ExtensionBinaryIndex::build(temp_dir.path(), true, "");
 
     assert!(!registry.has_extension("any"));
 }

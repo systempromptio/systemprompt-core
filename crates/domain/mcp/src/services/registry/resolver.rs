@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::UserId;
-use systemprompt_loader::ExtensionRegistry;
+use systemprompt_loader::ExtensionBinaryIndex;
 use systemprompt_models::Config;
 use systemprompt_models::mcp::McpServerType;
 
@@ -32,7 +32,7 @@ impl RegistryService {
         use systemprompt_loader::ConfigLoader;
 
         let global_config = Config::get()?;
-        let registry = ExtensionRegistry::build(
+        let registry = ExtensionBinaryIndex::build(
             Path::new(&global_config.system_path),
             global_config.is_cloud,
             &global_config.bin_path,
