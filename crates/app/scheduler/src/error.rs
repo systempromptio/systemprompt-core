@@ -66,8 +66,12 @@ pub enum SchedulerError {
     #[error("Cron scheduler error: {0}")]
     CronScheduler(#[from] tokio_cron_scheduler::JobSchedulerError),
 
-    #[error("Configuration error: {message}")]
-    ConfigError { message: String },
+    #[error("Port {port} still occupied by {holder} after {attempts} attempts")]
+    PortOccupied {
+        port: u16,
+        holder: PortHolder,
+        attempts: u8,
+    },
 
     #[error("Scheduler already running")]
     AlreadyRunning,
@@ -89,6 +93,9 @@ pub enum SchedulerError {
 
     #[error("Managed marketplace error: {0}")]
     Managed(#[from] systemprompt_marketplace::managed::ManagedError),
+
+    #[error("No retention path for table {table}")]
+    UnknownRetentionTable { table: String },
 
     #[error("Unknown OTLP export signal '{signal}'")]
     UnknownOtlpSignal { signal: String },
@@ -119,14 +126,24 @@ impl SchedulerError {
         Self::JobExecutionFailed { job_name, source }
     }
 
-    pub fn config_error(message: impl Into<String>) -> Self {
-        Self::ConfigError {
-            message: message.into(),
-        }
-    }
-
     pub fn panic(message: impl Into<String>) -> Self {
         Self::Panic(message.into())
+    }
+}
+
+/// Who still holds a port that was expected to be free.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PortHolder {
+    Pid(u32),
+    Unknown,
+}
+
+impl std::fmt::Display for PortHolder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Pid(pid) => write!(f, "PID {pid}"),
+            Self::Unknown => f.write_str("unknown process"),
+        }
     }
 }
 

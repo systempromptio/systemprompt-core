@@ -77,11 +77,15 @@ fn test_scheduler_error_job_execution_failed() {
 }
 
 #[test]
-fn test_scheduler_error_config_error() {
-    let error = SchedulerError::config_error("missing required field");
+fn test_scheduler_error_port_occupied() {
+    let error = SchedulerError::PortOccupied {
+        port: 9000,
+        holder: systemprompt_scheduler::PortHolder::Pid(7),
+        attempts: 2,
+    };
     assert_eq!(
         error.to_string(),
-        "Configuration error: missing required field"
+        "Port 9000 still occupied by PID 7 after 2 attempts"
     );
 }
 
@@ -1474,8 +1478,10 @@ fn test_scheduler_error_display_all_variants() {
             "Job execution failed: job - Invalid input: error",
         ),
         (
-            SchedulerError::config_error("bad config"),
-            "Configuration error: bad config",
+            SchedulerError::UnknownRetentionTable {
+                table: "nope".to_owned(),
+            },
+            "No retention path for table nope",
         ),
         (SchedulerError::AlreadyRunning, "Scheduler already running"),
         (SchedulerError::NotInitialized, "Scheduler not initialized"),

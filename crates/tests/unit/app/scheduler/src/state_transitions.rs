@@ -252,8 +252,10 @@ mod scheduler_error_additional_tests {
                 "Job execution failed: job - Invalid input: error",
             ),
             (
-                SchedulerError::config_error("bad config"),
-                "Configuration error: bad config",
+                SchedulerError::UnknownRetentionTable {
+                    table: "nope".to_owned(),
+                },
+                "No retention path for table nope",
             ),
             (SchedulerError::AlreadyRunning, "Scheduler already running"),
             (SchedulerError::NotInitialized, "Scheduler not initialized"),

@@ -9,7 +9,7 @@
 //! kernel, so an unverified PID is cleared without signalling. Port-derived
 //! PIDs ([`ServiceManagementService::stop_api_by_port`], the API sweep in
 //! [`ServiceManagementService::cleanup_all_orphans`]) carry no service
-//! identity and stay unverified by design.
+//! identity; port 0 means no port and never resolves to a PID.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -106,7 +106,7 @@ impl ServiceManagementService {
             } else {
                 ProcessCleanup::terminate_gracefully(pid, STOP_GRACE_MS).await;
             }
-            ProcessCleanup::kill_port(service.port as u16, pid);
+            kill_service_port(service, pid);
         }
 
         if let Err(e) = self.mark_service_stopped(&service.name).await {
@@ -129,7 +129,7 @@ impl ServiceManagementService {
 
         if pid_is_our_service(pid, service) {
             ProcessCleanup::terminate_gracefully(pid, STOP_GRACE_MS).await;
-            ProcessCleanup::kill_port(service.port as u16, pid);
+            kill_service_port(service, pid);
         }
         if let Err(e) = self.mark_service_stopped(&service.name).await {
             warn!(service = %service.name, error = %e, "Failed to mark terminated service stopped");
@@ -200,6 +200,12 @@ async fn sweep_api_port(api_port: u16) -> SchedulerResult<bool> {
     ProcessCleanup::kill_by_pattern(API_SERVE_PATTERN);
     ProcessCleanup::wait_for_port_free(api_port, 3, 1000).await?;
     Ok(!killed.is_empty())
+}
+
+fn kill_service_port(service: &ServiceConfig, pid: u32) {
+    if let Ok(port) = u16::try_from(service.port) {
+        ProcessCleanup::kill_port(port, pid);
+    }
 }
 
 fn stored_pid(service: &ServiceConfig) -> Option<u32> {

@@ -7,13 +7,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{SchedulerError, SchedulerResult};
+use crate::error::{PortHolder, SchedulerError, SchedulerResult};
 
 #[cfg(unix)]
 mod posix;
 #[cfg(windows)]
 mod winnt;
 
+const NO_PORT: u16 = 0;
 const PROTECTED_PORTS: &[u16] = &[5432, 6432];
 const PROTECTED_PROCESSES: &[&str] = &["postgres", "pgbouncer", "psql"];
 
@@ -30,7 +31,7 @@ pub struct ProcessInfo {
 impl ProcessCleanup {
     #[cfg(unix)]
     pub fn check_port(port: u16) -> Option<u32> {
-        if PROTECTED_PORTS.contains(&port) {
+        if !is_inspectable(port) {
             return None;
         }
         posix::check_port(port)
@@ -38,14 +39,14 @@ impl ProcessCleanup {
 
     #[cfg(windows)]
     pub fn check_port(port: u16) -> Option<u32> {
-        if PROTECTED_PORTS.contains(&port) {
+        if !is_inspectable(port) {
             return None;
         }
         winnt::check_port(port)
     }
 
     pub fn kill_port(port: u16, owner: u32) -> Vec<u32> {
-        if PROTECTED_PORTS.contains(&port) {
+        if !is_inspectable(port) {
             return vec![];
         }
 
@@ -145,6 +146,9 @@ impl ProcessCleanup {
         max_retries: u8,
         retry_delay_ms: u64,
     ) -> SchedulerResult<()> {
+        if port == NO_PORT {
+            return Ok(());
+        }
         for attempt in 1..=max_retries {
             if Self::check_port(port).is_none() {
                 return Ok(());
@@ -155,30 +159,32 @@ impl ProcessCleanup {
             }
         }
 
-        let message = Self::check_port(port).map_or_else(
-            || {
-                format!(
-                    "Port {} still occupied by unknown process after {} attempts",
-                    port, max_retries
-                )
-            },
-            |pid| {
-                format!(
-                    "Port {} still occupied by PID {} after {} attempts",
-                    port, pid, max_retries
-                )
-            },
-        );
-        Err(SchedulerError::config_error(message))
+        Err(SchedulerError::PortOccupied {
+            port,
+            holder: Self::check_port(port).map_or(PortHolder::Unknown, PortHolder::Pid),
+            attempts: max_retries,
+        })
     }
 
     #[cfg(unix)]
     pub fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
+        if port == NO_PORT {
+            return None;
+        }
         posix::get_process_by_port(port)
     }
 
     #[cfg(windows)]
     pub fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
+        if port == NO_PORT {
+            return None;
+        }
         winnt::get_process_by_port(port)
     }
+}
+
+// Why: `lsof -ti :0` and a `:0 ` netstat match report unrelated sockets on
+// macOS and Windows, so port 0 (no port assigned) must never resolve to a PID.
+fn is_inspectable(port: u16) -> bool {
+    port != NO_PORT && !PROTECTED_PORTS.contains(&port)
 }

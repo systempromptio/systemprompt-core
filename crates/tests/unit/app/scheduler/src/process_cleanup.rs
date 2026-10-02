@@ -26,6 +26,20 @@ fn check_port_returns_none_for_unbound_port() {
 }
 
 #[test]
+fn port_zero_never_resolves_to_a_pid() {
+    assert!(ProcessCleanup::check_port(0).is_none());
+    assert!(ProcessCleanup::get_process_by_port(0).is_none());
+    assert!(ProcessCleanup::kill_port(0, std::process::id()).is_empty());
+}
+
+#[tokio::test]
+async fn wait_for_port_free_treats_port_zero_as_free() {
+    ProcessCleanup::wait_for_port_free(0, 1, 1)
+        .await
+        .expect("port 0 is no port and is never waited on");
+}
+
+#[test]
 fn kill_port_protected_returns_empty() {
     assert!(ProcessCleanup::kill_port(POSTGRES_PORT, NONEXISTENT_PID).is_empty());
     assert!(ProcessCleanup::kill_port(PGBOUNCER_PORT, NONEXISTENT_PID).is_empty());

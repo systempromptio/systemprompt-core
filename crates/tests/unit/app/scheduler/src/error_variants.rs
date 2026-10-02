@@ -1,6 +1,6 @@
 use systemprompt_identifiers::JobName;
 use systemprompt_provider_contracts::{Dependencies, MissingDependency, ProviderError};
-use systemprompt_scheduler::SchedulerError;
+use systemprompt_scheduler::{PortHolder, SchedulerError};
 use systemprompt_traits::RepositoryError;
 
 fn missing<T: std::any::Any + Send + Sync>() -> MissingDependency {
@@ -158,7 +158,15 @@ mod error_source_chain {
                 .is_none()
         );
         assert!(SchedulerError::invalid_schedule("s").source().is_none());
-        assert!(SchedulerError::config_error("c").source().is_none());
+        assert!(
+            SchedulerError::PortOccupied {
+                port: 1,
+                holder: PortHolder::Unknown,
+                attempts: 1,
+            }
+            .source()
+            .is_none()
+        );
     }
 }
 
@@ -201,13 +209,25 @@ mod error_constructor_round_trips {
     }
 
     #[test]
-    fn config_error_constructor_matches_struct_variant() {
-        let via_ctor = SchedulerError::config_error("bad").to_string();
-        let via_struct = SchedulerError::ConfigError {
-            message: "bad".to_string(),
-        }
-        .to_string();
-        assert_eq!(via_ctor, via_struct);
+    fn port_occupied_names_the_holder() {
+        let by_pid = SchedulerError::PortOccupied {
+            port: 8080,
+            holder: PortHolder::Pid(42),
+            attempts: 3,
+        };
+        assert_eq!(
+            by_pid.to_string(),
+            "Port 8080 still occupied by PID 42 after 3 attempts"
+        );
+        let unknown = SchedulerError::PortOccupied {
+            port: 8080,
+            holder: PortHolder::Unknown,
+            attempts: 3,
+        };
+        assert_eq!(
+            unknown.to_string(),
+            "Port 8080 still occupied by unknown process after 3 attempts"
+        );
     }
 
     #[test]
