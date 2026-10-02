@@ -11,7 +11,10 @@ use systemprompt_models::services::MarketplaceConfig;
 
 #[must_use]
 // JSON: outgoing marketplace listing with a fixed, client-facing shape
-pub fn render_marketplace_json(id: &str, marketplace: &MarketplaceConfig) -> serde_json::Value {
+pub fn render_marketplace_json(
+    id: &MarketplaceId,
+    marketplace: &MarketplaceConfig,
+) -> serde_json::Value {
     let plugin_entries: Vec<serde_json::Value> = marketplace
         .plugins
         .include
@@ -25,7 +28,7 @@ pub fn render_marketplace_json(id: &str, marketplace: &MarketplaceConfig) -> ser
         .collect();
 
     let mut body = serde_json::json!({
-        "name": id,
+        "name": id.as_str(),
         "owner": { "name": marketplace.author.name.clone() },
         "metadata": {
             "description": marketplace.description.clone(),

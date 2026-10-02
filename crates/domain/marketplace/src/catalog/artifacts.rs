@@ -16,6 +16,7 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
+use systemprompt_identifiers::LibraryArtifactId;
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::ArtifactEntry;
 use systemprompt_models::services::{ARTIFACT_CONFIG_FILENAME, DiskArtifactConfig, ServicesConfig};
@@ -135,12 +136,7 @@ fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, Ma
         return Ok(None);
     }
 
-    let sha256 = artifact_digest(
-        config.id.as_str(),
-        &config.version,
-        &content,
-        &config.mcp_tools,
-    )?;
+    let sha256 = artifact_digest(&config.id, &config.version, &content, &config.mcp_tools)?;
 
     Ok(Some(ArtifactEntry {
         id: config.id,
@@ -156,13 +152,13 @@ fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, Ma
 }
 
 fn artifact_digest(
-    id: &str,
+    id: &LibraryArtifactId,
     version: &str,
     content: &str,
     mcp_tools: &[String],
 ) -> Result<Sha256Digest, MarketplaceError> {
     let mut hasher = Sha256::new();
-    hasher.update(id.as_bytes());
+    hasher.update(id.as_str().as_bytes());
     hasher.update([0u8]);
     hasher.update(version.as_bytes());
     hasher.update([0u8]);

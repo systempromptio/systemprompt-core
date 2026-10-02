@@ -13,6 +13,7 @@ use std::io::Read;
 use std::path::Path;
 
 use serde::Serialize;
+use systemprompt_identifiers::SkillId;
 use systemprompt_models::DiskSkillConfig;
 
 use super::error::invalid;
@@ -22,12 +23,12 @@ use systemprompt_models::managed::validate_key;
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct CapturedSkills {
-    pub(super) skills: BTreeMap<String, RevisionFiles>,
+    pub(super) skills: BTreeMap<SkillId, RevisionFiles>,
     pub(super) tree_digest: AssetDigest,
 }
 
 impl CapturedSkills {
-    pub const fn skills(&self) -> &BTreeMap<String, RevisionFiles> {
+    pub const fn skills(&self) -> &BTreeMap<SkillId, RevisionFiles> {
         &self.skills
     }
     pub const fn tree_digest(&self) -> &AssetDigest {
@@ -35,7 +36,7 @@ impl CapturedSkills {
     }
 }
 
-pub fn capture_skills(services_root: &Path, skill_ids: &[String]) -> Result<CapturedSkills> {
+pub fn capture_skills(services_root: &Path, skill_ids: &[SkillId]) -> Result<CapturedSkills> {
     let captured = capture_once(services_root, skill_ids)?;
     if capture_once(services_root, skill_ids)?.tree_digest != captured.tree_digest {
         return Err(invalid(
@@ -51,7 +52,7 @@ struct CaptureBudget {
     files: usize,
 }
 
-fn capture_once(services_root: &Path, skill_ids: &[String]) -> Result<CapturedSkills> {
+fn capture_once(services_root: &Path, skill_ids: &[SkillId]) -> Result<CapturedSkills> {
     if skill_ids.is_empty() || skill_ids.len() > 100 {
         return Err(invalid("Expected 1–100 skill IDs"));
     }
@@ -64,11 +65,12 @@ fn capture_once(services_root: &Path, skill_ids: &[String]) -> Result<CapturedSk
     let mut manifests = BTreeMap::new();
     let mut budget = CaptureBudget::default();
     for id in skill_ids {
-        validate_key(id)?;
-        if id.contains('/') || id == "." || id == ".." || skills.contains_key(id) {
+        let key = id.as_str();
+        validate_key(key)?;
+        if key.contains('/') || key == "." || key == ".." || skills.contains_key(key) {
             return Err(invalid("Invalid or duplicate skill ID"));
         }
-        let path = root.join(id);
+        let path = root.join(key);
         let mut files = RevisionFiles::default();
         let mut walk = Walk {
             files: &mut files,
@@ -86,7 +88,7 @@ fn capture_once(services_root: &Path, skill_ids: &[String]) -> Result<CapturedSk
     })
 }
 
-fn validate_skill(id: &str, files: &RevisionFiles) -> Result<()> {
+fn validate_skill(id: &SkillId, files: &RevisionFiles) -> Result<()> {
     files.validate()?;
     let config = files
         .0
@@ -97,7 +99,7 @@ fn validate_skill(id: &str, files: &RevisionFiles) -> Result<()> {
     if config
         .id
         .as_ref()
-        .is_some_and(|declared| declared.as_str() != id)
+        .is_some_and(|declared| declared.as_str() != id.as_str())
     {
         return Err(invalid("Skill ID does not match its authoring directory"));
     }

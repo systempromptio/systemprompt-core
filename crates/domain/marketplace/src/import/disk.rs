@@ -10,12 +10,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
-use systemprompt_identifiers::HookId;
+use systemprompt_identifiers::{HookId, SkillId};
 use systemprompt_models::services::hooks::{HookCategory, HookEvent};
 
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct SkillDoc {
-    pub id: String,
+    pub id: SkillId,
     pub name: String,
     pub description: String,
     pub enabled: bool,

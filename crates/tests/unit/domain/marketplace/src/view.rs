@@ -1,3 +1,4 @@
+use systemprompt_identifiers::MarketplaceId;
 use systemprompt_marketplace::{render_marketplace_json, render_marketplace_list};
 
 use crate::helpers::marketplace;
@@ -5,7 +6,7 @@ use crate::helpers::marketplace;
 #[test]
 fn render_json_contains_id_and_version() {
     let mp = marketplace("acme");
-    let json = render_marketplace_json("acme", &mp);
+    let json = render_marketplace_json(&MarketplaceId::new("acme"), &mp);
 
     assert_eq!(json["name"], "acme");
     assert_eq!(json["metadata"]["version"], "1.0.0");
@@ -14,7 +15,7 @@ fn render_json_contains_id_and_version() {
 #[test]
 fn render_json_contains_author_name() {
     let mp = marketplace("acme");
-    let json = render_marketplace_json("acme", &mp);
+    let json = render_marketplace_json(&MarketplaceId::new("acme"), &mp);
 
     assert_eq!(json["owner"]["name"], "test");
 }
@@ -22,7 +23,7 @@ fn render_json_contains_author_name() {
 #[test]
 fn render_json_plugins_empty_when_no_includes() {
     let mp = marketplace("acme");
-    let json = render_marketplace_json("acme", &mp);
+    let json = render_marketplace_json(&MarketplaceId::new("acme"), &mp);
 
     assert!(
         json["plugins"]
@@ -38,7 +39,7 @@ fn render_json_plugins_lists_include_entries() {
 
     let mut mp = marketplace("acme");
     mp.plugins = include(&["plugin-a", "plugin-b"]);
-    let json = render_marketplace_json("acme", &mp);
+    let json = render_marketplace_json(&MarketplaceId::new("acme"), &mp);
 
     let plugins = json["plugins"].as_array().expect("plugins array");
     assert_eq!(plugins.len(), 2);
@@ -57,7 +58,7 @@ fn render_json_plugin_source_path() {
 
     let mut mp = marketplace("acme");
     mp.plugins = include(&["my-plugin"]);
-    let json = render_marketplace_json("acme", &mp);
+    let json = render_marketplace_json(&MarketplaceId::new("acme"), &mp);
 
     let plugins = json["plugins"].as_array().expect("plugins array");
     let source = plugins[0]["source"].as_str().expect("source field");
@@ -69,8 +70,6 @@ fn render_json_plugin_source_path() {
 
 #[test]
 fn render_list_wraps_in_marketplaces_key() {
-    use systemprompt_identifiers::MarketplaceId;
-
     let mp_a = marketplace("alpha");
     let mp_b = marketplace("beta");
     let list = [
@@ -86,8 +85,6 @@ fn render_list_wraps_in_marketplaces_key() {
 
 #[test]
 fn render_list_contains_id_name_version() {
-    use systemprompt_identifiers::MarketplaceId;
-
     let mp = marketplace("solo");
     let id = MarketplaceId::new("solo");
     let json = render_marketplace_list([(&id, &mp)]);

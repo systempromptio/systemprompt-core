@@ -10,7 +10,7 @@ mod metadata;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use systemprompt_identifiers::PluginId;
+use systemprompt_identifiers::{PluginId, SkillId};
 use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_RELPATH, PluginManifest};
 use systemprompt_models::services::plugin::{
     ComponentSource, PluginComponentRef, PluginConfig, PluginConfigFile, PluginDependency,
@@ -88,9 +88,9 @@ pub(super) fn import_plugin(
     let id = PluginId::try_new(manifest.name.trim())
         .map_err(|e| MarketplaceError::import(&manifest_path, "plugin name", e))?;
     let mut warnings = Vec::new();
-    collect_manifest_warnings(id.as_str(), &manifest, dir, &mut warnings);
+    collect_manifest_warnings(&id, &manifest, dir, &mut warnings);
 
-    let category = resolve_category(id.as_str(), &sidecar, entry, &mut warnings);
+    let category = resolve_category(&id, &sidecar, entry, &mut warnings);
 
     let skills = import_skills(dir, &extra_skill_dirs, &category, scope, sink)?;
     if skills.is_empty() {
@@ -181,7 +181,9 @@ fn import_skills(
                 ),
             });
         }
-        import_skill(&skill_id, &skill_dir, Some(category), sink)?;
+        let typed = SkillId::try_new(skill_id.as_str())
+            .map_err(|e| MarketplaceError::import(&skill_dir, "skill id", e))?;
+        import_skill(&typed, &skill_dir, Some(category), sink)?;
         skills.push(skill_id);
     }
     Ok(skills)
@@ -209,31 +211,31 @@ fn rules_ref(sidecar: &PluginSidecar, imported: &[String]) -> PluginComponentRef
 }
 
 fn collect_manifest_warnings(
-    id: &str,
+    id: &PluginId,
     manifest: &PluginManifest,
     dir: &Path,
     warnings: &mut Vec<ImportWarning>,
 ) {
     if manifest.mcp_servers.is_some() || dir.join(".mcp.json").is_file() {
         warnings.push(ImportWarning::InlineMcpServers {
-            plugin: id.to_owned(),
+            plugin: id.as_str().to_owned(),
         });
     }
     if dir.join("commands").is_dir() || manifest.commands.is_some() {
         warnings.push(ImportWarning::CommandsDirectory {
-            plugin: id.to_owned(),
+            plugin: id.as_str().to_owned(),
         });
     }
     let agents = count_agent_files(&dir.join("agents"));
     if agents > 0 {
         warnings.push(ImportWarning::AgentsDirectory {
-            plugin: id.to_owned(),
+            plugin: id.as_str().to_owned(),
             count: agents,
         });
     }
     if dir.join(NODE_PACKAGE_FILE).is_file() && node_lockfile(dir).is_none() {
         warnings.push(ImportWarning::NodePackageWithoutLockfile {
-            plugin: id.to_owned(),
+            plugin: id.as_str().to_owned(),
         });
     }
 }
