@@ -20,10 +20,11 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use serde::Deserialize;
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
 
-use super::super::registry::PolicyRegistration;
+use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
 use super::super::types::{GovernancePolicy, PolicyContext, RateLimitWindow};
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
@@ -38,21 +39,25 @@ struct RateLimit {
     counters: Mutex<SlidingWindow>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct RateLimitYaml {
+    window_secs: Option<u64>,
+    requests_per_window: Option<usize>,
+}
+
 impl RateLimit {
-    fn from_yaml(v: &YamlValue) -> Self {
-        let window_secs = v
-            .get("window_secs")
-            .and_then(YamlValue::as_u64)
-            .unwrap_or(DEFAULT_WINDOW_SECS);
-        let limit = v
-            .get("requests_per_window")
-            .and_then(YamlValue::as_u64)
-            .map_or(DEFAULT_LIMIT, |n| n as usize);
-        Self {
-            window_secs,
-            limit,
+    fn from_yaml(v: &YamlValue) -> Result<Self, PolicyConfigurationError> {
+        let cfg = serde_yaml::from_value::<Option<RateLimitYaml>>(v.clone())
+            .map_err(|source| PolicyConfigurationError::Yaml {
+                context: "malformed rate_limit policy entry",
+                source,
+            })?
+            .unwrap_or_default();
+        Ok(Self {
+            window_secs: cfg.window_secs.unwrap_or(DEFAULT_WINDOW_SECS),
+            limit: cfg.requests_per_window.unwrap_or(DEFAULT_LIMIT),
             counters: Mutex::new(SlidingWindow::default()),
-        }
+        })
     }
 }
 
@@ -173,6 +178,6 @@ impl GovernancePolicy for RateLimit {
 inventory::submit! {
     PolicyRegistration {
         id: ID,
-        factory: |v| Ok(Box::new(RateLimit::from_yaml(v))),
+        factory: |v| Ok(Box::new(RateLimit::from_yaml(v)?)),
     }
 }
