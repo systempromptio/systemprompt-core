@@ -27,9 +27,6 @@ pub enum TemplateError {
         source: std::io::Error,
     },
 
-    #[error("failed to compile template '{name}': {message}")]
-    CompileError { name: String, message: String },
-
     #[error("failed to render template '{name}': {source}")]
     RenderError {
         name: String,
