@@ -3465,7 +3465,6 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.0",
  "sqlx",
- "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-provider-contracts",
  "systemprompt-traits",

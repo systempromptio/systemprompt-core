@@ -41,6 +41,7 @@ mod component;
 mod content_data;
 mod error;
 mod extender;
+mod frame_options;
 mod frontmatter;
 mod job;
 mod page;
@@ -57,6 +58,7 @@ pub use component::{
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use error::{ProviderError, ProviderResult};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
+pub use frame_options::FrameOptions;
 pub use frontmatter::{FrontmatterContext, FrontmatterProcessor};
 pub use job::{Job, JobContext, JobResult, JobScope};
 pub use page::{PageContext, PageDataProvider};

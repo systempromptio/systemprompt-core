@@ -9,7 +9,7 @@ use ipnet::IpNet;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use systemprompt_identifiers::InstanceId;
 
-pub use systemprompt_extension::FrameOptions;
+pub use systemprompt_provider_contracts::FrameOptions;
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]

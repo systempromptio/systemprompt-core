@@ -119,7 +119,7 @@ let (clause, params) = WhereClause::default()
 - `rmcp`: MCP protocol types
 - `sqlx`: optional, with the `sqlx` feature
 - `axum`: optional, with the `web` feature
-- `systemprompt-traits`, `systemprompt-identifiers`, `systemprompt-extension`, `systemprompt-provider-contracts`: shared layer siblings
+- `systemprompt-traits`, `systemprompt-identifiers`, `systemprompt-provider-contracts`: shared layer siblings
 
 ## License
 

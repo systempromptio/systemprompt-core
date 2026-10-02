@@ -74,10 +74,9 @@ futures-util = { workspace = true }
 # Web framework (optional, for IntoResponse implementations)
 axum = { workspace = true, optional = true }
 
-# Shared traits, identifiers, and extension framework
+# Shared traits, identifiers, and provider contracts
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
-systemprompt-extension = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 
 # MCP protocol

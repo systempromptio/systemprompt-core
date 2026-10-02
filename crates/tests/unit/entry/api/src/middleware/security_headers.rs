@@ -36,7 +36,7 @@ fn default_frame_options_is_deny() {
     let config = SecurityHeadersConfig::default();
     assert_eq!(
         config.frame_options,
-        systemprompt_extension::FrameOptions::Deny
+        systemprompt_models::profile::FrameOptions::Deny
     );
 }
 

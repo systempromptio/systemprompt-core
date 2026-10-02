@@ -53,10 +53,10 @@ fn extension_router_frame_options_default_to_none() {
 #[test]
 fn extension_router_with_frame_options_projects_into_config() {
     let router = ExtensionRouter::public(axum::Router::new(), "/tools")
-        .with_frame_options(systemprompt_extension::FrameOptions::AllowAll);
+        .with_frame_options(systemprompt_provider_contracts::FrameOptions::AllowAll);
     assert_eq!(
         router.config().frame_options,
-        Some(systemprompt_extension::FrameOptions::AllowAll)
+        Some(systemprompt_provider_contracts::FrameOptions::AllowAll)
     );
 }
 
