@@ -121,16 +121,6 @@ sqlx-verify-offline:
     echo ""
     echo "All crates verified for offline compilation!"
 
-# Prepare the release bump commit on `next`: bump → sync pins/snippets → amend.
-# Tagging, publishing, and main all happen later, via `just gate` → `just promote`
-# → merge → tag → publish (canonical flow: internal/release-flow.md). The script
-# itself is gitignored; this recipe is the discoverable entry point.
-release BUMP="patch":
-    @[ "{{BUMP}}" = "patch" ] || [ "{{BUMP}}" = "minor" ] || [ "{{BUMP}}" = "major" ] || \
-        { echo "usage: just release [patch|minor|major]"; exit 2; }
-    @[ -x scripts/release.sh ] || { echo "scripts/release.sh missing — see internal/release-flow.md"; exit 1; }
-    ./scripts/release.sh {{BUMP}}
-
 # Reject imperative SQL in declarative schema files
 lint-schema:
     ./scripts/lint-schema.sh crates
@@ -489,11 +479,7 @@ file-size:
 check-headers:
     ./scripts/check-file-headers.sh
 
-# Run custom style validators
-validate:
-    ./scripts/check-sqlx.sh
-
-# Run all style checks (format + lint + validate)
+# Run all style checks (format, clippy, sqlx allowlist, HTTP errors, test workspace, rustdoc)
 style-check:
     #!/usr/bin/env bash
     set -e
@@ -946,153 +932,6 @@ test-all-shards:
         echo "═══ shard: ${g} ═══"
         just test-shard "${g}"
     done
-
-# =============================================================================
-# OPERATIONS
-# =============================================================================
-
-# List agents (use --json, --verbose flags as needed)
-agents:
-    ./target/debug/systemprompt admin agents list
-
-# Agent orchestrator operations (alias for agents command)
-a2a *ARGS:
-    ./target/debug/systemprompt admin agents {{ARGS}}
-
-# MCP server operations
-mcp *ARGS:
-    ./target/debug/systemprompt plugins mcp {{ARGS}}
-
-# Tenant management (create, list, show, edit, delete)
-tenant *ARGS:
-    ./target/debug/systemprompt cloud tenant {{ARGS}}
-
-# Profile management (create, list, show, edit, delete)
-profile *ARGS:
-    ./target/debug/systemprompt cloud profile {{ARGS}}
-
-# Database operations (pass subcommand, e.g., 'just db migrate' or 'just db tables')
-# IMPORTANT: For queries with commas/spaces, use 'just query "SQL"' instead of 'just db query "SQL"'
-db *ARGS:
-    #!/usr/bin/env bash
-    set -- {{ARGS}}  # Convert justfile args to bash positional params
-
-    # Check if trying to use 'db query' with complex SQL
-    if [[ "$1" == "query" ]] && [[ "$#" -gt 2 ]]; then
-        echo "⚠️  ERROR: Use 'just query \"SQL\"' for queries with commas/spaces"
-        echo "   Current: just db query {{ARGS}}"
-        echo "   Correct: just query \"YOUR_SQL_HERE\""
-        exit 1
-    fi
-
-    ./target/debug/systemprompt infra db "$@"
-
-# Execute database query (supports table, json, or csv format)
-query SQL FORMAT="table":
-    #!/usr/bin/env bash
-    if [[ "{{FORMAT}}" == "json" ]]; then
-        ./target/debug/systemprompt infra db query "{{SQL}}" --format json
-    elif [[ "{{FORMAT}}" == "csv" ]]; then
-        ./target/debug/systemprompt infra db query "{{SQL}}" --format csv
-    else
-        ./target/debug/systemprompt infra db query "{{SQL}}"
-    fi
-
-# Trace a request flow by trace_id (shows execution steps, logs, artifacts)
-trace TRACE_ID:
-    #!/usr/bin/env bash
-    echo "============================================================"
-    echo "TRACE: {{TRACE_ID}}"
-    echo "============================================================"
-    echo ""
-
-    # Get task info first
-    echo "📋 TASK INFO"
-    echo "------------------------------------------------------------"
-    ./target/debug/systemprompt infra db query "SELECT task_id, context_id, agent_name, status, execution_time_ms, created_at FROM agent_tasks WHERE trace_id = '{{TRACE_ID}}'" || echo "No task found"
-    echo ""
-
-    # Execution steps with lifecycle transitions
-    echo "🔄 EXECUTION STEPS"
-    echo "------------------------------------------------------------"
-    ./target/debug/systemprompt infra db query "SELECT s.step_type, s.title, s.subtitle, s.status, s.duration_ms, s.tool_name, s.started_at FROM task_execution_steps s JOIN agent_tasks t ON s.task_id = t.task_id WHERE t.trace_id = '{{TRACE_ID}}' ORDER BY s.started_at" || echo "No execution steps found"
-    echo ""
-
-    # Logs (INFO and above, skip DEBUG)
-    echo "📝 LOGS (INFO+)"
-    echo "------------------------------------------------------------"
-    ./target/debug/systemprompt infra db query "SELECT timestamp, level, module, message FROM logs WHERE trace_id = '{{TRACE_ID}}' AND level != 'DEBUG' ORDER BY timestamp" || echo "No logs found"
-    echo ""
-
-    # Artifacts
-    echo "📦 ARTIFACTS"
-    echo "------------------------------------------------------------"
-    ./target/debug/systemprompt infra db query "SELECT ta.artifact_id, ta.name, ta.artifact_type, ta.skill_name, ta.created_at FROM task_artifacts ta JOIN agent_tasks t ON ta.task_id = t.task_id WHERE t.trace_id = '{{TRACE_ID}}' ORDER BY ta.created_at" || echo "No artifacts found"
-    echo ""
-    echo "============================================================"
-
-# Assign admin role to a user (by username or email)
-assign-admin USER:
-    ./target/debug/systemprompt infra db assign-admin {{USER}}
-
-# =============================================================================
-# REMOTE POSTGRESQL (Deployed on GCP)
-# =============================================================================
-
-# Connect to remote PostgreSQL via psql
-db-connect:
-    #!/usr/bin/env bash
-    if [ ! -f ".env.remote" ]; then
-        echo "❌ .env.remote not found"
-        echo "Create .env.remote with DATABASE_URL from systemprompt-db deployment"
-        exit 1
-    fi
-    source .env.remote
-    psql "$DATABASE_URL"
-
-# Run migrations on remote PostgreSQL
-migrate:
-    #!/usr/bin/env bash
-    if [ ! -f "../.env.remote" ]; then
-        echo "❌ .env.remote not found"
-        echo "Create ../.env.remote with DATABASE_URL from systemprompt-db deployment"
-        exit 1
-    fi
-    source ../.env.remote
-    echo "Running migrations on remote database..."
-    ./target/debug/systemprompt infra db migrate
-
-# Create new site database on remote
-db-create-site SITENAME:
-    #!/usr/bin/env bash
-    if [ ! -f ".env.remote" ]; then
-        echo "❌ .env.remote not found"
-        exit 1
-    fi
-    source .env.remote
-    echo "Creating database for site: {{SITENAME}}"
-    psql "$DATABASE_URL" -c "CREATE DATABASE {{SITENAME}} OWNER app;"
-    echo "✅ Database {{SITENAME}} created!"
-
-# List all databases
-db-list:
-    #!/usr/bin/env bash
-    if [ ! -f ".env.remote" ]; then
-        echo "❌ .env.remote not found"
-        exit 1
-    fi
-    source .env.remote
-    psql "$DATABASE_URL" -c "\l"
-
-# Show database connection statistics
-db-stats:
-    #!/usr/bin/env bash
-    if [ ! -f ".env.remote" ]; then
-        echo "❌ .env.remote not found"
-        exit 1
-    fi
-    source .env.remote
-    psql "$DATABASE_URL" -c "SELECT datname, count(*) FROM pg_stat_activity GROUP BY datname;"
 
 # =============================================================================
 # WEBAUTHN
