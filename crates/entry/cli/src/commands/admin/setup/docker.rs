@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use std::process::Command;
 use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};
 use systemprompt_logging::CliService;
+use tokio::process::Command;
 
 use super::SetupArgs;
 use super::common::{
@@ -132,10 +132,18 @@ pub(super) async fn setup_docker_postgres_interactive(
         }
 
         CliService::info("Stopping existing container...");
-        if let Err(e) = Command::new("docker").args(["stop", &container]).output() {
+        if let Err(e) = Command::new("docker")
+            .args(["stop", &container])
+            .output()
+            .await
+        {
             tracing::warn!(container = %container, error = %e, "docker stop failed");
         }
-        if let Err(e) = Command::new("docker").args(["rm", &container]).output() {
+        if let Err(e) = Command::new("docker")
+            .args(["rm", &container])
+            .output()
+            .await
+        {
             tracing::warn!(container = %container, error = %e, "docker rm failed");
         }
     }

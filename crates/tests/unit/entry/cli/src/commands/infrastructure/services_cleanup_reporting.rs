@@ -30,15 +30,15 @@ fn rendered(out: &CommandOutput) -> String {
     serde_json::to_value(out.artifact()).unwrap().to_string()
 }
 
-#[test]
-fn a_dry_run_counts_the_api_server_alongside_the_service_rows() {
+#[tokio::test]
+async fn a_dry_run_counts_the_api_server_alongside_the_service_rows() {
     let services = vec![
         service("alpha", Some(4242), 5010),
         service("beta", None, 5011),
     ];
 
-    let with_api = dry_run_result(&services, Some(999), 8080, true);
-    let without_api = dry_run_result(&services, None, 8080, true);
+    let with_api = dry_run_result(&services, Some(999), 8080, true).await;
+    let without_api = dry_run_result(&services, None, 8080, true).await;
 
     assert!(
         rendered(&with_api).contains("Would clean 3 service(s)"),
@@ -52,9 +52,9 @@ fn a_dry_run_counts_the_api_server_alongside_the_service_rows() {
     );
 }
 
-#[test]
-fn a_dry_run_is_labelled_as_one_and_reports_nothing_removed() {
-    let out = dry_run_result(&[service("alpha", Some(1), 5010)], None, 8080, true);
+#[tokio::test]
+async fn a_dry_run_is_labelled_as_one_and_reports_nothing_removed() {
+    let out = dry_run_result(&[service("alpha", Some(1), 5010)], None, 8080, true).await;
     let json = rendered(&out);
 
     assert!(

@@ -9,6 +9,7 @@ use clap::Args;
 use std::path::Path;
 use std::sync::Arc;
 
+use super::process_stop::stop_agent_process;
 use super::types::AgentDeleteOutput;
 use crate::CliConfig;
 use crate::context::CommandContext;
@@ -16,14 +17,13 @@ use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
-use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
+use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_oauth::JwtValidationProviderImpl;
-use systemprompt_scheduler::ProcessCleanup;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -215,71 +215,4 @@ pub fn delete_single_agent(
             Err(e).with_context(|| format!("Failed to delete agent '{agent_name}'"))
         },
     }
-}
-
-pub async fn stop_agent_process(
-    agent_name: &AgentName,
-    agent_port: Option<u16>,
-    orchestrator: &AgentOrchestrator,
-) -> bool {
-    let recorded_pid = match orchestrator.get_status(agent_name).await {
-        Ok(AgentStatus::Running { pid, .. }) => Some(pid),
-        Ok(AgentStatus::Failed { .. }) => None,
-        Err(e) => {
-            tracing::warn!(
-                agent = %agent_name,
-                error = %e,
-                "Could not read the agent's recorded process"
-            );
-            return false;
-        },
-    };
-
-    match orchestrator.delete_agent(agent_name).await {
-        Ok(()) => {
-            tracing::debug!(agent = %agent_name, "Agent stopped via orchestrator");
-            true
-        },
-        Err(e) => {
-            tracing::warn!(
-                agent = %agent_name,
-                error = %e,
-                "Orchestrator termination failed; stopping only a verified agent process"
-            );
-            stop_verified_port_holder(agent_name, agent_port, recorded_pid)
-        },
-    }
-}
-
-pub fn stop_verified_port_holder(
-    agent_name: &AgentName,
-    agent_port: Option<u16>,
-    recorded_pid: Option<u32>,
-) -> bool {
-    let Some(port) = agent_port else {
-        return recorded_pid.is_none();
-    };
-
-    let Some(holder) = ProcessCleanup::check_port(port) else {
-        tracing::debug!(agent = %agent_name, port, "No process on port; agent is stopped");
-        return true;
-    };
-
-    if recorded_pid != Some(holder) {
-        CliService::warning(&format!(
-            "Process {holder} holds port {port} but is not the recorded process of agent \
-             '{agent_name}'; refusing to kill it"
-        ));
-        return false;
-    }
-
-    CliService::info(&format!(
-        "Stopping agent '{}' (pid {}) on port {}...",
-        agent_name, holder, port
-    ));
-    if !ProcessCleanup::kill_process(holder) {
-        tracing::warn!(agent = %agent_name, port, pid = holder, "Failed to kill agent process");
-        return false;
-    }
-    true
 }

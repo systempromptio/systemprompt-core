@@ -20,9 +20,9 @@ pub use job_execution::{
     JobBatchReport, JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };
 pub use orchestration::{
-    DbServiceRecord, DesiredStatus, ProcessCleanup, ProcessInfo, ReconciliationResult,
-    RuntimeStatus, ServiceAction, ServiceConfig, ServiceReconciler, ServiceStateVerifier,
-    ServiceType, VerifiedServiceState,
+    DbServiceRecord, DesiredStatus, ReconciliationResult, RuntimeStatus, ServiceAction,
+    ServiceConfig, ServiceReconciler, ServiceStateVerifier, ServiceType, VerifiedServiceState,
+    child_kind, port_holders, stop_owned_port_holders, stop_port_listeners, wait_for_port_free,
 };
 pub use plans::{
     RestartPlan, RestartScope, RestartTarget, ServiceSnapshot, StartupPlan, StartupRequest,

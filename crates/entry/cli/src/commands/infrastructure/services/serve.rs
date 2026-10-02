@@ -7,12 +7,17 @@ use crate::cli_settings::CliConfig;
 use crate::interactive::{Prompter, confirm_optional};
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use std::time::Duration;
+use systemprompt_loader::subprocess;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, ShutdownRequest, validate_system};
-use systemprompt_scheduler::ProcessCleanup;
+use systemprompt_scheduler::{port_holders, wait_for_port_free};
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::{get_api_addr, get_api_port};
+
+const CONFIRMED_HOLDER_GRACE: Duration = Duration::from_secs(2);
+const PORT_RELEASE: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Copy)]
 pub struct ServeOptions {
@@ -127,7 +132,7 @@ async fn ensure_port_free(
     config: &CliConfig,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
-    if let Some(pid) = check_port_available(port) {
+    if let Some(pid) = port_holder(port).await? {
         if let Some(tx) = events
             && let Err(e) = tx.unbounded_send(StartupEvent::PortConflict { port, pid })
         {
@@ -163,12 +168,20 @@ async fn bind_early(
     Ok(Some(early))
 }
 
-fn check_port_available(port: u16) -> Option<u32> {
-    ProcessCleanup::check_port(port)
+async fn port_holder(port: u16) -> Result<Option<u32>> {
+    Ok(port_holders(port).await?.first().copied())
 }
 
-fn kill_process(pid: u32) {
-    ProcessCleanup::kill_process(pid);
+async fn stop_confirmed_holder(port: u16, pid: u32) -> Result<()> {
+    if port_holders(port).await?.contains(&pid) {
+        subprocess::terminate_gracefully(pid, CONFIRMED_HOLDER_GRACE)
+            .await
+            .with_context(|| format!("Failed to stop PID {pid} holding port {port}"))?;
+    }
+    wait_for_port_free(port, PORT_RELEASE)
+        .await
+        .with_context(|| format!("Failed to free port {port} after stopping PID {pid}"))?;
+    Ok(())
 }
 
 #[expect(
@@ -199,16 +212,7 @@ async fn handle_port_conflict(
         if events.is_none() {
             CliService::info(&format!("Killing process {}...", pid));
         }
-        kill_process(pid);
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-        if check_port_available(port).is_some() {
-            return Err(anyhow::anyhow!(
-                "Failed to free port {} after killing PID {}",
-                port,
-                pid
-            ));
-        }
+        stop_confirmed_holder(port, pid).await?;
         if events.is_none() {
             CliService::success(&format!("Port {} is now available", port));
         }

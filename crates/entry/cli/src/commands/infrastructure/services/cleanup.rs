@@ -7,9 +7,10 @@ use crate::context::CommandContext;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandOutput;
 use anyhow::Result;
+use systemprompt_loader::subprocess;
 use systemprompt_logging::CliService;
 use systemprompt_scheduler::{
-    OrphanCleanupReport, OrphanDisposition, ProcessCleanup, ServiceManagementService,
+    OrphanCleanupReport, OrphanDisposition, ServiceManagementService, port_holders,
 };
 
 use super::get_api_port;
@@ -34,14 +35,14 @@ pub(super) async fn execute(
         CliService::info("Finding running services...");
     }
     let running_services = service_mgmt.get_running_services_with_pid().await?;
-    let api_pid = ProcessCleanup::check_port(api_port);
+    let api_pid = port_holders(api_port).await?.first().copied();
 
     if running_services.is_empty() && api_pid.is_none() {
         return Ok(no_services_result(quiet, dry_run));
     }
 
     if dry_run {
-        return Ok(dry_run_result(&running_services, api_pid, api_port, quiet));
+        return Ok(dry_run_result(&running_services, api_pid, api_port, quiet).await);
     }
 
     let service_count = running_services.len() + usize::from(api_pid.is_some());
@@ -85,6 +86,12 @@ pub fn render_cleanup_report(report: &OrphanCleanupReport, quiet: bool) {
                     outcome.name, outcome.pid, outcome.port
                 ));
             },
+            OrphanDisposition::NotOurs => {
+                CliService::warning(&format!(
+                    "Left PID {} running: it is not {}'s process; entry cleared",
+                    outcome.pid, outcome.name
+                ));
+            },
         }
     }
     CliService::info("Stopping API server...");
@@ -112,7 +119,7 @@ pub fn no_services_result(quiet: bool, dry_run: bool) -> CommandOutput {
     )
 }
 
-pub fn dry_run_result(
+pub async fn dry_run_result(
     running_services: &[systemprompt_database::ServiceConfig],
     api_pid: Option<u32>,
     api_port: u16,
@@ -121,7 +128,7 @@ pub fn dry_run_result(
     if !quiet {
         CliService::section("Dry Run - Would clean the following:");
         for service in running_services {
-            log_service_state(service);
+            log_service_state(service).await;
         }
         if let Some(pid) = api_pid {
             CliService::info(&format!(
@@ -143,10 +150,13 @@ pub fn dry_run_result(
     )
 }
 
-pub fn log_service_state(service: &systemprompt_database::ServiceConfig) {
+pub async fn log_service_state(service: &systemprompt_database::ServiceConfig) {
     let Some(pid) = service.pid else { return };
-    let pid_u32 = pid as u32;
-    if ProcessCleanup::process_exists(pid_u32) {
+    let running = match u32::try_from(pid) {
+        Ok(pid) => subprocess::is_running(pid).await,
+        Err(_) => false,
+    };
+    if running {
         CliService::info(&format!(
             "  [running] {} (PID: {}, port: {})",
             service.name, pid, service.port

@@ -9,13 +9,14 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use super::process_cleanup::ProcessCleanup;
 use super::service_records::{DbServiceRecord, ServiceConfig};
 use super::state_types::{DesiredStatus, RuntimeStatus, ServiceType};
+use super::supervision::port_holders;
 use super::verified_state::VerifiedServiceState;
 use crate::error::{SchedulerError, SchedulerResult};
 use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool, JsonRow};
 use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_loader::subprocess;
 use systemprompt_models::services::{ServiceModule, ServiceStatus};
 use systemprompt_traits::RepositoryError;
 
@@ -131,7 +132,7 @@ impl ServiceStateVerifier {
 
         for config in configs {
             let db_record = db_by_name.get(&config.name).copied();
-            let state = self.verify_service(config, db_record).await;
+            let state = self.verify_service(config, db_record).await?;
             states.push(state);
         }
 
@@ -143,7 +144,9 @@ impl ServiceStateVerifier {
                     port: db_service.port as u16,
                     enabled: false,
                 };
-                let state = self.verify_service(&orphan_config, Some(db_service)).await;
+                let state = self
+                    .verify_service(&orphan_config, Some(db_service))
+                    .await?;
                 states.push(state);
             }
         }
@@ -155,13 +158,15 @@ impl ServiceStateVerifier {
         &self,
         config: &ServiceConfig,
         db_record: Option<&DbServiceRecord>,
-    ) -> VerifiedServiceState {
+    ) -> SchedulerResult<VerifiedServiceState> {
         let desired = if config.enabled {
             DesiredStatus::Enabled
         } else {
             DesiredStatus::Disabled
         };
-        let (runtime, pid) = self.determine_runtime_status(db_record, config.port).await;
+        let (runtime, pid) = self
+            .determine_runtime_status(db_record, config.port)
+            .await?;
 
         let builder = VerifiedServiceState::builder(
             config.name.clone(),
@@ -171,61 +176,71 @@ impl ServiceStateVerifier {
             config.port,
         );
 
-        match pid {
+        Ok(match pid {
             Some(p) => builder.with_pid(p).build(),
             None => builder.build(),
-        }
+        })
     }
 
     async fn determine_runtime_status(
         &self,
         db_record: Option<&DbServiceRecord>,
         port: u16,
-    ) -> (RuntimeStatus, Option<u32>) {
-        match db_record {
-            Some(record) if record.status == ServiceStatus::Running => {
-                if let Some(pid) = record.pid.map(|p| p as u32) {
-                    if ProcessCleanup::process_exists(pid) {
-                        let port_up = self.is_port_responsive(port).await;
-                        if port_up {
-                            (RuntimeStatus::Running, Some(pid))
-                        } else if is_wedged(
-                            port_up,
-                            record.updated_at_epoch,
-                            now_epoch(),
-                            STARTUP_GRACE,
-                        ) {
-                            tracing::warn!(
-                                service = %record.name,
-                                pid,
-                                port,
-                                "Service process is alive but its port is unresponsive past the \
-                                 startup grace window; treating as crashed for restart"
-                            );
-                            (RuntimeStatus::Crashed, Some(pid))
-                        } else {
-                            (RuntimeStatus::Starting, Some(pid))
-                        }
-                    } else {
-                        (RuntimeStatus::Crashed, None)
-                    }
+    ) -> SchedulerResult<(RuntimeStatus, Option<u32>)> {
+        let recorded_pid = db_record
+            .and_then(|record| record.pid)
+            .and_then(|pid| u32::try_from(pid).ok());
+        let status = match (db_record, recorded_pid) {
+            (Some(record), Some(pid)) if record.status == ServiceStatus::Running => {
+                if subprocess::is_running(pid).await {
+                    self.classify_live(record, pid, port).await
                 } else {
                     (RuntimeStatus::Crashed, None)
                 }
             },
-            Some(record) if record.status == ServiceStatus::Starting => record
-                .pid
-                .map(|p| p as u32)
+            (Some(record), None) if record.status == ServiceStatus::Running => {
+                (RuntimeStatus::Crashed, None)
+            },
+            (Some(record), Some(pid)) if record.status == ServiceStatus::Starting => {
+                if subprocess::is_running(pid).await {
+                    (RuntimeStatus::Starting, Some(pid))
+                } else {
+                    (RuntimeStatus::Stopped, None)
+                }
+            },
+            (Some(record), None) if record.status == ServiceStatus::Starting => {
+                (RuntimeStatus::Stopped, None)
+            },
+            _ => port_holders(port)
+                .await?
+                .first()
                 .map_or((RuntimeStatus::Stopped, None), |pid| {
-                    if ProcessCleanup::process_exists(pid) {
-                        (RuntimeStatus::Starting, Some(pid))
-                    } else {
-                        (RuntimeStatus::Stopped, None)
-                    }
+                    (RuntimeStatus::Orphaned, Some(*pid))
                 }),
-            _ => ProcessCleanup::check_port(port).map_or((RuntimeStatus::Stopped, None), |pid| {
-                (RuntimeStatus::Orphaned, Some(pid))
-            }),
+        };
+        Ok(status)
+    }
+
+    async fn classify_live(
+        &self,
+        record: &DbServiceRecord,
+        pid: u32,
+        port: u16,
+    ) -> (RuntimeStatus, Option<u32>) {
+        let port_up = self.is_port_responsive(port).await;
+        if port_up {
+            (RuntimeStatus::Running, Some(pid))
+        } else if is_wedged(port_up, record.updated_at_epoch, now_epoch(), STARTUP_GRACE) {
+            tracing::warn!(
+                service = %record.name,
+                pid,
+                port,
+                "Service process is alive but its port is unresponsive past the startup grace \
+                 window; treating as crashed for restart"
+            );
+            (RuntimeStatus::Crashed, Some(pid))
+        } else {
+            (RuntimeStatus::Starting, Some(pid))
         }
     }
 

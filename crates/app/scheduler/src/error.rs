@@ -102,6 +102,12 @@ pub enum SchedulerError {
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("Process supervision error: {0}")]
+    Supervision(#[from] systemprompt_loader::subprocess::SupervisionError),
+
+    #[error("Port {port} still held by PID(s) {holders:?}")]
+    PortOccupied { port: u16, holders: Vec<u32> },
 }
 
 impl SchedulerError {
