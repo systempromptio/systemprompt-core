@@ -47,6 +47,9 @@ The set follows four documentation modes — learning, tasks, reference, and exp
 - [guides/vault-secrets.md](guides/vault-secrets.md) — load secrets from Vault or OpenBao KV v2.
 - [guides/configure-providers.md](guides/configure-providers.md) — wire AI providers to the gateway.
 
+### Training & certification
+- [training/README.md](training/README.md) — the partner certification programme: seven business pillars, credentials, partner tiers and the benefits each pillar delivers.
+
 ### Reference
 - [reference/configuration.md](reference/configuration.md) — the full profile schema.
 - [reference/http-api.md](reference/http-api.md) — every HTTP endpoint, with auth and errors.
