@@ -100,11 +100,7 @@ fn drain_queued(receiver: &mut mpsc::Receiver<LogCommand>, buffer: &mut Vec<LogE
     }
 }
 
-async fn flush(
-    repository: &LoggingRepository,
-    buffer: &mut Vec<LogEntry>,
-    failed_total: &mut u64,
-) {
+async fn flush(repository: &LoggingRepository, buffer: &mut Vec<LogEntry>, failed_total: &mut u64) {
     if let Err(e) = repository.insert_batch(buffer).await {
         let lost = u64::try_from(buffer.len()).unwrap_or(u64::MAX);
         *failed_total = failed_total.saturating_add(lost);

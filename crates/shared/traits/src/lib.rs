@@ -104,8 +104,8 @@ pub use analytics::{
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims,
-    RoleProvider, SenderIdentity, UserProvider,
+    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, RoleProvider, SenderIdentity,
+    UserProvider,
 };
 
 pub use storage::{
@@ -120,8 +120,8 @@ pub use ai_providers::{
 };
 
 pub use registry::{
-    AgentInfo, AgentRegistryProvider, McpRegistryProvider, McpServerInfo,
-    RegistryError, ServiceOAuthConfig,
+    AgentInfo, AgentRegistryProvider, McpRegistryProvider, McpServerInfo, RegistryError,
+    ServiceOAuthConfig,
 };
 
 pub use extension_error::{ExtensionError, McpErrorData};
