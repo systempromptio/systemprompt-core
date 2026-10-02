@@ -14,7 +14,7 @@ use std::time::Duration;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::Serialize;
 
-use super::display::DisplayUtils;
+use super::display;
 use super::output::mark_structured_emitted;
 use super::theme::{EmphasisType, ItemStatus, MessageLevel, Theme};
 
@@ -23,42 +23,42 @@ pub struct CliService;
 
 impl CliService {
     pub fn success(message: &str) {
-        DisplayUtils::message(MessageLevel::Success, message);
+        display::message(MessageLevel::Success, message);
     }
 
     pub fn warning(message: &str) {
-        DisplayUtils::message(MessageLevel::Warning, message);
+        display::message(MessageLevel::Warning, message);
     }
 
     pub fn error(message: &str) {
-        DisplayUtils::message(MessageLevel::Error, message);
+        display::message(MessageLevel::Error, message);
     }
 
     pub fn info(message: &str) {
-        DisplayUtils::message(MessageLevel::Info, message);
+        display::message(MessageLevel::Info, message);
     }
 
     pub fn debug(message: &str) {
         let debug_msg = format!("DEBUG: {message}");
-        DisplayUtils::message(MessageLevel::Info, &debug_msg);
+        display::message(MessageLevel::Info, &debug_msg);
     }
 
     pub fn verbose(message: &str) {
-        DisplayUtils::message(MessageLevel::Info, message);
+        display::message(MessageLevel::Info, message);
     }
 
     pub fn fatal(message: &str, exit_code: i32) -> ! {
         let fatal_msg = format!("FATAL: {message}");
-        DisplayUtils::message(MessageLevel::Error, &fatal_msg);
+        display::message(MessageLevel::Error, &fatal_msg);
         std::process::exit(exit_code);
     }
 
     pub fn section(title: &str) {
-        DisplayUtils::section_header(title);
+        display::section_header(title);
     }
 
     pub fn subsection(title: &str) {
-        DisplayUtils::subsection_header(title);
+        display::subsection_header(title);
     }
 
     pub fn clear_screen() {
