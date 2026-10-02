@@ -90,6 +90,12 @@ async fn wait_for_port_release_with_retry_gives_up_on_self_held_port() {
         .await
         .unwrap_err();
 
-    assert!(err.to_string().contains(&format!("Port {port}")));
+    assert!(
+        matches!(
+            err,
+            systemprompt_mcp::McpDomainError::PortNotReleased { port: p, .. } if p == port
+        ),
+        "{err}"
+    );
     assert!(listener.local_addr().is_ok());
 }
