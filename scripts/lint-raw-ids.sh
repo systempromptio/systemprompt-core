@@ -123,7 +123,10 @@ PATTERN="\\b(${ALT})\\s*:\\s*(?:Option<\\s*)?(?:&\\s*(?:'[a-z_]+\\s+)?(?:mut\\s+
 #                                              to its typed model via `X::new`
 SEARCH_DIRS=(crates/shared crates/infra crates/domain crates/app crates/entry systemprompt/src bin/bridge/src)
 
-RAW=$(rg -n --no-heading --color=never \
+# Why: `.gitignore` ignores every `audit/` directory and re-includes the source
+# ones by negation; ripgrep 14 (Ubuntu noble) does not honour that negation, so
+# the scan reads no ignore files and relies on the explicit exclusions below.
+RAW=$(rg -n --no-heading --color=never --no-ignore \
     -g '*.rs' \
     -g '!crates/tests/**' \
     -g '!**/target/**' \
