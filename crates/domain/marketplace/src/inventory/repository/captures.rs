@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::catalog::invalid;
+use crate::inventory::catalog::invalid;
 use crate::managed::{ManagedRepository, Result};
 use systemprompt_identifiers::{
     InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ResourceRevisionId, UserId,
@@ -51,7 +51,7 @@ impl ManagedRepository {
         Ok(Some(reconciliation.id))
     }
 
-    pub(super) async fn inventory_authoring_head(
+    pub(in crate::inventory) async fn inventory_authoring_head(
         &self,
         owner: &UserId,
         entry: &InventoryEntryId,
@@ -59,7 +59,7 @@ impl ManagedRepository {
         Ok(sqlx::query_scalar!("SELECT revision_id FROM managed_inventory_authoring_heads WHERE owner_id=$1 AND entry_id=$2",owner.as_str(),entry.as_str()).fetch_optional(&self.pool).await?.map(ResourceRevisionId::new))
     }
 
-    pub(super) async fn advance_inventory_head(
+    pub(in crate::inventory) async fn advance_inventory_head(
         &self,
         owner: &UserId,
         entry: &InventoryEntryId,
@@ -87,14 +87,14 @@ impl ManagedRepository {
         owner: &UserId,
         entry: &InventoryEntryId,
         after: Option<&ManagedReconciliationId>,
-    ) -> Result<Vec<super::InventoryReconciliation>> {
+    ) -> Result<Vec<crate::inventory::InventoryReconciliation>> {
         let resource = self.inventory_entry(owner, entry).await?.resource_id;
         let resource = resource.as_ref().map(ManagedResourceId::as_str);
         let after = after.map(ManagedReconciliationId::as_str);
         let rows=sqlx::query!("SELECT id,status,upstream_base_revision_id,managed_candidate_revision_id,incoming_revision_id,resolved_revision_id FROM managed_reconciliations WHERE owner_id=$1 AND resource_id=$2 AND ($3::text IS NULL OR id>$3) ORDER BY id LIMIT 50",owner.as_str(),resource,after).fetch_all(&self.pool).await?;
         Ok(rows
             .into_iter()
-            .map(|row| super::InventoryReconciliation {
+            .map(|row| crate::inventory::InventoryReconciliation {
                 id: ManagedReconciliationId::new(row.id),
                 status: row.status,
                 upstream_base_revision_id: ResourceRevisionId::new(row.upstream_base_revision_id),

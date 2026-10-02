@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::catalog::invalid;
+use crate::inventory::catalog::invalid;
 use crate::managed::{ManagedError, ManagedRepository, Result};
 use systemprompt_identifiers::{InventoryEntryId, ManagedResourceId, UserId};
 

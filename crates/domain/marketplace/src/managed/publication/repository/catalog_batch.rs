@@ -18,11 +18,11 @@ use systemprompt_models::managed::{
     ASSEMBLER_VERSION, MAX_BYTES, MAX_FILES, MAX_REVISIONS, RevisionManifest,
 };
 
-use super::{
+use crate::managed::error::invalid;
+use crate::managed::publication::{
     AssetDigest, ManagedError, ManagedRepository, ManagedResolution, Result, RevisionBundle,
     SelectionRow, resolution_from_row,
 };
-use crate::managed::error::invalid;
 
 /// One managed skill of a principal with the publication that currently
 /// selects it, and — when that publication is a live one — the retained

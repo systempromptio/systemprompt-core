@@ -3,6 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod catalog_batch;
+mod history;
+
+pub use catalog_batch::SkillResolutionRow;
+
 use super::{
     AssetDigest, EventOutboxId, ManagedError, ManagedRepository, ManagedResolution,
     ManagedResourceId, PublicationAction, PublicationAdmission, PublicationDecision, PublicationId,

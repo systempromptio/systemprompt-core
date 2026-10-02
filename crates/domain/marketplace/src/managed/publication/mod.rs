@@ -14,11 +14,9 @@ use systemprompt_identifiers::{
 use super::error::invalid;
 use super::{AssetDigest, ManagedError, ManagedRepository, ResourceKind, Result, RevisionBundle};
 
-mod catalog_batch;
-mod history;
 mod repository;
 
-pub use catalog_batch::SkillResolutionRow;
+pub use repository::SkillResolutionRow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]

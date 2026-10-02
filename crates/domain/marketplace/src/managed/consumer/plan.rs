@@ -12,11 +12,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::credentials;
 use crate::dev_files::DevFileFilter;
 use crate::managed::error::integrity;
-use crate::managed::{ManagedError, ManagedRepository, Result, RevisionBundle};
-use systemprompt_identifiers::{ManagedResourceId, PublicationId, UserId};
+use crate::managed::{ManagedError, Result, RevisionBundle};
+use systemprompt_identifiers::{ManagedResourceId, PublicationId};
 use systemprompt_models::feedback::receipts::{
     ConsumerInstallationPlan, FileReadback, InstallationPlanFile, ReadbackStatus,
 };
@@ -24,48 +23,6 @@ use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
 use systemprompt_models::services::skill_frontmatter::{
     authored_skill_frontmatter, render_passthrough_frontmatter, split_skill_frontmatter,
 };
-
-impl ManagedRepository {
-    pub async fn consumer_installation_plan(
-        &self,
-        credential: &str,
-        resource: &ManagedResourceId,
-        publication: &PublicationId,
-        host: EvaluatorClient,
-    ) -> Result<ConsumerInstallationPlan> {
-        self.authenticate_consumer_device(credential).await?;
-        let row = sqlx::query!("SELECT owner_id,revision_id,generation,bundle_digest FROM managed_publications WHERE id=$1 AND resource_id=$2 AND revision_id IS NOT NULL", publication.as_str(), resource.as_str()).fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
-        let owner = UserId::new(row.owner_id);
-        let revision = systemprompt_identifiers::ResourceRevisionId::new(
-            row.revision_id.ok_or(ManagedError::Integrity)?,
-        );
-        let bundle = self.get_revision_bundle(&owner, &revision).await?;
-        let key = sqlx::query_scalar!(
-            "SELECT resource_key FROM managed_resources WHERE id=$1",
-            resource.as_str()
-        )
-        .fetch_one(&self.pool)
-        .await?;
-        let plan = build_plan(
-            &bundle,
-            PlanIdentity {
-                publication_id: publication.clone(),
-                resource_id: resource.clone(),
-                generation: row.generation,
-                host,
-            },
-            &key,
-        )?;
-        if Some(plan.bundle_digest.as_str()) != row.bundle_digest.as_deref() {
-            return Err(ManagedError::Integrity);
-        }
-        let mut tx = self.pool.begin().await?;
-        let identity = credentials::authenticate(&mut tx, credential).await?;
-        credentials::require_grant(&mut tx, &owner, resource, &identity.consumer_id).await?;
-        tx.commit().await?;
-        Ok(plan)
-    }
-}
 
 pub(super) fn ships(path: &str) -> bool {
     !DevFileFilter::defaults().excludes(path, None, false)
@@ -168,14 +125,14 @@ fn render_skill(bundle: &RevisionBundle, host: EvaluatorClient, key: &str) -> Re
     ))
 }
 
-struct PlanIdentity {
-    publication_id: PublicationId,
-    resource_id: ManagedResourceId,
-    generation: i64,
-    host: EvaluatorClient,
+pub(super) struct PlanIdentity {
+    pub(super) publication_id: PublicationId,
+    pub(super) resource_id: ManagedResourceId,
+    pub(super) generation: i64,
+    pub(super) host: EvaluatorClient,
 }
 
-fn build_plan(
+pub(super) fn build_plan(
     bundle: &RevisionBundle,
     identity: PlanIdentity,
     key: &str,
@@ -219,10 +176,10 @@ fn build_plan(
     })
 }
 
-fn kebab_dir(id: &str) -> String {
-    let mut out = String::with_capacity(id.len());
+fn kebab_dir(key: &str) -> String {
+    let mut out = String::with_capacity(key.len());
     let mut last_dash = true;
-    for c in id.chars() {
+    for c in key.chars() {
         let mapped = if c.is_ascii_alphanumeric() {
             Some(c.to_ascii_lowercase())
         } else if last_dash {

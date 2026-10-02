@@ -4,9 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::InventoryEntry;
-use super::catalog::invalid;
-use super::types::InventoryResource;
+use crate::inventory::InventoryEntry;
+use crate::inventory::catalog::invalid;
+use crate::inventory::types::InventoryResource;
 use crate::managed::{ManagedRepository, Result};
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;

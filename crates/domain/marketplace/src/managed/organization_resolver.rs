@@ -74,14 +74,3 @@ impl ManagedSkillResolver for OrganizationSkillResolver {
         super::resolver::runtime_resolution(Self::resolve_skill(self, consumer, key).await, key)
     }
 }
-
-impl ManagedRepository {
-    async fn has_active_skill_grant(
-        &self,
-        owner: &UserId,
-        consumer: &UserId,
-        key: &str,
-    ) -> Result<bool> {
-        Ok(sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_consumer_grants g JOIN managed_resources r ON r.id=g.resource_id AND r.owner_id=g.owner_id WHERE g.owner_id=$1 AND g.consumer_id=$2 AND r.kind='skill' AND r.resource_key=$3 AND g.revoked_at IS NULL) AS \"granted!\"", owner.as_str(), consumer.as_str(), key).fetch_one(&self.pool).await?)
-    }
-}

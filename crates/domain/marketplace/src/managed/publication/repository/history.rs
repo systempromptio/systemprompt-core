@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{
+use crate::managed::publication::{
     ManagedRepository, ManagedResourceId, PublicationHistoryEntry, PublicationId,
     PublicationReviewId, PublicationRow, ResourceRevisionId, Result, UserId, decision_from_row,
 };

@@ -4,6 +4,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod captures;
+mod coverage;
+mod membership;
+mod projection;
+mod sources;
+
+pub(crate) use captures::IncomingRevision;
+
 use super::catalog::invalid;
 use super::{InventoryEntry, InventoryStatus};
 use crate::managed::{ManagedError, ManagedRepository, Result};
@@ -16,15 +24,15 @@ use systemprompt_identifiers::{
 // passed in rather than re-read here so the caller's generation decision and
 // this write cannot disagree about what moved.
 #[derive(Clone, Copy)]
-pub(super) struct StoredInventoryEntry<'a> {
-    pub(super) entry: &'a InventoryEntry,
-    pub(super) previous: Option<&'a InventoryEntry>,
-    pub(super) generation: i64,
-    pub(super) observed: DateTime<Utc>,
+struct StoredInventoryEntry<'a> {
+    entry: &'a InventoryEntry,
+    previous: Option<&'a InventoryEntry>,
+    generation: i64,
+    observed: DateTime<Utc>,
 }
 
 impl ManagedRepository {
-    pub(super) async fn store_inventory_entry(
+    async fn store_inventory_entry(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         owner: &UserId,
         stored: &StoredInventoryEntry<'_>,

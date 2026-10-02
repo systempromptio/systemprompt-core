@@ -5,20 +5,17 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod baseline;
-mod captures;
 pub(crate) mod catalog;
 mod configured_files;
-mod membership;
 mod projection;
 mod publish_latest;
 mod publish_provenance;
 mod repository;
 mod service;
-mod sources;
 mod types;
-pub(crate) use captures::IncomingRevision;
 pub use catalog::{configured_inventory_fingerprint, scan_configured_inventory};
 pub use publish_latest::{LatestPublication, LatestPublicationStatus, PublishGuard};
+pub(crate) use repository::IncomingRevision;
 pub use service::InventoryService;
 pub use types::*;
 
