@@ -118,11 +118,10 @@ impl Secrets {
 
     pub fn validate(&self) -> Result<(), SecretsError> {
         if self.oauth_at_rest_pepper.len() < OAUTH_AT_REST_PEPPER_MIN_LENGTH {
-            return Err(SecretsError::Invalid(format!(
-                "oauth_at_rest_pepper must be at least {} characters (got {})",
-                OAUTH_AT_REST_PEPPER_MIN_LENGTH,
-                self.oauth_at_rest_pepper.len()
-            )));
+            return Err(SecretsError::PepperTooShort {
+                min: OAUTH_AT_REST_PEPPER_MIN_LENGTH,
+                actual: self.oauth_at_rest_pepper.len(),
+            });
         }
         Ok(())
     }

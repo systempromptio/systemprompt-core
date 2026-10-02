@@ -4,6 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+
+use crate::errors::ParseEnumError;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
@@ -75,7 +77,7 @@ impl fmt::Display for Environment {
 }
 
 impl std::str::FromStr for Environment {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
@@ -83,9 +85,9 @@ impl std::str::FromStr for Environment {
             "test" => Ok(Self::Test),
             "staging" => Ok(Self::Staging),
             "production" => Ok(Self::Production),
-            _ => Err(format!(
-                "Invalid environment '{}'. Must be one of: development, test, staging, production",
-                s
+            _ => Err(ParseEnumError::new(
+                "environment (expected development, test, staging or production)",
+                s,
             )),
         }
     }
@@ -126,7 +128,7 @@ impl fmt::Display for LogLevel {
 }
 
 impl std::str::FromStr for LogLevel {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
@@ -134,9 +136,9 @@ impl std::str::FromStr for LogLevel {
             "normal" => Ok(Self::Normal),
             "verbose" => Ok(Self::Verbose),
             "debug" => Ok(Self::Debug),
-            _ => Err(format!(
-                "Invalid log level '{}'. Must be one of: quiet, normal, verbose, debug",
-                s
+            _ => Err(ParseEnumError::new(
+                "log level (expected quiet, normal, verbose or debug)",
+                s,
             )),
         }
     }
@@ -164,16 +166,16 @@ impl fmt::Display for OutputFormat {
 }
 
 impl std::str::FromStr for OutputFormat {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "text" => Ok(Self::Text),
             "json" => Ok(Self::Json),
             "yaml" => Ok(Self::Yaml),
-            _ => Err(format!(
-                "Invalid output format '{}'. Must be one of: text, json, yaml",
-                s
+            _ => Err(ParseEnumError::new(
+                "output format (expected text, json or yaml)",
+                s,
             )),
         }
     }

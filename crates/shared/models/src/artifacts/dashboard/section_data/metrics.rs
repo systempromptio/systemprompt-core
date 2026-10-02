@@ -6,6 +6,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::errors::ParseEnumError;
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct MetricsCardsData {
     pub cards: Vec<MetricCard>,
@@ -45,7 +47,7 @@ pub enum MetricStatus {
 }
 
 impl std::str::FromStr for MetricStatus {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
@@ -53,7 +55,7 @@ impl std::str::FromStr for MetricStatus {
             "warning" | "degraded" => Ok(Self::Warning),
             "error" | "failed" | "critical" => Ok(Self::Error),
             "info" | "unknown" => Ok(Self::Info),
-            _ => Err(format!("Invalid metric status: {s}")),
+            _ => Err(ParseEnumError::new("metric status", s)),
         }
     }
 }

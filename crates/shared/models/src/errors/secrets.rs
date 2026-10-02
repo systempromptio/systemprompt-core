@@ -12,6 +12,6 @@ pub enum SecretsError {
         source: serde_json::Error,
     },
 
-    #[error("{0}")]
-    Invalid(String),
+    #[error("oauth_at_rest_pepper must be at least {min} characters (got {actual})")]
+    PepperTooShort { min: usize, actual: usize },
 }

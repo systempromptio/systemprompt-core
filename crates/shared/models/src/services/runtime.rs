@@ -4,6 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+
+use crate::errors::ParseEnumError;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,7 +40,7 @@ impl fmt::Display for RuntimeStatus {
 }
 
 impl std::str::FromStr for RuntimeStatus {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
@@ -47,7 +49,7 @@ impl std::str::FromStr for RuntimeStatus {
             "stopped" => Ok(Self::Stopped),
             "crashed" | "error" => Ok(Self::Crashed),
             "orphaned" => Ok(Self::Orphaned),
-            _ => Err(format!("Invalid runtime status: {s}")),
+            _ => Err(ParseEnumError::new("runtime status", s)),
         }
     }
 }

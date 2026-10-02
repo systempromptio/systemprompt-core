@@ -5,6 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+
+use crate::errors::ParseEnumError;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -56,14 +58,14 @@ impl std::fmt::Display for ApiKeyLocation {
 }
 
 impl std::str::FromStr for ApiKeyLocation {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "query" => Ok(Self::Query),
             "header" => Ok(Self::Header),
             "cookie" => Ok(Self::Cookie),
-            _ => Err(format!("Invalid API key location: {s}")),
+            _ => Err(ParseEnumError::new("API key location", s)),
         }
     }
 }

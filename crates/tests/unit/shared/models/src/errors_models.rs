@@ -77,9 +77,12 @@ fn config_validation_error_business_rule() {
 }
 
 #[test]
-fn secrets_error_invalid_display() {
-    let e = SecretsError::Invalid("bad key".to_owned());
-    assert_eq!(e.to_string(), "bad key");
+fn secrets_error_pepper_too_short_display() {
+    let e = SecretsError::PepperTooShort { min: 32, actual: 4 };
+    assert_eq!(
+        e.to_string(),
+        "oauth_at_rest_pepper must be at least 32 characters (got 4)"
+    );
 }
 
 #[test]
