@@ -13,7 +13,8 @@ use crate::services::SkillService;
 use crate::services::a2a_server::processing::artifact::ArtifactBuilder;
 use crate::services::a2a_server::processing::message::StreamEvent;
 use systemprompt_identifiers::{ContextId, TaskId};
-use systemprompt_models::{AiMessage, AiProvider, RequestContext};
+use systemprompt_models::ai::DynAiProvider;
+use systemprompt_models::{AiMessage, RequestContext};
 
 pub fn build_artifacts_from_results(
     tool_results: &[systemprompt_models::CallToolResult],
@@ -56,7 +57,7 @@ pub(super) struct SynthesizeFinalResponseParams<'a> {
     pub tool_results: &'a [systemprompt_models::CallToolResult],
     pub artifacts: &'a [Artifact],
     pub accumulated_text: &'a str,
-    pub ai_service: Arc<dyn AiProvider>,
+    pub ai_service: DynAiProvider,
     pub agent_runtime: &'a AgentRuntimeInfo,
     pub ai_messages_for_synthesis: Vec<AiMessage>,
     pub tx: mpsc::Sender<StreamEvent>,

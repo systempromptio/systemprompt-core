@@ -14,8 +14,9 @@ use axum::{Router, middleware};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AgentName;
+use systemprompt_models::AgentConfig;
+use systemprompt_models::ai::DynAiProvider;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::{AgentConfig, AiProvider};
 use tokio::sync::{RwLock, Semaphore};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
@@ -63,7 +64,7 @@ pub struct Server {
     config: Arc<RwLock<AgentConfig>>,
     oauth_state: Arc<AgentOAuthState>,
     agent_state: Arc<AgentState>,
-    ai_service: Arc<dyn AiProvider>,
+    ai_service: DynAiProvider,
     stream_semaphore: Arc<Semaphore>,
     active_tasks: ActiveTasks,
     cors: CorsLayer,
@@ -76,7 +77,7 @@ impl std::fmt::Debug for Server {
             .field("config", &"Arc<RwLock<AgentConfig>>")
             .field("oauth_state", &"Arc<AgentOAuthState>")
             .field("agent_state", &"Arc<AgentState>")
-            .field("ai_service", &"<Arc<dyn AiProvider>>")
+            .field("ai_service", &"<DynAiProvider>")
             .field(
                 "stream_semaphore",
                 &self.stream_semaphore.available_permits(),
@@ -91,7 +92,7 @@ impl Server {
     pub async fn new(
         db_pool: DbPool,
         agent_state: Arc<AgentState>,
-        ai_service: Arc<dyn AiProvider>,
+        ai_service: DynAiProvider,
         agent_name: &AgentName,
         port: u16,
     ) -> Result<Self, crate::error::AgentError> {

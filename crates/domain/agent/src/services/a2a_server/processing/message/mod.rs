@@ -31,7 +31,8 @@ use crate::repository::execution::ExecutionStepRepository;
 use crate::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
 use crate::services::{ArtifactPublishingService, ContextService, SkillService};
 use systemprompt_identifiers::{AgentName, AiToolCallId, TaskId};
-use systemprompt_models::{AiProvider, CallToolResult, RequestContext, ToolCall};
+use systemprompt_models::ai::DynAiProvider;
+use systemprompt_models::{CallToolResult, RequestContext, ToolCall};
 
 #[derive(Debug)]
 pub enum StreamEvent {
@@ -97,7 +98,7 @@ pub struct ProcessMessageStreamParams<'a> {
 
 pub struct MessageProcessor {
     repositories: Arc<A2ARepositories>,
-    ai_service: Arc<dyn AiProvider>,
+    ai_service: DynAiProvider,
     context_service: ContextService,
     skill_service: Arc<SkillService>,
     execution_step_repo: Arc<ExecutionStepRepository>,
@@ -108,7 +109,7 @@ pub struct MessageProcessor {
 impl std::fmt::Debug for MessageProcessor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MessageProcessor")
-            .field("ai_service", &"<Arc<dyn AiProvider>>")
+            .field("ai_service", &"<DynAiProvider>")
             .finish()
     }
 }
@@ -116,7 +117,7 @@ impl std::fmt::Debug for MessageProcessor {
 impl MessageProcessor {
     pub fn new(
         repositories: Arc<A2ARepositories>,
-        ai_service: Arc<dyn AiProvider>,
+        ai_service: DynAiProvider,
         webhooks: DynWebhookBroadcaster,
     ) -> Result<Self> {
         let context_service = ContextService::new(repositories.tasks.clone());

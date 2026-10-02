@@ -15,6 +15,7 @@ use tokio::sync::mpsc;
 
 use crate::models::a2a::Artifact;
 use crate::services::SkillService;
+use systemprompt_models::ai::DynAiProvider;
 use systemprompt_models::{
     AiMessage, AiProvider, AiRequest, CallToolResult, MessageRole, RequestContext, StreamChunk,
     ToolCall, ToolResultFormatter,
@@ -70,7 +71,7 @@ pub fn resolve_provider_config(
     reason = "params struct holds non-Debug references"
 )]
 pub struct SynthesizeToolResultsParams<'a> {
-    pub ai_service: Arc<dyn AiProvider>,
+    pub ai_service: DynAiProvider,
     pub agent_runtime: &'a AgentRuntimeInfo,
     pub original_messages: Vec<AiMessage>,
     pub initial_response: &'a str,
@@ -146,7 +147,7 @@ pub async fn synthesize_tool_results_with_artifacts(
 }
 
 pub async fn process_without_tools(
-    ai_service: Arc<dyn AiProvider>,
+    ai_service: DynAiProvider,
     agent_runtime: &AgentRuntimeInfo,
     ai_messages: Vec<AiMessage>,
     tx: mpsc::Sender<StreamEvent>,
