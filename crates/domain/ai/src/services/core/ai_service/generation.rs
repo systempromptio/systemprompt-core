@@ -8,7 +8,7 @@ use systemprompt_identifiers::AiRequestId;
 
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
-use crate::services::providers::{AiProvider, GenerationParams, SchemaGenerationParams};
+use crate::services::providers::{GenerationParams, ProviderClient, SchemaGenerationParams};
 
 use super::super::request_logging;
 use super::super::request_storage::StoreParams;
@@ -50,7 +50,7 @@ impl AiService {
     async fn execute_generate(
         &self,
         request: &AiRequest,
-        provider: &dyn AiProvider,
+        provider: &dyn ProviderClient,
         model: &str,
     ) -> Result<AiResponse> {
         let base = GenerationParams::new(&request.messages, model, request.max_output_tokens());

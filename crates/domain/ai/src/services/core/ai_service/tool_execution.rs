@@ -9,7 +9,7 @@ use systemprompt_identifiers::AiRequestId;
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
 use crate::models::tools::{CallToolResult, McpTool, ToolCall};
-use crate::services::providers::{AiProvider, GenerationParams, ToolGenerationParams};
+use crate::services::providers::{GenerationParams, ProviderClient, ToolGenerationParams};
 use crate::services::tooled::{ResponseStrategy, SynthesisParams};
 
 use super::super::request_logging;
@@ -24,7 +24,7 @@ struct FinalizeTooledParams<'a> {
     latency_ms: u64,
     request: &'a AiRequest,
     model: &'a str,
-    provider: &'a dyn AiProvider,
+    provider: &'a dyn ProviderClient,
     tools: &'a [McpTool],
 }
 
@@ -32,7 +32,7 @@ struct SynthesizeIfNeededParams<'a> {
     response: &'a AiResponse,
     tool_calls: &'a [ToolCall],
     tool_results: &'a [CallToolResult],
-    provider: &'a dyn AiProvider,
+    provider: &'a dyn ProviderClient,
     request: &'a AiRequest,
     model: &'a str,
 }

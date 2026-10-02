@@ -1,4 +1,4 @@
-//! [`ResilientProvider`] — an [`AiProvider`] decorator that applies the
+//! [`ResilientProvider`] — an [`ProviderClient`] decorator that applies the
 //! resilience policy (timeout, retry, circuit breaker, bulkhead) to every call.
 //!
 //! [`super::provider_factory::ProviderFactory`] wraps each concrete provider in
@@ -27,7 +27,7 @@ use crate::models::tools::ToolCall;
 use crate::services::schema::ProviderCapabilities;
 
 use super::provider_trait::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
 
@@ -35,7 +35,7 @@ type StreamResult = Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send
 
 pub struct ResilientProvider {
     provider: String,
-    inner: Arc<dyn AiProvider>,
+    inner: Arc<dyn ProviderClient>,
     guard: Arc<ResilienceGuard>,
 }
 
@@ -52,7 +52,7 @@ impl ResilientProvider {
     #[must_use]
     pub fn new(
         provider: impl Into<String>,
-        inner: Arc<dyn AiProvider>,
+        inner: Arc<dyn ProviderClient>,
         settings: &ResilienceSettings,
     ) -> Self {
         let provider = provider.into();
@@ -106,7 +106,7 @@ impl ResilientProvider {
 }
 
 #[async_trait]
-impl AiProvider for ResilientProvider {
+impl ProviderClient for ResilientProvider {
     fn name(&self) -> &str {
         self.inner.name()
     }

@@ -1,4 +1,4 @@
-// Exercises the default method bodies on `AiProvider` through a stub that
+// Exercises the default method bodies on `ProviderClient` through a stub that
 // implements only the required methods.
 
 use async_trait::async_trait;
@@ -11,7 +11,7 @@ use systemprompt_ai::models::ai::{
 };
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
@@ -38,7 +38,7 @@ impl MinimalProvider {
 }
 
 #[async_trait]
-impl AiProvider for MinimalProvider {
+impl ProviderClient for MinimalProvider {
     fn name(&self) -> &str {
         "minimal"
     }

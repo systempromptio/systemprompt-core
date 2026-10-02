@@ -1,5 +1,5 @@
 use crate::services::providers::mock_http;
-use systemprompt_ai::services::providers::{AiProvider, ProviderClientParams, ProviderFactory};
+use systemprompt_ai::services::providers::{ProviderClient, ProviderClientParams, ProviderFactory};
 use systemprompt_models::services::{
     ProviderModel, ProviderRegistry, ResilienceSettings, WireProtocol,
 };
@@ -18,7 +18,7 @@ fn create(
     wire: WireProtocol,
     endpoint: &str,
     google_search_enabled: bool,
-) -> std::sync::Arc<dyn AiProvider> {
+) -> std::sync::Arc<dyn ProviderClient> {
     let models = seed_models(name);
     let resilience = ResilienceSettings::default();
     let params = ProviderClientParams {

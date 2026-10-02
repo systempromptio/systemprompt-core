@@ -1,4 +1,4 @@
-//! `AiProvider` implementation for Anthropic.
+//! `ProviderClient` implementation for Anthropic.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +11,7 @@ use std::pin::Pin;
 use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
 use crate::models::tools::ToolCall;
 use crate::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
     ToolGenerationParams, catalog_default_model, catalog_pricing, catalog_supports_model,
 };
 use crate::services::schema::ProviderCapabilities;
@@ -22,7 +22,7 @@ use super::provider::AnthropicProvider;
 use super::{generation, search};
 
 #[async_trait]
-impl AiProvider for AnthropicProvider {
+impl ProviderClient for AnthropicProvider {
     fn name(&self) -> &'static str {
         "anthropic"
     }

@@ -2,7 +2,7 @@
 //!
 //! Drivers live for Anthropic, `OpenAI`, Gemini (chat + image generation),
 //! along with image provider abstractions. The internal
-//! [`provider_trait::AiProvider`] trait is the dispatch surface
+//! [`provider_trait::ProviderClient`] trait is the dispatch surface
 //! used by [`crate::AiService`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -32,7 +32,7 @@ pub use openai::OpenAiProvider;
 pub use openai_images::OpenAiImageProvider;
 pub use provider_factory::{ProviderClientParams, ProviderFactory};
 pub use provider_trait::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams, catalog_default_model,
     catalog_pricing, catalog_supports_model,
 };

@@ -1,6 +1,6 @@
 // Tool-use and tool-result drivers for the Gemini provider, exercised through
-// the public `AiProvider` trait against a wiremock endpoint. These cover the
-// schema-transform / name-mapper round trip in `gemini/tools.rs` and
+// the public `ProviderClient` trait against a wiremock endpoint. These cover
+// the schema-transform / name-mapper round trip in `gemini/tools.rs` and
 // `gemini/tool_conversion.rs`: convert_tools, resolve_response (function-call
 // name resolution), and the tool-result turn assembly.
 
@@ -11,7 +11,7 @@ use systemprompt_ai::models::ai::AiMessage;
 use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_ai::services::providers::gemini::GeminiProvider;
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, ToolGenerationParams, ToolResultsParams,
+    GenerationParams, ProviderClient, ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_identifiers::{AiToolCallId, McpServerId};
 use systemprompt_models::services::WireProtocol;

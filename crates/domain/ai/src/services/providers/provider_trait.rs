@@ -1,6 +1,6 @@
-//! The [`AiProvider`] abstraction and its request parameter types.
+//! The [`ProviderClient`] abstraction and its request parameter types.
 //!
-//! Every LLM backend implements [`AiProvider`], a `dyn`-dispatched trait
+//! Every LLM backend implements [`ProviderClient`], a `dyn`-dispatched trait
 //! covering plain generation, tool calling, structured/schema output, search
 //! grounding, and streaming. The borrowed parameter structs
 //! ([`GenerationParams`], [`ToolGenerationParams`], [`SchemaGenerationParams`],
@@ -169,7 +169,7 @@ impl<'a> SearchGenerationParams<'a> {
 // Why: Native async trait methods are not dyn-compatible; boxed providers
 // require `async_trait`.
 #[async_trait]
-pub trait AiProvider: Send + Sync {
+pub trait ProviderClient: Send + Sync {
     fn name(&self) -> &str;
 
     fn capabilities(&self) -> ProviderCapabilities;

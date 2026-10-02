@@ -11,7 +11,7 @@
 
 use crate::models::ai::{AiMessage, AiResponse, MessageRole, SamplingParams};
 use crate::models::tools::{CallToolResult, ToolCall};
-use crate::services::providers::{AiProvider, GenerationParams, ToolResultsParams};
+use crate::services::providers::{GenerationParams, ProviderClient, ToolResultsParams};
 use systemprompt_models::ToolResultFormatter;
 use tracing::{info, warn};
 
@@ -93,7 +93,7 @@ pub struct SynthesisOutcome {
 }
 
 pub struct SynthesisParams<'a> {
-    pub provider: &'a dyn AiProvider,
+    pub provider: &'a dyn ProviderClient,
     pub original_messages: &'a [AiMessage],
     pub tool_calls: &'a [ToolCall],
     pub tool_results: &'a [CallToolResult],
@@ -105,7 +105,7 @@ pub struct SynthesisParams<'a> {
 impl std::fmt::Debug for SynthesisParams<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SynthesisParams")
-            .field("provider", &"<dyn AiProvider>")
+            .field("provider", &"<dyn ProviderClient>")
             .field("original_messages", &self.original_messages)
             .field("tool_calls", &self.tool_calls)
             .field("tool_results", &self.tool_results)

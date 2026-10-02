@@ -10,7 +10,7 @@ use systemprompt_models::services::AiConfig;
 use tracing::warn;
 
 use crate::error::Result;
-use crate::services::providers::AiProvider;
+use crate::services::providers::ProviderClient;
 
 #[derive(Debug, Copy, Clone)]
 pub struct ConfigValidator;
@@ -18,7 +18,7 @@ pub struct ConfigValidator;
 impl ConfigValidator {
     pub fn validate(
         config: &AiConfig,
-        providers: &HashMap<String, Arc<dyn AiProvider>>,
+        providers: &HashMap<String, Arc<dyn ProviderClient>>,
         missing_env_vars: &[String],
     ) -> Result<()> {
         Self::validate_providers(config, providers, missing_env_vars)?;
@@ -30,7 +30,7 @@ impl ConfigValidator {
 
     fn validate_providers(
         config: &AiConfig,
-        providers: &HashMap<String, Arc<dyn AiProvider>>,
+        providers: &HashMap<String, Arc<dyn ProviderClient>>,
         missing_env_vars: &[String],
     ) -> Result<()> {
         if providers.is_empty() {

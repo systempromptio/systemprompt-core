@@ -11,7 +11,7 @@ use systemprompt_identifiers::AiRequestId;
 
 use crate::models::ai::{AiRequest, GoogleSearchParams, SearchGroundedResponse, StreamChunk};
 use crate::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SearchGenerationParams, ToolGenerationParams,
+    GenerationParams, ModelPricing, ProviderClient, SearchGenerationParams, ToolGenerationParams,
 };
 
 use super::service::AiService;
@@ -149,7 +149,7 @@ impl AiService {
     }
 }
 
-fn priced_model(provider: &dyn AiProvider, model: &str) -> Result<ModelPricing> {
+fn priced_model(provider: &dyn ProviderClient, model: &str) -> Result<ModelPricing> {
     provider
         .get_pricing(model)
         .ok_or_else(|| AiError::UnknownModel {

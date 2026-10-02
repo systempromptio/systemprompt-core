@@ -11,7 +11,7 @@ use crate::models::RequestStatus;
 use crate::models::ai::AiRequest;
 use crate::repository::AiRepositories;
 use crate::services::config::ConfigValidator;
-use crate::services::providers::{AiProvider, ProviderClientParams, ProviderFactory};
+use crate::services::providers::{ProviderClient, ProviderClientParams, ProviderFactory};
 use crate::services::tooled::{ResponseSynthesizer, TooledExecutor};
 use crate::services::tools::ToolDiscovery;
 use crate::services::upstream::UpstreamTarget;
@@ -24,7 +24,7 @@ use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 use tokio_util::task::TaskTracker;
 
 pub struct AiService {
-    pub(super) providers: HashMap<String, Arc<dyn AiProvider>>,
+    pub(super) providers: HashMap<String, Arc<dyn ProviderClient>>,
     pub(super) tool_provider: Arc<dyn ToolProvider>,
     pub(super) tool_discovery: Arc<ToolDiscovery>,
     pub(super) tooled_executor: TooledExecutor,
@@ -132,9 +132,9 @@ impl AiService {
         registry: &ProviderRegistry,
         ai_config: &AiConfig,
         missing_env_vars: &mut Vec<String>,
-    ) -> Result<HashMap<String, Arc<dyn AiProvider>>> {
+    ) -> Result<HashMap<String, Arc<dyn ProviderClient>>> {
         SecretsBootstrap::get()?;
-        let mut providers: HashMap<String, Arc<dyn AiProvider>> = HashMap::new();
+        let mut providers: HashMap<String, Arc<dyn ProviderClient>> = HashMap::new();
 
         for (name, policy) in &ai_config.providers {
             if !policy.enabled {
@@ -176,7 +176,7 @@ impl AiService {
         entry: &ProviderEntry,
         policy: &AiProviderConfig,
         target: UpstreamTarget,
-    ) -> Result<Arc<dyn AiProvider>> {
+    ) -> Result<Arc<dyn ProviderClient>> {
         let params = ProviderClientParams {
             name: entry.name.as_str(),
             target,
@@ -201,7 +201,7 @@ impl AiService {
         self.default_max_output_tokens
     }
 
-    pub(super) fn get_provider(&self, name: &str) -> Result<Arc<dyn AiProvider>> {
+    pub(super) fn get_provider(&self, name: &str) -> Result<Arc<dyn ProviderClient>> {
         self.providers
             .get(name)
             .cloned()

@@ -34,9 +34,9 @@
 //! - an `Internal(String)` variant for invariant violations the crate itself
 //!   describes (no underlying error)
 //!
-//! The provider-trait surface ([`AiProvider`]) used over the wire bridges to
-//! [`AiInferenceResult`](systemprompt_models::errors::AiInferenceResult) in
-//! [`services::core::ai_service`].
+//! The cross-domain [`AiProvider`](systemprompt_models::ai::AiProvider) seam
+//! returns [`AiInferenceResult`](systemprompt_models::errors::AiInferenceResult)
+//! from [`services::core::ai_service`].
 //!
 //! ## Feature flags
 //!
@@ -100,5 +100,3 @@ pub use repository::{
 };
 
 pub use services::upstream::{UpstreamCall, UpstreamDialect, UpstreamTarget, UpstreamTargetError};
-
-pub use systemprompt_models::ai::{AiProvider, DynAiProvider};

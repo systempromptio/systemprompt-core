@@ -13,8 +13,8 @@ use systemprompt_ai::models::tools::{McpTool, ToolCall};
 use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
 use systemprompt_ai::services::providers::resilient_provider::ResilientProvider;
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, StructuredGenerationParams,
-    ToolGenerationParams, ToolResultsParams,
+    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams,
+    StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
 use systemprompt_identifiers::{AiRequestId, McpServerId};
@@ -40,7 +40,7 @@ async fn delegates_generate_to_inner() {
             .await;
     let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
-    let resilient: Arc<dyn AiProvider> =
+    let resilient: Arc<dyn ProviderClient> =
         Arc::new(ResilientProvider::new("anthropic", Arc::new(inner), &s));
 
     let messages = vec![AiMessage::user("hi")];
@@ -309,7 +309,7 @@ struct SequencedStreamProvider {
 }
 
 #[async_trait]
-impl AiProvider for SequencedStreamProvider {
+impl ProviderClient for SequencedStreamProvider {
     fn name(&self) -> &str {
         "sequenced"
     }

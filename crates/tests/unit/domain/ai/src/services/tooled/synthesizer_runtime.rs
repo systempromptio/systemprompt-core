@@ -1,5 +1,5 @@
 // Async drivers for `ResponseSynthesizer::synthesize_or_fallback`, backed by a
-// configurable in-test `AiProvider` stub. These cover the three terminal
+// configurable in-test `ProviderClient` stub. These cover the three terminal
 // branches in `tooled/synthesizer.rs`: success from the tool-results call,
 // success from the explicit guidance prompt, the empty-content fallback, and
 // the provider-error fallback.
@@ -12,7 +12,8 @@ use systemprompt_ai::error::{AiError, Result};
 use systemprompt_ai::models::ai::{AiMessage, AiResponse, MessageRole};
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, SchemaGenerationParams, ToolGenerationParams, ToolResultsParams,
+    GenerationParams, ProviderClient, SchemaGenerationParams, ToolGenerationParams,
+    ToolResultsParams,
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
 use systemprompt_ai::services::tooled::{ResponseSynthesizer, SynthesisParams};
@@ -64,7 +65,7 @@ impl StubProvider {
 }
 
 #[async_trait]
-impl AiProvider for StubProvider {
+impl ProviderClient for StubProvider {
     fn name(&self) -> &str {
         "stub"
     }
@@ -228,7 +229,7 @@ async fn the_synthesis_params_debug_elides_the_provider_but_keeps_the_inputs() {
     let rendered = format!("{params:?}");
 
     assert!(
-        rendered.contains("<dyn AiProvider>"),
+        rendered.contains("<dyn ProviderClient>"),
         "the provider is a trait object with no Debug of its own, so it must be \
          elided rather than force the whole struct to be undebuggable: {rendered}"
     );

@@ -68,7 +68,7 @@ let response = ai_service.generate(&request).await?;
 | `models/` | Unified `AiRequest`/`AiResponse` types plus provider-specific request and response DTOs for Anthropic, OpenAI, and Gemini. |
 | `repository/` | Compile-time-verified persistence for requests, messages, tool calls, request/response payloads, quota buckets, gateway policies, and safety findings. |
 | `services/core/` | `AiService` (top-level orchestration) and `ImageService`, with request storage and structured logging. |
-| `services/providers/` | Per-provider implementations of the `AiProvider` trait for Anthropic, OpenAI, and Gemini, plus the image providers. |
+| `services/providers/` | Per-provider implementations of the `ProviderClient` trait for Anthropic, OpenAI, and Gemini, plus the image providers. |
 | `services/gateway/` | Governance policy ingestion, safety scanning, route selection, and system-prompt overrides. Re-exported at the crate root. |
 | `services/schema/` | Tool-schema transformation, including discriminated-union splitting for providers that reject `anyOf`. |
 | `services/tooled/` | Tool-execution orchestration: runs calls through the injected `ToolProvider` and synthesizes responses. |

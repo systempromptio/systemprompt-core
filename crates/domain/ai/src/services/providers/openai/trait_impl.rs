@@ -1,4 +1,4 @@
-//! `AiProvider` implementation for `OpenAI`.
+//! `ProviderClient` implementation for `OpenAI`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +11,7 @@ use std::pin::Pin;
 use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
 use crate::models::tools::ToolCall;
 use crate::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, catalog_default_model, catalog_pricing,
     catalog_supports_model,
 };
@@ -23,7 +23,7 @@ use super::provider::OpenAiProvider;
 use super::{generation, search};
 
 #[async_trait]
-impl AiProvider for OpenAiProvider {
+impl ProviderClient for OpenAiProvider {
     fn name(&self) -> &'static str {
         "openai"
     }

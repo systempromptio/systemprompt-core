@@ -7,7 +7,7 @@ use systemprompt_ai::services::providers::anthropic::{
     AnthropicProvider, search as anthropic_search,
 };
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
     ToolGenerationParams,
 };
 use systemprompt_identifiers::McpServerId;
