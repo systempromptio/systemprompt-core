@@ -69,19 +69,19 @@ impl JsonRpcErrorBuilder {
         if let Some(log_msg) = self.log_message {
             match self.log_level {
                 LogLevel::Error => {
-                    tracing::error!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::error!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
                 LogLevel::Warn => {
-                    tracing::warn!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::warn!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
                 LogLevel::Info => {
-                    tracing::info!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::info!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
                 LogLevel::Debug => {
-                    tracing::debug!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::debug!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
                 LogLevel::Trace => {
-                    tracing::trace!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::trace!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
             }
         }
