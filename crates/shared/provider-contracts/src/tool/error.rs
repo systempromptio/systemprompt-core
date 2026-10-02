@@ -13,9 +13,6 @@ pub enum ToolProviderError {
     #[error("Service '{0}' not found")]
     ServiceNotFound(String),
 
-    #[error("Failed to connect to service '{service}': {message}")]
-    ConnectionFailed { service: String, message: String },
-
     #[error("Tool execution failed: {0}")]
     ExecutionFailed(String),
 

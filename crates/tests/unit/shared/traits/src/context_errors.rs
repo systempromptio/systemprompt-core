@@ -25,12 +25,6 @@ fn invalid_header_display_contains_name_and_message() {
 }
 
 #[test]
-fn invalid_context_display_contains_detail() {
-    let e = ContextPropagationError::Invalid("context expired".to_owned());
-    assert!(format!("{e}").contains("context expired"));
-}
-
-#[test]
 fn context_propagation_errors_are_debug() {
     let variants: &[ContextPropagationError] = &[
         ContextPropagationError::MissingHeader("h".into()),
@@ -38,7 +32,6 @@ fn context_propagation_errors_are_debug() {
             name: "n".into(),
             source: "m".into(),
         },
-        ContextPropagationError::Invalid("i".into()),
     ];
     for e in variants {
         let s = format!("{e:?}");
@@ -63,7 +56,7 @@ fn result_alias_ok_carries_value() {
 
 #[test]
 fn result_alias_err_carries_error() {
-    let r: ContextPropagationResult<()> = Err(ContextPropagationError::Invalid("bad".into()));
+    let r: ContextPropagationResult<()> = Err(ContextPropagationError::MissingHeader("bad".into()));
     assert!(r.is_err());
 }
 

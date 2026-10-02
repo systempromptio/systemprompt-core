@@ -104,17 +104,6 @@ mod tool_provider_error_tests {
     }
 
     #[test]
-    fn connection_failed_contains_service_and_message() {
-        let err = ToolProviderError::ConnectionFailed {
-            service: "svc".to_string(),
-            message: "timeout".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("svc"));
-        assert!(msg.contains("timeout"));
-    }
-
-    #[test]
     fn execution_failed_contains_message() {
         let err = ToolProviderError::ExecutionFailed("crashed".to_string());
         assert!(err.to_string().contains("crashed"));
