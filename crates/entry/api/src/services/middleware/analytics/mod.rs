@@ -201,10 +201,18 @@ impl AnalyticsMiddleware {
         let sessions = Arc::clone(&self.sessions);
 
         tokio::spawn(async move {
-            let (request_count, duration_seconds) = sessions
-                .get_session_velocity(&session_id)
-                .await
-                .unwrap_or((None, None));
+            let (request_count, duration_seconds) =
+                match sessions.get_session_velocity(&session_id).await {
+                    Ok(velocity) => velocity,
+                    Err(e) => {
+                        tracing::warn!(
+                            error = %e,
+                            session_id = %session_id,
+                            "Failed to read session velocity; scanner check skipped"
+                        );
+                        return;
+                    },
+                };
 
             if let (Some(count), Some(duration)) = (request_count, duration_seconds)
                 && ScannerDetector::is_high_velocity(count, duration)
