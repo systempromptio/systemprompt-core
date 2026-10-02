@@ -63,6 +63,7 @@ pub(super) fn gw_repos(
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     )
 }
 
@@ -343,7 +344,13 @@ async fn settled_tokens(
     pool: &DbPool,
     id: &AiRequestId,
 ) -> Option<i32> {
-    repos.background.drain().await;
+    assert_eq!(
+        repos
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     let row: Option<(Option<i32>,)> =
         sqlx::query_as("SELECT tokens_used FROM ai_requests WHERE id = $1")
             .bind(id.as_str())
@@ -924,7 +931,13 @@ async fn settled_findings(
     pool: &DbPool,
     id: &AiRequestId,
 ) -> Vec<(String, String, String)> {
-    repos.background.drain().await;
+    assert_eq!(
+        repos
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     sqlx::query_as(
         "SELECT phase, category, severity FROM ai_safety_findings WHERE ai_request_id = $1 \
          ORDER BY phase, category",
@@ -1343,7 +1356,13 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
     .await?;
     assert_eq!(first.status(), http::StatusCode::OK);
     to_bytes(first.into_body(), 1024 * 1024).await?;
-    repositories.background.drain().await;
+    assert_eq!(
+        repositories
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     let second = inputs(&cred, canonical_request(MODEL, false), false);
     let request_id = second.ctx.ai_request_id.clone();
     let result = GatewayService::dispatch(&config, &registry, &pool, &repositories, second).await;
@@ -1366,7 +1385,13 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         assert!(quota.message.contains("used 2/1"), "{}", quota.message);
     }
     upstream.verify().await;
-    repositories.background.drain().await;
+    assert_eq!(
+        repositories
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     drop(repositories);
     raw.close().await;
     database.drop_now().await;
@@ -1490,6 +1515,7 @@ fn owned_gateway_repos(
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(pool),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     )
 }
 
@@ -1664,7 +1690,13 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         .await
         .expect("provider response remains available when accounting is retained for recovery");
     assert_eq!(response.status(), http::StatusCode::OK);
-    repositories.background.drain().await;
+    assert_eq!(
+        repositories
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     assert_eq!(
         upstream
             .received_requests()

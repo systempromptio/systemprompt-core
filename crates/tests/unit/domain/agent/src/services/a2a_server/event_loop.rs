@@ -114,7 +114,7 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
     let (event_tx, events) = mpsc::channel::<StreamEvent>(64);
     let stream = MessageStream {
         events,
-        worker: tokio::spawn(async {}),
+        worker: systemprompt_traits::OwnedTask::spawn("test_worker", async {}),
         cancel: CancellationToken::new(),
     };
 

@@ -7,8 +7,8 @@
 use std::io::Write;
 use std::time::Duration;
 
+use systemprompt_traits::OwnedTask;
 use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
 
 use super::columns::LogColumns;
 use crate::models::{LogEntry, LoggingError};
@@ -35,7 +35,7 @@ pub enum LogWriterShutdownError {
 #[derive(Debug)]
 pub struct LogWriterHandle {
     sender: mpsc::Sender<LogCommand>,
-    task: JoinHandle<()>,
+    task: OwnedTask<()>,
 }
 
 impl LogWriterHandle {
@@ -46,13 +46,13 @@ impl LogWriterHandle {
     ) -> Self {
         Self {
             sender,
-            task: tokio::spawn(batch_writer(db_pool, receiver)),
+            task: OwnedTask::spawn("log_batch_writer", batch_writer(db_pool, receiver)),
         }
     }
 
     pub async fn shutdown(self) -> Result<(), LogWriterShutdownError> {
         let requested = self.sender.send(LogCommand::Shutdown).await;
-        self.task.await?;
+        self.task.join().await?;
         requested.map_err(|_closed| LogWriterShutdownError::WriterGone)
     }
 }

@@ -30,7 +30,12 @@ fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynC
 }
 
 fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
-    GatewayRepositories::new(db, gateway_journal(), materializer(db))
+    GatewayRepositories::new(
+        db,
+        gateway_journal(),
+        materializer(db),
+        systemprompt_traits::BackgroundTasks::new(),
+    )
 }
 
 #[tokio::test]

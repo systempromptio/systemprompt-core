@@ -128,7 +128,13 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
     assert_eq!(response.status(), StatusCode::OK);
     to_bytes(response.into_body(), 1024 * 1024).await?;
 
-    repos.background.drain().await;
+    assert_eq!(
+        repos
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     let database = pool.pool();
     let artifacts = sqlx::query_as::<_, (String, String, String, String, bool, bool, serde_json::Value)>(
         "SELECT ai_tool_call_id, tool_name, session_id, trace_id, is_structured, is_error, data FROM mcp_artifacts WHERE user_id=$1 AND ai_tool_call_id IN ($2,$3) ORDER BY ai_tool_call_id",
@@ -268,7 +274,13 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
     assert_eq!(response.status(), StatusCode::OK);
     to_bytes(response.into_body(), 1024 * 1024).await?;
 
-    repositories.background.drain().await;
+    assert_eq!(
+        repositories
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     let findings = sqlx::query_as::<_, (String, String, String, bool)>(
         "SELECT f.phase,f.category,f.scanner,f.redacted FROM mcp_artifact_findings f \
          JOIN mcp_artifacts a ON a.artifact_id=f.artifact_id \

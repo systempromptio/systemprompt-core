@@ -9,18 +9,26 @@
 //! [`join_within_drain_grace`] and arms the hard `arm_forced_exit` deadline
 //! only afterwards — a single deadline spanning both would let a wedged SSE
 //! stream consume the whole budget and kill the process before any child was
-//! signalled.
+//! signalled. [`drain`] then shuts the process's
+//! [`BackgroundTasks`](systemprompt_traits::BackgroundTasks) down alongside
+//! child termination and before the log writer flushes, so post-response
+//! audit and analytics writes still land. A forced exit reports a non-zero
+//! status: the teardown did not complete.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
+use systemprompt_loader::subprocess::{ChildKind, StopOutcome};
 use systemprompt_runtime::{AppContext, ShutdownRequest};
-use systemprompt_scheduler::{ProcessCleanup, SchedulerHandle};
+use systemprompt_scheduler::SchedulerHandle;
+use systemprompt_traits::DrainOutcome;
 
 pub const CHILD_SHUTDOWN_GRACE_MS: u64 = 5_000;
 pub const AXUM_DRAIN_GRACE_MS: u64 = 10_000;
+pub const BACKGROUND_DRAIN_GRACE_MS: u64 = 5_000;
 const FORCED_SHUTDOWN_GRACE_MS: u64 = 10_000;
+const FORCED_EXIT_CODE: i32 = 1;
 
 pub(super) async fn shutdown_signal(restart: ShutdownRequest) {
     wait_for_signal(&restart).await;
@@ -85,7 +93,7 @@ pub(super) fn arm_forced_exit() {
     reason = "forced process exit is the explicit purpose of the shutdown backstops"
 )]
 fn force_exit() -> ! {
-    std::process::exit(0);
+    std::process::exit(FORCED_EXIT_CODE);
 }
 
 pub async fn join_within_drain_grace(
@@ -131,7 +139,18 @@ pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
         tracing::warn!(error = %e, "Scheduler failed to drain cleanly");
     }
 
-    terminate_children(ctx).await;
+    let (background, ()) = tokio::join!(
+        ctx.background_tasks()
+            .shutdown(Duration::from_millis(BACKGROUND_DRAIN_GRACE_MS)),
+        terminate_children(ctx),
+    );
+    if let DrainOutcome::TimedOut { in_flight } = background {
+        tracing::warn!(
+            in_flight,
+            grace_ms = BACKGROUND_DRAIN_GRACE_MS,
+            "Background work still running when the shutdown drain expired"
+        );
+    }
 
     if let Err(e) = systemprompt_logging::shutdown_database_logging().await {
         tracing::warn!(error = %e, "Database log writer failed to flush on shutdown");
@@ -145,8 +164,6 @@ pub async fn terminate_children(ctx: &AppContext) {
 }
 
 async fn terminate_agent_children(repo: &systemprompt_database::ServiceRepository) {
-    use systemprompt_models::subprocess::AGENT_NAME_ENV;
-
     let names = match repo.list_all_agent_service_names().await {
         Ok(names) => names,
         Err(e) => {
@@ -157,15 +174,13 @@ async fn terminate_agent_children(repo: &systemprompt_database::ServiceRepositor
 
     futures_util::future::join_all(names.into_iter().map(|name| async move {
         if let Ok(Some(service)) = repo.find_service_by_name(&name).await {
-            terminate_service_child(repo, &name, service.pid, AGENT_NAME_ENV).await;
+            terminate_service_child(repo, &name, service.pid, ChildKind::Agent).await;
         }
     }))
     .await;
 }
 
 async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository) {
-    use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
-
     let services = match repo.list_mcp_services().await {
         Ok(services) => services,
         Err(e) => {
@@ -175,40 +190,38 @@ async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository)
     };
 
     futures_util::future::join_all(services.into_iter().map(|service| async move {
-        terminate_service_child(repo, &service.name, service.pid, MCP_SERVICE_ID_ENV).await;
+        terminate_service_child(repo, &service.name, service.pid, ChildKind::Mcp).await;
     }))
     .await;
 }
 
-// Why: Unix can reuse PIDs; kill(-pid) signals the entire process group.
 async fn terminate_service_child(
     repo: &systemprompt_database::ServiceRepository,
     name: &systemprompt_identifiers::ServiceName,
     pid: Option<i32>,
-    name_key: &str,
+    kind: ChildKind,
 ) {
     let Some(pid) = pid.and_then(|p| u32::try_from(p).ok()) else {
         return;
     };
-    if !ProcessCleanup::process_exists(pid) {
-        return;
-    }
-
-    if !systemprompt_loader::subprocess::live_pid_is_subprocess(pid, name_key, name) {
-        tracing::warn!(
-            service = %name,
-            pid,
-            "Recorded PID is alive but is not our child (recycled/stale); clearing registry row without signalling"
-        );
-        if let Err(e) = repo.update_service_stopped(name).await {
-            tracing::warn!(service = %name, error = %e, "Failed to clear stale service PID");
-        }
-        return;
-    }
-
-    if ProcessCleanup::terminate_group_gracefully(pid, CHILD_SHUTDOWN_GRACE_MS).await {
-        tracing::info!(service = %name, pid, "Terminated child process group on shutdown");
-    } else {
-        tracing::warn!(service = %name, pid, "Child process group survived shutdown signal");
+    let grace = Duration::from_millis(CHILD_SHUTDOWN_GRACE_MS);
+    match systemprompt_loader::subprocess::stop_owned(pid, kind, name, grace).await {
+        Ok(StopOutcome::NotRunning) => {},
+        Ok(StopOutcome::NotOurs) => {
+            tracing::warn!(
+                service = %name,
+                pid,
+                "Recorded PID is alive but is not our child (recycled/stale); clearing registry row without signalling"
+            );
+            if let Err(e) = repo.update_service_stopped(name).await {
+                tracing::warn!(service = %name, error = %e, "Failed to clear stale service PID");
+            }
+        },
+        Ok(StopOutcome::Stopped(termination)) => {
+            tracing::info!(service = %name, pid, ?termination, "Terminated child process group on shutdown");
+        },
+        Err(e) => {
+            tracing::warn!(service = %name, pid, error = %e, "Child process group survived shutdown signal");
+        },
     }
 }

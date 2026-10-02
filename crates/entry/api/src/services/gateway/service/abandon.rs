@@ -72,7 +72,7 @@ impl Drop for AbandonGuard {
         audit.mark_upstream_end();
         log_terminal(&audit, CLIENT_CLOSED_REQUEST, Some(ABANDONED_REASON));
         let background = audit.background().clone();
-        background.spawn(async move {
+        background.spawn("gateway_abandoned_dispatch", async move {
             if let Err(e) = audit.fail(ABANDONED_REASON).await {
                 tracing::warn!(error = %e, "abandoned dispatch audit fail failed");
             }

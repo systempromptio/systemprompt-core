@@ -77,7 +77,7 @@ pub(super) async fn execute(
     let (tx, rx) = startup_channel();
 
     let renderer = StartupRenderer::new(rx);
-    let render_handle = tokio::spawn(renderer.run());
+    let render_handle = systemprompt_traits::OwnedTask::spawn("startup_renderer", renderer.run());
 
     let result = run_startup(&target, &options, ctx, &tx).await;
 
@@ -93,7 +93,7 @@ pub(super) async fn execute(
     }
 
     drop(tx);
-    if render_handle.await.is_err() {
+    if render_handle.join().await.is_err() {
         tracing::debug!("Render task panicked or was cancelled");
     }
 

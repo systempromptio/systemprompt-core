@@ -87,6 +87,10 @@ impl std::fmt::Debug for Subsystems {
             .field("geoip_reader", &self.geoip_reader.is_some())
             .field("file_storage", &"FileStorage")
             .field("shutdown", &"ShutdownRequest")
+            .field(
+                "background_tasks_in_flight",
+                &self.background_tasks.in_flight(),
+            )
             .field("publish_guard", &"Mutex<PublishGuard>")
             .finish()
     }

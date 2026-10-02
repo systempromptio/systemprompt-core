@@ -199,13 +199,16 @@ fn spawn_buffered_completion(
     tap_ctx: stream_tap::TapFinalizeCtx,
     response_scanned: bool,
 ) {
-    audit.background().spawn(buffered_completion(
-        canonical,
-        body,
-        Arc::clone(audit),
-        tap_ctx,
-        response_scanned,
-    ));
+    audit.background().spawn(
+        "gateway_buffered_completion",
+        buffered_completion(
+            canonical,
+            body,
+            Arc::clone(audit),
+            tap_ctx,
+            response_scanned,
+        ),
+    );
 }
 
 fn buffered_response(body: bytes::Bytes, content_type: &str) -> Response<Body> {

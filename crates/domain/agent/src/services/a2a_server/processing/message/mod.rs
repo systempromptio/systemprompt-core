@@ -56,7 +56,7 @@ pub enum StreamEvent {
 /// the token that stops it. Dropping the stream aborts the worker.
 pub struct MessageStream {
     pub events: mpsc::Receiver<StreamEvent>,
-    pub worker: tokio::task::JoinHandle<()>,
+    pub worker: systemprompt_traits::OwnedTask<()>,
     pub cancel: CancellationToken,
 }
 
@@ -66,12 +66,6 @@ impl std::fmt::Debug for MessageStream {
             .field("cancelled", &self.cancel.is_cancelled())
             .field("worker_finished", &self.worker.is_finished())
             .finish_non_exhaustive()
-    }
-}
-
-impl Drop for MessageStream {
-    fn drop(&mut self) {
-        self.worker.abort();
     }
 }
 

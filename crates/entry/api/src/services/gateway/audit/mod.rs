@@ -89,7 +89,7 @@ pub struct GatewayAudit {
     served_provider: Mutex<Option<String>>,
     started_at: Instant,
     upstream: Mutex<UpstreamClock>,
-    background: super::GatewayBackgroundTasks,
+    background: systemprompt_traits::BackgroundTasks,
 }
 
 #[derive(Debug, Default)]
@@ -119,7 +119,7 @@ impl GatewayAudit {
         }
     }
 
-    pub const fn background(&self) -> &super::GatewayBackgroundTasks {
+    pub const fn background(&self) -> &systemprompt_traits::BackgroundTasks {
         &self.background
     }
 

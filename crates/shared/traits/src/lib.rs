@@ -5,7 +5,9 @@
 //! This crate defines the abstractions every other layer (infra, domain,
 //! app, entry) implements or consumes: configuration, database handle,
 //! analytics, authentication, JWT, file storage, repositories, and the
-//! cross-cutting [`ExtensionError`] contract.
+//! cross-cutting [`ExtensionError`] contract. It also hosts the one
+//! concrete runtime primitive every layer shares: the [`BackgroundTasks`]
+//! owner for work that outlives its caller.
 //!
 //! ## Layering
 //!
@@ -41,6 +43,8 @@
 
 pub mod ai_providers;
 pub mod analytics;
+pub mod background_tasks;
+pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
 pub mod analytics_events;
 pub mod auth;
 pub mod content;

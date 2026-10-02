@@ -3215,6 +3215,7 @@ dependencies = [
  "flate2",
  "hex",
  "libc",
+ "nix",
  "reqwest",
  "serde",
  "serde_json",
@@ -3357,6 +3358,8 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-provider-contracts",
  "thiserror 2.0.19",
+ "tokio",
+ "tokio-util",
  "tracing",
  "xxhash-rust",
 ]

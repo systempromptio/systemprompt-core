@@ -23,6 +23,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
+use systemprompt_traits::BackgroundTasks;
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
@@ -47,6 +48,7 @@ pub struct AppContextBuilder {
     install_schemas: bool,
     migration_config: MigrationConfig,
     shutdown: Option<ShutdownRequest>,
+    background_tasks: Option<BackgroundTasks>,
 }
 
 impl std::fmt::Debug for AppContextBuilder {
@@ -59,6 +61,7 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("install_schemas", &self.install_schemas)
             .field("migration_config", &self.migration_config)
             .field("shutdown", &self.shutdown.is_some())
+            .field("background_tasks", &self.background_tasks.is_some())
             .finish()
     }
 }
@@ -115,6 +118,12 @@ impl AppContextBuilder {
     }
 
     #[must_use]
+    pub fn with_background_tasks(mut self, tasks: BackgroundTasks) -> Self {
+        self.background_tasks = Some(tasks);
+        self
+    }
+
+    #[must_use]
     pub const fn with_migration_config(mut self, config: MigrationConfig) -> Self {
         self.migration_config = config;
         self
@@ -122,6 +131,7 @@ impl AppContextBuilder {
 
     pub async fn build(self) -> RuntimeResult<AppContext> {
         let shutdown = self.shutdown.unwrap_or_default();
+        let background_tasks = self.background_tasks.unwrap_or_default();
         let CoreLayer {
             config,
             app_paths,
@@ -171,6 +181,7 @@ impl AppContextBuilder {
             geoip_reader,
             file_storage,
             shutdown,
+            background_tasks,
             publish_guard: Arc::default(),
         };
 

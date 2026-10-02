@@ -41,6 +41,7 @@ fn gateway_repos(db: &DbPool) -> systemprompt_api::services::gateway::GatewayRep
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     )
 }
 

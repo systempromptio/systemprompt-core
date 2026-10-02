@@ -22,7 +22,6 @@
 
 pub mod artifact_scanner;
 pub mod audit;
-pub mod background;
 pub mod captures;
 pub mod image_fetch;
 pub mod parse;
@@ -38,7 +37,6 @@ pub mod stream_tap;
 pub use crate::repository::gateway::GatewayRepositories;
 pub use artifact_scanner::GatewayArtifactScanner;
 pub use audit::{GatewayAudit, GatewayRequestContext};
-pub use background::GatewayBackgroundTasks;
 pub use captures::CapturedToolUse;
 pub use protocol::{
     CanonicalEvent, CanonicalRequest, CanonicalResponse, InboundAdapter, OutboundAdapter,

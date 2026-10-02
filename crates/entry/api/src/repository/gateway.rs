@@ -13,9 +13,8 @@ use systemprompt_ai::repository::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_models::profile::AuditConfig;
-use systemprompt_traits::DynContextMaterializer;
+use systemprompt_traits::{BackgroundTasks, DynContextMaterializer};
 
-use crate::services::gateway::GatewayBackgroundTasks;
 use crate::services::gateway::audit::journal::{GatewayJournal, Settlement};
 use crate::services::gateway::signature_cache::{TTL, ThoughtSignatureCache};
 
@@ -33,7 +32,7 @@ pub struct GatewayRepositories {
     pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     pub sessions: Option<systemprompt_traits::DynSessionStore>,
     pub payload_cap_bytes: usize,
-    pub background: GatewayBackgroundTasks,
+    pub background: BackgroundTasks,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -48,6 +47,7 @@ impl GatewayRepositories {
         db: &DbPool,
         journal: GatewayJournal,
         context_materializer: DynContextMaterializer,
+        background: BackgroundTasks,
     ) -> Self {
         let requests = Arc::new(AiRequestRepository::new(db));
         Self {
@@ -66,7 +66,7 @@ impl GatewayRepositories {
             artifact_ingest: None,
             sessions: None,
             payload_cap_bytes: AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES,
-            background: GatewayBackgroundTasks::default(),
+            background,
         }
     }
 

@@ -56,3 +56,4 @@ all-features = true
 # Parent-death signalling for spawned children (see `subprocess::spawn_supervised`)
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
+nix = { workspace = true }

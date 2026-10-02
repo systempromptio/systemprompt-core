@@ -60,6 +60,7 @@ fn gateway_repos(
         db,
         gateway_journal(),
         materializer(db),
+        systemprompt_traits::BackgroundTasks::new(),
     )
 }
 
@@ -123,7 +124,13 @@ async fn settled_status(
     db: &DbPool,
     id: &AiRequestId,
 ) -> (String, Option<String>) {
-    audit.background().drain().await;
+    assert_eq!(
+        audit
+            .background()
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     sqlx::query_as("SELECT status, error_message FROM ai_requests WHERE id = $1")
         .bind(id.as_str())
         .fetch_one(db.pool().as_ref())
