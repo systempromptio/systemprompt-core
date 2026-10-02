@@ -889,7 +889,9 @@ fn test_extension_migration_status_with_drift_and_pending() {
             stored_checksum: "old".to_string(),
             current_checksum: "edited".to_string(),
         }],
-        ..Default::default()
+        slot_collisions: vec![],
+        orphaned: vec![],
+        tombstoned: vec![],
     };
 
     assert_eq!(s.applied.len(), 1);
@@ -1911,8 +1913,12 @@ async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
 fn status_with_collisions(collisions: Vec<SlotCollision>) -> ExtensionMigrationStatus {
     ExtensionMigrationStatus {
         extension_id: ExtensionId::new("knowledge_bank"),
+        applied: vec![],
+        pending: vec![],
+        drift: vec![],
         slot_collisions: collisions,
-        ..Default::default()
+        orphaned: vec![],
+        tombstoned: vec![],
     }
 }
 
