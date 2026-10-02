@@ -10,7 +10,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod columns;
 mod proxy;
 mod visitor;
 mod writer;
@@ -30,6 +29,7 @@ pub use writer::{LogWriterHandle, LogWriterShutdownError};
 
 use self::writer::LogCommand;
 use crate::models::{LogEntry, LogLevel};
+use crate::repository::LoggingRepository;
 use systemprompt_database::DbPool;
 
 const CHANNEL_CAPACITY: usize = 8192;
@@ -98,7 +98,11 @@ impl DatabaseLayer {
 
         BACKGROUND_SENDER.get_or_init(|| channel.sender.clone());
 
-        let writer = LogWriterHandle::spawn(db_pool, channel.sender.clone(), receiver);
+        let writer = LogWriterHandle::spawn(
+            LoggingRepository::new(&db_pool),
+            channel.sender.clone(),
+            receiver,
+        );
 
         (Self { channel }, writer)
     }

@@ -7,24 +7,26 @@
 use crate::models::LogEntry;
 use systemprompt_identifiers::{ClientId, ContextId, TaskId};
 
-pub(super) struct LogColumns {
-    pub(super) ids: Vec<String>,
-    pub(super) timestamps: Vec<chrono::DateTime<chrono::Utc>>,
-    pub(super) levels: Vec<String>,
-    pub(super) modules: Vec<String>,
-    pub(super) messages: Vec<String>,
-    pub(super) metadata: Vec<Option<String>>,
-    pub(super) user_ids: Vec<String>,
-    pub(super) session_ids: Vec<String>,
-    pub(super) task_ids: Vec<Option<String>>,
-    pub(super) trace_ids: Vec<String>,
-    pub(super) context_ids: Vec<Option<String>>,
-    pub(super) client_ids: Vec<Option<String>>,
-    pub(super) instance_ids: Vec<Option<String>>,
+pub(in crate::repository) struct LogColumns {
+    pub(in crate::repository) ids: Vec<String>,
+    pub(in crate::repository) timestamps: Vec<chrono::DateTime<chrono::Utc>>,
+    pub(in crate::repository) levels: Vec<String>,
+    pub(in crate::repository) modules: Vec<String>,
+    pub(in crate::repository) messages: Vec<String>,
+    pub(in crate::repository) metadata: Vec<Option<String>>,
+    pub(in crate::repository) user_ids: Vec<String>,
+    pub(in crate::repository) session_ids: Vec<String>,
+    pub(in crate::repository) task_ids: Vec<Option<String>>,
+    pub(in crate::repository) trace_ids: Vec<String>,
+    pub(in crate::repository) context_ids: Vec<Option<String>>,
+    pub(in crate::repository) client_ids: Vec<Option<String>>,
+    pub(in crate::repository) instance_ids: Vec<Option<String>>,
 }
 
 impl LogColumns {
-    pub(super) fn gather(entries: &[LogEntry]) -> Result<Self, crate::models::LoggingError> {
+    pub(in crate::repository) fn gather(
+        entries: &[LogEntry],
+    ) -> Result<Self, crate::models::LoggingError> {
         let mut ids = Vec::with_capacity(entries.len());
         let mut timestamps = Vec::with_capacity(entries.len());
         let mut levels = Vec::with_capacity(entries.len());
