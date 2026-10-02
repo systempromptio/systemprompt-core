@@ -43,8 +43,8 @@ next   ← default branch. Every agent, every session. Every push runs the gates
 main   ← protected, release-only. Tagged. Never pushed to directly.
 ```
 
-**Every push to `next` runs CI, Quality and Supply Chain** — fmt, build,
-sqlx-check, the 14 test shards, the schema upgrade ladder, clippy, rustdoc, the
+**Every push to `next` runs CI, Quality and Supply Chain** — fmt, build
+(offline, against the committed per-crate sqlx caches), the 14 test shards, the schema upgrade ladder, clippy, rustdoc, the
 source-gate linters, MSRV, the file-size guard and `cargo deny`. The ladder
 (`schema-ladder.yml`) installs each of the two newest releases, upgrades that
 database with the pushed tree and diffs it against a fresh install — the only
