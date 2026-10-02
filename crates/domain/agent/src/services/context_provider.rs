@@ -27,7 +27,6 @@ impl ContextProviderService {
     }
 }
 
-#[async_trait]
 impl ContextProvider for ContextProviderService {
     async fn list_contexts_with_stats(
         &self,
