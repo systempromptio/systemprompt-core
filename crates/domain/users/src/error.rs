@@ -26,9 +26,6 @@ domain_error! {
         #[error("invalid roles: {0:?}")]
         InvalidRoles(Vec<String>),
 
-        #[error("pool error: {0}")]
-        Pool(String),
-
         #[error("purge {kind} {name} is not a safe SQL identifier")]
         PurgeIdentifier {
             kind: &'static str,
