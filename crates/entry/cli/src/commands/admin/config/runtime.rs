@@ -87,7 +87,7 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
     let mut changes: Vec<RuntimeSetOutput> = Vec::new();
 
     if let Some(env_str) = args.environment {
-        let env: Environment = env_str.parse().map_err(|e: String| anyhow::anyhow!(e))?;
+        let env: Environment = env_str.parse()?;
         let old = profile.runtime.environment.to_string();
         profile.runtime.environment = env;
         changes.push(RuntimeSetOutput {
@@ -99,7 +99,7 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
     }
 
     if let Some(level_str) = args.log_level {
-        let level: LogLevel = level_str.parse().map_err(|e: String| anyhow::anyhow!(e))?;
+        let level: LogLevel = level_str.parse()?;
         let old = profile.runtime.log_level.to_string();
         profile.runtime.log_level = level;
         changes.push(RuntimeSetOutput {
@@ -111,8 +111,7 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
     }
 
     if let Some(format_str) = args.output_format {
-        let format: ProfileOutputFormat =
-            format_str.parse().map_err(|e: String| anyhow::anyhow!(e))?;
+        let format: ProfileOutputFormat = format_str.parse()?;
         let old = profile.runtime.output_format.to_string();
         profile.runtime.output_format = format;
         changes.push(RuntimeSetOutput {

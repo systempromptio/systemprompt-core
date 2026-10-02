@@ -2,6 +2,7 @@ use systemprompt_agent::{
     A2aJsonRpcRequest, A2aRequestParams, A2aResponse, Task, TaskIdParams, TaskQueryParams,
     TaskState, TaskStatus,
 };
+use systemprompt_models::errors::ParseEnumError;
 
 #[test]
 fn test_parse_message_send_request() {
@@ -253,7 +254,7 @@ fn test_task_state_parsing() {
 
 #[test]
 fn test_task_state_invalid_parsing() {
-    let result: Result<TaskState, String> = "completely_invalid_state".parse();
+    let result: Result<TaskState, ParseEnumError> = "completely_invalid_state".parse();
     let error = result.unwrap_err();
-    assert!(error.contains("Invalid task state"));
+    assert_eq!(error.value, "completely_invalid_state");
 }

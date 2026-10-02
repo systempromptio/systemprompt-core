@@ -7,12 +7,13 @@ use crate::models::TaskRow;
 use crate::models::a2a::{Message, MessageRole, Part, TaskState};
 use crate::models::database_rows::TaskMessage;
 use systemprompt_models::a2a::TaskMetadata;
+use systemprompt_models::errors::ParseEnumError;
 use systemprompt_traits::RepositoryError;
 
 pub(super) fn parse_task_state(row: &TaskRow) -> Result<TaskState, RepositoryError> {
     row.status
         .parse()
-        .map_err(|e: String| RepositoryError::decode("stored task state", e))
+        .map_err(|e: ParseEnumError| RepositoryError::decode("stored task state", e))
 }
 
 pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
