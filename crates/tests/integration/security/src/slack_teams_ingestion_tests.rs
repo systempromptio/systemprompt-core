@@ -7,6 +7,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use systemprompt_identifiers::TeamsAppId;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
@@ -70,7 +71,7 @@ fn slack_app(workspace: &str, roles: &[&str], enabled: bool) -> SlackAppConfig {
 fn teams_app(tenant: &str, roles: &[&str], enabled: bool) -> TeamsAppConfig {
     TeamsAppConfig {
         tenant_id: TeamsTenantId::new(tenant),
-        app_id: "app-test".to_owned(),
+        app_id: TeamsAppId::new("app-test"),
         app_password_ref: SecretName::new("teams_app_password"),
         enabled,
         default_agent: Some(AgentName::try_new("test_agent").expect("valid AgentName")),

@@ -48,7 +48,7 @@ impl TeamsState {
 
     pub fn verifier(&self, app: &TeamsAppConfig) -> Arc<ActivityTokenVerifier> {
         let key = VerifierKey {
-            app_id: TeamsAppId::new(app.app_id.as_str()),
+            app_id: app.app_id.clone(),
             openid_config_url: app.endpoints.openid_config_url.clone(),
         };
         let mut verifiers = self
@@ -58,7 +58,7 @@ impl TeamsState {
         Arc::clone(verifiers.entry(key).or_insert_with_key(|key| {
             Arc::new(ActivityTokenVerifier::with_openid_url(
                 self.http.clone(),
-                key.app_id.as_str().to_owned(),
+                key.app_id.clone(),
                 key.openid_config_url.clone(),
             ))
         }))

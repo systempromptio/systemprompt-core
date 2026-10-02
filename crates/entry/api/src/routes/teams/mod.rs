@@ -122,7 +122,7 @@ async fn handle_messages(
     let reply = TeamsReply {
         service_url: normalized.service_url,
         conversation_id: normalized.conversation_id,
-        app_id: TeamsAppId::new(app.app_id.as_str()),
+        app_id: app.app_id,
         app_password,
         token_url: app.endpoints.token_url,
     };
@@ -151,7 +151,7 @@ fn spawn_reply(state: TeamsState, inbound: MessagingInbound, reply: TeamsReply) 
         let attachments = systemprompt_teams::cards::render_card(&text);
         let client = TeamsClient::with_endpoints(
             state.http.clone(),
-            reply.app_id.as_str().to_owned(),
+            reply.app_id,
             reply.app_password,
             reply.token_url,
         );
