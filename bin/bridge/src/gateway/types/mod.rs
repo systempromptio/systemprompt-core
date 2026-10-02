@@ -1,7 +1,8 @@
-//! Wire types exchanged with the systemprompt gateway: provisioned OAuth client
-//! credentials and plugin hook tokens, alongside the identity, enrolment and
-//! release-feed bodies shared with the gateway through
-//! [`systemprompt_models::bridge::gateway`].
+//! Wire types exchanged with the systemprompt gateway.
+//!
+//! Provisioned OAuth client credentials and plugin hook tokens live here; the
+//! identity, enrolment and release-feed bodies are shared with the gateway
+//! through [`systemprompt_models::bridge::gateway`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
