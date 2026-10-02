@@ -79,6 +79,13 @@ BOUNDARY=(
     "crates/app/generator/src/error/mod.rs|provider_id|page-data provider registry key, not the gateway ProviderId"
 )
 
+# Derived names whose call sites still carry the raw type: `name|reason`. The
+# name is skipped by the scan until its sites convert; an entry that no longer
+# matches any line is stale and fails the gate, so the list only shrinks.
+PENDING=(
+    "extension_id|ExtensionId is new; extension metadata, migration status rows and installation args still take &str/String"
+)
+
 snake() {
     sed -E 's/([a-z0-9])([A-Z])/\1_\2/g; s/([A-Z])([A-Z][a-z])/\1_\2/g' | tr '[:upper:]' '[:lower:]'
 }
@@ -98,11 +105,18 @@ DERIVED=$(
 
 TABLE_NAMES=$(for row in "${NAME_TABLE[@]}"; do printf '%s\n' "${row%%:*}"; done)
 
-NAMES=$(printf '%s\n%s\n' "$DERIVED" "$TABLE_NAMES" | rg -v '^$' | sort -u)
+PENDING_NAMES=$(for row in "${PENDING[@]}"; do printf '%s\n' "${row%%|*}"; done)
+
+NAMES=$(printf '%s\n%s\n' "$DERIVED" "$TABLE_NAMES" | rg -v '^$' | sort -u \
+    | rg -v -x -F -f <(printf '%s\n' "$PENDING_NAMES" | rg -v '^$'))
 NAME_COUNT=$(printf '%s\n' "$NAMES" | wc -l | tr -d ' ')
 ALT=$(printf '%s\n' "$NAMES" | paste -sd '|' -)
 
-PATTERN="\\b(${ALT})\\s*:\\s*(?:Option<\\s*)?(?:&\\s*(?:'[a-z_]+\\s+)?(?:mut\\s+)?)?(?:uuid::)?(?:String|str|Uuid)\\s*(?:[,>)=;{]|\$)"
+raw_pattern() {
+    printf '%s' "\\b($1)\\s*:\\s*(?:Option<\\s*)?(?:&\\s*(?:'[a-z_]+\\s+)?(?:mut\\s+)?)?(?:uuid::)?(?:String|str|Uuid)\\s*(?:[,>)=;{]|\$)"
+}
+
+PATTERN=$(raw_pattern "$ALT")
 
 # Every production layer, the facade and the bridge. Carve-outs, each with its
 # reason:
@@ -126,17 +140,21 @@ SEARCH_DIRS=(crates/shared crates/infra crates/domain crates/app crates/entry sy
 # Why: `.gitignore` ignores every `audit/` directory and re-includes the source
 # ones by negation; ripgrep 14 (Ubuntu noble) does not honour that negation, so
 # the scan reads no ignore files and relies on the explicit exclusions below.
-RAW=$(rg -n --no-heading --color=never --no-ignore \
-    -g '*.rs' \
-    -g '!crates/tests/**' \
-    -g '!**/target/**' \
-    -g '!**/.sqlx/**' \
-    -g '!crates/entry/api/src/routes/oauth/**' \
-    -g '!crates/domain/mcp/src/middleware/session_handler/session_store.rs' \
-    -g '!crates/shared/models/src/wire/**' \
-    -g '!crates/domain/*/src/models/rows.rs' \
-    -e "$PATTERN" \
-    "${SEARCH_DIRS[@]}" 2>/dev/null || true)
+scan() {
+    rg -n --no-heading --color=never --no-ignore \
+        -g '*.rs' \
+        -g '!crates/tests/**' \
+        -g '!**/target/**' \
+        -g '!**/.sqlx/**' \
+        -g '!crates/entry/api/src/routes/oauth/**' \
+        -g '!crates/domain/mcp/src/middleware/session_handler/session_store.rs' \
+        -g '!crates/shared/models/src/wire/**' \
+        -g '!crates/domain/*/src/models/rows.rs' \
+        -e "$1" \
+        "${SEARCH_DIRS[@]}" 2>/dev/null || true
+}
+
+RAW=$(scan "$PATTERN")
 
 boundary_names() {
     local file="$1" entry
@@ -179,6 +197,13 @@ for entry in "${BOUNDARY[@]}"; do
         fi
     done
 done
+
+while IFS= read -r name; do
+    [ -z "$name" ] && continue
+    if [ -z "$(scan "$(raw_pattern "$name")")" ]; then
+        STALE+="  pending|${name}"$'\n'
+    fi
+done <<< "$PENDING_NAMES"
 
 if [ "$REPORT" -eq 1 ]; then
     total=$(printf '%s' "$MATCHES" | rg -c '' || true)
