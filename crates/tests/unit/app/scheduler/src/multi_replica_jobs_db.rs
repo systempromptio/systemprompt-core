@@ -1,7 +1,6 @@
 //! DB-backed `execute` paths for `ThoughtSignatureCleanupJob`, which drops
 //! expired gateway thought signatures.
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;

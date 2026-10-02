@@ -1,7 +1,6 @@
 //! Behaviour of the inventory-registered `mcp_session_cleanup` job: metadata,
 //! a successful run over a live pool, and the context/pool error arms.
 
-use std::sync::Arc;
 use systemprompt_identifiers::Actor;
 use systemprompt_provider_contracts::{Dependencies, Job, JobContext, ProviderError};
 use systemprompt_test_fixtures::{closed_db_pool, fixture_user_id, test_db_pool};

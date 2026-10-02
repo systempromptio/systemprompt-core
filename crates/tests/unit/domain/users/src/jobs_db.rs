@@ -2,7 +2,6 @@
 //! `UserRateLimitPruneJob::execute`.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use chrono::{Duration, Utc};
 

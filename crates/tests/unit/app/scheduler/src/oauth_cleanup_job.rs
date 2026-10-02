@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_oauth::jobs::OauthCleanupJob;

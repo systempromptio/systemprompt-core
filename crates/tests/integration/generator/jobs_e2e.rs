@@ -5,8 +5,6 @@
 //! registry yields zero required assets and the job succeeds with empty
 //! stats.
 
-use std::sync::Arc;
-
 use systemprompt_config::paths::AppPaths;
 use systemprompt_generator::{
     ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_assets,
