@@ -241,6 +241,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-async-trait
         if: ${{ !cancelled() }}
+      - run: just lint-owned-tasks
+        if: ${{ !cancelled() }}
       - run: cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
         if: ${{ !cancelled() }}
       - run: just lint-bridge-layers
