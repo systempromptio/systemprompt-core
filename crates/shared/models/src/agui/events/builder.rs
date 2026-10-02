@@ -76,83 +76,73 @@ impl AgUiEventBuilder {
         }
     }
 
-    pub fn text_message_start(message_id: impl Into<String>, role: MessageRole) -> AgUiEvent {
+    pub fn text_message_start(message_id: MessageId, role: MessageRole) -> AgUiEvent {
         AgUiEvent::TextMessageStart {
             timestamp: Utc::now(),
-            payload: TextMessageStartPayload {
-                message_id: MessageId::new(message_id),
-                role,
-            },
+            payload: TextMessageStartPayload { message_id, role },
         }
     }
 
-    pub fn text_message_content(
-        message_id: impl Into<String>,
-        delta: impl Into<String>,
-    ) -> AgUiEvent {
+    pub fn text_message_content(message_id: MessageId, delta: impl Into<String>) -> AgUiEvent {
         AgUiEvent::TextMessageContent {
             timestamp: Utc::now(),
             payload: TextMessageContentPayload {
-                message_id: MessageId::new(message_id),
+                message_id,
                 delta: delta.into(),
             },
         }
     }
 
-    pub fn text_message_end(message_id: impl Into<String>) -> AgUiEvent {
+    pub fn text_message_end(message_id: MessageId) -> AgUiEvent {
         AgUiEvent::TextMessageEnd {
             timestamp: Utc::now(),
-            payload: TextMessageEndPayload {
-                message_id: MessageId::new(message_id),
-            },
+            payload: TextMessageEndPayload { message_id },
         }
     }
 
     pub fn tool_call_start(
-        tool_call_id: impl Into<String>,
+        tool_call_id: AiToolCallId,
         tool_call_name: impl Into<String>,
-        parent_message_id: Option<String>,
+        parent_message_id: Option<MessageId>,
     ) -> AgUiEvent {
         AgUiEvent::ToolCallStart {
             timestamp: Utc::now(),
             payload: ToolCallStartPayload {
-                tool_call_id: AiToolCallId::new(tool_call_id),
+                tool_call_id,
                 tool_call_name: tool_call_name.into(),
-                parent_message_id: parent_message_id.map(MessageId::new),
+                parent_message_id,
             },
         }
     }
 
-    pub fn tool_call_args(tool_call_id: impl Into<String>, delta: impl Into<String>) -> AgUiEvent {
+    pub fn tool_call_args(tool_call_id: AiToolCallId, delta: impl Into<String>) -> AgUiEvent {
         AgUiEvent::ToolCallArgs {
             timestamp: Utc::now(),
             payload: ToolCallArgsPayload {
-                tool_call_id: AiToolCallId::new(tool_call_id),
+                tool_call_id,
                 delta: delta.into(),
             },
         }
     }
 
-    pub fn tool_call_end(tool_call_id: impl Into<String>) -> AgUiEvent {
+    pub fn tool_call_end(tool_call_id: AiToolCallId) -> AgUiEvent {
         AgUiEvent::ToolCallEnd {
             timestamp: Utc::now(),
-            payload: ToolCallEndPayload {
-                tool_call_id: AiToolCallId::new(tool_call_id),
-            },
+            payload: ToolCallEndPayload { tool_call_id },
         }
     }
 
     pub fn tool_call_result(
-        message_id: impl Into<String>,
-        tool_call_id: impl Into<String>,
+        message_id: MessageId,
+        tool_call_id: AiToolCallId,
         // JSON: AG-UI event payload; the protocol defines these fields as free-form.
         content: Value,
     ) -> AgUiEvent {
         AgUiEvent::ToolCallResult {
             timestamp: Utc::now(),
             payload: ToolCallResultPayload {
-                message_id: MessageId::new(message_id),
-                tool_call_id: AiToolCallId::new(tool_call_id),
+                message_id,
+                tool_call_id,
                 content,
                 role: MessageRole::Tool,
             },

@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::agui::MessageRole;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
@@ -276,49 +276,58 @@ fn builder_step_finished() {
 
 #[test]
 fn builder_text_message_start() {
-    let event = AgUiEventBuilder::text_message_start("msg-1", MessageRole::Assistant);
+    let event =
+        AgUiEventBuilder::text_message_start(MessageId::new("msg-1"), MessageRole::Assistant);
     assert_eq!(event.event_type(), AgUiEventType::TextMessageStart);
 }
 
 #[test]
 fn builder_text_message_content() {
-    let event = AgUiEventBuilder::text_message_content("msg-1", "Hello ");
+    let event = AgUiEventBuilder::text_message_content(MessageId::new("msg-1"), "Hello ");
     assert_eq!(event.event_type(), AgUiEventType::TextMessageContent);
 }
 
 #[test]
 fn builder_text_message_end() {
-    let event = AgUiEventBuilder::text_message_end("msg-1");
+    let event = AgUiEventBuilder::text_message_end(MessageId::new("msg-1"));
     assert_eq!(event.event_type(), AgUiEventType::TextMessageEnd);
 }
 
 #[test]
 fn builder_tool_call_start() {
-    let event = AgUiEventBuilder::tool_call_start("tc-1", "search", Some("msg-1".to_string()));
+    let event = AgUiEventBuilder::tool_call_start(
+        AiToolCallId::new("tc-1"),
+        "search",
+        Some(MessageId::new("msg-1")),
+    );
     assert_eq!(event.event_type(), AgUiEventType::ToolCallStart);
 }
 
 #[test]
 fn builder_tool_call_start_no_parent() {
-    let event = AgUiEventBuilder::tool_call_start("tc-1", "search", None);
+    let event = AgUiEventBuilder::tool_call_start(AiToolCallId::new("tc-1"), "search", None);
     assert_eq!(event.event_type(), AgUiEventType::ToolCallStart);
 }
 
 #[test]
 fn builder_tool_call_args() {
-    let event = AgUiEventBuilder::tool_call_args("tc-1", r#"{"query":"rust"}"#);
+    let event = AgUiEventBuilder::tool_call_args(AiToolCallId::new("tc-1"), r#"{"query":"rust"}"#);
     assert_eq!(event.event_type(), AgUiEventType::ToolCallArgs);
 }
 
 #[test]
 fn builder_tool_call_end() {
-    let event = AgUiEventBuilder::tool_call_end("tc-1");
+    let event = AgUiEventBuilder::tool_call_end(AiToolCallId::new("tc-1"));
     assert_eq!(event.event_type(), AgUiEventType::ToolCallEnd);
 }
 
 #[test]
 fn builder_tool_call_result() {
-    let event = AgUiEventBuilder::tool_call_result("msg-2", "tc-1", json!({"results": []}));
+    let event = AgUiEventBuilder::tool_call_result(
+        MessageId::new("msg-2"),
+        AiToolCallId::new("tc-1"),
+        json!({"results": []}),
+    );
     assert_eq!(event.event_type(), AgUiEventType::ToolCallResult);
 }
 
@@ -382,7 +391,7 @@ fn event_serde_roundtrip_run_started() {
 
 #[test]
 fn event_serde_roundtrip_text_message_content() {
-    let event = AgUiEventBuilder::text_message_content("msg-1", "hello world");
+    let event = AgUiEventBuilder::text_message_content(MessageId::new("msg-1"), "hello world");
     let json_str = serde_json::to_string(&event).unwrap();
     let deserialized: AgUiEvent = serde_json::from_str(&json_str).unwrap();
     assert_eq!(deserialized.event_type(), AgUiEventType::TextMessageContent);
