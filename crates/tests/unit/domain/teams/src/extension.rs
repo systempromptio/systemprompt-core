@@ -67,9 +67,9 @@ fn validate_config_rejects_a_structurally_invalid_app() {
     });
     let err = TeamsExtension
         .validate_config(&config)
-        .expect_err("an empty app_id fails the per-app validation");
+        .expect_err("an empty app_id cannot deserialize into a TeamsAppId");
     assert!(
-        matches!(err, ExtensionConfigError::SchemaValidation(_)),
-        "expected SchemaValidation, got {err:?}"
+        matches!(err, ExtensionConfigError::ParseError { .. }),
+        "expected ParseError, got {err:?}"
     );
 }

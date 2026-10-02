@@ -86,7 +86,14 @@ async fn skill_service_load_skill_metadata_missing_returns_err() {
         .load_skill_metadata(&id, &owner())
         .await
         .expect_err("should fail");
-    assert!(format!("{err}").contains("Skill not found"));
+    assert!(
+        matches!(
+            &err,
+            systemprompt_agent::services::shared::AgentServiceError::SkillNotOnDisk { skill_id, .. }
+                if *skill_id == id
+        ),
+        "a skill with no file on disk must be reported as missing: {err}"
+    );
 }
 
 #[tokio::test]

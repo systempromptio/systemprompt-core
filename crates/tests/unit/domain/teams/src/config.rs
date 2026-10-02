@@ -70,16 +70,20 @@ default_agent: "agent"
 }
 
 #[test]
-fn validate_rejects_empty_app_id() {
-    let app = yaml(
+fn deserialization_rejects_empty_app_id() {
+    let err = serde_yaml::from_str::<TeamsAppConfig>(
         r#"
 tenant_id: "t"
 app_id: ""
 app_password_ref: "ref"
 default_agent: "agent"
 "#,
+    )
+    .expect_err("an empty app_id is not a TeamsAppId");
+    assert!(
+        err.to_string().contains("TeamsAppId cannot be empty"),
+        "{err}"
     );
-    assert!(app.validate("primary").is_err());
 }
 
 #[test]
@@ -133,6 +137,10 @@ teams_apps:
     app_password_ref: "teams_app_password"
     default_agent: "support-agent"
 "#;
-    let cfg: ServicesConfig = serde_yaml::from_str(yaml).expect("deserializes");
-    assert!(cfg.validate().is_err());
+    let err = serde_yaml::from_str::<ServicesConfig>(yaml)
+        .expect_err("an empty Teams app id fails at deserialization");
+    assert!(
+        err.to_string().contains("TeamsAppId cannot be empty"),
+        "{err}"
+    );
 }

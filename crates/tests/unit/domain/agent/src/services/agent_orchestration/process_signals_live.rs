@@ -228,13 +228,23 @@ fn kill_process_verified_treats_a_dead_pid_as_already_gone() {
 fn signalling_verbs_refuse_a_pid_outside_the_signalable_range() {
     let err = terminate_process(u32::MAX).expect_err("u32::MAX is not a signalable pid");
     assert!(
-        err.to_string().contains("Refusing to signal"),
+        matches!(
+            err,
+            systemprompt_agent::services::shared::AgentServiceError::PidNotSignalable {
+                pid: u32::MAX
+            }
+        ),
         "unexpected error: {err}"
     );
 
     let err = force_kill_process(u32::MAX).expect_err("u32::MAX is not a signalable pid");
     assert!(
-        err.to_string().contains("Refusing to signal"),
+        matches!(
+            err,
+            systemprompt_agent::services::shared::AgentServiceError::PidNotSignalable {
+                pid: u32::MAX
+            }
+        ),
         "unexpected error: {err}"
     );
 }
