@@ -269,6 +269,10 @@ jobs:
         if: ${{ !cancelled() }}
       - run: python3 scripts/test-release-proof.py
         if: ${{ !cancelled() }}
+      - run: python3 scripts/test-test-shard.py
+        if: ${{ !cancelled() }}
+      - run: python3 scripts/test-collect-fallback-profraw.py
+        if: ${{ !cancelled() }}
       - run: just check-release-tag
         if: ${{ !cancelled() }}
       - run: just check-crate-changelogs
