@@ -28,7 +28,7 @@ async fn upsert_then_list_enabled() {
         .await
         .expect("disable b");
 
-    let enabled = repo.list_enabled(&user_id).await.expect("list");
+    let enabled = repo.get_enabled_prefs(&user_id).await.expect("list");
     assert!(enabled.hosts.contains(&host_a));
     assert!(!enabled.hosts.contains(&host_b));
 }
@@ -50,7 +50,7 @@ async fn upsert_toggles_enabled_flag() {
     let host = HostKind::Hermes;
     repo.upsert(&user_id, host, true).await.expect("enable");
     assert!(
-        repo.list_enabled(&user_id)
+        repo.get_enabled_prefs(&user_id)
             .await
             .expect("list")
             .hosts
@@ -60,7 +60,7 @@ async fn upsert_toggles_enabled_flag() {
     repo.upsert(&user_id, host, false).await.expect("disable");
     assert!(
         !repo
-            .list_enabled(&user_id)
+            .get_enabled_prefs(&user_id)
             .await
             .expect("list")
             .hosts
@@ -74,7 +74,7 @@ async fn list_enabled_empty_for_unknown_user() {
     let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool);
     let user_id = unique_user_id("bhp-unknown");
-    let enabled = repo.list_enabled(&user_id).await.expect("list");
+    let enabled = repo.get_enabled_prefs(&user_id).await.expect("list");
     assert!(enabled.hosts.is_empty());
     assert!(!enabled.any_enabled_row);
 }
@@ -153,7 +153,7 @@ async fn model_protocols_do_not_perturb_enabled_state() {
         .expect("set filter");
     assert!(
         !repo
-            .list_enabled(&user_id)
+            .get_enabled_prefs(&user_id)
             .await
             .expect("list")
             .any_enabled_row,
@@ -191,7 +191,7 @@ async fn an_unknown_stored_host_is_skipped_but_still_counts_as_a_preference() {
     .expect("insert a model pref for a host outside HostKind");
 
     let enabled = repo
-        .list_enabled(&user_id)
+        .get_enabled_prefs(&user_id)
         .await
         .expect("an unknown host id must not fail the read");
     assert!(enabled.hosts.is_empty());

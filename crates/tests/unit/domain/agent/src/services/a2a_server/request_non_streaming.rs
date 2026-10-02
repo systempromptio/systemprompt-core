@@ -151,7 +151,7 @@ async fn cancel_task_returns_a_canceled_task_bound_to_its_context() {
     let (status, body) = body_json(response).await;
     let stored = repos
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -193,7 +193,7 @@ async fn cancel_task_owned_by_another_user_reads_as_not_found() {
     let (status, body) = body_json(response).await;
     let stored = repos
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("get task")
         .expect("task row");

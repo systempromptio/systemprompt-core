@@ -110,7 +110,7 @@ impl IngestionService {
 
         let existing_content = self
             .content_repo
-            .get_by_source_and_slug(
+            .find_by_source_and_slug(
                 &new_content.source_id,
                 &new_content.slug,
                 &new_content.locale,

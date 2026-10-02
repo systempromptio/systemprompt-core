@@ -62,7 +62,7 @@ impl AgentDatabaseService {
     pub async fn get_status(&self, agent_name: &AgentName) -> OrchestrationResult<AgentStatus> {
         let row = self
             .repository
-            .get_agent_status(agent_name)
+            .find_agent_status(agent_name)
             .await
             .map_err(OrchestrationError::from)?;
 

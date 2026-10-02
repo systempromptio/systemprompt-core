@@ -32,7 +32,7 @@ pub async fn execute_with_pool(
     let service = LinkAnalyticsService::new(repositories.link, repositories.link_analytics);
 
     let performance = service
-        .get_campaign_performance(&args.campaign_id)
+        .find_campaign_performance(&args.campaign_id)
         .await?
         .ok_or_else(|| anyhow!("Campaign not found: {}", args.campaign_id))?;
 

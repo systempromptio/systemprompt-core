@@ -209,7 +209,7 @@ async fn process_events_completion_path_persists_and_broadcasts() {
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .get_task(&ctx.task_id)
+        .find_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -249,7 +249,7 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .get_task(&ctx.task_id)
+        .find_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -292,7 +292,7 @@ async fn process_events_cancelled_path_marks_task_canceled_with_one_final_frame(
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .get_task(&ctx.task_id)
+        .find_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -381,7 +381,7 @@ async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence()
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .get_task(&ctx.task_id)
+        .find_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -435,7 +435,7 @@ async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
     assert!(
         repos
             .tasks
-            .get_task(&ctx.task_id)
+            .find_task(&ctx.task_id)
             .await
             .expect("get task")
             .is_none(),

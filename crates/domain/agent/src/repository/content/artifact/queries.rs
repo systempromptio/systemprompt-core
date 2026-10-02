@@ -124,7 +124,7 @@ impl ArtifactRepository {
         rows_to_artifacts_batch(&pool, rows).await
     }
 
-    pub async fn get_artifact_by_id(
+    pub async fn find_artifact_by_id(
         &self,
         artifact_id: &ArtifactId,
     ) -> Result<Option<Artifact>, RepositoryError> {

@@ -139,7 +139,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     assert_eq!(count("restarted_count"), 0, "{value}");
     assert_eq!(count("failed_count"), 1, "{value}");
     let row = services
-        .get_agent_status(&systemprompt_identifiers::AgentName::new("covlister"))
+        .find_agent_status(&systemprompt_identifiers::AgentName::new("covlister"))
         .await
         .unwrap()
         .expect("failed restart retains its service record");
@@ -438,7 +438,7 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     assert!(
         app.a2a_repositories()
             .agent_services
-            .get_agent_status(&systemprompt_identifiers::AgentName::new("covdormant"))
+            .find_agent_status(&systemprompt_identifiers::AgentName::new("covdormant"))
             .await
             .unwrap()
             .is_none()

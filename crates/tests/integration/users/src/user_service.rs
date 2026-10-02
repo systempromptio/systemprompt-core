@@ -137,7 +137,7 @@ async fn service_find_by_role() -> Result<()> {
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
 
-    let users = service.find_by_role(UserRole::User).await?;
+    let users = service.list_by_role(UserRole::User).await?;
     for user in users {
         assert!(user.roles.contains(&"user".to_string()));
     }

@@ -45,13 +45,14 @@ async fn load_task_completed(
         .update_task_state(&task_id, TaskState::Completed, &timestamp)
         .await?;
 
-    let mut task = task_repo
-        .get_task(&task_id)
-        .await?
-        .ok_or_else(|| LoadEventError::NotFound {
-            entity: "Task",
-            id: request.entity_id.clone(),
-        })?;
+    let mut task =
+        task_repo
+            .find_task(&task_id)
+            .await?
+            .ok_or_else(|| LoadEventError::NotFound {
+                entity: "Task",
+                id: request.entity_id.clone(),
+            })?;
 
     let artifacts = artifact_repo
         .get_artifacts_by_task(&task_id)
@@ -108,7 +109,7 @@ async fn load_artifact_created(
 
     let artifact_id = systemprompt_identifiers::ArtifactId::new(&request.entity_id);
     let artifact = artifact_repo
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await?
         .ok_or_else(|| LoadEventError::NotFound {
             entity: "Artifact",

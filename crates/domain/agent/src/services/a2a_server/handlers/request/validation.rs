@@ -48,7 +48,7 @@ pub async fn validate_task_owner(
     }
 
     let info = task_repo
-        .get_task_context_info(task_id)
+        .find_task_context_info(task_id)
         .await
         .map_err(ContextValidationError::TaskLookup)?
         .ok_or_else(|| ContextValidationError::TaskNotFound(task_id.clone()))?;

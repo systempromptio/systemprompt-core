@@ -76,7 +76,7 @@ impl UserRepository {
         Ok(row)
     }
 
-    pub async fn find_by_role(&self, role: UserRole) -> Result<Vec<User>> {
+    pub async fn list_by_role(&self, role: UserRole) -> Result<Vec<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let rows = sqlx::query_as!(
             UserRow,

@@ -66,7 +66,7 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
     .await;
 
     let task = task_repo
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("get task")
         .expect("task present");
@@ -110,7 +110,7 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
     .await;
 
     let task = task_repo
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("get task")
         .expect("task present");
@@ -140,7 +140,7 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
     .await;
 
     let task = task_repo
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("get task")
         .expect("task present");

@@ -108,7 +108,7 @@ async fn track_click_first_then_repeat_updates_counters() {
     );
 
     let perf = svc
-        .get_link_performance(&link_id)
+        .find_link_performance(&link_id)
         .await
         .expect("perf")
         .expect("present");
@@ -144,7 +144,7 @@ async fn distinct_sessions_each_count_as_unique() {
     }
 
     let perf = svc
-        .get_link_performance(&link_id)
+        .find_link_performance(&link_id)
         .await
         .expect("perf")
         .expect("present");
@@ -180,7 +180,7 @@ async fn campaign_performance_aggregates_links() {
     .expect("click b");
 
     let perf = svc
-        .get_campaign_performance(&campaign)
+        .find_campaign_performance(&campaign)
         .await
         .expect("camp perf")
         .expect("present");
@@ -250,7 +250,7 @@ async fn performance_for_missing_link_is_none() {
 
     let missing = LinkId::new(format!("missing-{}", Uuid::new_v4()));
     assert!(
-        svc.get_link_performance(&missing)
+        svc.find_link_performance(&missing)
             .await
             .expect("query")
             .is_none()
@@ -258,7 +258,7 @@ async fn performance_for_missing_link_is_none() {
 
     let missing_campaign = CampaignId::new(format!("missing-c-{}", Uuid::new_v4()));
     assert!(
-        svc.get_campaign_performance(&missing_campaign)
+        svc.find_campaign_performance(&missing_campaign)
             .await
             .expect("query")
             .is_none()

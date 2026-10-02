@@ -36,7 +36,7 @@ pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOu
         || args.identifier.contains('-') && args.identifier.len() > 30
     {
         let id = ContentId::new(args.identifier.clone());
-        repo.get_by_id(&id)
+        repo.find_by_id(&id)
             .await?
             .ok_or_else(|| anyhow!("Content not found: {}", args.identifier))?
     } else {
@@ -45,7 +45,7 @@ pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOu
             .as_ref()
             .ok_or_else(|| anyhow!("Source ID required when using slug (use --source)"))?;
         let source = SourceId::new(source_id.clone());
-        repo.get_by_source_and_slug(&source, &args.identifier, &LocaleCode::english())
+        repo.find_by_source_and_slug(&source, &args.identifier, &LocaleCode::english())
             .await?
             .ok_or_else(|| {
                 anyhow!(

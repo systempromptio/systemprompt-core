@@ -97,7 +97,7 @@ pub async fn get_artifact(
         .await?;
 
     let artifact = artifact_repo
-        .get_artifact_by_id(&artifact_id_typed)
+        .find_artifact_by_id(&artifact_id_typed)
         .await?
         .ok_or_else(|| ApiHttpError::not_found(format!("Artifact '{artifact_id}' not found")))?;
 
@@ -144,7 +144,7 @@ pub async fn get_artifact_ui(
         .await?;
 
     let artifact = artifact_repo
-        .get_artifact_by_id(&artifact_id_typed)
+        .find_artifact_by_id(&artifact_id_typed)
         .await?
         .ok_or_else(|| ApiHttpError::not_found(format!("Artifact '{artifact_id}' not found")))?;
 

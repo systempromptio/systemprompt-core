@@ -145,7 +145,7 @@ impl RoleProvider for UserService {
             return Ok(vec![]);
         };
 
-        Self::find_by_role(self, user_role)
+        Self::list_by_role(self, user_role)
             .await
             .map(|users| users.into_iter().map(AuthUser::from).collect())
             .map_err(|e| AuthProviderError::Internal(e.into()))

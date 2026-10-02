@@ -192,7 +192,7 @@ async fn cancel_task(
 }
 
 async fn owned_task(task_repo: &TaskRepository, task_id: &TaskId) -> Result<Task, RequestFailure> {
-    match task_repo.get_task(task_id).await {
+    match task_repo.find_task(task_id).await {
         Ok(Some(task)) => Ok(task),
         Ok(None) => Err(RequestFailure::TaskNotFound(task_id.clone())),
         Err(e) => Err(RequestFailure::internal("Failed to retrieve task", e)),

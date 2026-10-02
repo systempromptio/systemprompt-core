@@ -59,7 +59,7 @@ async fn create_and_get_task_roundtrip() {
 
     let task = r
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("get")
         .expect("present");
@@ -74,7 +74,7 @@ async fn create_and_get_task_roundtrip() {
 async fn get_task_unknown_returns_none() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
-    let result = r.tasks.get_task(&TaskId::generate()).await.expect("get");
+    let result = r.tasks.find_task(&TaskId::generate()).await.expect("get");
     assert!(result.is_none());
 }
 
@@ -110,7 +110,7 @@ async fn list_tasks_by_context_and_by_user() {
 }
 
 #[tokio::test]
-async fn get_task_context_info() {
+async fn find_task_context_info() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -118,7 +118,7 @@ async fn get_task_context_info() {
 
     let info = r
         .tasks
-        .get_task_context_info(&task_id)
+        .find_task_context_info(&task_id)
         .await
         .expect("info")
         .expect("present");
@@ -127,7 +127,7 @@ async fn get_task_context_info() {
 
     let none = r
         .tasks
-        .get_task_context_info(&TaskId::generate())
+        .find_task_context_info(&TaskId::generate())
         .await
         .expect("info");
     assert!(none.is_none());
@@ -173,14 +173,14 @@ async fn update_task_state_valid_transition() {
         .update_task_state(&task_id, TaskState::Working, &now)
         .await
         .expect("to working");
-    let task = r.tasks.get_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Working);
 
     r.tasks
         .update_task_state(&task_id, TaskState::Completed, &now)
         .await
         .expect("to completed");
-    let task = r.tasks.get_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Completed);
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -258,7 +258,7 @@ async fn apply_notification_status_parses_state() {
         .apply_notification_status(&task_id, "working", &now)
         .await
         .expect("notify working");
-    let task = r.tasks.get_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Working);
 
     let err = r
@@ -286,7 +286,7 @@ async fn update_task_failed_with_error() {
         .update_task_failed_with_error(&task_id, "boom", &now)
         .await
         .expect("fail");
-    let task = r.tasks.get_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Failed);
 
     // Failing again is idempotent.

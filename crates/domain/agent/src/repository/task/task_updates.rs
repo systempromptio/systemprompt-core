@@ -76,7 +76,7 @@ impl TaskRepository {
 
         self.count_messages(session_id, messages.len()).await;
 
-        self.get_task(&task.id).await?.ok_or_else(|| {
+        self.find_task(&task.id).await?.ok_or_else(|| {
             RepositoryError::NotFound(format!("Task not found after update: {}", task.id))
         })
     }

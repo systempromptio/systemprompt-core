@@ -84,7 +84,7 @@ impl AgentServiceRepository {
         Ok(())
     }
 
-    pub async fn get_agent_status(
+    pub async fn find_agent_status(
         &self,
         agent_name: &AgentName,
     ) -> Result<Option<AgentServiceRow>, RepositoryError> {

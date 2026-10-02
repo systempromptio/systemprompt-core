@@ -30,7 +30,7 @@ impl LinkAnalyticsRepository {
         Self { pool, write_pool }
     }
 
-    pub async fn get_link_performance(
+    pub async fn find_link_performance(
         &self,
         link_id: &LinkId,
     ) -> Result<Option<LinkPerformance>, sqlx::Error> {
@@ -155,7 +155,7 @@ impl LinkAnalyticsRepository {
             .collect())
     }
 
-    pub async fn get_campaign_performance(
+    pub async fn find_campaign_performance(
         &self,
         campaign_id: &CampaignId,
     ) -> Result<Option<CampaignPerformance>, sqlx::Error> {

@@ -46,7 +46,7 @@ async fn create_and_get_artifact_by_id() {
         .expect("create");
 
     let fetched = artifacts
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .expect("get")
         .expect("present");
@@ -64,7 +64,7 @@ async fn get_artifact_by_id_unknown_returns_none() {
     let r = repos(&pool);
     let artifacts = r.artifacts.clone();
     let result = artifacts
-        .get_artifact_by_id(&ArtifactId::generate())
+        .find_artifact_by_id(&ArtifactId::generate())
         .await
         .expect("get");
     assert!(result.is_none());
@@ -106,7 +106,7 @@ async fn artifact_with_all_part_kinds_roundtrip() {
         .expect("create");
 
     let fetched = artifacts
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .expect("get")
         .expect("present");
@@ -150,7 +150,7 @@ async fn create_artifact_upserts_on_conflict() {
         .expect("upsert");
 
     let fetched = artifacts
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .expect("get")
         .expect("present");
@@ -276,7 +276,7 @@ async fn delete_artifact() {
         .await
         .expect("delete");
     let fetched = artifacts
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .expect("get");
     assert!(fetched.is_none());

@@ -124,7 +124,7 @@ async fn verify_startup_times_out_without_clearing_the_pid() {
 
     let row = db
         .repository
-        .get_agent_status(&name)
+        .find_agent_status(&name)
         .await
         .expect("status")
         .expect("row");

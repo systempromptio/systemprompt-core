@@ -23,7 +23,7 @@ pub async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutp
         LinkGenerationService::new(ctx.app_context().await?.content_repositories().link.clone());
 
     let link = service
-        .get_link_by_short_code(&args.short_code)
+        .find_link_by_short_code(&args.short_code)
         .await?
         .ok_or_else(|| anyhow!("Link not found: {}", args.short_code))?;
 

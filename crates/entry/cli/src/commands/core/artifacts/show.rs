@@ -46,7 +46,7 @@ pub async fn execute_with_pool(
     let artifact_id = resolve_artifact_id(&args.artifact, &repo).await?;
 
     let artifact = repo
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .context("Failed to fetch artifact")?
         .ok_or_else(|| anyhow::anyhow!("Artifact not found: {}", args.artifact))?;
@@ -178,7 +178,7 @@ fn render_part(index: usize, part: &ArtifactPartOutput, full: bool) {
 
 async fn resolve_artifact_id(input: &str, repo: &ArtifactRepository) -> Result<ArtifactId> {
     let artifact_id = ArtifactId::new(input);
-    if repo.get_artifact_by_id(&artifact_id).await?.is_some() {
+    if repo.find_artifact_by_id(&artifact_id).await?.is_some() {
         return Ok(artifact_id);
     }
 

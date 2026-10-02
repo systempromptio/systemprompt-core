@@ -25,7 +25,7 @@ pub async fn execute(args: PerformanceArgs, ctx: &CommandContext) -> Result<Comm
     );
 
     let performance = service
-        .get_link_performance(&args.link_id)
+        .find_link_performance(&args.link_id)
         .await?
         .ok_or_else(|| anyhow!("Link not found: {}", args.link_id))?;
 

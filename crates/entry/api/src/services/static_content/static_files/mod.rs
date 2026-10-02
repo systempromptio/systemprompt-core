@@ -188,7 +188,7 @@ async fn serve_content_page(
     let content_repo = &ctx.content_repositories().content;
 
     match content_repo
-        .get_by_source_and_slug(req.source_id, req.slug, &LocaleCode::english())
+        .find_by_source_and_slug(req.source_id, req.slug, &LocaleCode::english())
         .await
     {
         Ok(Some(_)) => not_prerendered_response(req.path, req.slug),

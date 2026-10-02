@@ -45,7 +45,7 @@ pub async fn get_content_handler(
     let content_service = &ctx.content_repositories().content;
 
     let content = content_service
-        .get_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
+        .find_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
         .await
         .map_err(RepositoryError::from)?
         .ok_or_else(content_not_found)?;
@@ -86,7 +86,7 @@ pub async fn get_content_markdown_handler(
     let slug = slug.trim_end_matches(".md");
 
     let content = content_service
-        .get_by_source_and_slug(&source_id, slug, &LocaleCode::english())
+        .find_by_source_and_slug(&source_id, slug, &LocaleCode::english())
         .await
         .map_err(RepositoryError::from)?
         .ok_or_else(content_not_found)?;

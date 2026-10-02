@@ -32,7 +32,7 @@ pub async fn redirect_handler(
         repositories.link_analytics.clone(),
     );
 
-    let link = match link_gen_service.get_link_by_short_code(&short_code).await {
+    let link = match link_gen_service.find_link_by_short_code(&short_code).await {
         Ok(Some(link)) => link,
         Ok(None) => {
             return ApiError::not_found("Link not found").into_response();
@@ -142,7 +142,7 @@ pub async fn get_link_performance_handler(
         Ok(id) => id,
         Err(e) => return ApiError::from(e).into_response(),
     };
-    match analytics_service.get_link_performance(&link_id).await {
+    match analytics_service.find_link_performance(&link_id).await {
         Ok(Some(performance)) => Json(performance).into_response(),
         Ok(None) => ApiError::not_found("Link not found").into_response(),
         Err(e) => ApiHttpError::from(e).into_response(),
@@ -165,7 +165,7 @@ pub async fn get_campaign_performance_handler(
         Err(e) => return ApiError::from(e).into_response(),
     };
     match analytics_service
-        .get_campaign_performance(&campaign_id)
+        .find_campaign_performance(&campaign_id)
         .await
     {
         Ok(Some(performance)) => Json(performance).into_response(),

@@ -77,8 +77,8 @@ impl UserService {
         self.repository.find_by_name(name).await
     }
 
-    pub async fn find_by_role(&self, role: UserRole) -> Result<Vec<User>> {
-        self.repository.find_by_role(role).await
+    pub async fn list_by_role(&self, role: UserRole) -> Result<Vec<User>> {
+        self.repository.list_by_role(role).await
     }
 
     pub async fn find_first_user(&self) -> Result<Option<User>> {

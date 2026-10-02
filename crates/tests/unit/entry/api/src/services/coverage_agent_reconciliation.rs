@@ -204,7 +204,7 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     let row = ctx
         .a2a_repositories()
         .agent_services
-        .get_agent_status(&AgentName::new(name.as_str()))
+        .find_agent_status(&AgentName::new(name.as_str()))
         .await
         .expect("read terminal agent service row")
         .expect("terminal agent service row persists");

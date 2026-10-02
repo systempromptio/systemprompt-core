@@ -122,7 +122,7 @@ async fn a_completed_turn_persists_the_task_and_both_messages() {
 
     let stored = repositories
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("task readable")
         .expect("task present");
@@ -162,7 +162,7 @@ async fn artifacts_already_published_are_not_published_a_second_time() {
 
     let stored = repositories
         .artifacts
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .expect("artifact lookup runs");
     assert!(
@@ -260,14 +260,14 @@ async fn persist_artifacts(broadcast_ok: bool) {
     for id in ids {
         let stored = repositories
             .artifacts
-            .get_artifact_by_id(&id)
+            .find_artifact_by_id(&id)
             .await
             .unwrap();
         assert!(stored.is_some(), "artifact {id} must be persisted");
     }
     let stored = repositories
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("task readable")
         .expect("task present");

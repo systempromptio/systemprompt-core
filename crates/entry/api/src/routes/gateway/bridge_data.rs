@@ -41,7 +41,7 @@ pub async fn load_enabled_hosts(
     user_id: &UserId,
 ) -> OauthResult<EnabledHostPrefs> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    repo.list_enabled(user_id).await
+    repo.get_enabled_prefs(user_id).await
 }
 
 pub async fn upsert_host_pref(

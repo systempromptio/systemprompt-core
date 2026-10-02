@@ -149,7 +149,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
     let t1 = fx.insert_task(&repos.tasks, TaskState::Submitted).await?;
     let t2 = fx.insert_task(&repos.tasks, TaskState::Submitted).await?;
 
-    let got = repos.tasks.get_task(&t1).await?;
+    let got = repos.tasks.find_task(&t1).await?;
     assert!(got.is_some(), "task should be retrievable");
 
     let by_ctx = repos.tasks.list_tasks_by_context(&fx.context_id).await?;
@@ -172,7 +172,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
         .tasks
         .update_task_state(&t1, TaskState::Working, &now)
         .await?;
-    let after = repos.tasks.get_task(&t1).await?.unwrap();
+    let after = repos.tasks.find_task(&t1).await?.unwrap();
     assert!(matches!(after.status.state, TaskState::Working));
 
     repos
@@ -183,7 +183,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
         .tasks
         .update_task_failed_with_error(&t2, "boom", &now)
         .await?;
-    let ctx_info = repos.tasks.get_task_context_info(&t1).await?;
+    let ctx_info = repos.tasks.find_task_context_info(&t1).await?;
     assert!(ctx_info.is_some());
 
     fx.cleanup().await?;
@@ -294,14 +294,14 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
         .await?;
     assert!(by_user.iter().any(|a| a.id == artifact_id));
 
-    let by_id = artifacts.get_artifact_by_id(&artifact_id).await?;
+    let by_id = artifacts.find_artifact_by_id(&artifact_id).await?;
     assert!(by_id.is_some());
 
     let all = artifacts.get_all_artifacts(Some(10)).await?;
     assert!(all.iter().any(|a| a.id == artifact_id));
 
     artifacts.delete_artifact(&artifact_id).await?;
-    let after_delete = artifacts.get_artifact_by_id(&artifact_id).await?;
+    let after_delete = artifacts.find_artifact_by_id(&artifact_id).await?;
     assert!(after_delete.is_none());
 
     fx.cleanup().await?;
@@ -427,7 +427,7 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
         .await?;
     repos.agent_services.mark_running(&name).await?;
 
-    let status = repos.agent_services.get_agent_status(&name).await?;
+    let status = repos.agent_services.find_agent_status(&name).await?;
     assert!(status.is_some());
     assert_eq!(
         status.unwrap().status,
@@ -598,7 +598,7 @@ async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()
         .await?;
 
     repos.tasks.delete_task(&task_id).await?;
-    assert!(repos.tasks.get_task(&task_id).await?.is_none());
+    assert!(repos.tasks.find_task(&task_id).await?.is_none());
 
     fx.cleanup().await?;
     Ok(())
@@ -627,7 +627,11 @@ async fn task_and_message_writes_increment_session_counters() -> Result<()> {
         extensions: None,
         reference_task_ids: None,
     };
-    let task = repos.tasks.get_task(&task_id).await?.expect("task present");
+    let task = repos
+        .tasks
+        .find_task(&task_id)
+        .await?
+        .expect("task present");
     repos
         .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {

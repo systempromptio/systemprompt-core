@@ -37,7 +37,7 @@ async fn create_then_get_link_by_short_code() {
     assert_eq!(created.link_type, "redirect");
 
     let fetched = repo
-        .get_link_by_short_code(&short_code)
+        .find_link_by_short_code(&short_code)
         .await
         .expect("query")
         .expect("present");
@@ -51,7 +51,7 @@ async fn get_link_by_short_code_returns_none_for_unknown() {
     let db = test_db_pool().await;
     let repo = LinkRepository::new(&db);
     let res = repo
-        .get_link_by_short_code("nope-no-such-code")
+        .find_link_by_short_code("nope-no-such-code")
         .await
         .expect("query");
     assert!(res.is_none());
@@ -62,7 +62,7 @@ async fn get_link_by_id_returns_none_for_unknown_id() {
     let db = test_db_pool().await;
     let repo = LinkRepository::new(&db);
     let missing = LinkId::generate();
-    let res = repo.get_link_by_id(&missing).await.expect("query");
+    let res = repo.find_link_by_id(&missing).await.expect("query");
     assert!(res.is_none());
 }
 

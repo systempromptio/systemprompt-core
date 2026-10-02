@@ -51,9 +51,9 @@ async fn create_then_get_by_id_round_trips() {
     assert!(created.public);
 
     let fetched = repo
-        .get_by_id(&created.id)
+        .find_by_id(&created.id)
         .await
-        .expect("get_by_id")
+        .expect("find_by_id")
         .expect("content row");
     assert_eq!(fetched.id, created.id);
     assert_eq!(fetched.slug, slug);
@@ -73,14 +73,14 @@ async fn get_by_slug_and_locale_finds_existing_row() {
 
     let locale = LocaleCode::english();
     let fetched = repo
-        .get_by_slug(&slug, &locale)
+        .find_by_slug(&slug, &locale)
         .await
         .expect("query")
         .expect("row");
     assert_eq!(fetched.id, created.id);
 
     let by_src = repo
-        .get_by_source_and_slug(&source, &slug, &locale)
+        .find_by_source_and_slug(&source, &slug, &locale)
         .await
         .expect("query by source+slug")
         .expect("row");
@@ -94,7 +94,7 @@ async fn get_by_id_returns_none_for_unknown_id() {
     let db = test_db_pool().await;
     let repo = ContentRepository::new(&db);
     let missing = ContentId::generate();
-    let result = repo.get_by_id(&missing).await.expect("query unknown id");
+    let result = repo.find_by_id(&missing).await.expect("query unknown id");
     assert!(result.is_none());
 }
 
@@ -239,7 +239,7 @@ async fn find_sources_by_slug_returns_distinct_sources() {
     );
 
     let sources_en = repo
-        .find_sources_by_slug(&slug, &LocaleCode::english())
+        .list_sources_by_slug(&slug, &LocaleCode::english())
         .await
         .expect("find by slug en");
     assert!(sources_en.iter().any(|s| s == &source_a));
@@ -249,7 +249,7 @@ async fn find_sources_by_slug_returns_distinct_sources() {
     );
 
     let sources_fr = repo
-        .find_sources_by_slug(&slug, &b_locale)
+        .list_sources_by_slug(&slug, &b_locale)
         .await
         .expect("find by slug fr");
     assert!(sources_fr.iter().any(|s| s == &source_b));

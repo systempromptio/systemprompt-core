@@ -62,7 +62,7 @@ async fn interactive_edit_prompts_for_the_content_and_applies_the_change() {
     let rendered = serde_json::to_string(out.artifact()).unwrap();
     assert!(rendered.contains(seeded.id.as_str()), "{rendered}");
     let repo = ContentRepository::new(&pool);
-    let stored = repo.get_by_id(&seeded.id).await.unwrap().unwrap();
+    let stored = repo.find_by_id(&seeded.id).await.unwrap().unwrap();
     assert_eq!(stored.title, "Renamed by prompt");
 }
 

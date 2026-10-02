@@ -100,7 +100,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     .await
     .expect("public edit command");
     let edited = repository
-        .get_by_id(&target.id)
+        .find_by_id(&target.id)
         .await
         .expect("read edited target")
         .expect("edited target remains");
@@ -163,13 +163,13 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     .expect("public delete command");
     assert!(
         repository
-            .get_by_id(&target.id)
+            .find_by_id(&target.id)
             .await
             .expect("read deleted target")
             .is_none()
     );
     let sibling_after = repository
-        .get_by_id(&sibling.id)
+        .find_by_id(&sibling.id)
         .await
         .expect("read sibling")
         .expect("sibling remains");

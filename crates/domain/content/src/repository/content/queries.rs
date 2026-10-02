@@ -9,7 +9,7 @@ use sqlx::types::Json;
 use std::sync::Arc;
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
-pub(super) async fn get_by_id(
+pub(super) async fn find_by_id(
     pool: &Arc<PgPool>,
     id: &ContentId,
 ) -> Result<Option<Content>, sqlx::Error> {
@@ -33,7 +33,7 @@ pub(super) async fn get_by_id(
     .await
 }
 
-pub(super) async fn get_by_slug(
+pub(super) async fn find_by_slug(
     pool: &Arc<PgPool>,
     slug: &str,
     locale: &LocaleCode,
@@ -59,7 +59,7 @@ pub(super) async fn get_by_slug(
     .await
 }
 
-pub(super) async fn get_by_source_and_slug(
+pub(super) async fn find_by_source_and_slug(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
     slug: &str,
@@ -211,7 +211,7 @@ pub(super) async fn category_exists(
     Ok(result)
 }
 
-pub(super) async fn find_sources_by_slug(
+pub(super) async fn list_sources_by_slug(
     pool: &Arc<PgPool>,
     slug: &str,
     locale: &LocaleCode,

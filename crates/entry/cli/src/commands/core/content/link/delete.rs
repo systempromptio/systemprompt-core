@@ -41,7 +41,7 @@ pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOu
         LinkGenerationService::new(ctx.app_context().await?.content_repositories().link.clone());
 
     service
-        .get_link_by_id(&args.link_id)
+        .find_link_by_id(&args.link_id)
         .await?
         .ok_or_else(|| anyhow!("Link not found: {}", args.link_id))?;
 

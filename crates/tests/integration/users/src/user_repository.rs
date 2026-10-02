@@ -204,7 +204,7 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
     let unique_name = format!("findrole_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
-    let users = repo.find_by_role(UserRole::User).await?;
+    let users = repo.list_by_role(UserRole::User).await?;
     assert!(!users.is_empty());
     assert!(
         users

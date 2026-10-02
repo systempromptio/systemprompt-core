@@ -74,7 +74,7 @@ async fn start_agent_unknown_agent_creates_no_service_state() {
     assert!(!db.agent_exists(&name).await.expect("service lookup"));
     assert!(
         db.repository
-            .get_agent_status(&name)
+            .find_agent_status(&name)
             .await
             .expect("row lookup")
             .is_none(),
@@ -197,7 +197,7 @@ async fn disable_removes_the_service_row() {
 
     assert!(
         db.repository
-            .get_agent_status(&name)
+            .find_agent_status(&name)
             .await
             .expect("row lookup")
             .is_none()

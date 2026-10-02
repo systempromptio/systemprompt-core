@@ -21,7 +21,7 @@ mod task_updates;
 pub use constructor::TaskConstructor;
 pub use mutations::{CreateTaskParams, create_task, track_agent_in_context};
 pub use queries::{
-    TaskContextInfo, get_task, get_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
+    TaskContextInfo, find_task, find_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
 };
 pub use state::{apply_notification_status, update_task_failed_with_error, update_task_state};
 pub use task_updates::{PersistMessagesTxParams, UpdateTaskAndSaveMessagesParams};
@@ -95,11 +95,11 @@ impl TaskRepository {
         Ok(result)
     }
 
-    pub async fn get_task(
+    pub async fn find_task(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Option<Task>, RepositoryError> {
-        get_task(&self.constructor, task_id).await
+        find_task(&self.constructor, task_id).await
     }
 
     pub async fn list_tasks_by_context(
@@ -153,11 +153,11 @@ impl TaskRepository {
         update_task_failed_with_error(&self.write_pool, task_id, error_message, timestamp).await
     }
 
-    pub async fn get_task_context_info(
+    pub async fn find_task_context_info(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Option<TaskContextInfo>, RepositoryError> {
-        get_task_context_info(&self.pool, task_id).await
+        find_task_context_info(&self.pool, task_id).await
     }
 
     pub async fn validate_task_ownership(

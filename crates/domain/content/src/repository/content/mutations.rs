@@ -82,7 +82,7 @@ pub(super) async fn update(
 ) -> Result<Content, sqlx::Error> {
     let now = Utc::now();
 
-    let current = queries::get_by_id(pool, &params.id).await?;
+    let current = queries::find_by_id(pool, &params.id).await?;
     let resolved = ResolvedUpdate::resolve(params, current.as_ref());
 
     sqlx::query_as!(

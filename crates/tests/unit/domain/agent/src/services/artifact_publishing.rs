@@ -97,7 +97,7 @@ async fn publish_from_a2a_persists_artifact() {
 
     let repo = r.artifacts.clone();
     let fetched = repo
-        .get_artifact_by_id(&id)
+        .find_artifact_by_id(&id)
         .await
         .expect("get")
         .expect("present");
@@ -123,7 +123,7 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
 
     let repo = r.artifacts.clone();
     let fetched = repo
-        .get_artifact_by_id(&id)
+        .find_artifact_by_id(&id)
         .await
         .expect("get")
         .expect("present");
@@ -160,7 +160,7 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
 
     let fetched = r
         .artifacts
-        .get_artifact_by_id(&id)
+        .find_artifact_by_id(&id)
         .await
         .expect("get")
         .expect("present");
@@ -192,7 +192,7 @@ async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
         .expect_err("an unreachable ledger is an error, not an unknown execution");
     assert!(err.to_string().contains("exec-while-down"), "{err}");
 
-    let fetched = r.artifacts.get_artifact_by_id(&id).await.expect("get");
+    let fetched = r.artifacts.find_artifact_by_id(&id).await.expect("get");
     assert!(
         fetched.is_none(),
         "nothing is persisted with a detached execution id"

@@ -156,7 +156,7 @@ async fn edit_sets_scalar_fields() {
     assert_eq!(card_title(&out), "Content Updated");
 
     let repo = ContentRepository::new(&pool);
-    let updated = repo.get_by_id(&content.id).await.unwrap().unwrap();
+    let updated = repo.find_by_id(&content.id).await.unwrap().unwrap();
     assert_eq!(updated.title, "New Title");
     assert_eq!(updated.description, "New Desc");
     assert_eq!(updated.keywords, "x,y");
@@ -182,7 +182,7 @@ async fn edit_by_slug_with_source_and_flags() {
 
     let repo = ContentRepository::new(&pool);
     let updated = repo
-        .get_by_source_and_slug(
+        .find_by_source_and_slug(
             &SourceId::new(source),
             &slug,
             &systemprompt_identifiers::LocaleCode::english(),
@@ -230,7 +230,7 @@ async fn edit_clears_image_and_category() {
         .unwrap();
 
     let repo = ContentRepository::new(&pool);
-    let updated = repo.get_by_id(&content.id).await.unwrap().unwrap();
+    let updated = repo.find_by_id(&content.id).await.unwrap().unwrap();
     assert!(updated.image.is_none());
     assert!(updated.category_id.is_none());
 }
@@ -261,7 +261,7 @@ async fn edit_assigns_an_existing_category_and_persists_it() {
     .expect("assign an existing category");
 
     let updated = ContentRepository::new(&pool)
-        .get_by_id(&content.id)
+        .find_by_id(&content.id)
         .await
         .unwrap()
         .expect("updated content");
@@ -489,7 +489,7 @@ async fn delete_dry_run_keeps_content() {
     assert_eq!(card_title(&out), "Content Delete (Dry Run)");
 
     let repo = ContentRepository::new(&pool);
-    assert!(repo.get_by_id(&content.id).await.unwrap().is_some());
+    assert!(repo.find_by_id(&content.id).await.unwrap().is_some());
 }
 
 #[tokio::test]
@@ -535,7 +535,7 @@ async fn delete_with_yes_removes_content() {
     assert_eq!(card_title(&out), "Content Deleted");
 
     let repo = ContentRepository::new(&pool);
-    assert!(repo.get_by_id(&content.id).await.unwrap().is_none());
+    assert!(repo.find_by_id(&content.id).await.unwrap().is_none());
 }
 
 #[tokio::test]

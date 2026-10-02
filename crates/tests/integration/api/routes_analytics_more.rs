@@ -2,7 +2,7 @@
 //!
 //! Drives the entry points that mount the analytics and engagement routers
 //! over a stub `ContentRouting`, so the slug-resolution success path (routing
-//! maps a page URL to a seeded `markdown_content` slug, then `get_by_slug`
+//! maps a page URL to a seeded `markdown_content` slug, then `find_by_slug`
 //! returns the row) and the conversion-marking path both execute — branches the
 //! production router cannot reach without a live content config.
 

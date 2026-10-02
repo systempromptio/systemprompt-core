@@ -24,7 +24,7 @@ async fn unreadable_task_metadata_is_an_error() {
 
     let err = r
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect_err("corrupt metadata must not read as defaults");
     assert!(matches!(err, RepositoryError::Decode { .. }), "got {err}");
@@ -48,7 +48,7 @@ async fn task_without_agent_name_is_an_error() {
 
     let err = r
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect_err("a task row without an agent must not read as agent \"\"");
     assert!(matches!(err, RepositoryError::InvalidData(_)), "got {err}");
@@ -65,7 +65,7 @@ async fn task_created_without_metadata_reads_back() {
 
     let task = r
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("get")
         .expect("present");

@@ -34,25 +34,25 @@ impl ContentRepository {
         mutations::create(&self.write_pool, params).await
     }
 
-    pub async fn get_by_id(&self, id: &ContentId) -> Result<Option<Content>, sqlx::Error> {
-        queries::get_by_id(&self.pool, id).await
+    pub async fn find_by_id(&self, id: &ContentId) -> Result<Option<Content>, sqlx::Error> {
+        queries::find_by_id(&self.pool, id).await
     }
 
-    pub async fn get_by_slug(
+    pub async fn find_by_slug(
         &self,
         slug: &str,
         locale: &LocaleCode,
     ) -> Result<Option<Content>, sqlx::Error> {
-        queries::get_by_slug(&self.pool, slug, locale).await
+        queries::find_by_slug(&self.pool, slug, locale).await
     }
 
-    pub async fn get_by_source_and_slug(
+    pub async fn find_by_source_and_slug(
         &self,
         source_id: &SourceId,
         slug: &str,
         locale: &LocaleCode,
     ) -> Result<Option<Content>, sqlx::Error> {
-        queries::get_by_source_and_slug(&self.pool, source_id, slug, locale).await
+        queries::find_by_source_and_slug(&self.pool, source_id, slug, locale).await
     }
 
     pub async fn list(&self, limit: i64, offset: i64) -> Result<Vec<Content>, sqlx::Error> {
@@ -76,12 +76,12 @@ impl ContentRepository {
         queries::list_by_source_limited(&self.pool, source_id, locale, limit).await
     }
 
-    pub async fn find_sources_by_slug(
+    pub async fn list_sources_by_slug(
         &self,
         slug: &str,
         locale: &LocaleCode,
     ) -> Result<Vec<SourceId>, sqlx::Error> {
-        queries::find_sources_by_slug(&self.pool, slug, locale).await
+        queries::list_sources_by_slug(&self.pool, slug, locale).await
     }
 
     pub async fn list_slugs_with_locales_by_source(

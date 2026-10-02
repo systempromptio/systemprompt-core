@@ -75,7 +75,7 @@ impl BridgeHostPrefsRepository {
         }
     }
 
-    pub async fn list_enabled(&self, user_id: &UserId) -> OauthResult<EnabledHostPrefs> {
+    pub async fn get_enabled_prefs(&self, user_id: &UserId) -> OauthResult<EnabledHostPrefs> {
         let rows = sqlx::query!(
             r#"
             SELECT host_id FROM bridge_user_host_prefs

@@ -85,7 +85,7 @@ pub(super) async fn execute_with_pool(
 
     let users = if let Some(role_filter) = args.role {
         let role: UserRole = role_filter.into();
-        user_service.find_by_role(role).await?
+        user_service.list_by_role(role).await?
     } else if args.include_anonymous {
         user_service
             .list_including_anonymous(args.limit, args.offset)

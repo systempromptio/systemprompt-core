@@ -59,7 +59,7 @@ pub async fn get_task(
         .await?;
 
     let task = task_repo
-        .get_task(&task_id_typed)
+        .find_task(&task_id_typed)
         .await?
         .ok_or_else(|| ApiHttpError::not_found(format!("Task '{task_id}' not found")))?;
 

@@ -12,7 +12,7 @@ use systemprompt_traits::RepositoryError;
 use super::constructor::TaskConstructor;
 use crate::models::a2a::Task;
 
-pub async fn get_task(
+pub async fn find_task(
     constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<Option<Task>, RepositoryError> {
@@ -104,7 +104,7 @@ pub struct TaskContextInfo {
     pub user_id: Option<UserId>,
 }
 
-pub async fn get_task_context_info(
+pub async fn find_task_context_info(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
 ) -> Result<Option<TaskContextInfo>, RepositoryError> {

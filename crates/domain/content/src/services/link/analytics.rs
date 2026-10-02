@@ -84,20 +84,20 @@ impl LinkAnalyticsService {
         })
     }
 
-    pub async fn get_link_performance(
+    pub async fn find_link_performance(
         &self,
         link_id: &LinkId,
     ) -> Result<Option<LinkPerformance>, ContentError> {
-        Ok(self.analytics_repo.get_link_performance(link_id).await?)
+        Ok(self.analytics_repo.find_link_performance(link_id).await?)
     }
 
-    pub async fn get_campaign_performance(
+    pub async fn find_campaign_performance(
         &self,
         campaign_id: &CampaignId,
     ) -> Result<Option<CampaignPerformance>, ContentError> {
         Ok(self
             .analytics_repo
-            .get_campaign_performance(campaign_id)
+            .find_campaign_performance(campaign_id)
             .await?)
     }
 

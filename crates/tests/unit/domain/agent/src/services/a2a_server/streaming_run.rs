@@ -78,7 +78,7 @@ async fn wait_for_state(
     expected: TaskState,
 ) -> bool {
     for _ in 0..100 {
-        if let Ok(Some(task)) = repos_handle.tasks.get_task(task_id).await
+        if let Ok(Some(task)) = repos_handle.tasks.find_task(task_id).await
             && task.status.state == expected
         {
             return true;
@@ -128,7 +128,7 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
     );
     let stored = repos_handle
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("completed task lookup")
         .expect("completed task persisted");
@@ -194,7 +194,7 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
     );
     let stored = repos_handle
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("failed task lookup")
         .expect("failed task persisted");
@@ -246,7 +246,7 @@ async fn run_stream_with_failing_model_stream_fails_task() {
     );
     let stored = repos_handle
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("failed task lookup")
         .expect("failed task persisted");

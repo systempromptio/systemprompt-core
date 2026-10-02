@@ -69,7 +69,7 @@ async fn find_by_role_and_first_user_and_first_admin() {
 
     let admins = ctx
         .service
-        .find_by_role(UserRole::Admin)
+        .list_by_role(UserRole::Admin)
         .await
         .expect("by role");
     assert!(admins.iter().any(|u| u.id == user.id));

@@ -70,7 +70,7 @@ pub async fn execute_with_pool(
 
     let mut items = Vec::with_capacity(content_ids.len());
     for id in content_ids {
-        if let Some(content) = repo.get_by_id(&id).await? {
+        if let Some(content) = repo.find_by_id(&id).await? {
             items.push(ContentSummary {
                 id: content.id,
                 slug: content.slug,

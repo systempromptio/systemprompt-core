@@ -108,7 +108,7 @@ async fn ingests_enabled_source_into_content_store() {
 
     let repo = ContentRepository::new(&pool);
     let stored = repo
-        .get_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
+        .find_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
         .await
         .expect("query")
         .expect("ingested row present");
@@ -159,7 +159,7 @@ async fn relative_source_path_resolves_and_per_file_errors_are_logged() {
 
     let repo = ContentRepository::new(&pool);
     let stored = repo
-        .get_by_source_and_slug(&source_id, &good_slug, &LocaleCode::english())
+        .find_by_source_and_slug(&source_id, &good_slug, &LocaleCode::english())
         .await
         .expect("query");
     assert!(
@@ -208,7 +208,7 @@ async fn skill_sources_are_filtered_out() {
 
     let repo = ContentRepository::new(&pool);
     let stored = repo
-        .get_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
+        .find_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
         .await
         .expect("query");
     assert!(stored.is_none(), "skill source must not be ingested");

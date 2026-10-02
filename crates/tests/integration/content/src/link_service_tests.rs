@@ -76,7 +76,7 @@ async fn generate_social_media_link_round_trips_through_get_by_short_code() {
         .expect("social link");
 
     let fetched = svc
-        .get_link_by_short_code(&link.short_code)
+        .find_link_by_short_code(&link.short_code)
         .await
         .expect("query")
         .expect("present");
@@ -97,7 +97,7 @@ async fn delete_link_via_service_removes_row() {
     assert!(removed);
 
     let fetched = svc
-        .get_link_by_short_code(&link.short_code)
+        .find_link_by_short_code(&link.short_code)
         .await
         .expect("query");
     assert!(fetched.is_none());

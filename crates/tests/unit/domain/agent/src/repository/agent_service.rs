@@ -22,7 +22,7 @@ async fn register_and_get_status_running() {
 
     let status = r
         .agent_services
-        .get_agent_status(&name)
+        .find_agent_status(&name)
         .await
         .expect("status")
         .expect("row present");
@@ -49,7 +49,7 @@ async fn register_starting_then_mark_running() {
         .expect("register starting");
     let status = r
         .agent_services
-        .get_agent_status(&name)
+        .find_agent_status(&name)
         .await
         .expect("status")
         .expect("row");
@@ -61,7 +61,7 @@ async fn register_starting_then_mark_running() {
         .expect("mark running");
     let status = r
         .agent_services
-        .get_agent_status(&name)
+        .find_agent_status(&name)
         .await
         .expect("status")
         .expect("row");
@@ -83,7 +83,7 @@ async fn mark_crashed_clears_pid() {
     r.agent_services.mark_error(&name).await.expect("crash");
     let status = r
         .agent_services
-        .get_agent_status(&name)
+        .find_agent_status(&name)
         .await
         .expect("status")
         .expect("row");
@@ -106,7 +106,7 @@ async fn mark_stopped_and_error_clear_pid() {
     r.agent_services.mark_stopped(&stopped).await.expect("stop");
     let s = r
         .agent_services
-        .get_agent_status(&stopped)
+        .find_agent_status(&stopped)
         .await
         .expect("status")
         .expect("row");
@@ -121,7 +121,7 @@ async fn mark_stopped_and_error_clear_pid() {
     r.agent_services.mark_error(&errored).await.expect("error");
     let s = r
         .agent_services
-        .get_agent_status(&errored)
+        .find_agent_status(&errored)
         .await
         .expect("status")
         .expect("row");
@@ -150,7 +150,7 @@ async fn unrecognised_stored_status_is_invalid_data() {
 
     let err = r
         .agent_services
-        .get_agent_status(&name)
+        .find_agent_status(&name)
         .await
         .expect_err("a status outside the agent vocabulary is corrupt");
     assert!(matches!(err, RepositoryError::Decode { .. }), "got {err}");
@@ -184,7 +184,7 @@ async fn get_status_unknown_returns_none() {
     let r = repos(&pool);
     let result = r
         .agent_services
-        .get_agent_status(&unique_name("never-registered"))
+        .find_agent_status(&unique_name("never-registered"))
         .await
         .expect("status");
     assert!(result.is_none());
@@ -205,7 +205,7 @@ async fn register_twice_upserts() {
         .expect("second");
     let s = r
         .agent_services
-        .get_agent_status(&name)
+        .find_agent_status(&name)
         .await
         .expect("status")
         .expect("row");

@@ -60,7 +60,7 @@ async fn generate_external_link_persists_and_resolves_external() {
     assert_eq!(link.link_text.as_deref(), Some("Click me"));
 
     let fetched = svc
-        .get_link_by_short_code(&link.short_code)
+        .find_link_by_short_code(&link.short_code)
         .await
         .expect("fetch")
         .expect("present");
@@ -236,7 +236,7 @@ async fn generate_external_content_link_is_a_redirect_share() {
     assert_eq!(link.source_page.as_deref(), Some(source_page.as_str()));
 
     let fetched = svc
-        .get_link_by_id(&link.id)
+        .find_link_by_id(&link.id)
         .await
         .expect("by id")
         .expect("present");
@@ -253,7 +253,7 @@ async fn get_link_by_short_code_missing_is_none() {
     let svc = LinkGenerationService::new(LinkRepository::new(&pool));
 
     let result = svc
-        .get_link_by_short_code(&format!("missing{}", Uuid::new_v4().simple()))
+        .find_link_by_short_code(&format!("missing{}", Uuid::new_v4().simple()))
         .await
         .expect("query");
     assert!(result.is_none());

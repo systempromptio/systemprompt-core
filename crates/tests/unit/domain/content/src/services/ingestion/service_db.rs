@@ -85,7 +85,7 @@ async fn ingest_creates_updates_skips_and_detects_unchanged() {
 
     let repo = ContentRepository::new(&ctx.pool);
     let stored = repo
-        .get_by_source_and_slug(&ctx.source_id, &slug, &LocaleCode::english())
+        .find_by_source_and_slug(&ctx.source_id, &slug, &LocaleCode::english())
         .await
         .expect("query")
         .expect("row");
@@ -162,7 +162,7 @@ async fn links_frontmatter_is_persisted_on_the_content_row() {
 
     let repo = ContentRepository::new(&ctx.pool);
     let stored = repo
-        .get_by_source_and_slug(&ctx.source_id, &slug, &LocaleCode::english())
+        .find_by_source_and_slug(&ctx.source_id, &slug, &LocaleCode::english())
         .await
         .expect("query")
         .expect("row");
