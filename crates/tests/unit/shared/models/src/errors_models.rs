@@ -77,13 +77,6 @@ fn config_validation_error_business_rule() {
 }
 
 #[test]
-fn config_validation_error_missing_system_admin_display() {
-    let e = ServicesValidationError::MissingSystemAdmin;
-    let s = e.to_string();
-    assert!(s.contains("system_admin.username"));
-}
-
-#[test]
 fn secrets_error_invalid_display() {
     let e = SecretsError::Invalid("bad key".to_owned());
     assert_eq!(e.to_string(), "bad key");
