@@ -337,7 +337,7 @@ mod ssrf_live_dns_tests {
                 assert_eq!(host, "169.254.169.254.nip.io");
                 assert_eq!(addr.to_string(), "169.254.169.254");
             },
-            GuardedConnectError::Unresolvable(host) => {
+            GuardedConnectError::Unresolvable { host, .. } => {
                 panic!("{host} did not resolve; is outbound DNS available?")
             },
             other => panic!("expected BlockedAddress, got {other:?}"),
@@ -356,7 +356,7 @@ mod ssrf_live_dns_tests {
             GuardedConnectError::BlockedAddress { addr, .. } => {
                 assert!(addr.to_string().starts_with("169.254."), "{addr}");
             },
-            GuardedConnectError::Unresolvable(_) => {},
+            GuardedConnectError::Unresolvable { .. } => {},
             other => panic!("unexpected verdict {other:?}"),
         }
     }
