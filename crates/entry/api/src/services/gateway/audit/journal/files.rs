@@ -20,7 +20,7 @@ const MAX_BYTES: usize = 16 * 1024 * 1024;
 
 pub(super) enum Listed {
     Receipt(Box<Receipt>),
-    Quarantined { path: PathBuf, reason: String },
+    Quarantined { path: PathBuf, cause: anyhow::Error },
 }
 
 fn name(id: &AiRequestId) -> String {
@@ -189,10 +189,7 @@ pub(super) fn list(journal: &GatewayJournal) -> Result<Vec<Listed>> {
         let mut receipt = match read(journal, &path) {
             Ok(receipt) => receipt,
             Err(error) => {
-                result.push(Listed::Quarantined {
-                    path,
-                    reason: error.to_string(),
-                });
+                result.push(Listed::Quarantined { path, cause: error });
                 continue;
             },
         };
