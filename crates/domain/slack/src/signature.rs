@@ -26,9 +26,7 @@ pub fn verify_slack_signature(
     now_unix: i64,
 ) -> SlackResult<()> {
     if signing_secret.is_empty() {
-        return Err(SlackError::Signature(
-            "signing secret is empty; refusing to verify".to_owned(),
-        ));
+        return Err(SlackError::EmptySigningSecret);
     }
     let ts: i64 = timestamp.parse().map_err(SlackError::InvalidTimestamp)?;
     if (now_unix - ts).abs() > MAX_TIMESTAMP_SKEW_SECS {
@@ -37,7 +35,7 @@ pub fn verify_slack_signature(
 
     let provided = signature
         .strip_prefix("v0=")
-        .ok_or_else(|| SlackError::Signature("missing v0= prefix".to_owned()))?;
+        .ok_or(SlackError::MissingSignaturePrefix)?;
     let provided = hex::decode(provided).map_err(SlackError::SignatureEncoding)?;
 
     let mut mac = HmacSha256::new_from_slice(signing_secret).map_err(SlackError::SigningKey)?;
