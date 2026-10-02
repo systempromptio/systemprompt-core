@@ -17,8 +17,8 @@ pub(super) enum NotificationError {
     Repository(#[from] RepositoryError),
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
-    #[error("Missing {0} in notification")]
-    MissingField(&'static str),
+    #[error("Invalid task status notification params: {0}")]
+    InvalidParams(#[source] serde_json::Error),
 }
 
 impl From<NotificationError> for ApiHttpError {
@@ -29,7 +29,7 @@ impl From<NotificationError> for ApiHttpError {
             NotificationError::Serde(e) => {
                 ApiError::internal("Invalid notification payload", e).into()
             },
-            e @ NotificationError::MissingField(_) => Self::bad_request(e.to_string()),
+            e @ NotificationError::InvalidParams(_) => Self::bad_request(e.to_string()),
         }
     }
 }
