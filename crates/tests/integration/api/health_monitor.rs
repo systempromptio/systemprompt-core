@@ -4,7 +4,8 @@
 //! Drives [`ProcessMonitor`] against the fixture database: lifecycle
 //! (start/stop/drop/double-start), on-demand
 //! [`ProcessMonitor::health_check_all`] over live and dead PIDs, and the
-//! background monitoring loop that marks a vanished PID's service `error`. Also
+//! background monitoring loop that marks a vanished PID's service `error`,
+//! awaited through [`ProcessMonitor::completed_cycles`]. Also
 //! exercises [`HealthChecker`] retries against a `wiremock` upstream and the
 //! [`HealthSummary`] / [`ModuleHealth`] arithmetic.
 
@@ -155,23 +156,20 @@ async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
         ),
         Duration::from_millis(50),
     );
+    let mut cycles = monitor.completed_cycles();
     monitor.start();
+    tokio::time::timeout(Duration::from_secs(10), cycles.wait_for(|done| *done >= 1))
+        .await
+        .expect("monitor completes a cycle")?;
 
     let repo = ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
-    let name = ServiceName::new(name);
-    let mut status = None;
-    for _ in 0..40 {
-        tokio::time::sleep(Duration::from_millis(50)).await;
-        if let Some(svc) = repo.find_service_by_name(&name).await? {
-            status = Some(svc.status);
-            if svc.status == ServiceStatus::Error {
-                break;
-            }
-        }
-    }
+    let status = repo
+        .find_service_by_name(&ServiceName::new(name))
+        .await?
+        .map(|svc| svc.status);
     monitor.stop();
 
     assert_eq!(

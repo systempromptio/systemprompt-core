@@ -2,16 +2,20 @@
 //!
 //! [`ProcessMonitor`] spawns a polling loop that checks each running service's
 //! PID against the live process table, marks vanished processes as crashed, and
-//! reports aggregate state via [`HealthSummary`] and [`ModuleHealth`].
+//! reports aggregate state via [`HealthSummary`] and [`ModuleHealth`]. Each
+//! completed cycle advances a counter that callers observe through
+//! [`ProcessMonitor::completed_cycles`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_database::ServiceRepository;
 use systemprompt_loader::subprocess;
 use systemprompt_traits::OwnedTask;
+use tokio::sync::watch;
 use tracing::{info, warn};
 
 #[derive(Debug)]
@@ -19,19 +23,26 @@ pub struct ProcessMonitor {
     repository: ServiceRepository,
     monitor_handle: Option<OwnedTask<()>>,
     check_interval: Duration,
+    cycles: Arc<watch::Sender<u64>>,
 }
 
 impl ProcessMonitor {
-    pub const fn new(repository: ServiceRepository) -> Self {
+    pub fn new(repository: ServiceRepository) -> Self {
         Self::with_interval(repository, Duration::from_secs(30))
     }
 
-    pub const fn with_interval(repository: ServiceRepository, interval: Duration) -> Self {
+    pub fn with_interval(repository: ServiceRepository, interval: Duration) -> Self {
         Self {
             repository,
             monitor_handle: None,
             check_interval: interval,
+            cycles: Arc::new(watch::Sender::new(0)),
         }
+    }
+
+    #[must_use]
+    pub fn completed_cycles(&self) -> watch::Receiver<u64> {
+        self.cycles.subscribe()
     }
 
     pub fn start(&mut self) {
@@ -44,9 +55,10 @@ impl ProcessMonitor {
 
         let repository = self.repository.clone();
         let interval = self.check_interval;
+        let cycles = Arc::clone(&self.cycles);
 
         let handle = OwnedTask::spawn("process_monitor", async move {
-            Self::monitor_loop(repository, interval).await;
+            Self::monitor_loop(repository, interval, &cycles).await;
         });
 
         self.monitor_handle = Some(handle);
@@ -65,7 +77,11 @@ impl ProcessMonitor {
         self.monitor_handle.is_some()
     }
 
-    async fn monitor_loop(repository: ServiceRepository, check_interval: Duration) {
+    async fn monitor_loop(
+        repository: ServiceRepository,
+        check_interval: Duration,
+        cycles: &watch::Sender<u64>,
+    ) {
         info!(
             interval_secs = check_interval.as_secs(),
             "Process monitor loop started"
@@ -79,6 +95,7 @@ impl ProcessMonitor {
             if let Err(e) = Self::perform_monitoring_cycle(&repository).await {
                 warn!(error = %e, "Monitoring cycle failed");
             }
+            cycles.send_modify(|completed| *completed = completed.saturating_add(1));
         }
     }
 
