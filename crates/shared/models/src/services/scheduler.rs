@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::JobName;
+use systemprompt_identifiers::{ExtensionId, JobName};
 pub use systemprompt_provider_contracts::JobScope;
 
 /// One scheduled job. `owner` is the *username* of the user the job runs as
@@ -16,7 +16,7 @@ pub use systemprompt_provider_contracts::JobScope;
 #[serde(deny_unknown_fields)]
 pub struct JobConfig {
     #[serde(default)]
-    pub extension: Option<String>,
+    pub extension: Option<ExtensionId>,
     pub name: JobName,
     #[serde(default)]
     pub owner: Option<String>,
@@ -64,8 +64,8 @@ impl JobConfig {
     }
 
     #[must_use]
-    pub fn with_extension(mut self, extension: impl Into<String>) -> Self {
-        self.extension = Some(extension.into());
+    pub fn with_extension(mut self, extension: ExtensionId) -> Self {
+        self.extension = Some(extension);
         self
     }
 
@@ -117,18 +117,18 @@ impl SchedulerConfig {
             enabled: true,
             jobs: vec![
                 JobConfig::new(JobName::new("cleanup_anonymous_users"))
-                    .with_extension("core")
+                    .with_extension(ExtensionId::new("core"))
                     .with_schedule("0 0 3 * * *")
                     .with_enforce(),
                 JobConfig::new(JobName::new("cleanup_empty_contexts"))
-                    .with_extension("core")
+                    .with_extension(ExtensionId::new("core"))
                     .with_schedule("0 0 * * * *")
                     .with_enforce(),
                 JobConfig::new(JobName::new("cleanup_inactive_sessions"))
-                    .with_extension("core")
+                    .with_extension(ExtensionId::new("core"))
                     .with_schedule("0 0 * * * *"),
                 JobConfig::new(JobName::new("database_cleanup"))
-                    .with_extension("core")
+                    .with_extension(ExtensionId::new("core"))
                     .with_schedule("0 0 4 * * *")
                     .with_enforce(),
             ],

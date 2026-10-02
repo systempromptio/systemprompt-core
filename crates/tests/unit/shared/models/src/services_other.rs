@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use systemprompt_identifiers::JobName;
+use systemprompt_identifiers::{ExtensionId, JobName};
 
 use systemprompt_identifiers::{ExternalAgentId, SkillId, UserId};
 use systemprompt_models::services::{
@@ -148,10 +148,10 @@ fn job_config_new_and_builders() {
 
     let j = JobConfig::new(JobName::new("x"))
         .with_owner(owner.clone())
-        .with_extension("core")
+        .with_extension(ExtensionId::new("core"))
         .with_schedule("0 0 * * * *");
     assert_eq!(j.owner, Some(owner));
-    assert_eq!(j.extension.as_deref(), Some("core"));
+    assert_eq!(j.extension.as_ref().map(ExtensionId::as_str), Some("core"));
     assert_eq!(j.schedule.as_deref(), Some("0 0 * * * *"));
 
     let j = JobConfig::new(JobName::new("y")).disabled();
@@ -171,7 +171,7 @@ fn scheduler_config_with_system_admin_emits_core_cleanup_jobs() {
     assert!(names.contains(&"database_cleanup"));
     for j in &s.jobs {
         assert!(j.owner.is_none());
-        assert_eq!(j.extension.as_deref(), Some("core"));
+        assert_eq!(j.extension.as_ref().map(ExtensionId::as_str), Some("core"));
         let schedule = j
             .schedule
             .as_deref()

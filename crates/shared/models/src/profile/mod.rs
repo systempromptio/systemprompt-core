@@ -75,6 +75,7 @@ pub use vault::{
 
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use systemprompt_identifiers::ExtensionId;
 
 use crate::env::{interpolate, read_env_optional};
 
@@ -82,12 +83,12 @@ use crate::env::{interpolate, read_env_optional};
 #[serde(deny_unknown_fields)]
 pub struct ExtensionsConfig {
     #[serde(default)]
-    pub disabled: Vec<String>,
+    pub disabled: Vec<ExtensionId>,
 }
 
 impl ExtensionsConfig {
-    pub fn is_disabled(&self, extension_id: &str) -> bool {
-        self.disabled.iter().any(|id| id == extension_id)
+    pub fn is_disabled(&self, extension_id: &ExtensionId) -> bool {
+        self.disabled.contains(extension_id)
     }
 }
 

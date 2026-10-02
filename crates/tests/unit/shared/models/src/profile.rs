@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{ProfileError, expand_home, resolve_path, resolve_with_home};
 use systemprompt_models::services::SystemAdminConfig;
@@ -624,17 +625,17 @@ fn output_format_from_str_invalid() {
 #[test]
 fn extensions_config_is_disabled() {
     let config = ExtensionsConfig {
-        disabled: vec!["ext-a".to_string(), "ext-b".to_string()],
+        disabled: vec![ExtensionId::new("ext-a"), ExtensionId::new("ext-b")],
     };
-    assert!(config.is_disabled("ext-a"));
-    assert!(config.is_disabled("ext-b"));
-    assert!(!config.is_disabled("ext-c"));
+    assert!(config.is_disabled(&ExtensionId::new("ext-a")));
+    assert!(config.is_disabled(&ExtensionId::new("ext-b")));
+    assert!(!config.is_disabled(&ExtensionId::new("ext-c")));
 }
 
 #[test]
 fn extensions_config_empty_disabled() {
     let config = ExtensionsConfig::default();
-    assert!(!config.is_disabled("anything"));
+    assert!(!config.is_disabled(&ExtensionId::new("anything")));
 }
 
 #[test]
