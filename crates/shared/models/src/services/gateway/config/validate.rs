@@ -32,7 +32,7 @@ impl GatewayConfig {
         for route in &self.routes {
             let id = route.effective_id();
             if route_ids.contains(&id) {
-                return Err(GatewayProfileError::DuplicateRouteId { id: id.to_string() });
+                return Err(GatewayProfileError::DuplicateRouteId { id });
             }
             route_ids.insert(id);
         }

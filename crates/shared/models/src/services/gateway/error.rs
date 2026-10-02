@@ -5,12 +5,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::RouteId;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum GatewayProfileError {
     #[error("gateway route id '{id}' is declared more than once")]
-    DuplicateRouteId { id: String },
+    DuplicateRouteId { id: RouteId },
 
     #[error("gateway route '{route}' provider '{provider}' is not declared in services providers")]
     RouteProviderNotInRegistry { route: String, provider: String },

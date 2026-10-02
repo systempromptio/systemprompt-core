@@ -40,7 +40,7 @@ use chrono::{Days, NaiveDate};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ModelId, ProviderId};
 
-use super::{ProviderModel, ProviderRegistryError, ProviderRegistryResult};
+use super::{ProviderModel, ProviderRegistryError, ProviderRegistryResult, VertexRateCardDefect};
 use crate::services::ai::{ModelCapabilities, ModelLimits, ModelPricing};
 
 const VERTEX_RATE_CARD_YAML: &str = include_str!("vertex_rate_card.yaml");
@@ -146,24 +146,21 @@ impl VertexRateCardEntry {
     }
 
     fn validate(&self) -> ProviderRegistryResult<()> {
-        let id = self.id.as_str();
+        let invalid = |defect| ProviderRegistryError::InvalidVertexRateCard {
+            entry: self.id.clone(),
+            defect,
+        };
         if !self.docs.starts_with("https://") {
-            return Err(ProviderRegistryError::InvalidVertexRateCard(format!(
-                "{id}: `docs` must be the official documentation URL"
-            )));
+            return Err(invalid(VertexRateCardDefect::DocsNotOfficial));
         }
         let Some(released) = self.released else {
             return Ok(());
         };
         if self.retires_on.is_some_and(|retires| retires <= released) {
-            return Err(ProviderRegistryError::InvalidVertexRateCard(format!(
-                "{id}: `retires_on` is not after `released`"
-            )));
+            return Err(invalid(VertexRateCardDefect::RetiresBeforeRelease));
         }
         if self.price_until.is_some_and(|until| until <= released) {
-            return Err(ProviderRegistryError::InvalidVertexRateCard(format!(
-                "{id}: `price_until` is not after `released`"
-            )));
+            return Err(invalid(VertexRateCardDefect::PriceUntilBeforeRelease));
         }
         Ok(())
     }

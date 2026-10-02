@@ -1,3 +1,4 @@
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::ai::{
     ModelConfig, ModelHint, ModelPreferences, ProviderConfig, ResponseFormat, SamplingParams,
     StructuredOutputOptions, ToolModelConfig,
@@ -182,7 +183,7 @@ fn tool_model_config_merge_with_empty_other_keeps_base() {
 
 #[test]
 fn model_config_new_and_with_cost() {
-    let mc = ModelConfig::new("gpt-4", 8192, true).with_cost(0.03);
+    let mc = ModelConfig::new(ModelId::new("gpt-4"), 8192, true).with_cost(0.03);
     assert_eq!(mc.id, "gpt-4");
     assert_eq!(mc.max_tokens, 8192);
     assert!(mc.supports_tools);
@@ -191,6 +192,6 @@ fn model_config_new_and_with_cost() {
 
 #[test]
 fn model_config_default_cost_zero() {
-    let mc = ModelConfig::new("gpt-3.5", 4096, false);
+    let mc = ModelConfig::new(ModelId::new("gpt-3.5"), 4096, false);
     assert!((mc.cost_per_1k_tokens).abs() < 1e-6);
 }

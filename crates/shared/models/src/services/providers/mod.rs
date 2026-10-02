@@ -37,7 +37,7 @@ use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, Model
 use crate::wire::anthropic::AnthropicBeta;
 
 pub use discovery_report::DiscoveryReport;
-pub use error::{ProviderRegistryError, ProviderRegistryResult};
+pub use error::{ProviderRegistryError, ProviderRegistryResult, VertexRateCardDefect};
 pub use hosting::{
     Hosting, PROJECT_PLACEHOLDER, REGION_PLACEHOLDER, is_vertex_host, names_a_project_literally,
 };
@@ -273,19 +273,17 @@ impl ProviderRegistry {
             for model in &provider.models {
                 if model.id.as_str().is_empty() {
                     return Err(ProviderRegistryError::EmptyModelId {
-                        id: provider.name.as_str().to_owned(),
+                        provider: provider.name.clone(),
                     });
                 }
                 if !seen_models.insert(model.id.as_str()) {
                     return Err(ProviderRegistryError::DuplicateModel {
-                        id: model.id.as_str().to_owned(),
+                        id: model.id.clone(),
                     });
                 }
                 for alias in &model.aliases {
                     if !seen_models.insert(alias.as_str()) {
-                        return Err(ProviderRegistryError::DuplicateModel {
-                            id: alias.as_str().to_owned(),
-                        });
+                        return Err(ProviderRegistryError::DuplicateModel { id: alias.clone() });
                     }
                 }
             }
