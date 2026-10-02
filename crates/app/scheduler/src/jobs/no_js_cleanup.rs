@@ -32,9 +32,7 @@ impl Job for NoJsCleanupJob {
         let start_time = std::time::Instant::now();
 
         let analytics = AnalyticsRepository::new(ctx.get::<DbPool>()?);
-        let result = analytics
-            .mark_no_js_sessions_as_bots()
-            .await?;
+        let result = analytics.mark_no_js_sessions_as_bots().await?;
 
         let marked = result as u64;
         let duration_ms = start_time.elapsed().as_millis() as u64;
