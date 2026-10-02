@@ -139,8 +139,6 @@ impl AppContextBuilder {
     }
 
     pub async fn build(self) -> RuntimeResult<AppContext> {
-        let shutdown = self.shutdown.unwrap_or_default();
-        let background_tasks = self.background_tasks.unwrap_or_default();
         let CoreLayer {
             config,
             app_paths,
@@ -178,12 +176,6 @@ impl AppContextBuilder {
         let marketplace_filter = self
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
-        let event_router = self.event_router.unwrap_or_else(|| {
-            EventRouter::with_outbox(
-                database.write_pool().as_ref().clone(),
-                config.instance_id.clone(),
-            )
-        });
 
         let subsystems = Subsystems {
             ai_service: ai_service::build_ai_service(&database, &repositories, &mcp_registry)?,
@@ -193,11 +185,13 @@ impl AppContextBuilder {
             governance,
             schema_install: Arc::new(schema_install),
             event_bridge: Arc::new(OnceLock::new()),
-            event_router,
+            event_router: self
+                .event_router
+                .unwrap_or_else(|| outbox_router(&database, &config.instance_id)),
             geoip_reader,
             file_storage,
-            shutdown,
-            background_tasks,
+            shutdown: self.shutdown.unwrap_or_default(),
+            background_tasks: self.background_tasks.unwrap_or_default(),
             publish_guard: Arc::default(),
         };
 
@@ -224,6 +218,13 @@ impl AppContextBuilder {
             subsystems,
         ))
     }
+}
+
+fn outbox_router(
+    database: &systemprompt_database::DbPool,
+    instance_id: &systemprompt_identifiers::InstanceId,
+) -> EventRouter {
+    EventRouter::with_outbox(database.write_pool().as_ref().clone(), instance_id.clone())
 }
 
 fn build_artifact_ingest(

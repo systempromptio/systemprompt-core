@@ -254,10 +254,12 @@ async fn stop_recorded_agent(
             Ok(())
         },
         Err(e) => {
-            events.error(
-                format!("Failed to stop agent {agent_name} (pid {pid}): {e}"),
-                false,
-            );
+            if let Some(tx) = events {
+                tx.error(
+                    format!("Failed to stop agent {agent_name} (pid {pid}): {e}"),
+                    false,
+                );
+            }
             Err(e.into())
         },
     }

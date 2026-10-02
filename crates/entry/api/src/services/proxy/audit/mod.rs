@@ -54,15 +54,25 @@ pub struct McpAudit {
     background: BackgroundTasks,
 }
 
+#[derive(Debug, Clone)]
+pub struct AuditSinks {
+    pub intent_claims: IntentClaimService,
+    pub ingest: Option<Arc<ArtifactIngest>>,
+    pub background: BackgroundTasks,
+}
+
 impl McpAudit {
     pub fn new(
-        intent_claims: IntentClaimService,
-        ingest: Option<Arc<ArtifactIngest>>,
+        sinks: AuditSinks,
         context: RequestContext,
         server_name: McpServerId,
         invocation: ToolCallInvocation,
-        background: BackgroundTasks,
     ) -> Self {
+        let AuditSinks {
+            intent_claims,
+            ingest,
+            background,
+        } = sinks;
         Self {
             intent_claims,
             ingest,

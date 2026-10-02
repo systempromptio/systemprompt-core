@@ -75,8 +75,7 @@ pub async fn handle_context_notification(
     process_notification(app_context.clone(), &notification).await?;
 
     broadcast_and_mark(
-        app_context.event_router(),
-        &repos.context_notifications,
+        &app_context,
         &context_id,
         &user_id,
         &notification,
@@ -105,17 +104,22 @@ async fn resolve_context_user(
 }
 
 async fn broadcast_and_mark(
-    router: &systemprompt_events::EventRouter,
-    notifications_repo: &systemprompt_agent::repository::context::ContextNotificationRepository,
+    app_context: &AppContext,
     context_id: &ContextId,
     user_id: &UserId,
     notification: &A2aNotification,
     notification_id: i32,
 ) {
-    let broadcast_count =
-        broadcast_notification(router, context_id.as_str(), user_id, notification).await;
+    let broadcast_count = broadcast_notification(
+        app_context.event_router(),
+        context_id.as_str(),
+        user_id,
+        notification,
+    )
+    .await;
     tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
 
+    let notifications_repo = &app_context.a2a_repositories().context_notifications;
     if let Err(e) = mark_notification_broadcasted(notifications_repo, notification_id).await {
         tracing::error!(error = %e, notification_id = %notification_id, "Failed to mark notification as broadcasted");
     }

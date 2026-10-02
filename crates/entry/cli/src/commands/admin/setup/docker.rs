@@ -58,6 +58,18 @@ pub async fn setup_docker_postgres_non_interactive(
     Ok(config.clone())
 }
 
+async fn remove_container(container: &str) {
+    for action in ["stop", "rm"] {
+        if let Err(e) = Command::new("docker")
+            .args([action, container])
+            .output()
+            .await
+        {
+            tracing::warn!(container = %container, action, error = %e, "docker container removal step failed");
+        }
+    }
+}
+
 pub(super) async fn setup_docker_postgres_interactive(
     args: &SetupArgs,
     prompter: &dyn Prompter,
@@ -132,20 +144,7 @@ pub(super) async fn setup_docker_postgres_interactive(
         }
 
         CliService::info("Stopping existing container...");
-        if let Err(e) = Command::new("docker")
-            .args(["stop", &container])
-            .output()
-            .await
-        {
-            tracing::warn!(container = %container, error = %e, "docker stop failed");
-        }
-        if let Err(e) = Command::new("docker")
-            .args(["rm", &container])
-            .output()
-            .await
-        {
-            tracing::warn!(container = %container, error = %e, "docker rm failed");
-        }
+        remove_container(&container).await;
     }
 
     ensure_port_free(&config)?;

@@ -17,12 +17,11 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_mcp::services::client::McpClient;
-use systemprompt_mcp::{IntentClaimService, McpDomainError, McpServerConfig};
+use systemprompt_mcp::{McpDomainError, McpServerConfig};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::BackgroundTasks;
 
-use super::super::audit::{self, McpAudit, parse_tool_call};
+use super::super::audit::{self, AuditSinks, McpAudit, parse_tool_call};
 use super::super::auth::{AccessValidator, mcp_oauth_requirement};
 use super::super::backend::{ProxyError, RequestBuilder, ResponseHandler};
 use super::ProxyEngine;
@@ -100,14 +99,12 @@ impl ProxyEngine {
         super::fixed_arguments::apply(&server_config.tools, &mut body);
 
         super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
-        let audit = build_audit(
-            ctx.background_tasks(),
-            self.intent_claims.as_ref(),
-            self.artifact_ingest.as_ref(),
-            &req_ctx,
-            service_name,
-            &body,
-        );
+        let sinks = self.intent_claims.clone().map(|intent_claims| AuditSinks {
+            intent_claims,
+            ingest: self.artifact_ingest.clone(),
+            background: ctx.background_tasks().clone(),
+        });
+        let audit = build_audit(sinks, &req_ctx, service_name, &body);
         let outbound = outbound_headers(&incoming_headers, target.headers);
 
         let method = RequestBuilder::parse_method(&method_str)?;
@@ -156,25 +153,21 @@ pub fn outbound_headers<S: std::hash::BuildHasher>(
 }
 
 fn build_audit(
-    background: &BackgroundTasks,
-    intent_claims: Option<&IntentClaimService>,
-    ingest: Option<&std::sync::Arc<systemprompt_mcp::ArtifactIngest>>,
+    sinks: Option<AuditSinks>,
     req_ctx: &RequestContext,
     service_name: &ServiceName,
     body: &[u8],
 ) -> Option<McpAudit> {
     let invocation = parse_tool_call(body)?;
-    let Some(intent_claims) = intent_claims else {
+    let Some(sinks) = sinks else {
         tracing::warn!(service = %service_name, "Tool-usage repository unavailable; external MCP call not audited");
         return None;
     };
     Some(McpAudit::new(
-        intent_claims.clone(),
-        ingest.map(std::sync::Arc::clone),
+        sinks,
         req_ctx.clone(),
         McpServerId::new(service_name.as_str()),
         invocation,
-        background.clone(),
     ))
 }
 
