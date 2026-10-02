@@ -17,7 +17,7 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReade
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{DbPool, SchemaInstallReport, ServiceRepository};
-use systemprompt_events::EventBridgeHandle;
+use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
 use systemprompt_marketplace::inventory::PublishGuard;
@@ -91,6 +91,7 @@ pub struct Subsystems {
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
     pub schema_install: Arc<SchemaInstallReport>,
     pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
+    pub event_router: EventRouter,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
@@ -232,6 +233,10 @@ impl AppContext {
 
     pub const fn event_bridge(&self) -> &Arc<OnceLock<EventBridgeHandle>> {
         &self.subsystems.event_bridge
+    }
+
+    pub const fn event_router(&self) -> &EventRouter {
+        &self.subsystems.event_router
     }
 
     // Why: the guard memoises per-entry tree digests across passes; the

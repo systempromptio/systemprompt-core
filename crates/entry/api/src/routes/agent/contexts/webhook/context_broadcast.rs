@@ -8,7 +8,6 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
-use systemprompt_events::EventRouter;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_runtime::AppContext;
 
@@ -77,7 +76,9 @@ pub async fn broadcast_context_event(
         value: webhook_data.payload,
     }));
 
-    let (agui_count, context_count) = EventRouter::route_agui(&req_ctx.auth.actor.user_id, event)
+    let (agui_count, context_count) = app_context
+        .event_router()
+        .route_agui(&req_ctx.auth.actor.user_id, event)
         .await
         .into_local_logged();
     let count = agui_count + context_count;

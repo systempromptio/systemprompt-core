@@ -1,4 +1,4 @@
-//! Broadcaster implementations, the static fan-out [`EventRouter`], and the
+//! Broadcaster implementations, the fan-out [`EventRouter`], and the
 //! cross-replica [`PostgresEventBridge`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

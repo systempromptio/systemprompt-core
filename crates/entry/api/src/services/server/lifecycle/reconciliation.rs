@@ -11,6 +11,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::{self, ChildKind};
 use systemprompt_models::services::ServiceStatus;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEventExt, StartupEventSender};
@@ -198,19 +199,12 @@ pub async fn cleanup_stale_service_entries(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<u64> {
-    use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV};
-
     let repo = ctx.service_repository();
     let mut deleted_count = 0u64;
 
     let mcp_services = repo.list_mcp_services().await?;
     for service in mcp_services {
-        if !service_row_is_stale(
-            service.status,
-            service.pid,
-            MCP_SERVICE_ID_ENV,
-            &service.name,
-        ) {
+        if !service_row_is_stale(service.status, service.pid, ChildKind::Mcp, &service.name).await {
             continue;
         }
         if repo.delete_service(&service.name).await.is_ok() {
@@ -228,7 +222,9 @@ pub async fn cleanup_stale_service_entries(
     let agent_service_names = repo.list_all_agent_service_names().await?;
     for service_name in agent_service_names {
         if let Ok(Some(service)) = repo.find_service_by_name(&service_name).await {
-            if !service_row_is_stale(service.status, service.pid, AGENT_NAME_ENV, &service_name) {
+            if !service_row_is_stale(service.status, service.pid, ChildKind::Agent, &service_name)
+                .await
+            {
                 continue;
             }
             if repo.delete_service(&service_name).await.is_ok() {
@@ -247,23 +243,18 @@ pub async fn cleanup_stale_service_entries(
     Ok(deleted_count)
 }
 
-pub fn service_row_is_stale(
+pub async fn service_row_is_stale(
     status: ServiceStatus,
     pid: Option<i32>,
-    name_key: &str,
+    kind: ChildKind,
     name: &ServiceName,
 ) -> bool {
-    use systemprompt_scheduler::ProcessCleanup;
-
     match status {
         ServiceStatus::Running => {
             let Some(pid) = pid.and_then(|p| u32::try_from(p).ok()) else {
                 return true;
             };
-            if !ProcessCleanup::process_exists(pid) {
-                return true;
-            }
-            !systemprompt_loader::subprocess::live_pid_is_subprocess(pid, name_key, name)
+            !subprocess::owns(pid, kind, name).await
         },
         ServiceStatus::Error | ServiceStatus::Stopped => true,
         ServiceStatus::Starting | ServiceStatus::Stopping => false,

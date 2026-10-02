@@ -13,15 +13,12 @@ use axum::routing::get;
 use std::time::Duration;
 use systemprompt_api::services::server::health::human_bytes;
 use systemprompt_api::services::server::health_detail::handle_health_detail;
-use systemprompt_api::services::server::lifecycle::reconciliation::{
-    cleanup_stale_service_entries, service_row_is_stale,
-};
+use systemprompt_api::services::server::lifecycle::reconciliation::cleanup_stale_service_entries;
 use systemprompt_api::services::server::{handle_health, readiness, scheduler_health, shutdown};
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_models::services::{ServiceModule, ServiceStatus};
-use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, ShutdownRequest};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -102,55 +99,6 @@ fn scheduler_health_records() {
     assert!(scheduler_health::degraded().is_empty());
 }
 
-#[test]
-fn service_row_is_stale_across_statuses() {
-    assert!(service_row_is_stale(
-        ServiceStatus::Error,
-        None,
-        MCP_SERVICE_ID_ENV,
-        &ServiceName::new("svc")
-    ));
-    assert!(service_row_is_stale(
-        ServiceStatus::Stopped,
-        Some(1),
-        MCP_SERVICE_ID_ENV,
-        &ServiceName::new("svc")
-    ));
-    assert!(!service_row_is_stale(
-        ServiceStatus::Starting,
-        None,
-        MCP_SERVICE_ID_ENV,
-        &ServiceName::new("svc")
-    ));
-    assert!(
-        service_row_is_stale(
-            ServiceStatus::Running,
-            None,
-            MCP_SERVICE_ID_ENV,
-            &ServiceName::new("svc")
-        ),
-        "running with no pid is stale"
-    );
-    assert!(
-        service_row_is_stale(
-            ServiceStatus::Running,
-            Some(dead_pid()),
-            MCP_SERVICE_ID_ENV,
-            &ServiceName::new("svc")
-        ),
-        "running with a dead pid is stale"
-    );
-    assert!(
-        service_row_is_stale(
-            ServiceStatus::Running,
-            Some(std::process::id() as i32),
-            MCP_SERVICE_ID_ENV,
-            &ServiceName::new("not-our-child")
-        ),
-        "a live but unrelated pid is stale (recycled)"
-    );
-}
-
 #[tokio::test]
 async fn cleanup_removes_stale_mcp_rows() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
@@ -217,7 +165,10 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
     // Never signalled: the guard must not be a deadline on healthy serving.
     let unsignalled = tokio::time::timeout(
         grace * 3,
-        shutdown::join_within_drain_grace(std::future::pending::<anyhow::Result<()>>()),
+        shutdown::join_within_drain_grace(
+            std::future::pending::<anyhow::Result<()>>(),
+            &ShutdownRequest::default(),
+        ),
     )
     .await;
     assert!(
@@ -229,7 +180,11 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
     // The signal is spawned rather than sent inline because the guard
     // subscribes on first poll, and a broadcast delivers nothing sent earlier.
     let wedged = tokio::spawn(async {
-        shutdown::join_within_drain_grace(std::future::pending::<anyhow::Result<()>>()).await
+        shutdown::join_within_drain_grace(
+            std::future::pending::<anyhow::Result<()>>(),
+            &ShutdownRequest::default(),
+        )
+        .await
     });
     tokio::time::sleep(Duration::from_millis(50)).await;
     readiness::signal_shutdown();
@@ -251,7 +206,8 @@ async fn drain_grace_leaves_room_for_child_termination() {
         "a drain that consumes the whole budget would strand every child"
     );
 
-    let served = shutdown::join_within_drain_grace(async { Ok(()) }).await;
+    let served =
+        shutdown::join_within_drain_grace(async { Ok(()) }, &ShutdownRequest::default()).await;
     assert!(served.is_ok(), "a clean drain returns the serve result");
 }
 

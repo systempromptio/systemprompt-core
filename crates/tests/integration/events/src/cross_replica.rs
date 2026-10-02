@@ -8,16 +8,15 @@
 //! broadcasters. A bridge skips rows its own instance wrote, because the
 //! local broadcast already delivered them.
 //!
-//! One process plays both replicas. The router's relay is installed as
-//! `replica-a` before the bridge starts as `replica-b`, so every routed row is
+//! One process plays both replicas. The router relays as `replica-a` and the
+//! bridge starts as `replica-b`, so every routed row is
 //! foreign to the bridge and is relayed. A subscriber therefore receives each
 //! event twice: once from the in-process broadcast and once through the
 //! relay. Only the second delivery proves the relay; without it the test
 //! would pass on the local broadcast alone.
 //!
-//! The relay instance is installed once per process, which nextest's
-//! process-per-test model provides. Every wait on the database or on a
-//! delivery is bounded, so a regression fails within seconds.
+//! Every wait on the database or on a delivery is bounded, so a regression
+//! fails within seconds.
 
 use std::future::Future;
 use std::time::Duration;
@@ -58,14 +57,14 @@ fn sample_event() -> A2AEvent {
     }
 }
 
-async fn start_peer_replica(pool: &PgPool) -> EventBridgeHandle {
-    EventRouter::install_relay(pool.clone(), InstanceId::new("replica-a"));
+async fn start_peer_replica(pool: &PgPool) -> (EventRouter, EventBridgeHandle) {
+    let router = EventRouter::with_outbox(pool.clone(), InstanceId::new("replica-a"));
     let bridge = PostgresEventBridge::new(pool.clone(), InstanceId::new("replica-b")).start();
     assert!(
         bounded("the replica-b relay LISTEN", bridge.listening()).await,
         "the replica-b relay stopped before it was listening"
     );
-    bridge
+    (router, bridge)
 }
 
 async fn subscribe(user: &UserId, connection: &str) -> (ConnectionId, Receiver<Delivery>) {
@@ -75,8 +74,8 @@ async fn subscribe(user: &UserId, connection: &str) -> (ConnectionId, Receiver<D
     (connection, rx)
 }
 
-async fn route_on_replica_a(user: &UserId) {
-    let outcome = bounded("route_a2a", EventRouter::route_a2a(user, sample_event())).await;
+async fn route_on_replica_a(router: &EventRouter, user: &UserId) {
+    let outcome = bounded("route_a2a", router.route_a2a(user, sample_event())).await;
     assert!(
         matches!(outcome.relay, RelayOutcome::Relayed),
         "replica A must hand the event to the outbox: {:?}",
@@ -107,11 +106,11 @@ async fn teardown(pool: &PgPool, bridge: EventBridgeHandle, users: &[&UserId]) {
 #[tokio::test]
 async fn event_routed_on_replica_a_reaches_subscriber_on_replica_b() {
     let pool = setup_test_pool().await;
-    let bridge = start_peer_replica(&pool).await;
+    let (router, bridge) = start_peer_replica(&pool).await;
     let user = unique_user_id("evt-relay");
     let (connection, mut rx) = subscribe(&user, "replica-b-conn").await;
 
-    route_on_replica_a(&user).await;
+    route_on_replica_a(&router, &user).await;
     next_delivery(&mut rx, "the in-process delivery").await;
     next_delivery(&mut rx, "the relayed delivery from replica A").await;
 
@@ -122,20 +121,20 @@ async fn event_routed_on_replica_a_reaches_subscriber_on_replica_b() {
 #[tokio::test]
 async fn relayed_event_reaches_only_the_addressed_user() {
     let pool = setup_test_pool().await;
-    let bridge = start_peer_replica(&pool).await;
+    let (router, bridge) = start_peer_replica(&pool).await;
     let target = unique_user_id("evt-relay");
     let bystander = unique_user_id("evt-relay");
     let (target_conn, mut target_rx) = subscribe(&target, "target-conn").await;
     let (bystander_conn, mut bystander_rx) = subscribe(&bystander, "bystander-conn").await;
 
-    route_on_replica_a(&target).await;
+    route_on_replica_a(&router, &target).await;
     next_delivery(&mut target_rx, "the target's in-process delivery").await;
     next_delivery(&mut target_rx, "the target's relayed delivery").await;
 
     // Why: the relay re-injects notifications in commit order on one LISTEN
     // session, so a leak of the target's relayed event would sit in the
     // bystander's channel ahead of the fence's relayed copy.
-    route_on_replica_a(&bystander).await;
+    route_on_replica_a(&router, &bystander).await;
     next_delivery(&mut bystander_rx, "the fence's in-process delivery").await;
     next_delivery(&mut bystander_rx, "the fence's relayed delivery").await;
 

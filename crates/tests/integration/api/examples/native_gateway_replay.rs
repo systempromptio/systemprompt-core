@@ -29,6 +29,7 @@ use systemprompt_security::policy::types::AccessScope;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
 };
+use systemprompt_traits::{BackgroundTasks, DrainOutcome};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -157,30 +158,37 @@ fn context(
         access_log: None,
     }
 }
-async fn settled(db: &DbPool, id: &AiRequestId, expected: Option<&str>) -> Result<Value> {
-    let pg = db.pool();
-    for _ in 0..100 {
-        let row: Option<Value> =
-            sqlx::query_scalar("SELECT to_jsonb(r) FROM ai_requests r WHERE id=$1")
-                .bind(id.as_str())
-                .fetch_optional(pg.as_ref())
-                .await?;
-        if let Some(row) = row
-            && expected.map_or_else(
-                || {
-                    matches!(
-                        row["status"].as_str(),
-                        Some("success" | "completed" | "failed" | "rejected")
-                    )
-                },
-                |status| row["status"] == status,
+async fn settled(
+    db: &DbPool,
+    background: &BackgroundTasks,
+    id: &AiRequestId,
+    expected: Option<&str>,
+) -> Result<Value> {
+    let drained = background.drain(Duration::from_secs(5)).await;
+    ensure!(
+        drained == DrainOutcome::Drained,
+        "Gateway accounting did not settle within5seconds: {drained:?}"
+    );
+    let row: Option<Value> =
+        sqlx::query_scalar("SELECT to_jsonb(r) FROM ai_requests r WHERE id=$1")
+            .bind(id.as_str())
+            .fetch_optional(db.pool().as_ref())
+            .await?;
+    let row = row.context("Gateway accounting left no row")?;
+    let matched = expected.map_or_else(
+        || {
+            matches!(
+                row["status"].as_str(),
+                Some("success" | "completed" | "failed" | "rejected")
             )
-        {
-            return Ok(row);
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    anyhow::bail!("Gateway accounting did not settle within5seconds")
+        },
+        |status| row["status"] == status,
+    );
+    ensure!(
+        matched,
+        "Gateway accounting settled in an unexpected state: {row}"
+    );
+    Ok(row)
 }
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -220,6 +228,7 @@ async fn replay() -> Result<()> {
     let bootstrap = ensure_test_bootstrap();
     let db = test_db_pool().await;
     let _context = test_app_context(&db, &bootstrap.database_url);
+    let background = BackgroundTasks::new();
     let journal = systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
         bootstrap.app_paths.storage().data(),
         systemprompt_config::SecretsBootstrap::get()?,
@@ -230,7 +239,7 @@ async fn replay() -> Result<()> {
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(&db),
         )),
-        systemprompt_traits::BackgroundTasks::new(),
+        background.clone(),
     );
     let cred = seed_admin_credential(
         &db,
@@ -430,7 +439,7 @@ async fn replay() -> Result<()> {
                     &json!({"status":"settling_completion","paid_inference":false,"automated_target_enabled":false,"request_id":id.as_str(),"dispatch_error":dispatch_error,"artifact":directory}),
                 )?,
             )?;
-            let row = settled(&db, &id, None).await?;
+            let row = settled(&db, &background, &id, None).await?;
             let mut failed_accounting_row = None;
             if status == 200 {
                 ensure!(
@@ -457,7 +466,7 @@ async fn replay() -> Result<()> {
                         &json!({"status":"settling_accounting_failure","paid_inference":false,"automated_target_enabled":false,"request_id":id.as_str(),"dispatch_error":dispatch_error,"persisted_completion":row,"artifact":directory}),
                     )?,
                 )?;
-                let failed = settled(&db, &id, Some("failed")).await?;
+                let failed = settled(&db, &background, &id, Some("failed")).await?;
                 ensure!(
                     failed["status"] == "failed"
                         && failed["cost_microdollars"] == 25

@@ -21,7 +21,8 @@ use crate::routes::messaging::{
 pub(super) fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &SlackAppConfig) {
     let bot_token = bot_token(app);
     let link_by_email = app.authz.link_by_workspace_email;
-    tokio::spawn(async move {
+    let background = ctx.background_tasks().clone();
+    background.spawn("slack_reply", async move {
         let mut inbound = inbound;
         if link_by_email
             && let Some(token) = bot_token.clone()

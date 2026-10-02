@@ -9,7 +9,9 @@
 //! [`join_within_drain_grace`] and arms the hard `arm_forced_exit` deadline
 //! only afterwards — a single deadline spanning both would let a wedged SSE
 //! stream consume the whole budget and kill the process before any child was
-//! signalled. [`drain`] then shuts the process's
+//! signalled. A second signal forces an immediate exit in either window: the
+//! drain guard watches for it, and so does the backstop the run loop holds
+//! (and aborts once teardown completes). [`drain`] then shuts the process's
 //! [`BackgroundTasks`](systemprompt_traits::BackgroundTasks) down alongside
 //! child termination and before the log writer flushes, so post-response
 //! audit and analytics writes still land. A forced exit reports a non-zero
@@ -18,11 +20,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::convert::Infallible;
 use std::time::Duration;
 use systemprompt_loader::subprocess::{ChildKind, StopOutcome};
 use systemprompt_runtime::{AppContext, ShutdownRequest};
 use systemprompt_scheduler::SchedulerHandle;
-use systemprompt_traits::DrainOutcome;
+use systemprompt_traits::{DrainOutcome, OwnedTask};
 
 pub const CHILD_SHUTDOWN_GRACE_MS: u64 = 5_000;
 pub const AXUM_DRAIN_GRACE_MS: u64 = 10_000;
@@ -33,7 +36,6 @@ const FORCED_EXIT_CODE: i32 = 1;
 pub(super) async fn shutdown_signal(restart: ShutdownRequest) {
     wait_for_signal(&restart).await;
     super::readiness::signal_shutdown();
-    arm_exit_on_second_signal(restart);
 }
 
 async fn wait_for_signal(restart: &ShutdownRequest) {
@@ -69,23 +71,25 @@ async fn wait_for_signal(restart: &ShutdownRequest) {
     }
 }
 
-fn arm_exit_on_second_signal(restart: ShutdownRequest) {
-    tokio::spawn(async move {
-        wait_for_signal(&restart).await;
-        tracing::warn!("Second shutdown signal received, forcing immediate exit");
-        force_exit();
-    });
+async fn exit_on_second_signal(restart: &ShutdownRequest) -> Infallible {
+    wait_for_signal(restart).await;
+    tracing::warn!("Second shutdown signal received, forcing immediate exit");
+    force_exit();
 }
 
-pub(super) fn arm_forced_exit() {
-    tokio::spawn(async {
-        tokio::time::sleep(Duration::from_millis(FORCED_SHUTDOWN_GRACE_MS)).await;
-        tracing::warn!(
-            grace_ms = FORCED_SHUTDOWN_GRACE_MS,
-            "Shutdown teardown exceeded grace window, forcing exit"
-        );
-        force_exit();
-    });
+pub(super) fn arm_forced_exit(restart: ShutdownRequest) -> OwnedTask<()> {
+    OwnedTask::spawn("forced_exit_backstop", async move {
+        tokio::select! {
+            () = tokio::time::sleep(Duration::from_millis(FORCED_SHUTDOWN_GRACE_MS)) => {
+                tracing::warn!(
+                    grace_ms = FORCED_SHUTDOWN_GRACE_MS,
+                    "Shutdown teardown exceeded grace window, forcing exit"
+                );
+                force_exit();
+            },
+            never = exit_on_second_signal(&restart) => match never {},
+        }
+    })
 }
 
 #[expect(
@@ -98,6 +102,7 @@ fn force_exit() -> ! {
 
 pub async fn join_within_drain_grace(
     serve: impl Future<Output = anyhow::Result<()>>,
+    restart: &ShutdownRequest,
 ) -> anyhow::Result<()> {
     use super::readiness::ReadinessEvent;
     use tokio::sync::broadcast::error::RecvError;
@@ -118,6 +123,7 @@ pub async fn join_within_drain_grace(
 
     tokio::select! {
         result = &mut serve => result,
+        never = exit_on_second_signal(restart) => match never {},
         () = tokio::time::sleep(Duration::from_millis(AXUM_DRAIN_GRACE_MS)) => {
             tracing::warn!(
                 grace_ms = AXUM_DRAIN_GRACE_MS,

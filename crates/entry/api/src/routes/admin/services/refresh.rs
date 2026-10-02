@@ -195,11 +195,14 @@ async fn run_refresh(
     );
 
     if restarting {
-        let ctx = ctx.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(RESTART_DELAY).await;
-            ctx.request_restart(RESTART_REASON);
-        });
+        let restart_ctx = ctx.clone();
+        ctx.background_tasks()
+            .spawn_cancellable("services_refresh_restart", |cancel| async move {
+                tokio::select! {
+                    () = cancel.cancelled() => {},
+                    () = tokio::time::sleep(RESTART_DELAY) => restart_ctx.request_restart(RESTART_REASON),
+                }
+            });
     }
 
     Ok(ServicesRefreshResponse {

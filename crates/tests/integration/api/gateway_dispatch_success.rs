@@ -16,13 +16,17 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, header};
 use serde_json::json;
+use std::sync::Arc;
+use std::time::Duration;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::SESSION_ID;
+use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     AuthedFixture, TestBootstrap, init_services_bootstrap, install_test_signing_key,
     seed_admin_credential, test_app_context, test_db_pool,
 };
+use systemprompt_traits::DrainOutcome;
 use tokio::sync::OnceCell;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -31,6 +35,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const MODEL: &str = "claude-dispatch-fixture";
 const SECRET_NAME: &str = "anthropic_api_key";
+const DRAIN_BOUND: Duration = Duration::from_secs(30);
 
 struct Harness {
     boot: TestBootstrap,
@@ -112,12 +117,24 @@ async fn harness() -> &'static Harness {
         .await
 }
 
-async fn app() -> Result<(Router, DbPool)> {
+async fn app() -> Result<(Router, DbPool, Arc<AppContext>)> {
     let h = harness().await;
     install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &h.boot.database_url);
-    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
+    Ok((
+        gateway_router(&ctx).expect("gateway router builds"),
+        pool,
+        ctx,
+    ))
+}
+
+async fn drain_background(ctx: &AppContext) {
+    assert_eq!(
+        ctx.background_tasks().drain(DRAIN_BOUND).await,
+        DrainOutcome::Drained,
+        "the post-response audit work must finish"
+    );
 }
 
 async fn credential(pool: &DbPool) -> Result<AuthedFixture> {
@@ -150,7 +167,7 @@ fn messages_post(cred: &AuthedFixture) -> Request<Body> {
 }
 
 async fn dispatch() -> Result<(u16, serde_json::Value)> {
-    let (app, pool) = app().await?;
+    let (app, pool, _ctx) = app().await?;
     let cred = credential(&pool).await?;
     let (status, body) =
         super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
@@ -211,37 +228,27 @@ type SettledAuditRow = (
 
 #[tokio::test]
 async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()> {
-    let (app, pool) = app().await?;
+    let (app, pool, ctx) = app().await?;
     let cred = credential(&pool).await?;
 
     let (status, _body) =
         super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
     assert_eq!(status.as_u16(), 200);
 
-    // The completion audit is written after the response is handed back, so
-    // the row settles a moment later.
-    let pg = pool.pool();
-    let mut settled: Option<SettledAuditRow> = None;
-    for _ in 0..100 {
-        let row: Option<SettledAuditRow> = sqlx::query_as(
-            "SELECT status, input_tokens, output_tokens, cost_microdollars, latency_ms, \
-                 upstream_latency_ms FROM ai_requests WHERE user_id = $1 \
-                 ORDER BY created_at DESC LIMIT 1",
-        )
-        .bind(cred.user_id.as_str())
-        .fetch_optional(pg.as_ref())
-        .await?;
-        if let Some(row) = row
-            && row.0 == "completed"
-        {
-            settled = Some(row);
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
+    // The completion audit is written after the response is handed back, on
+    // the context's background tasks.
+    drain_background(&ctx).await;
+    let settled: Option<SettledAuditRow> = sqlx::query_as(
+        "SELECT status, input_tokens, output_tokens, cost_microdollars, latency_ms, \
+             upstream_latency_ms FROM ai_requests WHERE user_id = $1 \
+             ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(cred.user_id.as_str())
+    .fetch_optional(pool.pool().as_ref())
+    .await?;
 
     let (req_status, input, output, cost, latency_ms, upstream_latency_ms) =
-        settled.expect("a dispatched request must settle as a completed audit row");
+        settled.expect("a dispatched request must leave an audit row");
     assert_eq!(req_status, "completed", "the row must record the outcome");
     assert_eq!(input, Some(11), "the upstream's token counts are recorded");
     assert_eq!(output, Some(7));
@@ -261,30 +268,22 @@ async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()>
 
 #[tokio::test]
 async fn the_tool_calls_are_persisted_against_the_request() -> Result<()> {
-    let (app, pool) = app().await?;
+    let (app, pool, ctx) = app().await?;
     let cred = credential(&pool).await?;
 
     let (status, _body) =
         super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
     assert_eq!(status.as_u16(), 200);
 
-    let pg = pool.pool();
-    let mut recorded = None;
-    for _ in 0..100 {
-        let row: Option<(String, i32)> = sqlx::query_as(
-            "SELECT t.tool_name, t.sequence_number FROM ai_request_tool_calls t \
-             JOIN ai_requests r ON r.id = t.request_id \
-             WHERE r.user_id = $1 ORDER BY r.created_at DESC, t.sequence_number ASC LIMIT 1",
-        )
-        .bind(cred.user_id.as_str())
-        .fetch_optional(pg.as_ref())
-        .await?;
-        if row.is_some() {
-            recorded = row;
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
+    drain_background(&ctx).await;
+    let recorded: Option<(String, i32)> = sqlx::query_as(
+        "SELECT t.tool_name, t.sequence_number FROM ai_request_tool_calls t \
+         JOIN ai_requests r ON r.id = t.request_id \
+         WHERE r.user_id = $1 ORDER BY r.created_at DESC, t.sequence_number ASC LIMIT 1",
+    )
+    .bind(cred.user_id.as_str())
+    .fetch_optional(pool.pool().as_ref())
+    .await?;
 
     let (tool_name, sequence) = recorded.expect("a completion with a tool use must record it");
     assert_eq!(tool_name, "list_files");
@@ -296,7 +295,9 @@ async fn the_tool_calls_are_persisted_against_the_request() -> Result<()> {
 // `services::gateway::stream_tap` — they are private and built inside
 // `GatewayService`, so nothing short of a real streaming round trip polls them.
 mod streaming {
-    use super::{MODEL, SECRET_NAME, credential, upstream_response};
+    use super::{MODEL, SECRET_NAME, credential, drain_background, upstream_response};
+    use std::sync::Arc;
+    use systemprompt_runtime::AppContext;
 
     use anyhow::Result;
     use axum::body::Body;
@@ -373,12 +374,16 @@ mod streaming {
             .await
     }
 
-    async fn app() -> Result<(axum::Router, DbPool)> {
+    async fn app() -> Result<(axum::Router, DbPool, Arc<AppContext>)> {
         let h = harness().await;
         install_test_signing_key();
         let pool = test_db_pool().await;
         let ctx = test_app_context(&pool, &h.boot.database_url);
-        Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
+        Ok((
+            gateway_router(&ctx).expect("gateway router builds"),
+            pool,
+            ctx,
+        ))
     }
 
     fn streaming_post(cred: &AuthedFixture) -> Request<Body> {
@@ -405,7 +410,7 @@ mod streaming {
 
     #[tokio::test]
     async fn a_streaming_dispatch_relays_the_upstream_frames() -> Result<()> {
-        let (app, pool) = app().await?;
+        let (app, pool, _ctx) = app().await?;
         let cred = credential(&pool).await?;
 
         let resp = app.oneshot(streaming_post(&cred)).await?;
@@ -438,7 +443,7 @@ mod streaming {
 
     #[tokio::test]
     async fn a_streamed_request_is_audited_once_the_stream_ends() -> Result<()> {
-        let (app, pool) = app().await?;
+        let (app, pool, ctx) = app().await?;
         let cred = credential(&pool).await?;
 
         let resp = app.oneshot(streaming_post(&cred)).await?;
@@ -446,27 +451,17 @@ mod streaming {
         // The tap finalises on stream EOF, so the body must be drained first.
         let _ = resp.into_body().collect().await?.to_bytes();
 
-        let pg = pool.pool();
-        let mut settled = None;
-        for _ in 0..100 {
-            let row: Option<(String, bool, Option<i32>, Option<i32>)> = sqlx::query_as(
-                "SELECT status, is_streaming, latency_ms, upstream_latency_ms FROM ai_requests \
-                 WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
-            )
-            .bind(cred.user_id.as_str())
-            .fetch_optional(pg.as_ref())
-            .await?;
-            if let Some(row) = row
-                && row.0 == "completed"
-            {
-                settled = Some(row);
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        }
+        drain_background(&ctx).await;
+        let settled: Option<(String, bool, Option<i32>, Option<i32>)> = sqlx::query_as(
+            "SELECT status, is_streaming, latency_ms, upstream_latency_ms FROM ai_requests \
+             WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
+        )
+        .bind(cred.user_id.as_str())
+        .fetch_optional(pool.pool().as_ref())
+        .await?;
 
         let (status, is_streaming, latency_ms, upstream_latency_ms) =
-            settled.expect("a streamed request must settle as a completed audit row");
+            settled.expect("a streamed request must leave an audit row");
         assert_eq!(status, "completed");
         assert!(
             is_streaming,

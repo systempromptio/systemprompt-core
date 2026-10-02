@@ -43,7 +43,8 @@ async fn test_route_agui_returns_tuple() {
     let user_id = test_user_id();
     let event = test_agui_event();
 
-    let result = EventRouter::route_agui(&user_id, event)
+    let result = EventRouter::local_only()
+        .route_agui(&user_id, event)
         .await
         .into_local_logged();
 
@@ -61,7 +62,8 @@ async fn test_route_agui_with_registered_connection() {
         .await;
 
     let event = test_agui_event();
-    let (agui_count, _context_count) = EventRouter::route_agui(&user_id, event)
+    let (agui_count, _context_count) = EventRouter::local_only()
+        .route_agui(&user_id, event)
         .await
         .into_local_logged();
 
@@ -81,7 +83,8 @@ async fn test_route_a2a_returns_tuple() {
     let user_id = test_user_id();
     let event = test_a2a_event();
 
-    let result = EventRouter::route_a2a(&user_id, event)
+    let result = EventRouter::local_only()
+        .route_a2a(&user_id, event)
         .await
         .into_local_logged();
 
@@ -99,7 +102,8 @@ async fn test_route_a2a_with_registered_connection() {
         .await;
 
     let event = test_a2a_event();
-    let (a2a_count, _context_count) = EventRouter::route_a2a(&user_id, event)
+    let (a2a_count, _context_count) = EventRouter::local_only()
+        .route_a2a(&user_id, event)
         .await
         .into_local_logged();
 
@@ -119,7 +123,8 @@ async fn test_route_system_returns_count() {
     let user_id = test_user_id();
     let event = test_system_event();
 
-    let count = EventRouter::route_system(&user_id, event)
+    let count = EventRouter::local_only()
+        .route_system(&user_id, event)
         .await
         .into_local_logged();
 
@@ -136,7 +141,8 @@ async fn test_route_system_with_registered_connection() {
         .await;
 
     let event = test_system_event();
-    let count = EventRouter::route_system(&user_id, event)
+    let count = EventRouter::local_only()
+        .route_system(&user_id, event)
         .await
         .into_local_logged();
 
@@ -166,7 +172,8 @@ async fn test_route_agui_broadcasts_to_context() {
         .await;
 
     let event = test_agui_event();
-    let (_agui_count, context_count) = EventRouter::route_agui(&user_id, event)
+    let (_agui_count, context_count) = EventRouter::local_only()
+        .route_agui(&user_id, event)
         .await
         .into_local_logged();
 
@@ -196,7 +203,8 @@ async fn test_route_a2a_broadcasts_to_context() {
         .await;
 
     let event = test_a2a_event();
-    let (_a2a_count, context_count) = EventRouter::route_a2a(&user_id, event)
+    let (_a2a_count, context_count) = EventRouter::local_only()
+        .route_a2a(&user_id, event)
         .await
         .into_local_logged();
 
@@ -251,7 +259,8 @@ async fn test_route_analytics_returns_count() {
     let user_id = test_user_id();
     let event = test_analytics_event();
 
-    let count = EventRouter::route_analytics(&user_id, event)
+    let count = EventRouter::local_only()
+        .route_analytics(&user_id, event)
         .await
         .into_local_logged();
 
@@ -268,7 +277,8 @@ async fn test_route_analytics_with_registered_connection() {
         .await;
 
     let event = test_analytics_event();
-    let count = EventRouter::route_analytics(&user_id, event)
+    let count = EventRouter::local_only()
+        .route_analytics(&user_id, event)
         .await
         .into_local_logged();
 
@@ -297,7 +307,8 @@ async fn test_route_analytics_multiple_connections() {
         .await;
 
     let event = test_analytics_event();
-    let count = EventRouter::route_analytics(&user_id, event)
+    let count = EventRouter::local_only()
+        .route_analytics(&user_id, event)
         .await
         .into_local_logged();
 
@@ -354,7 +365,8 @@ async fn test_route_analytics_heartbeat_event() {
         .await;
 
     let heartbeat = AnalyticsEventBuilder::heartbeat();
-    let count = EventRouter::route_analytics(&user_id, heartbeat)
+    let count = EventRouter::local_only()
+        .route_analytics(&user_id, heartbeat)
         .await
         .into_local_logged();
     assert_eq!(count, 1);
@@ -379,7 +391,8 @@ async fn test_route_analytics_session_ended_event() {
 
     let session_end =
         AnalyticsEventBuilder::session_ended("test-session".to_string().into(), 120000, 10, 20);
-    let count = EventRouter::route_analytics(&user_id, session_end)
+    let count = EventRouter::local_only()
+        .route_analytics(&user_id, session_end)
         .await
         .into_local_logged();
     assert_eq!(count, 1);

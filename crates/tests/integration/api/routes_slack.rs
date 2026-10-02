@@ -20,6 +20,7 @@ use systemprompt_test_fixtures::{
     ensure_messaging_bootstrap, install_test_signing_key, seed_agent_backend, test_app_context,
     test_db_pool,
 };
+use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -141,8 +142,7 @@ async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::
     let resp = router(&ctx).oneshot(req).await?;
     assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
 
-    // The reply is posted from a spawned task; poll until the hook records it.
-    let posted = wait_for_request(&response_hook).await;
+    let posted = wait_for_request(&ctx, &response_hook).await;
     let body = String::from_utf8_lossy(&posted);
     assert!(
         body.contains("dispatched reply"),
@@ -155,23 +155,21 @@ fn urlencode(s: &str) -> String {
     s.replace(':', "%3A").replace('/', "%2F")
 }
 
-// The reply comes from a spawned task running the full dispatch pipeline
+// The reply comes from a background task running the full dispatch pipeline
 // (identity linking, authz, proxy round-trip); under a loaded shard that has
-// been observed to stall past 30s, so the deadline must dwarf it.
-async fn wait_for_request(server: &MockServer) -> Vec<u8> {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(120);
-    loop {
-        if let Some(reqs) = server.received_requests().await
-            && let Some(first) = reqs.first()
-        {
-            return first.body.clone();
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "spawned reply never reached the response hook within 120s"
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
+// been observed to stall past 30s, so the drain bound must dwarf it.
+async fn wait_for_request(ctx: &AppContext, server: &MockServer) -> Vec<u8> {
+    assert_eq!(
+        ctx.background_tasks().drain(Duration::from_secs(120)).await,
+        DrainOutcome::Drained,
+        "the reply task must finish within the drain bound"
+    );
+    server
+        .received_requests()
+        .await
+        .and_then(|reqs| reqs.into_iter().next())
+        .expect("the drained reply task posted to the response hook")
+        .body
 }
 
 async fn coverage_command_reply(
@@ -216,7 +214,9 @@ async fn coverage_command_reply(
         .oneshot(signed_post("/commands", &body, TEST_SLACK_SIGNING_SECRET))
         .await?;
     assert_eq!(response.status(), StatusCode::OK);
-    Ok(serde_json::from_slice(&wait_for_request(&hook).await)?)
+    Ok(serde_json::from_slice(
+        &wait_for_request(&ctx, &hook).await,
+    )?)
 }
 
 #[tokio::test]

@@ -32,6 +32,7 @@ systemprompt-users = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-events = { workspace = true }
 inventory = { workspace = true }
 
 [dev-dependencies]

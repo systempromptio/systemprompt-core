@@ -22,6 +22,7 @@ use systemprompt_test_fixtures::{
     init_services_bootstrap, install_test_signing_key, messaging_config_yaml_with_teams_endpoints,
     seed_agent_backend, test_app_context, test_db_pool,
 };
+use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -199,7 +200,7 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         .await?;
     assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
 
-    let posted = wait_for_activity(&connector).await;
+    let posted = wait_for_activity(&ctx, &connector).await;
     let card = String::from_utf8_lossy(&posted);
     // The pipeline answers with a generic error card whatever went wrong, so
     // say which side of the proxy hop failed — otherwise a failure here is
@@ -309,22 +310,20 @@ async fn activities_through_one_router_fetch_the_signing_keys_once() -> anyhow::
     Ok(())
 }
 
-// The reply comes from a spawned task running the full dispatch pipeline
+// The reply comes from a background task running the full dispatch pipeline
 // (identity linking, authz, proxy round-trip); under a loaded shard that has
-// been observed to stall past 30s, so the deadline must dwarf it.
-async fn wait_for_activity(server: &MockServer) -> Vec<u8> {
+// been observed to stall past 30s, so the drain bound must dwarf it.
+async fn wait_for_activity(ctx: &systemprompt_runtime::AppContext, server: &MockServer) -> Vec<u8> {
+    assert_eq!(
+        ctx.background_tasks().drain(Duration::from_secs(120)).await,
+        DrainOutcome::Drained,
+        "the reply task must finish within the drain bound"
+    );
     let suffix = format!("/v3/conversations/{CONVERSATION_ID}/activities");
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(120);
-    loop {
-        if let Some(reqs) = server.received_requests().await
-            && let Some(hit) = reqs.iter().find(|r| r.url.path() == suffix)
-        {
-            return hit.body.clone();
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "spawned reply never reached the Bot Connector within 120s"
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
+    server
+        .received_requests()
+        .await
+        .and_then(|reqs| reqs.into_iter().find(|r| r.url.path() == suffix))
+        .expect("the drained reply task posted to the Bot Connector")
+        .body
 }

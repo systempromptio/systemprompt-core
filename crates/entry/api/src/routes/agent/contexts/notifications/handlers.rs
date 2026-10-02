@@ -72,6 +72,7 @@ pub(super) async fn process_notification(
 }
 
 pub(super) async fn broadcast_notification(
+    router: &EventRouter,
     context: &str,
     user_id: &UserId,
     notification: &A2aNotification,
@@ -90,9 +91,7 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = EventRouter::route_agui(user_id, event)
-                .await
-                .into_local_logged();
+            let (agui, ctx) = router.route_agui(user_id, event).await.into_local_logged();
             total_broadcasts += agui + ctx;
         },
         "notifications/artifactCreated" => {
@@ -105,9 +104,7 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = EventRouter::route_agui(user_id, event)
-                .await
-                .into_local_logged();
+            let (agui, ctx) = router.route_agui(user_id, event).await.into_local_logged();
             total_broadcasts += agui + ctx;
         },
         "notifications/messageAdded" => {
@@ -120,9 +117,7 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = EventRouter::route_agui(user_id, event)
-                .await
-                .into_local_logged();
+            let (agui, ctx) = router.route_agui(user_id, event).await.into_local_logged();
             total_broadcasts += agui + ctx;
         },
         _ => {},

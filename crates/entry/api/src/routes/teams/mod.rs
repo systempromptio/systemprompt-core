@@ -139,7 +139,8 @@ struct TeamsReply {
 }
 
 fn spawn_reply(state: TeamsState, inbound: MessagingInbound, reply: TeamsReply) {
-    tokio::spawn(async move {
+    let background = state.ctx.background_tasks().clone();
+    background.spawn("teams_reply", async move {
         let text = match dispatch_messaging(&state.ctx, inbound).await {
             Ok(DispatchOutcome::Replied(reply)) => non_empty(reply),
             Ok(DispatchOutcome::Denied(reason)) => format!("⛔ {reason}"),

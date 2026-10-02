@@ -20,6 +20,7 @@ use systemprompt_mcp::services::client::McpClient;
 use systemprompt_mcp::{IntentClaimService, McpDomainError, McpServerConfig};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::BackgroundTasks;
 
 use super::super::audit::{self, McpAudit, parse_tool_call};
 use super::super::auth::{AccessValidator, mcp_oauth_requirement};
@@ -100,6 +101,7 @@ impl ProxyEngine {
 
         super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
         let audit = build_audit(
+            ctx.background_tasks(),
             self.intent_claims.as_ref(),
             self.artifact_ingest.as_ref(),
             &req_ctx,
@@ -154,6 +156,7 @@ pub fn outbound_headers<S: std::hash::BuildHasher>(
 }
 
 fn build_audit(
+    background: &BackgroundTasks,
     intent_claims: Option<&IntentClaimService>,
     ingest: Option<&std::sync::Arc<systemprompt_mcp::ArtifactIngest>>,
     req_ctx: &RequestContext,
@@ -171,6 +174,7 @@ fn build_audit(
         req_ctx.clone(),
         McpServerId::new(service_name.as_str()),
         invocation,
+        background.clone(),
     ))
 }
 

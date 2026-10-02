@@ -132,6 +132,7 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
             artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,
             schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
             event_bridge: Arc::new(OnceLock::new()),
+            event_router: systemprompt_events::EventRouter::local_only(),
             geoip_reader: None,
             file_storage: systemprompt_storage::build_file_storage(
                 systemprompt_models::profile::StorageBackend::Local,
