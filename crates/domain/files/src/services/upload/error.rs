@@ -28,9 +28,6 @@ pub enum FileUploadError {
     #[error("Database error: {0}")]
     Database(#[source] FilesError),
 
-    #[error("Configuration error: {0}")]
-    Config(String),
-
     #[error("Base64 input too large: encoded size {encoded_size} bytes exceeds limit")]
     Base64TooLarge { encoded_size: usize },
 

@@ -19,9 +19,6 @@ domain_error! {
     pub enum FilesError {
         common: [repository, io, json, yaml, validation, not_found, config],
 
-        #[error("storage error: {0}")]
-        Storage(String),
-
         #[error("profile: {0}")]
         Profile(#[from] ProfileBootstrapError),
 
