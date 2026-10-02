@@ -105,12 +105,21 @@ DERIVED=$(
 
 TABLE_NAMES=$(for row in "${NAME_TABLE[@]}"; do printf '%s\n' "${row%%:*}"; done)
 
-PENDING_NAMES=$(for row in "${PENDING[@]}"; do printf '%s\n' "${row%%|*}"; done)
+PENDING_NAMES=$(for row in "${PENDING[@]}"; do printf '%s\n' "${row%%|*}"; done | rg -v '^$')
 
-NAMES=$(printf '%s\n%s\n' "$DERIVED" "$TABLE_NAMES" | rg -v '^$' | sort -u \
-    | rg -v -x -F -f <(printf '%s\n' "$PENDING_NAMES" | rg -v '^$'))
-NAME_COUNT=$(printf '%s\n' "$NAMES" | wc -l | tr -d ' ')
-ALT=$(printf '%s\n' "$NAMES" | paste -sd '|' -)
+NAMES=$(printf '%s\n%s\n' "$DERIVED" "$TABLE_NAMES" | rg -v '^$' | sort -u)
+# Why: given an empty `-f` pattern file, `rg -v` prints nothing on ripgrep 14
+# (Ubuntu noble) but every line on ripgrep 15, so the exclusion runs only when
+# a name is pending.
+if [ -n "$PENDING_NAMES" ]; then
+    NAMES=$(printf '%s\n' "$NAMES" | rg -v -x -F -f <(printf '%s\n' "$PENDING_NAMES"))
+fi
+NAME_COUNT=$(printf '%s\n' "$NAMES" | rg -c -v '^$')
+ALT=$(printf '%s\n' "$NAMES" | rg -v '^$' | paste -sd '|' -)
+if [ -z "$ALT" ] || [ "${NAME_COUNT:-0}" -eq 0 ]; then
+    echo "lint-raw-ids: no forbidden names derived from ${IDS_DIR}; refusing to scan with an empty name set" >&2
+    exit 2
+fi
 
 raw_pattern() {
     printf '%s' "\\b($1)\\s*:\\s*(?:Option<\\s*)?(?:&\\s*(?:'[a-z_]+\\s+)?(?:mut\\s+)?)?(?:uuid::)?(?:String|str|Uuid)\\s*(?:[,>)=;{]|\$)"
