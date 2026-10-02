@@ -144,7 +144,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 
         let metadata = ExecutionMetadata::builder(&self.ctx)
             .with_tool(tool_name.clone())
-            .with_execution(exec_id.to_string())
+            .with_execution(exec_id.clone())
             .build();
 
         tracing::info!(artifact_id = %artifact_id, server = %server_name, "Artifact persisted");

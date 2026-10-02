@@ -86,7 +86,7 @@ fn wire_meta(
     exec_id: &McpExecutionId,
     ui_resource_uri: &str,
 ) -> Option<MetaObject> {
-    let mut fields = metadata.to_object()?;
+    let mut fields = metadata.to_object().ok()?;
     fields.insert(
         "artifact_id".to_owned(),
         JsonValue::String(artifact_id.to_string()),
