@@ -14,6 +14,7 @@ Install these before you start.
 | PostgreSQL 18+ | The only durable state | A local server, a container, or a managed instance you can reach. The setup step can provision a local database for you, or use one you already run. |
 | `just` | Runs the build recipes | A command runner. Install from your package manager or from just.systems. |
 | `git` | Clone the repository | — |
+| `lsof` | Finds the process listening on a service port | Preinstalled on macOS and most Linux distributions; on Debian/Ubuntu images install the `lsof` package. Windows uses the built-in `netstat`. |
 
 You also need a PostgreSQL superuser (or a role with `CREATEDB` and `CREATEROLE`) reachable on the host and port you will give to setup, so it can create the application role and database.
 
