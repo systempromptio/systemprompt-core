@@ -9,7 +9,7 @@ use systemprompt_traits::{
     ActiveSession, AiProviderError, AiProviderResult, AiSessionProvider, CreateAiSessionParams,
 };
 
-use super::SessionRepository;
+use crate::repository::SessionRepository;
 use systemprompt_traits::session_store::CreateSessionParams;
 
 #[derive(Debug)]

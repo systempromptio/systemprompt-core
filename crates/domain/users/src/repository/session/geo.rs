@@ -21,7 +21,7 @@ pub(super) async fn count_sessions_missing_geo(pool: &PgPool) -> Result<i64> {
 }
 
 impl SessionRepository {
-    pub(super) async fn missing_geo(
+    pub(crate) async fn missing_geo(
         &self,
         after: Option<&SessionId>,
         limit: i64,
@@ -45,7 +45,7 @@ impl SessionRepository {
             .collect())
     }
 
-    pub(super) async fn set_geo(
+    pub(crate) async fn set_geo(
         &self,
         session_id: &SessionId,
         country: Option<&str>,

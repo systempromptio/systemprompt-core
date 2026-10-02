@@ -54,7 +54,8 @@ pub use models::{
 pub use repository::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
     CreateApiKeyParams, EnrollDeviceCertParams, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
-    PurgeCount, UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
+    PurgeCount, SessionRepository, UserRateLimitBucketRepository, UserRepository,
+    UsersRoleDirectory,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,
@@ -64,5 +65,5 @@ pub use services::{
 
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};
 
-pub mod sessions;
-pub use sessions::{SessionRepository, UsersAiSessionProvider};
+pub(crate) mod sessions;
+pub use sessions::UsersAiSessionProvider;
