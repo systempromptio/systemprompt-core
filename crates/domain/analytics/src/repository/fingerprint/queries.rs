@@ -10,7 +10,7 @@ use crate::Result;
 
 use super::FingerprintRepository;
 use crate::models::FingerprintReputation;
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{SessionId, UserId};
 
 impl FingerprintRepository {
     pub async fn count_active_sessions(&self, fingerprint_hash: &str) -> Result<i32> {
@@ -49,7 +49,7 @@ impl FingerprintRepository {
                 last_abuse_at,
                 last_ip_address,
                 last_user_agent,
-                associated_user_ids,
+                associated_user_ids as "associated_user_ids: Vec<UserId>",
                 updated_at
             FROM fingerprint_reputation
             WHERE last_seen_at > CURRENT_TIMESTAMP - INTERVAL '1 hour'

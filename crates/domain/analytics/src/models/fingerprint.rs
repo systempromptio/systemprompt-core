@@ -6,6 +6,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use systemprompt_identifiers::UserId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct FingerprintReputation {
@@ -26,7 +27,7 @@ pub struct FingerprintReputation {
     pub last_abuse_at: Option<DateTime<Utc>>,
     pub last_ip_address: Option<String>,
     pub last_user_agent: Option<String>,
-    pub associated_user_ids: Vec<String>,
+    pub associated_user_ids: Vec<UserId>,
     pub updated_at: DateTime<Utc>,
 }
 

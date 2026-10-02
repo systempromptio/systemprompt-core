@@ -50,7 +50,7 @@ async fn upsert_fingerprint_inserts_then_accumulates() {
         .await
         .expect("upsert");
     assert_eq!(second.total_session_count, 2);
-    assert_eq!(second.associated_user_ids, vec![user.as_str().to_owned()]);
+    assert_eq!(second.associated_user_ids, vec![user.clone()]);
     assert_eq!(second.last_ip_address.as_deref(), Some("10.0.0.1"));
 
     let third = repo
