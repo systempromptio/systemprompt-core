@@ -1,10 +1,11 @@
 //! Cross-replica job claim via Postgres session-scoped advisory locks.
 //!
-//! The in-process [`super::RunningJobs`] guard only prevents a single
+//! The in-process `RunningJobs` guard only prevents a single
 //! process from running a job twice. When the scheduler runs as multiple
 //! replicas against one database, every replica's cron fires the same job
-//! on the same tick. [`try_acquire_job_lock`] gives exactly one replica the
-//! right to run a given job: the others observe a held lock and skip.
+//! on the same tick. [`JobLockRepository::try_acquire`] gives exactly one
+//! replica the right to run a given job: the others observe a held lock and
+//! skip.
 //!
 //! Advisory locks are *session-scoped* — the connection that called
 //! `pg_advisory_lock` is the only one that can release it. [`JobLockGuard`]
@@ -14,8 +15,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use sqlx::pool::PoolConnection;
 use sqlx::{PgPool, Postgres};
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
 use systemprompt_traits::RepositoryError;
 use tracing::warn;
@@ -24,7 +28,7 @@ use crate::error::{SchedulerError, SchedulerResult};
 
 // Why: SQLx pool return keeps the session open; Postgres session locks
 // survive until explicit unlock or session closure.
-pub(super) struct JobLockGuard {
+pub(crate) struct JobLockGuard {
     conn: Option<PoolConnection<Postgres>>,
     key: i64,
     job_name: JobName,
@@ -47,7 +51,7 @@ impl Drop for JobLockGuard {
 }
 
 impl JobLockGuard {
-    pub(super) async fn release(mut self) {
+    pub(crate) async fn release(mut self) {
         if let Some(mut conn) = self.conn.take()
             && let Err(e) = sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", self.key)
                 .fetch_one(conn.as_mut())
@@ -72,33 +76,47 @@ impl std::fmt::Debug for JobLockGuard {
     }
 }
 
-pub(super) async fn try_acquire_job_lock(
-    write_pool: &PgPool,
-    job_name: &JobName,
-) -> SchedulerResult<Option<JobLockGuard>> {
-    let mut conn = write_pool.acquire().await.map_err(lock_error)?;
+#[derive(Debug, Clone)]
+pub(crate) struct JobLockRepository {
+    write_pool: Arc<PgPool>,
+}
 
-    let key = sqlx::query_scalar!(
-        r#"SELECT hashtext($1)::bigint AS "key!""#,
-        job_name.as_str()
-    )
-    .fetch_one(conn.as_mut())
-    .await
-    .map_err(lock_error)?;
+impl JobLockRepository {
+    pub(crate) fn new(db: &DbPool) -> Self {
+        Self {
+            write_pool: db.write_pool(),
+        }
+    }
 
-    let acquired = sqlx::query_scalar!(r#"SELECT pg_try_advisory_lock($1) AS "acquired!""#, key)
+    pub(crate) async fn try_acquire(
+        &self,
+        job_name: &JobName,
+    ) -> SchedulerResult<Option<JobLockGuard>> {
+        let mut conn = self.write_pool.acquire().await.map_err(lock_error)?;
+
+        let key = sqlx::query_scalar!(
+            r#"SELECT hashtext($1)::bigint AS "key!""#,
+            job_name.as_str()
+        )
         .fetch_one(conn.as_mut())
         .await
         .map_err(lock_error)?;
 
-    if acquired {
-        Ok(Some(JobLockGuard {
-            conn: Some(conn),
-            key,
-            job_name: job_name.clone(),
-        }))
-    } else {
-        Ok(None)
+        let acquired =
+            sqlx::query_scalar!(r#"SELECT pg_try_advisory_lock($1) AS "acquired!""#, key)
+                .fetch_one(conn.as_mut())
+                .await
+                .map_err(lock_error)?;
+
+        if acquired {
+            Ok(Some(JobLockGuard {
+                conn: Some(conn),
+                key,
+                job_name: job_name.clone(),
+            }))
+        } else {
+            Ok(None)
+        }
     }
 }
 

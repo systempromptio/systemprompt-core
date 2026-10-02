@@ -10,6 +10,7 @@ use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
 use crate::error::SchedulerError;
+use crate::repository::AnalyticsRepository;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GhostSessionCleanupJob;
@@ -31,37 +32,11 @@ impl Job for GhostSessionCleanupJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
-
-        let pool = db_pool.write_pool();
-
-        // Why: a browser heuristic. Bridge, OAuth and API sessions never load
-        // a landing page or run JavaScript, so without the source filter every
-        // desktop-client session was marked a bot (1,203 of them in production).
-        let result = sqlx::query_scalar!(
-            r#"
-            WITH cleaned AS (
-                UPDATE user_sessions
-                SET is_behavioral_bot = true,
-                    behavioral_bot_reason = 'ghost_session',
-                    behavioral_bot_score = 35
-                WHERE is_bot = false
-                  AND is_ai_crawler = false
-                  AND is_scanner = false
-                  AND is_behavioral_bot = false
-                  AND session_source = 'web'
-                  AND request_count = 0
-                  AND landing_page IS NULL
-                  AND entry_url IS NULL
-                  AND started_at < NOW() - INTERVAL '5 minutes'
-                RETURNING 1
-            )
-            SELECT COUNT(*)::BIGINT as "count!" FROM cleaned
-            "#
-        )
-        .fetch_one(pool.as_ref())
-        .await
-        .map_err(SchedulerError::from)?;
+        let analytics = AnalyticsRepository::new(ctx.get::<DbPool>()?);
+        let result = analytics
+            .mark_ghost_sessions_as_bots()
+            .await
+            .map_err(SchedulerError::from)?;
 
         let marked = result as u64;
         let duration_ms = start_time.elapsed().as_millis() as u64;

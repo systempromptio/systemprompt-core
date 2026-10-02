@@ -11,7 +11,6 @@
 mod bootstrap;
 mod claim;
 mod dispatch;
-mod lock;
 mod owners;
 mod registration;
 

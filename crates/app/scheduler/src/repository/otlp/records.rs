@@ -9,14 +9,15 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
-    AiToolCallId, ClientId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
-    McpServerId, McpToolName, PluginId, ProviderRequestId, SessionId, TraceId, UserId,
+    AiRequestId, AiToolCallId, ClientId, ContextId, GatewayConversationId, InstanceId,
+    McpExecutionId, McpServerId, McpToolName, PluginId, ProviderRequestId, SessionId, TraceId,
+    UserId,
 };
 
 #[derive(Debug, Clone)]
 pub struct RequestRow {
-    pub id: String,
-    pub request_id: String,
+    pub id: AiRequestId,
+    pub request_id: AiRequestId,
     pub user_id: UserId,
     pub session_id: Option<SessionId>,
     pub context_id: ContextId,
@@ -49,7 +50,7 @@ pub struct RequestRow {
 #[derive(Debug, Clone)]
 pub struct LedgerRow {
     pub ai_tool_call_id: Option<AiToolCallId>,
-    pub request_id: Option<String>,
+    pub request_id: Option<AiRequestId>,
     pub mcp_execution_id: Option<McpExecutionId>,
     pub tool_name: Option<McpToolName>,
     pub server_name: Option<McpServerId>,

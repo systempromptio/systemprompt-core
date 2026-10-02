@@ -3,10 +3,10 @@
 //!
 //! Each tick, for every signal the profile's `observability.otlp` block
 //! names, the job reads the rows after that signal's watermark
-//! (`state`), converts them to OTLP (`spans`, `logs`), POSTs the
-//! envelope (`transport`) and, only once the collector has acknowledged
-//! it, advances the watermark. A batch that fails keeps its cursor and is
-//! retried at the next tick, so nothing is dropped. A row whose stored
+//! ([`crate::repository::otlp`]), converts them to OTLP (`spans`, `logs`),
+//! POSTs the envelope (`transport`) and, only once the collector has
+//! acknowledged it, advances the watermark. A batch that fails keeps its cursor
+//! and is retried at the next tick, so nothing is dropped. A row whose stored
 //! identifier is malformed is the one exception: it is skipped, counted in
 //! the [`SignalReport`] and logged, and the rest of its batch still ships;
 //! ids are digests of the row keys, so a re-sent batch overwrites rather
@@ -23,82 +23,37 @@
 mod attrs;
 mod ids;
 mod logs;
-mod records;
+mod report;
 mod spans;
-mod state;
-mod tail;
 mod transport;
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::{Duration, Utc};
-use serde::Serialize;
+use chrono::Utc;
 use sqlx::PgPool;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{AiRequestId, InstanceId};
 use systemprompt_models::profile::{OtlpExportConfig, OtlpSignal};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
 pub use ids::{span_id_bytes, trace_id_bytes, unix_nanos};
 pub use logs::{severity_number, to_log_record};
-pub use records::{GovernanceRow, LedgerRow, LogRow, RequestRow};
+pub use report::{ExportReport, SignalReport, pacing_elapsed};
 pub use spans::{GOVERNANCE_SPAN, REQUEST_SPAN, TOOL_SPAN, TraceBatch, to_spans};
-pub use state::{OtlpExportState, OtlpExportStateRepository, Watermark};
-pub use tail::{BATCH_ROWS, SETTLE};
 pub use transport::{BATCHES_TOTAL, RETRY_DELAYS, is_retryable};
 
+
 use crate::error::{SchedulerError, SchedulerResult};
+use crate::repository::otlp::{
+    BATCH_ROWS, OtlpAuditTailRepository, OtlpExportState, OtlpExportStateRepository, SETTLE,
+    Watermark,
+};
 use crate::services::scheduling::job_app_context;
 
 pub const JOB_NAME: &str = "otlp_export";
-
-/// What one run did for one signal.
-#[derive(Debug, Clone, Serialize)]
-pub struct SignalReport {
-    pub signal: OtlpSignal,
-    pub rows: u64,
-    pub skipped: u64,
-    pub paced: bool,
-    pub error: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct ExportReport {
-    pub signals: Vec<SignalReport>,
-}
-
-impl ExportReport {
-    #[must_use]
-    pub fn rows(&self) -> u64 {
-        self.signals.iter().map(|s| s.rows).sum()
-    }
-
-    #[must_use]
-    pub fn skipped(&self) -> u64 {
-        self.signals.iter().map(|s| s.skipped).sum()
-    }
-
-    #[must_use]
-    pub fn failed(&self) -> u64 {
-        self.signals.iter().filter(|s| s.error.is_some()).count() as u64
-    }
-}
-
-#[must_use]
-pub fn pacing_elapsed(
-    last_attempt_at: Option<chrono::DateTime<Utc>>,
-    now: chrono::DateTime<Utc>,
-    batch_seconds: u64,
-) -> bool {
-    let pace = i64::try_from(batch_seconds)
-        .ok()
-        .and_then(Duration::try_seconds)
-        .unwrap_or(Duration::MAX);
-    last_attempt_at.is_none_or(|last| now - last >= pace)
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct OtlpExportJob;
@@ -166,6 +121,7 @@ async fn run(
     paced: bool,
 ) -> SchedulerResult<ExportReport> {
     let repository = OtlpExportStateRepository::new(pool.as_ref().clone());
+    let tails = OtlpAuditTailRepository::new(pool.as_ref().clone());
     let mut report = ExportReport::default();
     for signal in OtlpSignal::ALL {
         if !config.exports(signal) {
@@ -183,7 +139,11 @@ async fn run(
             continue;
         }
         repository.mark_attempt(signal).await?;
-        let outcome = export_signal(pool, config, &repository, &state, instance_id).await;
+        let stores = SignalStores {
+            state: &repository,
+            tails: &tails,
+        };
+        let outcome = export_signal(config, stores, &state, instance_id).await;
         report.signals.push(match outcome {
             Ok(exported) => SignalReport {
                 signal,
@@ -209,10 +169,15 @@ async fn run(
     Ok(report)
 }
 
+#[derive(Debug, Clone, Copy)]
+struct SignalStores<'a> {
+    state: &'a OtlpExportStateRepository,
+    tails: &'a OtlpAuditTailRepository,
+}
+
 async fn export_signal(
-    pool: &PgPool,
     config: &OtlpExportConfig,
-    repository: &OtlpExportStateRepository,
+    stores: SignalStores<'_>,
     state: &OtlpExportState,
     instance_id: Option<&InstanceId>,
 ) -> SchedulerResult<SignalExport> {
@@ -223,11 +188,11 @@ async fn export_signal(
         })?;
     let (rows, skipped, next) = match signal {
         OtlpSignal::Traces => {
-            let batch = load_trace_batch(pool, &after).await?;
+            let batch = load_trace_batch(stores.tails, &after).await?;
             let next = batch
                 .requests
                 .last()
-                .map(|r| Watermark::new(r.completed_at, r.id.clone()));
+                .map(|r| Watermark::new(r.completed_at, r.id.as_str()));
             let rows = batch.requests.len() as u64;
             if next.is_some() {
                 let envelope = spans::to_export_request(&batch, instance_id);
@@ -236,7 +201,7 @@ async fn export_signal(
             (rows, 0, next)
         },
         OtlpSignal::Logs => {
-            let tail = tail::list_logs_after(pool, &after, BATCH_ROWS).await?;
+            let tail = stores.tails.list_logs_after(&after, BATCH_ROWS).await?;
             if !tail.rows.is_empty() {
                 let envelope = logs::to_export_request(&tail.rows, instance_id);
                 post(config, signal, &envelope).await?;
@@ -246,10 +211,10 @@ async fn export_signal(
     };
     match next {
         Some(next) => {
-            repository.advance(signal, &next, rows as i64).await?;
+            stores.state.advance(signal, &next, rows as i64).await?;
             info!(signal = %signal, rows, skipped, "OTLP batch exported");
         },
-        None => repository.mark_caught_up(signal, SETTLE).await?,
+        None => stores.state.mark_caught_up(signal, SETTLE).await?,
     }
     Ok(SignalExport { rows, skipped })
 }
@@ -260,20 +225,23 @@ struct SignalExport {
     skipped: u64,
 }
 
-async fn load_trace_batch(pool: &PgPool, after: &Watermark) -> SchedulerResult<TraceBatch> {
-    let requests = tail::list_requests_after(pool, after, BATCH_ROWS).await?;
+async fn load_trace_batch(
+    tails: &OtlpAuditTailRepository,
+    after: &Watermark,
+) -> SchedulerResult<TraceBatch> {
+    let requests = tails.list_requests_after(after, BATCH_ROWS).await?;
     if requests.is_empty() {
         return Ok(TraceBatch::default());
     }
-    let ids: Vec<String> = requests.iter().map(|r| r.id.clone()).collect();
+    let ids: Vec<AiRequestId> = requests.iter().map(|r| r.id.clone()).collect();
     let mut batch = TraceBatch {
         requests,
         ..TraceBatch::default()
     };
-    batch.ledger = tail::list_ledger_for_requests(pool, &ids).await?;
+    batch.ledger = tails.list_ledger_for_requests(&ids).await?;
     let trace_ids = batch.trace_ids();
     if !trace_ids.is_empty() {
-        batch.governance = tail::list_governance_for_traces(pool, &trace_ids).await?;
+        batch.governance = tails.list_governance_for_traces(&trace_ids).await?;
     }
     Ok(batch)
 }

@@ -10,8 +10,8 @@ use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs, S
 
 use super::attrs::{Attrs, resource, scope};
 use super::ids::{span_id_bytes, trace_id_bytes, unix_nanos};
-use super::records::LogRow;
 use super::spans::REQUEST_SPAN;
+use crate::repository::otlp::LogRow;
 use systemprompt_identifiers::{
     ClientId, ContextId, GatewayConversationId, InstanceId, ProviderRequestId, SessionId, TraceId,
     UserId,

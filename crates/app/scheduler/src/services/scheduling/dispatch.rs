@@ -70,7 +70,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
 
     let claim = match claim_policy {
         ClaimPolicy::None => Claim::Free,
-        ClaimPolicy::Cluster => acquire_cluster_claim(&job_name, &db_pool, &repository).await,
+        ClaimPolicy::Cluster => acquire_cluster_claim(&job_name, &repository).await,
         ClaimPolicy::Node { instance_id } => {
             acquire_node_claim(&job_name, &instance_id, &repository).await
         },

@@ -17,10 +17,10 @@ use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span, Sta
 
 use super::attrs::{Attrs, resource, scope};
 use super::ids::{span_id_bytes, trace_id_bytes, unix_nanos};
-use super::records::{GovernanceRow, LedgerRow, RequestRow};
+use crate::repository::otlp::{GovernanceRow, LedgerRow, RequestRow};
 use systemprompt_identifiers::{
-    AiToolCallId, InstanceId, McpExecutionId, McpServerId, McpToolName, PluginId, SessionId,
-    TraceId,
+    AiRequestId, AiToolCallId, InstanceId, McpExecutionId, McpServerId, McpToolName, PluginId,
+    SessionId, TraceId,
 };
 
 pub const REQUEST_SPAN: &str = "ai_request";
@@ -84,7 +84,7 @@ pub(super) fn to_export_request(
 pub fn to_spans(batch: &TraceBatch) -> Vec<Span> {
     let mut by_request: HashMap<&str, Vec<&LedgerRow>> = HashMap::new();
     for row in &batch.ledger {
-        if let Some(request_id) = row.request_id.as_deref() {
+        if let Some(request_id) = row.request_id.as_ref().map(AiRequestId::as_str) {
             by_request.entry(request_id).or_default().push(row);
         }
     }
@@ -98,7 +98,7 @@ pub fn to_spans(batch: &TraceBatch) -> Vec<Span> {
     let mut spans = Vec::with_capacity(batch.requests.len());
     for request in &batch.requests {
         let trace = trace_id_bytes(trace_key(request));
-        let parent = span_id_bytes(REQUEST_SPAN, &request.id);
+        let parent = span_id_bytes(REQUEST_SPAN, request.id.as_str());
         spans.push(request_span(request, trace.clone(), parent.clone()));
         for row in by_request.get(request.id.as_str()).into_iter().flatten() {
             spans.push(tool_span(row, trace.clone(), parent.clone()));
@@ -118,7 +118,7 @@ pub fn to_spans(batch: &TraceBatch) -> Vec<Span> {
 fn request_span(row: &RequestRow, trace_id: Vec<u8>, span_id: Vec<u8>) -> Span {
     let mut attrs = Attrs::new();
     attrs
-        .text("systemprompt.request.id", &row.request_id)
+        .text("systemprompt.request.id", row.request_id.as_str())
         .text("systemprompt.request.kind", &row.request_kind)
         .text("systemprompt.request.status", &row.status)
         .text("enduser.id", row.user_id.as_str())
