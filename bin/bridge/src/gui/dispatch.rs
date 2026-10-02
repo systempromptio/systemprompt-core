@@ -257,7 +257,7 @@ fn dispatch_lifecycle(
     event: UiEvent,
 ) -> Result<(), Box<UiEvent>> {
     match event {
-        UiEvent::Quit => handlers::quit::on_quit(event_loop),
+        UiEvent::Quit => handlers::quit::on_quit(app, event_loop),
         UiEvent::SyncStarted => handlers::sync::on_sync_started(app),
         UiEvent::SyncStep(step) => crate::gui::emit::emit_sync_step(app, &step),
         UiEvent::StateRefreshed => handlers::state::on_state_refreshed(app),

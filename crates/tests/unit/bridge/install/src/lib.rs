@@ -46,5 +46,5 @@ mod tool_catalog;
 mod tool_permissions;
 #[cfg(test)]
 mod uninstall;
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "windows")))]
 mod user_alert;

@@ -30,7 +30,6 @@ mod app;
 use std::collections::{HashSet, VecDeque};
 use std::process::ExitCode;
 use std::sync::Arc;
-use std::sync::mpsc::{Sender, channel};
 use std::time::Instant;
 
 use parking_lot::Mutex;
@@ -95,17 +94,9 @@ pub fn run(ctx: Arc<BridgeContext>) -> ExitCode {
     let proxy = UiEventProxy::new(event_loop.create_proxy());
     install_termination_handlers(proxy.clone());
     emit::install_log_emitter(&ctx.activity, proxy.clone());
-    let (tx, rx) = channel::<UiEvent>();
-
-    let bridge_proxy = proxy.clone();
-    std::thread::spawn(move || {
-        while let Ok(event) = rx.recv() {
-            bridge_proxy.send_event(event);
-        }
-    });
 
     let app_state = AppState::new_loaded(Arc::clone(&ctx));
-    let app = GuiApp::new(app_state, tx, proxy, ctx);
+    let app = GuiApp::new(app_state, proxy, ctx);
 
     match app.ctx.proxy.role() {
         ProxyRole::Serving(served) => {
@@ -149,7 +140,6 @@ pub fn run(ctx: Arc<BridgeContext>) -> ExitCode {
 
 pub(crate) struct GuiApp {
     pub(crate) state: Arc<AppState>,
-    pub(crate) tx: Sender<UiEvent>,
     pub(crate) proxy: UiEventProxy,
     pub(crate) tray: Option<tray::TrayHandles>,
     #[cfg(target_os = "macos")]
@@ -174,15 +164,9 @@ pub(crate) struct GuiApp {
 }
 
 impl GuiApp {
-    fn new(
-        state: Arc<AppState>,
-        tx: Sender<UiEvent>,
-        proxy: UiEventProxy,
-        ctx: Arc<BridgeContext>,
-    ) -> Self {
+    fn new(state: Arc<AppState>, proxy: UiEventProxy, ctx: Arc<BridgeContext>) -> Self {
         Self {
             state,
-            tx,
             proxy,
             tray: None,
             #[cfg(target_os = "macos")]
@@ -233,7 +217,7 @@ impl GuiApp {
 
     pub(crate) fn ensure_server(&mut self) -> Option<&FocusServer> {
         if self.server.is_none() {
-            match FocusServer::start(Arc::clone(&self.state), self.tx.clone()) {
+            match FocusServer::start(self.proxy.clone()) {
                 Ok(s) => {
                     self.ctx
                         .activity
@@ -247,6 +231,14 @@ impl GuiApp {
             }
         }
         self.server.as_ref()
+    }
+
+    pub(crate) fn stop_server(&mut self) {
+        if let Some(server) = self.server.take()
+            && let Err(e) = server.stop()
+        {
+            self.append_log_error(format!("settings server did not stop cleanly: {e}"));
+        }
     }
 
     pub(crate) fn append_log(&self, line: impl Into<String>) {
