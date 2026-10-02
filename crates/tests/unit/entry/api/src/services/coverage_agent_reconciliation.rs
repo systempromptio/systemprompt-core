@@ -140,21 +140,6 @@ impl OwnedMarkedAgent {
     fn pid(&self) -> u32 {
         self.child.id()
     }
-
-    fn wait_for_production_termination(&mut self) -> std::process::ExitStatus {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
-        loop {
-            if let Some(status) = self.child.try_wait().expect("poll owned agent child") {
-                return status;
-            }
-            assert!(
-                std::time::Instant::now() < deadline,
-                "reconciliation did not terminate owned agent {}",
-                self.name
-            );
-            std::thread::sleep(std::time::Duration::from_millis(20));
-        }
-    }
 }
 
 #[cfg(unix)]
@@ -180,7 +165,7 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &boot.database_url);
-    let mut owned = OwnedMarkedAgent::spawn(&name);
+    let owned = OwnedMarkedAgent::spawn(&name);
 
     ctx.a2a_repositories()
         .agent_services
@@ -196,10 +181,10 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     assert!(message.contains("failed to start after retry"), "{message}");
     assert!(message.contains(&name), "{message}");
 
-    let status = owned.wait_for_production_termination();
     assert!(
-        !status.success(),
-        "reconciliation must terminate the previous agent rather than let it exit normally"
+        !systemprompt_loader::subprocess::is_running(owned.pid()).await,
+        "reconciliation must have terminated the previous agent {} before retrying",
+        owned.name
     );
     let row = ctx
         .a2a_repositories()
