@@ -20,7 +20,7 @@ use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::{SkillId, SkillName};
+use systemprompt_identifiers::{McpExecutionId, SkillId, SkillName};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TableResponse {
@@ -33,7 +33,7 @@ pub struct TableResponse {
     pub items: Vec<JsonValue>,
     pub count: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execution_id: Option<String>,
+    pub execution_id: Option<McpExecutionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(with = "Option<JsonValue>")]
     // JSON: Free-form `_meta.hints` object the tool emitted; see `hints.rs`.
@@ -110,7 +110,7 @@ impl TableArtifact {
         self
     }
 
-    pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
+    pub fn with_execution_id(mut self, id: McpExecutionId) -> Self {
         self.metadata.set_execution_id(id);
         self
     }
@@ -130,7 +130,7 @@ impl TableArtifact {
             columns: self.columns.clone(),
             items: self.items.clone(),
             count: self.items.len(),
-            execution_id: self.metadata.execution_id().map(str::to_owned),
+            execution_id: self.metadata.execution_id().cloned(),
             hints: Some(self.hints_builder.generate_schema()),
         };
         match serde_json::to_value(response) {

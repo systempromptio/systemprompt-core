@@ -7,7 +7,8 @@
 
 use serde_json::json;
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, SessionId, SkillId, SkillName, SourceId, TraceId, UserId,
+    Actor, AgentName, ContextId, McpExecutionId, SessionId, SkillId, SkillName, SourceId, TraceId,
+    UserId,
 };
 use systemprompt_models::artifacts::audio::AudioArtifact;
 use systemprompt_models::artifacts::card::{
@@ -71,7 +72,7 @@ fn audio_builder_chain() {
 fn audio_with_request_and_skill() {
     let a = AudioArtifact::new("s")
         .with_request(&test_context())
-        .with_execution_id("exec-1")
+        .with_execution_id(McpExecutionId::new("exec-1"))
         .with_skill(SkillId::new("skill-1"), SkillName::new("My Skill"));
     // metadata is private/skipped; ensure builder returns a valid artifact.
     assert_eq!(a.artifact_type(), ArtifactType::Audio);
@@ -137,7 +138,7 @@ fn video_builder_chain() {
         .with_caption("cap")
         .with_loop()
         .without_controls()
-        .with_execution_id("e")
+        .with_execution_id(McpExecutionId::new("e"))
         .with_skill(SkillId::new("sk"), SkillName::new("Skill"));
     assert_eq!(v.mime_type.as_deref(), Some("video/mp4"));
     assert_eq!(v.poster.as_deref(), Some("p.png"));
@@ -168,7 +169,7 @@ fn image_new_and_builder() {
         .with_alt("alt text")
         .with_caption("a caption")
         .with_dimensions(640, 480)
-        .with_execution_id("e")
+        .with_execution_id(McpExecutionId::new("e"))
         .with_skill(SkillId::new("sk"), SkillName::new("Skill"));
     assert_eq!(img.src, "i.png");
     assert_eq!(img.alt.as_deref(), Some("alt text"));
@@ -247,7 +248,7 @@ fn list_with_items_sets_count() {
             ListItem::new("a", "s", "l"),
             ListItem::new("b", "s", "l"),
         ])
-        .with_execution_id("e")
+        .with_execution_id(McpExecutionId::new("e"))
         .with_skill(SkillId::new("sk"), SkillName::new("Skill"));
     assert_eq!(l.count, 2);
     assert_eq!(l.items.len(), 2);
@@ -334,13 +335,16 @@ fn card_builder_chain() {
         .add_cta(CardCta::new("i2", "l2", "m2", CtaVariant::Danger))
         .with_theme(CardTheme::Muted)
         .with_request(&test_context())
-        .with_execution_id("exec-9")
+        .with_execution_id(McpExecutionId::new("exec-9"))
         .with_skill(SkillId::new("sk"), SkillName::new("Skill"));
     assert_eq!(c.subtitle.as_deref(), Some("sub"));
     assert_eq!(c.sections.len(), 2);
     assert_eq!(c.ctas.len(), 2);
     assert_eq!(c.theme, CardTheme::Muted);
-    assert_eq!(c.execution_id.as_deref(), Some("exec-9"));
+    assert_eq!(
+        c.execution_id.as_ref().map(McpExecutionId::as_str),
+        Some("exec-9")
+    );
     assert_eq!(c.skill_id, Some(SkillId::new("sk")));
     assert_eq!(c.skill_name.as_ref().map(SkillName::as_str), Some("Skill"));
     assert_eq!(c.artifact_type(), ArtifactType::PresentationCard);
@@ -381,7 +385,7 @@ fn card_response_default_and_serde() {
         sections: vec![CardSection::new("h", "c")],
         ctas: vec![CardCta::new("i", "l", "m", CtaVariant::Primary)],
         theme: CardTheme::Gradient,
-        execution_id: Some("e".to_owned()),
+        execution_id: Some(McpExecutionId::new("e")),
         skill_id: Some(SkillId::new("sk")),
         skill_name: Some(SkillName::new("S")),
     };
@@ -411,7 +415,7 @@ fn chart_builder_chain() {
         .with_y_axis_type(AxisType::Linear)
         .with_axes("Quarter", "USD")
         .with_request(&test_context())
-        .with_execution_id("e")
+        .with_execution_id(McpExecutionId::new("e"))
         .with_skill(SkillId::new("sk"), SkillName::new("Skill"));
     assert_eq!(c.labels, vec!["Q1", "Q2"]);
     assert_eq!(c.datasets.len(), 2);
@@ -480,7 +484,7 @@ fn chart_deserializes_stored_payload_without_presentation_fields() {
 fn dashboard_new_and_builder() {
     let d = DashboardArtifact::new("Ops")
         .with_description("desc")
-        .with_execution_id("e")
+        .with_execution_id(McpExecutionId::new("e"))
         .with_skill(SkillId::new("sk"), SkillName::new("Skill"))
         .with_request(&test_context());
     assert_eq!(d.title, "Ops");
