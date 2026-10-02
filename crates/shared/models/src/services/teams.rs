@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{AgentName, SecretName, TeamsTenantId};
+use systemprompt_identifiers::{AgentName, SecretName, TeamsAppId, TeamsTenantId};
 
 use crate::errors::ServicesValidationError;
 
@@ -29,7 +29,7 @@ pub const BOT_FRAMEWORK_TOKEN_URL: &str =
 #[serde(deny_unknown_fields)]
 pub struct TeamsAppConfig {
     pub tenant_id: TeamsTenantId,
-    pub app_id: String,
+    pub app_id: TeamsAppId,
     pub app_password_ref: SecretName,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
@@ -79,7 +79,7 @@ impl TeamsAppConfig {
     }
 
     pub fn validate(&self, name: &str) -> Result<(), ServicesValidationError> {
-        if self.app_id.is_empty() {
+        if self.app_id.as_str().is_empty() {
             return Err(ServicesValidationError::invalid_field(format!(
                 "teams app '{name}' has an empty app_id"
             )));
