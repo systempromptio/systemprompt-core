@@ -5,12 +5,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::State;
-use axum::http::{HeaderMap, Method, StatusCode, Uri};
-use axum::response::{IntoResponse, Json};
-use serde_json::json;
+use axum::http::{HeaderMap, Method, Uri};
+use axum::response::IntoResponse;
+use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
 
 use super::static_files::StaticContentState;
+use crate::error::ApiHttpError;
 
 pub async fn smart_fallback_handler(
     State(state): State<StaticContentState>,
@@ -22,16 +23,12 @@ pub async fn smart_fallback_handler(
     let path = uri.path();
 
     if is_api_path(path) {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(json!({
-                "error": "Not Found",
-                "message": format!("No route matches {method} {path}"),
-                "path": path,
-                "suggestions": get_api_suggestions(path)
-            })),
+        return ApiHttpError::from(
+            ApiError::not_found(format!("No route matches {method} {path}"))
+                .with_path(path)
+                .with_details(get_api_suggestions(path).join("; ")),
         )
-            .into_response();
+        .into_response();
     }
 
     super::serve_static_content(State(state), uri, headers, req_ctx)
