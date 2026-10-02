@@ -196,7 +196,6 @@ http = "1.5"
 tower-http = { version = "0.7", features = ["cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
 tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
-governor = "0.10"
 
 # Metrics / observability
 metrics = "0.24"
@@ -218,7 +217,6 @@ open = "5"
 # Process management (for services)
 nix = { version = "0.31", features = ["fs", "process", "signal", "user"] }
 libc = "0.2"
-ctrlc = "3.5"
 
 
 # Utilities
@@ -228,7 +226,6 @@ tempfile = "3.27"
 walkdir = "2.5"
 flate2 = "1.1"
 tar = "0.4"
-zip = { version = "8", default-features = false, features = ["deflate"] }
 tokio-cron-scheduler = "0.15"
 maxminddb = "0.32"
 
