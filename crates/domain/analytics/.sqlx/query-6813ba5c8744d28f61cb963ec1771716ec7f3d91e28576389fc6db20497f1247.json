@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                fingerprint_hash,\n                first_seen_at,\n                last_seen_at,\n                total_session_count,\n                active_session_count,\n                total_request_count,\n                requests_last_hour,\n                peak_requests_per_minute,\n                sustained_high_velocity_minutes,\n                is_flagged,\n                flag_reason,\n                flagged_at,\n                reputation_score,\n                abuse_incidents,\n                last_abuse_at,\n                last_ip_address,\n                last_user_agent,\n                associated_user_ids,\n                updated_at\n            FROM fingerprint_reputation\n            WHERE last_seen_at > CURRENT_TIMESTAMP - INTERVAL '1 hour'\n            ORDER BY total_request_count DESC\n            LIMIT 1000\n            ",
+  "query": "\n            INSERT INTO fingerprint_reputation (\n                fingerprint_hash, last_ip_address, last_user_agent,\n                associated_user_ids, total_session_count\n            )\n            VALUES ($1, $2, $3, $4, 1)\n            ON CONFLICT (fingerprint_hash) DO UPDATE SET\n                last_seen_at = CURRENT_TIMESTAMP,\n                last_ip_address = COALESCE($2, fingerprint_reputation.last_ip_address),\n                last_user_agent = COALESCE($3, fingerprint_reputation.last_user_agent),\n                total_session_count = fingerprint_reputation.total_session_count + 1,\n                associated_user_ids = CASE\n                    WHEN array_length($4, 1) > 0 AND NOT ($4[1] = ANY(fingerprint_reputation.associated_user_ids))\n                    THEN array_cat(fingerprint_reputation.associated_user_ids, $4)\n                    ELSE fingerprint_reputation.associated_user_ids\n                END,\n                updated_at = CURRENT_TIMESTAMP\n            RETURNING\n                fingerprint_hash,\n                first_seen_at,\n                last_seen_at,\n                total_session_count,\n                active_session_count,\n                total_request_count,\n                requests_last_hour,\n                peak_requests_per_minute,\n                sustained_high_velocity_minutes,\n                is_flagged,\n                flag_reason,\n                flagged_at,\n                reputation_score,\n                abuse_incidents,\n                last_abuse_at,\n                last_ip_address,\n                last_user_agent,\n                associated_user_ids as \"associated_user_ids: Vec<UserId>\",\n                updated_at\n            ",
   "describe": {
     "columns": [
       {
@@ -192,7 +192,7 @@
       },
       {
         "ordinal": 17,
-        "name": "associated_user_ids",
+        "name": "associated_user_ids: Vec<UserId>",
         "type_info": "TextArray",
         "origin": {
           "Table": {
@@ -214,7 +214,12 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "TextArray"
+      ]
     },
     "nullable": [
       false,
@@ -238,5 +243,5 @@
       false
     ]
   },
-  "hash": "b26058dceeca0ce59e69c2bdc08564dadf3db3969cc14959b40b22f609dd4a36"
+  "hash": "6813ba5c8744d28f61cb963ec1771716ec7f3d91e28576389fc6db20497f1247"
 }

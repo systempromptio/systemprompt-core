@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                ip_address,\n                reason,\n                banned_at,\n                expires_at,\n                ban_count,\n                last_offense_path,\n                last_user_agent,\n                is_permanent,\n                source_fingerprint,\n                ban_source,\n                associated_session_ids\n            FROM banned_ips\n            WHERE ip_address = $1\n              AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)\n            ",
+  "query": "\n            SELECT\n                ip_address,\n                reason,\n                banned_at,\n                expires_at,\n                ban_count,\n                last_offense_path,\n                last_user_agent,\n                is_permanent,\n                source_fingerprint,\n                ban_source,\n                associated_session_ids as \"associated_session_ids: Vec<SessionId>\"\n            FROM banned_ips\n            WHERE source_fingerprint = $1\n            ORDER BY banned_at DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -115,7 +115,7 @@
       },
       {
         "ordinal": 10,
-        "name": "associated_session_ids",
+        "name": "associated_session_ids: Vec<SessionId>",
         "type_info": "TextArray",
         "origin": {
           "Table": {
@@ -144,5 +144,5 @@
       true
     ]
   },
-  "hash": "d7a9caa8568eadb7aac9a0f1f9a0bf951e0be6c5604bd9f1cdfd2eb6b5bae6de"
+  "hash": "9a8fea9828d92a5721b18f1cc07f63be0fd79ff83b319667d3411ff32125d6c3"
 }
