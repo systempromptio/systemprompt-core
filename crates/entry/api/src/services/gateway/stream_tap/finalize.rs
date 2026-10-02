@@ -219,7 +219,9 @@ fn terminal_actor(audit: &GatewayAudit) -> Option<LogActor> {
             trace.clone(),
         ));
     }
-    LogActor::platform(TraceId::system()).ok()
+    LogActor::platform(TraceId::system())
+        .inspect_err(|error| tracing::warn!(%error, "Gateway terminal log actor unavailable"))
+        .ok()
 }
 
 async fn capture_signatures(ctx: &TapFinalizeCtx, audit: &GatewayAudit, summary: &Summary) {

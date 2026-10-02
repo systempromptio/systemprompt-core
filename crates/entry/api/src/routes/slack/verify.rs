@@ -16,7 +16,11 @@ use systemprompt_models::services::SlackAppConfig;
 use systemprompt_slack::signature::verify_slack_signature;
 
 pub(super) fn resolve_app(workspace_id: &str) -> Option<SlackAppConfig> {
-    let config = ConfigLoader::load().ok()?;
+    let config = ConfigLoader::load()
+        .inspect_err(
+            |error| tracing::warn!(%error, "Slack app lookup: services config unavailable"),
+        )
+        .ok()?;
     config
         .slack_apps
         .into_values()
@@ -25,6 +29,7 @@ pub(super) fn resolve_app(workspace_id: &str) -> Option<SlackAppConfig> {
 
 fn signing_secret(app: &SlackAppConfig) -> Option<String> {
     SecretsBootstrap::get()
+        .inspect_err(|error| tracing::warn!(%error, "Slack signing secret: secrets unavailable"))
         .ok()?
         .get(app.signing_secret_ref.as_str())
         .cloned()
@@ -32,6 +37,7 @@ fn signing_secret(app: &SlackAppConfig) -> Option<String> {
 
 pub(super) fn bot_token(app: &SlackAppConfig) -> Option<String> {
     SecretsBootstrap::get()
+        .inspect_err(|error| tracing::warn!(%error, "Slack bot token: secrets unavailable"))
         .ok()?
         .get(app.bot_token_ref.as_str())
         .cloned()

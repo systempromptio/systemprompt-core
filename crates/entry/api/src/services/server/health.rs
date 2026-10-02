@@ -129,7 +129,11 @@ pub(super) async fn get_system_stats(
             None
         };
 
-    let logs = audit.ok().flatten().map(|row| audit_log_stats(&row));
+    let logs = audit
+        .inspect_err(|error| tracing::warn!(%error, "Audit log stats query failed"))
+        .ok()
+        .flatten()
+        .map(|row| audit_log_stats(&row));
 
     Some(SystemStats {
         database,

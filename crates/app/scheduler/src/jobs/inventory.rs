@@ -92,7 +92,11 @@ impl Job for InventoryRefreshJob {
 // Why: a configuration that does not load has no fingerprint; the refresh
 // then runs and records the failure against the inventory, as before.
 fn catalog_fingerprint(app: &AppContext) -> Option<[u8; 32]> {
-    let services = systemprompt_loader::ConfigLoader::load().ok()?;
+    let services = systemprompt_loader::ConfigLoader::load()
+        .inspect_err(
+            |error| tracing::warn!(%error, "Inventory fingerprint: services config unavailable"),
+        )
+        .ok()?;
     configured_inventory_fingerprint(app.app_paths().system().services(), &services)
         .inspect_err(|error| tracing::debug!(%error, "Inventory fingerprint unavailable"))
         .ok()

@@ -86,6 +86,9 @@ pub(super) async fn populated_hot_tables(
                 &[table],
             )
             .await
+            .inspect_err(|error| {
+                tracing::warn!(%error, table = %table, "Hot-table row estimate unavailable");
+            })
             .ok()
             .flatten()
             .and_then(|row| row.get("estimate").and_then(serde_json::Value::as_i64));
