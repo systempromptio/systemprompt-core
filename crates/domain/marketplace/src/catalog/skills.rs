@@ -85,11 +85,6 @@ pub fn load_skills_traced(
                 });
             },
             Err(e) => {
-                tracing::error!(
-                    skill_dir = %skill_dir.display(),
-                    error = %e,
-                    "manifest: failed to build skill entry"
-                );
                 trace.record(TraceEvent {
                     kind: TraceKind::Skill,
                     id: dir_name,

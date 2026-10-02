@@ -81,11 +81,6 @@ pub fn load_rules_traced(
                 });
             },
             Err(e) => {
-                tracing::error!(
-                    rule_dir = %rule_dir.display(),
-                    error = %e,
-                    "manifest: failed to build rule entry"
-                );
                 trace.record(TraceEvent {
                     kind: TraceKind::Rule,
                     id: dir_name,

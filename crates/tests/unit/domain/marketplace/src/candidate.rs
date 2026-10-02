@@ -403,11 +403,7 @@ fn into_manifest_parts_carries_membership_into_filter_context() {
 
 #[test]
 fn filter_error_variants_debug() {
-    let variants = [
-        MarketplaceFilterError::Backend("x".into()),
-        MarketplaceFilterError::UnknownUser("u".into()),
-        MarketplaceFilterError::Policy("p".into()),
-    ];
+    let variants = [MarketplaceFilterError::Backend("x".into())];
     for v in &variants {
         let _ = format!("{v:?}");
     }
@@ -418,7 +414,6 @@ fn marketplace_error_variants_debug() {
     let variants: Vec<MarketplaceError> = vec![
         MarketplaceError::NotFound(MarketplaceId::new("missing")),
         MarketplaceError::NoDefault,
-        MarketplaceError::Validation("bad".into()),
         MarketplaceError::Catalog("fail".into()),
         MarketplaceError::Signing(systemprompt_security::ManifestSigningError::KeyMissing),
         MarketplaceError::Filter(MarketplaceFilterError::Backend("b".into())),
