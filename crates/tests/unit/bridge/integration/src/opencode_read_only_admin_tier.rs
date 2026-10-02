@@ -126,6 +126,10 @@ fn an_unattended_sync_writes_the_live_catalogue_to_the_user_tier() {
     });
 }
 
+// Linux only: the refusal staged here is the Linux one — a read-only admin
+// tier and no escalation path. On macOS an attended install escalates through
+// the administrator password dialog instead, which a test can never answer.
+#[cfg(target_os = "linux")]
 #[test]
 fn a_refused_attended_install_falls_back_to_the_user_tier() {
     let _ = sandbox(|p| {

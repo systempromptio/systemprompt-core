@@ -15,13 +15,21 @@ fn unwritable_system_org_plugins(base: &std::path::Path) -> std::ffi::OsString {
     root.join("Claude").join("org-plugins").into()
 }
 
-#[cfg(test)]
+// A sync that reaches the org-plugins step against that unwritable root is a
+// Linux scenario: Linux falls back to the per-user tree, while macOS takes the
+// system scope unconditionally and provisions it behind an administrator
+// password dialog no test can answer (the suite would hang, and on a
+// developer Mac a granted prompt would write the real /Library tree). This
+// crate runs in the Linux shard only — it is not in
+// scripts/bridge-native-crates.txt — so every test whose sync gets that far is
+// compiled for Linux alone; the verification-only tests run everywhere.
+#[cfg(all(test, target_os = "linux"))]
 mod apply;
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod hosts;
 #[cfg(test)]
 mod manifest_verify;
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod replay_gate;
 
 #[cfg(test)]

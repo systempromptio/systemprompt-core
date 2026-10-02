@@ -1,5 +1,8 @@
 //! Owned background work with inspected completion and visible panic reports.
 //!
+//! `TaskOwner` supervises async work on the bridge runtime; `OwnedThread`
+//! owns one blocking OS thread that is told to stop, woken and joined.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -80,5 +83,106 @@ impl std::fmt::Debug for TaskOwner {
         f.debug_struct("TaskOwner")
             .field("stopped", &self.supervisor.is_finished())
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub(crate) use owned_thread::{OwnedThread, OwnedThreadError, StopSignal};
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+mod owned_thread {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[derive(Debug, Clone)]
+    pub(crate) struct StopSignal(Arc<AtomicBool>);
+
+    impl StopSignal {
+        pub(crate) fn is_raised(&self) -> bool {
+            self.0.load(Ordering::Acquire)
+        }
+    }
+
+    #[derive(Debug, thiserror::Error)]
+    pub(crate) enum OwnedThreadError {
+        #[error("thread {name} could not be woken to stop; it was left running: {source}")]
+        Wake {
+            name: &'static str,
+            #[source]
+            source: std::io::Error,
+        },
+        #[error("thread {name} panicked before it stopped")]
+        Panicked { name: &'static str },
+    }
+
+    type Wake = Box<dyn Fn() -> std::io::Result<()> + Send>;
+
+    pub(crate) struct OwnedThread {
+        name: &'static str,
+        stop: StopSignal,
+        wake: Wake,
+        handle: Option<std::thread::JoinHandle<()>>,
+    }
+
+    impl OwnedThread {
+        pub(crate) fn spawn(
+            name: &'static str,
+            body: impl FnOnce(StopSignal) + Send + 'static,
+            wake: impl Fn() -> std::io::Result<()> + Send + 'static,
+        ) -> std::io::Result<Self> {
+            let stop = StopSignal(Arc::new(AtomicBool::new(false)));
+            let signal = stop.clone();
+            let handle = std::thread::Builder::new()
+                .name(name.to_owned())
+                .spawn(move || body(signal))?;
+            Ok(Self {
+                name,
+                stop,
+                wake: Box::new(wake),
+                handle: Some(handle),
+            })
+        }
+
+        pub(crate) fn stop(mut self) -> Result<(), OwnedThreadError> {
+            self.stop_and_join()
+        }
+
+        fn stop_and_join(&mut self) -> Result<(), OwnedThreadError> {
+            let Some(handle) = self.handle.take() else {
+                return Ok(());
+            };
+            self.stop.0.store(true, Ordering::Release);
+            if !handle.is_finished()
+                && let Err(source) = (self.wake)()
+            {
+                return Err(OwnedThreadError::Wake {
+                    name: self.name,
+                    source,
+                });
+            }
+            handle
+                .join()
+                .map_err(|_panic| OwnedThreadError::Panicked { name: self.name })
+        }
+    }
+
+    impl Drop for OwnedThread {
+        fn drop(&mut self) {
+            if let Err(e) = self.stop_and_join() {
+                tracing::error!(error = %e, "owned thread did not stop cleanly");
+            }
+        }
+    }
+
+    impl std::fmt::Debug for OwnedThread {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("OwnedThread")
+                .field("name", &self.name)
+                .field(
+                    "running",
+                    &self.handle.as_ref().is_some_and(|h| !h.is_finished()),
+                )
+                .finish_non_exhaustive()
+        }
     }
 }

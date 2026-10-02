@@ -215,6 +215,32 @@ fn stop(child: &mut std::process::Child) -> Stop {
     }
 }
 
+fn wait_bounded(
+    child: &mut std::process::Child,
+    tool: &str,
+) -> Result<std::process::ExitStatus, NodeRunError> {
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) if started.elapsed() >= DEADLINE => {
+                return Err(NodeRunError::Deadline {
+                    tool: tool.to_owned(),
+                    stop: stop(child),
+                });
+            },
+            Ok(None) => std::thread::sleep(Duration::from_millis(50)),
+            Err(source) => {
+                return Err(NodeRunError::Wait {
+                    tool: tool.to_owned(),
+                    source,
+                    stop: stop(child),
+                });
+            },
+        }
+    }
+}
+
 fn run_bounded(command: &mut Command, tool: &str) -> Result<(), NodeRunError> {
     let mut child = command.spawn().map_err(|source| NodeRunError::Spawn {
         tool: tool.to_owned(),
@@ -226,36 +252,20 @@ fn run_bounded(command: &mut Command, tool: &str) -> Result<(), NodeRunError> {
             stop: stop(&mut child),
         });
     };
-    let reader = std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        let read = stderr.take(STDERR_LIMIT).read_to_end(&mut bytes);
-        (read.err(), String::from_utf8_lossy(&bytes).into_owned())
+    let (status, stderr) = std::thread::scope(|scope| {
+        let reader = scope.spawn(move || {
+            let mut bytes = Vec::new();
+            let read = stderr.take(STDERR_LIMIT).read_to_end(&mut bytes);
+            (read.err(), String::from_utf8_lossy(&bytes).into_owned())
+        });
+        let status = wait_bounded(&mut child, tool);
+        let stderr = match reader.join() {
+            Ok((None, stderr)) => stderr,
+            Ok((Some(error), stderr)) => format!("{stderr}\n(stderr truncated: {error})"),
+            Err(_panicked) => String::from("(stderr could not be read)"),
+        };
+        (status, stderr)
     });
-    let started = Instant::now();
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break Ok(status),
-            Ok(None) if started.elapsed() >= DEADLINE => {
-                break Err(NodeRunError::Deadline {
-                    tool: tool.to_owned(),
-                    stop: stop(&mut child),
-                });
-            },
-            Ok(None) => std::thread::sleep(Duration::from_millis(50)),
-            Err(source) => {
-                break Err(NodeRunError::Wait {
-                    tool: tool.to_owned(),
-                    source,
-                    stop: stop(&mut child),
-                });
-            },
-        }
-    };
-    let stderr = match reader.join() {
-        Ok((None, stderr)) => stderr,
-        Ok((Some(error), stderr)) => format!("{stderr}\n(stderr truncated: {error})"),
-        Err(_panicked) => String::from("(stderr could not be read)"),
-    };
     let status = status?;
     if status.success() {
         return Ok(());

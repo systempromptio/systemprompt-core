@@ -6,7 +6,10 @@
 
 use winit::event_loop::ActiveEventLoop;
 
-pub(crate) fn on_quit(event_loop: &dyn ActiveEventLoop) {
+use crate::gui::GuiApp;
+
+pub(crate) fn on_quit(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop) {
     tracing::info!("gui quit requested; leaving the event loop");
+    app.stop_server();
     event_loop.exit();
 }

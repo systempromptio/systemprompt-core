@@ -190,6 +190,10 @@ fn a_gateway_that_rejects_the_pat_leaves_no_oauth_client_behind() {
 }
 
 
+// Linux only: on macOS the sync provisions the system org-plugins root behind
+// an administrator password dialog no test can answer (see the sync-e2e
+// crate). This crate runs in the Linux shard only.
+#[cfg(target_os = "linux")]
 #[test]
 fn sync_through_dispatch_applies_the_manifest_and_writes_the_sentinel() {
     let runtime = tokio::runtime::Builder::new_current_thread()
