@@ -294,11 +294,26 @@ mod live_child_stop_paths {
 
     use std::process::{Child, Command, Stdio};
 
+    // Why: macOS withholds the environment of hardened system binaries such as
+    // `/bin/sleep`, so a marked child must be an ordinary interpreter, and it is
+    // returned only once that interpreter (not its launcher) is the live image.
     fn spawn_marked_sleep(service_name: &ServiceName) -> Child {
-        let mut command = Command::new("sleep");
-        command.arg("30");
+        use std::io::{BufRead, BufReader};
+        let mut command = Command::new("python3");
+        command
+            .args([
+                "-c",
+                "import time\nprint('ready', flush=True)\ntime.sleep(30)",
+            ])
+            .stdout(Stdio::piped());
         subprocess::mark_child(&mut command, ChildKind::Agent, service_name);
-        command.spawn().expect("spawn marked sleep child")
+        let mut child = command.spawn().expect("spawn marked python child");
+        let stdout = child.stdout.take().expect("marked child stdout");
+        let mut line = String::new();
+        BufReader::new(stdout)
+            .read_line(&mut line)
+            .expect("marked child reports ready");
+        child
     }
 
     fn spawn_unmarked_sleep() -> Child {
