@@ -9,6 +9,7 @@ use crate::Extension;
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::error::LoaderError;
 use std::sync::Arc;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::Job;
 
 impl ExtensionRegistry {
@@ -47,12 +48,14 @@ impl ExtensionRegistry {
     // refused rather than partially applied.
     pub fn enabled_extensions(
         &self,
-        disabled_ids: &[String],
+        disabled_ids: &[ExtensionId],
     ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
         let is_disabled = |id: &str| disabled_ids.iter().any(|d| d == id);
         for ext in &self.sorted_extensions {
             if ext.is_required() && is_disabled(ext.id()) {
-                return Err(LoaderError::RequiredExtensionDisabled(ext.id().to_owned()));
+                return Err(LoaderError::RequiredExtensionDisabled(ExtensionId::new(
+                    ext.id(),
+                )));
             }
         }
         for ext in &self.sorted_extensions {
@@ -61,8 +64,8 @@ impl ExtensionRegistry {
             }
             if let Some(dep) = ext.dependencies().into_iter().find(|d| is_disabled(d)) {
                 return Err(LoaderError::DisabledDependency {
-                    extension: ext.id().to_owned(),
-                    dependency: dep.to_owned(),
+                    extension: ExtensionId::new(ext.id()),
+                    dependency: ExtensionId::new(dep),
                 });
             }
         }
@@ -76,7 +79,7 @@ impl ExtensionRegistry {
 
     pub fn enabled_schema_extensions(
         &self,
-        disabled_ids: &[String],
+        disabled_ids: &[ExtensionId],
     ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
         Ok(self
             .enabled_extensions(disabled_ids)?
@@ -87,7 +90,7 @@ impl ExtensionRegistry {
 
     pub fn enabled_job_extensions(
         &self,
-        disabled_ids: &[String],
+        disabled_ids: &[ExtensionId],
     ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
         Ok(self
             .enabled_extensions(disabled_ids)?

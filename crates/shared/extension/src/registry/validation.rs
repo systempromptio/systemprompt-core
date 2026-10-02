@@ -10,6 +10,7 @@
 
 use super::{ExtensionRegistry, topo_sort};
 use crate::error::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 
 pub const WEB_ROOT_BASE_PATH: &str = "/";
 
@@ -34,8 +35,8 @@ impl ExtensionRegistry {
             for dep_id in ext.dependencies() {
                 if !self.extensions.contains_key(dep_id) {
                     return Err(LoaderError::MissingDependency {
-                        extension: ext.id().to_owned(),
-                        dependency: dep_id.to_owned(),
+                        extension: ExtensionId::new(ext.id()),
+                        dependency: ExtensionId::new(dep_id),
                     });
                 }
             }
@@ -52,7 +53,7 @@ impl ExtensionRegistry {
 
                 if base_path != WEB_ROOT_BASE_PATH && !base_path.starts_with("/api/") {
                     return Err(LoaderError::InvalidBasePath {
-                        extension: ext.id().to_owned(),
+                        extension: ExtensionId::new(ext.id()),
                         path: base_path.to_owned(),
                     });
                 }
@@ -60,7 +61,7 @@ impl ExtensionRegistry {
                 for reserved in RESERVED_PATHS {
                     if base_path.starts_with(reserved) {
                         return Err(LoaderError::ReservedPathCollision {
-                            extension: ext.id().to_owned(),
+                            extension: ExtensionId::new(ext.id()),
                             path: base_path.to_owned(),
                         });
                     }

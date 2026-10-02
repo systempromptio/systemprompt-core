@@ -17,6 +17,7 @@ use crate::Extension;
 use crate::error::LoaderError;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use systemprompt_identifiers::ExtensionId;
 
 pub use validation::{RESERVED_PATHS, WEB_ROOT_BASE_PATH};
 
@@ -57,8 +58,8 @@ impl ExtensionRegistry {
             for dep in ext.dependencies() {
                 if !id_set.contains(dep) {
                     return Err(LoaderError::MissingDependency {
-                        extension: owner.clone(),
-                        dependency: dep.to_owned(),
+                        extension: ExtensionId::new(owner.as_str()),
+                        dependency: ExtensionId::new(dep),
                     });
                 }
             }
@@ -82,7 +83,7 @@ impl ExtensionRegistry {
     pub(crate) fn insert(&mut self, ext: Arc<dyn Extension>) -> Result<(), LoaderError> {
         let id = ext.id().to_owned();
         if self.extensions.contains_key(&id) {
-            return Err(LoaderError::DuplicateExtension(id));
+            return Err(LoaderError::DuplicateExtension(ExtensionId::new(id)));
         }
         self.extensions.insert(id, Arc::clone(&ext));
         self.sorted_extensions.push(ext);

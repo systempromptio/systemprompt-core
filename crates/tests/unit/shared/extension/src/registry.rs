@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 
 struct FakeExt {
     meta: ExtensionMetadata,
@@ -215,7 +216,7 @@ fn registry_enabled_extensions_filters_disabled() {
         .register(arc_ext("remove", "Remove"))
         .expect("register remove");
     let enabled = registry
-        .enabled_extensions(&["remove".to_string()])
+        .enabled_extensions(&[ExtensionId::new("remove")])
         .expect("disabling a leaf is allowed");
     assert_eq!(enabled.len(), 1);
     assert_eq!(enabled[0].id(), "keep");
@@ -227,7 +228,7 @@ fn registry_enabled_extensions_refuses_to_disable_required() {
     let required_ext = Arc::new(FakeExt::new("core", "Core").required());
     registry.register(required_ext).expect("register core");
     let err = registry
-        .enabled_extensions(&["core".to_string()])
+        .enabled_extensions(&[ExtensionId::new("core")])
         .err()
         .expect("a required extension cannot be disabled");
     assert!(matches!(err, LoaderError::RequiredExtensionDisabled(id) if id == "core"));
@@ -245,7 +246,7 @@ fn registry_enabled_extensions_refuses_to_disable_a_dependency_of_an_enabled_ext
         ))
         .expect("register agent");
     let err = registry
-        .enabled_extensions(&["mcp".to_string()])
+        .enabled_extensions(&[ExtensionId::new("mcp")])
         .err()
         .expect("agent depends on mcp");
     assert!(matches!(
@@ -255,7 +256,7 @@ fn registry_enabled_extensions_refuses_to_disable_a_dependency_of_an_enabled_ext
     ));
 
     let enabled = registry
-        .enabled_extensions(&["mcp".to_string(), "agent".to_string()])
+        .enabled_extensions(&[ExtensionId::new("mcp"), ExtensionId::new("agent")])
         .expect("disabling the dependant alongside its dependency is allowed");
     assert!(enabled.is_empty());
 }
