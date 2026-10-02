@@ -35,7 +35,7 @@ pub(super) async fn collect_stream_response(
                 if let Err(e) = webhooks.broadcast_agui(error_event).await {
                     tracing::debug!(error = %e, "Failed to broadcast error event");
                 }
-                return Err(AgentServiceError::Internal(error));
+                return Err(AgentServiceError::StreamFailed { message: error });
             },
             StreamEvent::Cancelled => return Err(AgentServiceError::TaskCancelled),
             StreamEvent::ToolCallStarted(_)

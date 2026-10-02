@@ -40,7 +40,11 @@ impl ToolExecutorTrait for AlwaysFailExecutor {
         _tools: &[McpTool],
         _ctx: &RequestContext,
     ) -> Result<ToolOutcome> {
-        Err(systemprompt_agent::services::shared::AgentServiceError::Internal("boom".to_string()))
+        Err(
+            systemprompt_agent::services::shared::AgentServiceError::StreamFailed {
+                message: "boom".to_string(),
+            },
+        )
     }
 }
 

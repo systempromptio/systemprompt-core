@@ -47,8 +47,42 @@ pub enum AgentServiceError {
     #[error("Tool execution failed: {0}")]
     ToolExecution(String),
 
-    #[error("internal error: {0}")]
-    Internal(String),
+    #[error("tool {tool_name} returned no result")]
+    ToolReturnedNoResult {
+        tool_name: systemprompt_identifiers::McpToolName,
+    },
+
+    #[error("tool {tool_name} failed: {message}")]
+    ToolFailed {
+        tool_name: systemprompt_identifiers::McpToolName,
+        message: String,
+    },
+
+    #[error("tool {tool_name} returned no structured_content")]
+    ToolReturnedNoStructuredContent {
+        tool_name: systemprompt_identifiers::McpToolName,
+    },
+
+    #[error("agent stream failed: {message}")]
+    StreamFailed { message: String },
+
+    #[error("no process info found for PID {pid}")]
+    ProcessInfoMissing { pid: u32 },
+
+    #[error("refusing to signal non-signalable PID {pid}")]
+    PidNotSignalable { pid: u32 },
+
+    #[error("taskkill failed for PID {pid} (force: {force})")]
+    TaskkillFailed { pid: u32, force: bool },
+
+    #[error("process {pid} is still running after SIGKILL")]
+    ProcessSurvivedKill { pid: u32 },
+
+    #[error("skill {skill_id} not found on disk: {} is missing", .path.display())]
+    SkillNotOnDisk {
+        skill_id: systemprompt_identifiers::SkillId,
+        path: std::path::PathBuf,
+    },
 
     #[error("stream consumer closed before the task finished")]
     StreamClosed,

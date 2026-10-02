@@ -359,7 +359,7 @@ async fn successful_then_failed_tool_persists_failed_batch_with_exact_diagnosis(
     assert_eq!(tool_step.status, StepStatus::Failed);
     assert_eq!(
         tool_step.error_message.as_deref(),
-        Some("internal error: Tool broken failed: upstream unavailable")
+        Some("tool broken failed: upstream unavailable")
     );
     assert!(
         matches!(

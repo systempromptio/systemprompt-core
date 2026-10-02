@@ -148,9 +148,7 @@ pub fn is_agent_process(pid: u32) -> Result<bool> {
                     || info.command.contains("agent-worker"));
             Ok(is_agent)
         },
-        Ok(None) => Err(AgentServiceError::Internal(format!(
-            "No process info found for PID {pid}"
-        ))),
+        Ok(None) => Err(AgentServiceError::ProcessInfoMissing { pid }),
         Err(e) => Err(AgentServiceError::operation(
             format!("Failed to get process info for PID {pid}"),
             e,

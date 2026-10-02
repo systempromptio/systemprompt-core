@@ -45,9 +45,7 @@ pub fn terminate_process(pid: u32) -> Result<()> {
     use nix::unistd::Pid;
 
     let Some(raw) = systemprompt_models::subprocess::signalable_pid(pid) else {
-        return Err(AgentServiceError::Internal(format!(
-            "Refusing to signal non-signalable PID {pid}"
-        )));
+        return Err(AgentServiceError::PidNotSignalable { pid });
     };
 
     signal::kill(Pid::from_raw(raw), Signal::SIGTERM).map_err(|e| {
@@ -67,9 +65,7 @@ pub fn terminate_process(pid: u32) -> Result<()> {
         })?;
 
     if !output.status.success() {
-        return Err(AgentServiceError::Internal(format!(
-            "taskkill failed for PID {pid}"
-        )));
+        return Err(AgentServiceError::TaskkillFailed { pid, force: false });
     }
     Ok(())
 }
@@ -80,9 +76,7 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
     use nix::unistd::Pid;
 
     let Some(raw) = systemprompt_models::subprocess::signalable_pid(pid) else {
-        return Err(AgentServiceError::Internal(format!(
-            "Refusing to signal non-signalable PID {pid}"
-        )));
+        return Err(AgentServiceError::PidNotSignalable { pid });
     };
 
     signal::kill(Pid::from_raw(raw), Signal::SIGKILL).map_err(|e| {
@@ -100,9 +94,7 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
         .map_err(|e| AgentServiceError::operation(format!("Failed to force-kill PID {pid}"), e))?;
 
     if !output.status.success() {
-        return Err(AgentServiceError::Internal(format!(
-            "taskkill /F failed for PID {pid}"
-        )));
+        return Err(AgentServiceError::TaskkillFailed { pid, force: true });
     }
     Ok(())
 }
@@ -154,9 +146,7 @@ pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
         tokio::time::sleep(check_interval).await;
     }
 
-    Err(AgentServiceError::Internal(format!(
-        "Failed to kill process {pid} even with SIGKILL"
-    )))
+    Err(AgentServiceError::ProcessSurvivedKill { pid })
 }
 
 // Why: The kernel can recycle a recorded PID for an unrelated process.

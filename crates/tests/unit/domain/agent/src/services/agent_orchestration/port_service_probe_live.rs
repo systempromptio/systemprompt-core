@@ -8,6 +8,7 @@
 use systemprompt_agent::services::agent_orchestration::port_service::{
     find_process_using_port, get_process_info, is_agent_process,
 };
+use systemprompt_agent::services::shared::AgentServiceError;
 use systemprompt_test_fixtures::bind_in_range;
 
 #[test]
@@ -81,7 +82,7 @@ fn a_pid_that_does_not_exist_is_reported_as_an_error_not_as_not_an_agent() {
         .expect_err("an absent process is an error, not a negative verdict");
 
     assert!(
-        err.to_string().contains("No process info found"),
+        matches!(err, AgentServiceError::ProcessInfoMissing { pid: u32::MAX }),
         "the caller must be able to tell 'gone' from 'not ours': {err}"
     );
 }
