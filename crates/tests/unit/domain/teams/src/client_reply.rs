@@ -10,7 +10,7 @@
 //! connect-time resolver plus redirect policy reject a hop into a blocked
 //! range that parse-time validation cannot see.
 
-use systemprompt_identifiers::TeamsConversationId;
+use systemprompt_identifiers::{TeamsAppId, TeamsConversationId};
 use systemprompt_teams::TeamsError;
 use systemprompt_teams::client::TeamsClient;
 use wiremock::matchers::{body_partial_json, method, path};
@@ -30,7 +30,7 @@ async fn mount_token(server: &MockServer) {
 fn client(server: &MockServer) -> TeamsClient {
     TeamsClient::with_endpoints(
         reqwest::Client::new(),
-        "app-1",
+        TeamsAppId::new("app-1"),
         "secret",
         format!("{}/token", server.uri()),
     )
@@ -75,7 +75,7 @@ async fn non_2xx_reply_is_an_outbound_error() {
         .await
         .expect_err("a 403 from the Bot Connector surfaces");
     assert!(
-        matches!(err, TeamsError::Outbound(_)),
+        matches!(err, TeamsError::Outbound { .. }),
         "expected Outbound, got {err:?}"
     );
 }
@@ -86,7 +86,7 @@ async fn production_constructor_wires_the_default_endpoints() {
     // Framework login authority. Driving a blocked `serviceUrl` exercises that
     // production path through `reply`'s SSRF guard, which fails closed before any
     // token acquisition — so no live Bot Connector call is made.
-    let client = TeamsClient::new(reqwest::Client::new(), "app-1", "secret");
+    let client = TeamsClient::new(reqwest::Client::new(), TeamsAppId::new("app-1"), "secret");
     let attachments = systemprompt_teams::cards::render_card("hello");
     let err = client
         .reply("http://169.254.169.254", &conversation(), attachments, 0)

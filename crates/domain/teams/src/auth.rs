@@ -21,6 +21,7 @@ use std::sync::RwLock;
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::Deserialize;
+use systemprompt_identifiers::TeamsAppId;
 use systemprompt_models::services::teams::BOT_FRAMEWORK_OPENID_CONFIG_URL;
 
 use crate::error::{TeamsError, TeamsResult};
@@ -63,17 +64,17 @@ struct KeyCache {
 #[derive(Debug)]
 pub struct ActivityTokenVerifier {
     http: reqwest::Client,
-    audience: String,
+    audience: TeamsAppId,
     openid_config_url: String,
     cache: RwLock<Option<KeyCache>>,
 }
 
 impl ActivityTokenVerifier {
     #[must_use]
-    pub fn new(http: reqwest::Client, app_id: impl Into<String>) -> Self {
+    pub fn new(http: reqwest::Client, app_id: TeamsAppId) -> Self {
         Self {
             http,
-            audience: app_id.into(),
+            audience: app_id,
             openid_config_url: BOT_FRAMEWORK_OPENID_CONFIG_URL.to_owned(),
             cache: RwLock::new(None),
         }
@@ -82,12 +83,12 @@ impl ActivityTokenVerifier {
     #[must_use]
     pub fn with_openid_url(
         http: reqwest::Client,
-        app_id: impl Into<String>,
+        app_id: TeamsAppId,
         openid_config_url: impl Into<String>,
     ) -> Self {
         Self {
             http,
-            audience: app_id.into(),
+            audience: app_id,
             openid_config_url: openid_config_url.into(),
             cache: RwLock::new(None),
         }
@@ -105,7 +106,7 @@ impl ActivityTokenVerifier {
         })?;
         let kid = header
             .kid
-            .ok_or_else(|| TeamsError::TokenValidation("token missing kid".to_owned()))?;
+            .ok_or(TeamsError::MissingKeyId)?;
 
         let jwk = self.key_for(&kid, now_unix).await?;
         let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|source| {
@@ -132,7 +133,9 @@ impl ActivityTokenVerifier {
             },
             Err(e) => tracing::warn!(error = %e, "Teams signing-key cache lock is poisoned"),
         }
-        jwk.ok_or_else(|| TeamsError::TokenValidation(format!("unknown signing key '{kid}'")))
+        jwk.ok_or_else(|| TeamsError::UnknownSigningKey {
+            kid: kid.to_owned(),
+        })
     }
 
     fn cached_key(&self, kid: &str, now_unix: i64) -> Option<Jwk> {
@@ -168,19 +171,19 @@ impl ActivityTokenVerifier {
 pub fn validate_token(
     token: &str,
     key: &DecodingKey,
-    audience: &str,
+    audience: &TeamsAppId,
     service_url: &str,
 ) -> TeamsResult<ActivityClaims> {
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_issuer(&[ISSUER]);
-    validation.set_audience(&[audience]);
+    validation.set_audience(&[audience.as_str()]);
     validation.validate_exp = true;
     validation.leeway = MAX_TIMESTAMP_SKEW_SECS;
 
     let data = decode::<ActivityClaims>(token, key, &validation).map_err(|e| match e.kind() {
         ErrorKind::ExpiredSignature => TeamsError::StaleToken,
-        ErrorKind::InvalidIssuer => TeamsError::IssuerMismatch(ISSUER.to_owned()),
-        ErrorKind::InvalidAudience => TeamsError::AudienceMismatch(audience.to_owned()),
+        ErrorKind::InvalidIssuer => TeamsError::IssuerMismatch(ISSUER),
+        ErrorKind::InvalidAudience => TeamsError::AudienceMismatch(audience.clone()),
         _ => TeamsError::InvalidToken {
             context: "token rejected",
             source: e,
@@ -189,11 +192,10 @@ pub fn validate_token(
 
     match data.claims.serviceurl.as_deref() {
         Some(claim) if claim == service_url => Ok(data.claims),
-        Some(claim) => Err(TeamsError::TokenValidation(format!(
-            "serviceurl claim '{claim}' does not match activity serviceUrl '{service_url}'"
-        ))),
-        None => Err(TeamsError::TokenValidation(
-            "token missing serviceurl claim".to_owned(),
-        )),
+        Some(claim) => Err(TeamsError::ServiceUrlMismatch {
+            claim: claim.to_owned(),
+            activity: service_url.to_owned(),
+        }),
+        None => Err(TeamsError::MissingServiceUrl),
     }
 }

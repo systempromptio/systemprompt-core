@@ -25,7 +25,7 @@
 
 use serde_json::{Value, json};
 use systemprompt_client::{GuardedClientConfig, guarded_client};
-use systemprompt_identifiers::TeamsConversationId;
+use systemprompt_identifiers::{TeamsAppId, TeamsConversationId};
 use systemprompt_models::net::validate_outbound_url;
 
 use crate::error::{TeamsError, TeamsResult};
@@ -47,7 +47,7 @@ impl TeamsClient {
     #[must_use]
     pub fn new(
         http: reqwest::Client,
-        app_id: impl Into<String>,
+        app_id: TeamsAppId,
         app_password: impl Into<String>,
     ) -> Self {
         let tokens = TokenProvider::new(http, app_id, app_password);
@@ -60,7 +60,7 @@ impl TeamsClient {
     #[must_use]
     pub fn with_endpoints(
         http: reqwest::Client,
-        app_id: impl Into<String>,
+        app_id: TeamsAppId,
         app_password: impl Into<String>,
         token_url: impl Into<String>,
     ) -> Self {
@@ -101,7 +101,10 @@ impl TeamsClient {
             .text()
             .await
             .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
-        Err(TeamsError::Outbound(format!("{status}: {detail}")))
+        Err(TeamsError::Outbound {
+            status,
+            body: detail,
+        })
     }
 }
 
