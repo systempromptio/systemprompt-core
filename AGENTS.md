@@ -88,7 +88,7 @@ cd systemprompt-template
 just build && just setup-local <api-key> && just start
 ```
 
-Then walk through `/demo/` scripts to see the governance pipeline in action. For the crate API surface, read `src/` and the published docs at [docs.rs/systemprompt](https://docs.rs/systemprompt).
+Then walk through `/demo/` scripts to see the governance pipeline in action. For the crate API surface, read the facade in `systemprompt/src/`, the member crates under `crates/`, and the published docs at [docs.rs/systemprompt](https://docs.rs/systemprompt).
 
 ## Documentation standard
 
