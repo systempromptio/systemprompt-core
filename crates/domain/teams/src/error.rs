@@ -35,6 +35,9 @@ domain_error! {
         #[error("malformed Teams activity: {0}")]
         MalformedActivity(String),
 
+        #[error("malformed Teams activity: invalid sender id")]
+        InvalidSenderId(#[source] systemprompt_identifiers::error::IdValidationError),
+
         #[error("no agent routed for {0}")]
         NoAgentRouted(String),
 

@@ -100,8 +100,7 @@ impl Activity {
 
         let teams_user_id = match self.from.aad_object_id {
             Some(id) => id,
-            None => TeamsUserId::try_new(self.from.id)
-                .map_err(|e| TeamsError::MalformedActivity(format!("missing sender id: {e}")))?,
+            None => TeamsUserId::try_new(self.from.id).map_err(TeamsError::InvalidSenderId)?,
         };
         let text = self.text.unwrap_or_default();
         let routing_key = command_token(&text).map_or_else(
