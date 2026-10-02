@@ -2,6 +2,20 @@ use systemprompt_agent::services::agent_orchestration::port_service::{
     PortService, find_process_using_port, get_process_info, is_agent_process,
 };
 
+#[test]
+fn find_process_using_port_zero_is_no_port() {
+    assert_eq!(find_process_using_port(0).expect("lookup ok"), None);
+}
+
+#[tokio::test]
+async fn kill_process_on_port_zero_signals_nothing() {
+    let killed = PortService::new()
+        .kill_process_on_port(0)
+        .await
+        .expect("port 0 has no holder");
+    assert!(!killed);
+}
+
 #[tokio::test]
 async fn port_service_kill_unused_port_returns_false() {
     let svc = PortService::new();

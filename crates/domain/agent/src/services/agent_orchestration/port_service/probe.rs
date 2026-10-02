@@ -1,5 +1,9 @@
 //! Cross-platform process / port probing helpers.
 //!
+//! Only a socket in the listening state selects a PID, and port 0 ("no
+//! port") is never looked up: asking the OS for it matches every unbound
+//! socket on the host.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -13,15 +17,22 @@ pub struct ProcessInfo {
     pub command: String,
 }
 
-#[cfg(unix)]
 pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
+    if port == 0 {
+        return Ok(None);
+    }
+    listener_pid(port)
+}
+
+#[cfg(unix)]
+fn listener_pid(port: u16) -> Result<Option<u32>> {
+    let port_filter = format!("-iTCP:{port}");
     let output = Command::new("lsof")
-        .arg("-ti")
-        .arg(format!(":{port}"))
+        .args(["-nP", &port_filter, "-sTCP:LISTEN", "-t"])
         .output()
         .map_err(|e| {
             AgentServiceError::operation(
-                format!("failed to run `lsof -ti :{port}` for port {port}"),
+                format!("failed to run `lsof -nP -iTCP:{port} -sTCP:LISTEN -t` for port {port}"),
                 e,
             )
         })?;
@@ -31,21 +42,23 @@ pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let pid_str = stdout.trim();
-
-    if pid_str.is_empty() {
-        return Ok(None);
+    for line in stdout
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        let pid = line
+            .parse::<u32>()
+            .map_err(|e| AgentServiceError::operation("Failed to parse PID from lsof output", e))?;
+        if pid != 0 {
+            return Ok(Some(pid));
+        }
     }
-
-    let pid = pid_str
-        .parse::<u32>()
-        .map_err(|e| AgentServiceError::operation("Failed to parse PID from lsof output", e))?;
-
-    Ok(Some(pid))
+    Ok(None)
 }
 
 #[cfg(windows)]
-pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
+fn listener_pid(port: u16) -> Result<Option<u32>> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
         .output()
@@ -57,20 +70,18 @@ pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
         })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let port_pattern = format!(":{port} ");
-    let port_pattern_tab = format!(":{port}\t");
-
-    for line in stdout.lines() {
-        if line.contains(&port_pattern) || line.contains(&port_pattern_tab) {
-            if let Some(pid_str) = line.split_whitespace().last() {
-                if let Ok(pid) = pid_str.parse::<u32>() {
-                    return Ok(Some(pid));
-                }
-            }
+    Ok(stdout.lines().find_map(|line| {
+        let columns: Vec<&str> = line.split_whitespace().collect();
+        let [proto, local, _foreign, state, pid] = columns.as_slice() else {
+            return None;
+        };
+        let local_port = local.rsplit_once(':')?.1.parse::<u16>().ok()?;
+        let listening = proto.eq_ignore_ascii_case("TCP") && *state == "LISTENING";
+        if !listening || local_port != port {
+            return None;
         }
-    }
-
-    Ok(None)
+        pid.parse::<u32>().ok().filter(|pid| *pid != 0)
+    }))
 }
 
 #[cfg(unix)]

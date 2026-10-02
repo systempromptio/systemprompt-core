@@ -272,7 +272,7 @@ async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener
         diagnosis.contains(&format!("Failed to check port {port}")),
         "{diagnosis}"
     );
-    assert!(diagnosis.contains("failed to run `lsof -ti"), "{diagnosis}");
+    assert!(diagnosis.contains("failed to run `lsof -nP"), "{diagnosis}");
     assert!(
         listener_is_alive(&listener),
         "a missing probe must not disturb the listener"
