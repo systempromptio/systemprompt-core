@@ -11,7 +11,7 @@
 //! All three implement `std::error::Error` and compose with upstream
 //! errors (`std::io::Error`, `serde_yaml::Error`,
 //! `systemprompt_config::ProfileBootstrapError`,
-//! `systemprompt_models::errors::ConfigValidationError`,
+//! `systemprompt_models::errors::ServicesValidationError`,
 //! `systemprompt_models::profile::ProfileError`) via `#[from]`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -93,7 +93,7 @@ pub enum ConfigLoadError {
     AlreadyInitialized,
 
     #[error("services config validation failed: {0}")]
-    Validation(#[from] systemprompt_models::errors::ConfigValidationError),
+    Validation(#[from] systemprompt_models::errors::ServicesValidationError),
 
     #[error(
         "include {path} sets `settings:` — settings are only valid in the root config file. Move \

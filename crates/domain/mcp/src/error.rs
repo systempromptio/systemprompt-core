@@ -137,7 +137,7 @@ domain_error! {
         Path(#[from] systemprompt_config::paths::PathError),
 
         #[error("Config validation: {0}")]
-        ConfigValidation(#[from] systemprompt_models::errors::ConfigValidationError),
+        ConfigValidation(#[from] systemprompt_models::errors::ServicesValidationError),
     }
 }
 

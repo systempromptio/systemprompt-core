@@ -9,7 +9,7 @@ use systemprompt_identifiers::AgentId;
 
 use super::card::{AgentCardConfig, AgentMetadataConfig, OAuthConfig, default_true};
 use super::{AgentConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE};
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 use crate::services::plugin::PluginComponentRef;
 
 fn default_version() -> String {
@@ -105,11 +105,11 @@ impl DiskAgentConfig {
         }
     }
 
-    pub fn validate(&self, dir_name: &str) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self, dir_name: &str) -> Result<(), ServicesValidationError> {
         if let Some(id) = &self.id
             && id.as_str() != dir_name
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Agent config id '{id}' does not match directory name '{dir_name}'"
             )));
         }
@@ -119,28 +119,28 @@ impl DiskAgentConfig {
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Agent name '{}' must be lowercase alphanumeric with underscores only",
                 self.name
             )));
         }
 
         if self.name.len() < 3 || self.name.len() > 50 {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Agent name '{}' must be between 3 and 50 characters",
                 self.name
             )));
         }
 
         if self.port == 0 {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Agent '{}' has invalid port {}",
                 self.name, self.port
             )));
         }
 
         if self.display_name.is_empty() {
-            return Err(ConfigValidationError::required(format!(
+            return Err(ServicesValidationError::required(format!(
                 "Agent '{}' display_name must not be empty",
                 self.name
             )));

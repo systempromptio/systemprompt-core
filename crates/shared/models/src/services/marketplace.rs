@@ -12,7 +12,7 @@ pub use super::marketplace_claude_code::ClaudeCodeMarketplaceConfig;
 pub use super::marketplace_external::{ExternalMarketplace, ExternalMarketplaceSource};
 use super::marketplace_external_plugin::{ExternalPluginEntry, validate_external_plugins};
 use super::plugin::{PluginAuthor, PluginComponentRef};
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 
 const fn default_true() -> bool {
     true
@@ -126,9 +126,9 @@ impl MarketplaceAccess {
         out
     }
 
-    fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
+    fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         if self.roles.iter().any(|role| role.trim().is_empty()) {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Marketplace '{key}': access.roles must not contain blank entries"
             )));
         }
@@ -136,24 +136,24 @@ impl MarketplaceAccess {
         for rule in &self.rules {
             let slug = rule.rule_type.as_str();
             if slug == "role" || slug == "user" {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Marketplace '{key}': access.rules may not use rule_type '{slug}' — declare \
                      roles under access.roles"
                 )));
             }
             if !is_extension_slug(slug) {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Marketplace '{key}': access.rules rule_type '{slug}' must be lowercase \
                      alphanumeric with underscores, and may not start or end with '_'"
                 )));
             }
             if rule.values.is_empty() {
-                return Err(ConfigValidationError::required(format!(
+                return Err(ServicesValidationError::required(format!(
                     "Marketplace '{key}': access.rules entry '{slug}' must name at least one value"
                 )));
             }
             if rule.values.iter().any(|value| value.trim().is_empty()) {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Marketplace '{key}': access.rules entry '{slug}' must not contain blank values"
                 )));
             }
@@ -224,10 +224,10 @@ impl MarketplaceConfig {
         }
     }
 
-    pub fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         let id_str = self.id.as_str();
         if id_str.len() < 3 || id_str.len() > 50 {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Marketplace '{key}': id must be between 3 and 50 characters"
             )));
         }
@@ -236,14 +236,14 @@ impl MarketplaceConfig {
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Marketplace '{key}': id must be lowercase alphanumeric with hyphens only \
                  (kebab-case)"
             )));
         }
 
         if self.version.is_empty() {
-            return Err(ConfigValidationError::required(format!(
+            return Err(ServicesValidationError::required(format!(
                 "Marketplace '{key}': version must not be empty"
             )));
         }
@@ -258,32 +258,32 @@ impl MarketplaceConfig {
         Ok(())
     }
 
-    fn validate_external_marketplaces(&self, key: &str) -> Result<(), ConfigValidationError> {
+    fn validate_external_marketplaces(&self, key: &str) -> Result<(), ServicesValidationError> {
         let mut names = BTreeSet::new();
         for external in &self.external_marketplaces {
             external.validate(key)?;
             let name = external.name.trim();
             if name == self.id.as_str() {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Marketplace '{key}': external_marketplaces may not reuse this \
                      marketplace's own id"
                 )));
             }
             if !names.insert(name) {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Marketplace '{key}': external marketplace '{name}' is declared twice"
                 )));
             }
         }
         for allowed in &self.allow_cross_marketplace_dependencies_on {
             if allowed.trim().is_empty() {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Marketplace '{key}': allow_cross_marketplace_dependencies_on must not \
                      contain blank entries"
                 )));
             }
             if allowed == self.id.as_str() {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Marketplace '{key}': allow_cross_marketplace_dependencies_on names this \
                      marketplace itself"
                 )));

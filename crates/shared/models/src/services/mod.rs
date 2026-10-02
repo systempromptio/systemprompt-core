@@ -97,7 +97,7 @@ pub use system_admin::{SystemAdmin, SystemAdminConfig};
 pub use systemprompt_provider_contracts::{BrandingConfig, WebConfig};
 pub use teams::{TeamsAppConfig, TeamsAuthzConfig, TeamsEndpoints};
 
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 use crate::mcp::{Deployment, McpServerType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -141,14 +141,14 @@ pub struct ServicesConfig {
 }
 
 impl ServicesConfig {
-    pub fn apply_port_offset(&mut self, offset: u16) -> Result<(), ConfigValidationError> {
+    pub fn apply_port_offset(&mut self, offset: u16) -> Result<(), ServicesValidationError> {
         if offset == 0 {
             return Ok(());
         }
 
         let shift = |port: u16, what: &str| {
             port.checked_add(offset).ok_or_else(|| {
-                ConfigValidationError::invalid_field(format!(
+                ServicesValidationError::invalid_field(format!(
                     "{what} port {port} shifted by services.port_offset {offset} exceeds 65535"
                 ))
             })
@@ -179,7 +179,7 @@ impl ServicesConfig {
         Ok(())
     }
 
-    pub fn validate(&self) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self) -> Result<(), ServicesValidationError> {
         self.validate_ports()?;
         self.validate_single_default_agent()?;
 
@@ -220,16 +220,16 @@ impl ServicesConfig {
         self.validate_providers_and_gateway()
     }
 
-    fn validate_providers_and_gateway(&self) -> Result<(), ConfigValidationError> {
+    fn validate_providers_and_gateway(&self) -> Result<(), ServicesValidationError> {
         self.providers
             .validate()
-            .map_err(|e| ConfigValidationError::invalid_field_cause("providers", e))?;
+            .map_err(|e| ServicesValidationError::invalid_field_cause("providers", e))?;
         match &self.gateway {
             Some(GatewayState::Resolved(config)) => config.validate(&self.providers),
             Some(GatewayState::Spec(spec)) => spec.clone().resolve().validate(&self.providers),
             None => Ok(()),
         }
-        .map_err(|e| ConfigValidationError::invalid_field_cause("gateway", e))
+        .map_err(|e| ServicesValidationError::invalid_field_cause("gateway", e))
     }
 
     #[must_use]

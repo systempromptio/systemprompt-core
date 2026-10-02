@@ -138,7 +138,7 @@ fn test_path_is_permanent() {
 #[test]
 fn test_config_validation_is_permanent() {
     let err = McpDomainError::from(
-        systemprompt_models::errors::ConfigValidationError::Required("v".to_string()),
+        systemprompt_models::errors::ServicesValidationError::Required("v".to_string()),
     );
     assert!(is_permanent(&err.classify()));
 }

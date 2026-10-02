@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::marketplace::MarketplaceConfig;
 use super::marketplace_external_error::{ExternalEntryError, MAX_GIT_REF_CHARS};
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 
 /// Where Claude Code fetches a marketplace this instance does not serve.
 ///
@@ -92,15 +92,15 @@ pub struct ExternalMarketplace {
 }
 
 impl ExternalMarketplace {
-    pub(super) fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
+    pub(super) fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         let name = self.name.trim();
         if name.is_empty() {
-            return Err(ConfigValidationError::required(format!(
+            return Err(ServicesValidationError::required(format!(
                 "Marketplace '{key}': external_marketplaces entries must be named"
             )));
         }
         if !is_external_name(name) {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Marketplace '{key}': external marketplace name '{name}' may only contain \
                  letters, digits, '-', '_' and '.'"
             )));
@@ -108,7 +108,7 @@ impl ExternalMarketplace {
         match &self.source {
             ExternalMarketplaceSource::Github { repo, .. } => {
                 if !is_github_repo(repo) {
-                    return Err(ConfigValidationError::invalid_field(format!(
+                    return Err(ServicesValidationError::invalid_field(format!(
                         "Marketplace '{key}': external marketplace '{name}' github repo '{repo}' \
                          must be 'owner/repository'"
                     )));
@@ -116,7 +116,7 @@ impl ExternalMarketplace {
             },
             ExternalMarketplaceSource::Git { url, .. } => {
                 let parsed = crate::net::validate_outbound_url(url).map_err(|e| {
-                    ConfigValidationError::invalid_field_cause(
+                    ServicesValidationError::invalid_field_cause(
                         format!(
                             "Marketplace '{key}': external marketplace '{name}' git url '{url}' \
                              is not a usable public URL"
@@ -125,7 +125,7 @@ impl ExternalMarketplace {
                     )
                 })?;
                 if parsed.scheme() != "https" {
-                    return Err(ConfigValidationError::invalid_field(format!(
+                    return Err(ServicesValidationError::invalid_field(format!(
                         "Marketplace '{key}': external marketplace '{name}' git url must use https"
                     )));
                 }
@@ -133,7 +133,7 @@ impl ExternalMarketplace {
         }
         if let Some(reference) = self.source.reference() {
             validate_git_ref(reference).map_err(|e| {
-                ConfigValidationError::invalid_field_cause(
+                ServicesValidationError::invalid_field_cause(
                     format!("Marketplace '{key}': external marketplace '{name}'"),
                     e,
                 )

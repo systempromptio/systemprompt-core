@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 
 /// Claude Code settings the bridge writes into the client for a marketplace.
 ///
@@ -20,9 +20,9 @@ pub struct ClaudeCodeMarketplaceConfig {
 }
 
 impl ClaudeCodeMarketplaceConfig {
-    pub(super) fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
+    pub(super) fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         if self.skill_listing_budget_chars == Some(0) {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Marketplace '{key}': claude_code.skill_listing_budget_chars must be greater \
                  than zero"
             )));

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use super::marketplace_external::{is_external_name, is_github_repo, validate_git_ref};
 use super::marketplace_external_error::ExternalEntryError;
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 
 /// Where Claude Code fetches a pass-through plugin.
 ///
@@ -158,24 +158,24 @@ pub(super) fn validate_external_plugins(
     entries: &[ExternalPluginEntry],
     vendored: &[String],
     key: &str,
-) -> Result<(), ConfigValidationError> {
+) -> Result<(), ServicesValidationError> {
     let mut names = BTreeSet::new();
     for entry in entries {
         let name = entry.name.as_str();
         entry.validate().map_err(|e| {
-            ConfigValidationError::invalid_field_cause(
+            ServicesValidationError::invalid_field_cause(
                 format!("Marketplace '{key}': external plugin '{name}'"),
                 e,
             )
         })?;
         if vendored.iter().any(|plugin| plugin == name) {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Marketplace '{key}': external plugin '{name}' has the name of a plugin this \
                  marketplace vendors"
             )));
         }
         if !names.insert(name) {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Marketplace '{key}': external plugin '{name}' is declared twice"
             )));
         }

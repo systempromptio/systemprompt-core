@@ -1,5 +1,5 @@
 use systemprompt_models::errors::{
-    ConfigValidationError, GlobalConfigError, MetadataError, ParseEnumError, SecretsError,
+    GlobalConfigError, MetadataError, ParseEnumError, SecretsError, ServicesValidationError,
 };
 
 #[test]
@@ -42,43 +42,43 @@ fn config_error_invalid_postgres_url_display() {
 
 #[test]
 fn config_validation_error_required() {
-    let e = ConfigValidationError::required("name is required");
+    let e = ServicesValidationError::required("name is required");
     assert_eq!(e.to_string(), "name is required");
 }
 
 #[test]
 fn config_validation_error_invalid_field() {
-    let e = ConfigValidationError::invalid_field("bad port");
+    let e = ServicesValidationError::invalid_field("bad port");
     assert_eq!(e.to_string(), "bad port");
 }
 
 #[test]
 fn config_validation_error_port_conflict() {
-    let e = ConfigValidationError::port_conflict("port 8080 in use");
+    let e = ServicesValidationError::port_conflict("port 8080 in use");
     assert_eq!(e.to_string(), "port 8080 in use");
 }
 
 #[test]
 fn config_validation_error_unknown_reference() {
-    let e = ConfigValidationError::unknown_reference("ref agent_x not found");
+    let e = ServicesValidationError::unknown_reference("ref agent_x not found");
     assert_eq!(e.to_string(), "ref agent_x not found");
 }
 
 #[test]
 fn config_validation_error_circular_dependency() {
-    let e = ConfigValidationError::circular_dependency("a → b → a");
+    let e = ServicesValidationError::circular_dependency("a → b → a");
     assert_eq!(e.to_string(), "a → b → a");
 }
 
 #[test]
 fn config_validation_error_business_rule() {
-    let e = ConfigValidationError::business_rule("max 5 agents");
+    let e = ServicesValidationError::business_rule("max 5 agents");
     assert_eq!(e.to_string(), "max 5 agents");
 }
 
 #[test]
 fn config_validation_error_missing_system_admin_display() {
-    let e = ConfigValidationError::MissingSystemAdmin;
+    let e = ServicesValidationError::MissingSystemAdmin;
     let s = e.to_string();
     assert!(s.contains("system_admin.username"));
 }

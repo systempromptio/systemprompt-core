@@ -11,22 +11,22 @@ mod bindings;
 
 use std::collections::HashMap;
 
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 use crate::mcp::McpServerType;
 
 use super::ServicesConfig;
 
 impl ServicesConfig {
-    pub(crate) fn validate_ports(&self) -> Result<(), ConfigValidationError> {
+    pub(crate) fn validate_ports(&self) -> Result<(), ServicesValidationError> {
         self.validate_port_conflicts()?;
         self.validate_port_ranges()?;
         self.validate_mcp_port_ranges()
     }
 
-    pub(crate) fn validate_skills(&self) -> Result<(), ConfigValidationError> {
+    pub(crate) fn validate_skills(&self) -> Result<(), ServicesValidationError> {
         for (key, skill) in &self.skills.skills {
             if !skill.id.as_str().is_empty() && skill.id.as_str() != key.as_str() {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Skill map key '{}' does not match skill id '{}'",
                     key, skill.id
                 )));
@@ -34,7 +34,7 @@ impl ServicesConfig {
 
             let id = key.as_str();
             if id.len() < 3 || id.len() > 64 {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Skill '{key}': id must be between 3 and 64 characters"
                 )));
             }
@@ -42,7 +42,7 @@ impl ServicesConfig {
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
             {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Skill '{key}': id must be lowercase alphanumeric with underscores only \
                      (snake_case)"
                 )));
@@ -51,13 +51,13 @@ impl ServicesConfig {
             for mcp_ref in &skill.mcp_servers.include {
                 match self.mcp_servers.get(mcp_ref) {
                     None => {
-                        return Err(ConfigValidationError::unknown_reference(format!(
+                        return Err(ServicesValidationError::unknown_reference(format!(
                             "Skill '{key}': mcp_servers.include references unknown mcp_server \
                              '{mcp_ref}'"
                         )));
                     },
                     Some(deployment) if skill.enabled && !deployment.enabled => {
-                        return Err(ConfigValidationError::business_rule(format!(
+                        return Err(ServicesValidationError::business_rule(format!(
                             "Skill '{key}' is enabled but depends on disabled mcp_server \
                              '{mcp_ref}' — enable the server or disable the skill"
                         )));
@@ -80,12 +80,12 @@ impl ServicesConfig {
         Ok(())
     }
 
-    fn validate_port_conflicts(&self) -> Result<(), ConfigValidationError> {
+    fn validate_port_conflicts(&self) -> Result<(), ServicesValidationError> {
         let mut seen_ports = HashMap::new();
 
         for (name, agent) in &self.agents {
             if let Some(existing) = seen_ports.insert(agent.port, ("agent", name.as_str())) {
-                return Err(ConfigValidationError::port_conflict(format!(
+                return Err(ServicesValidationError::port_conflict(format!(
                     "Port conflict: {} used by both {} '{}' and agent '{}'",
                     agent.port, existing.0, existing.1, name
                 )));
@@ -100,7 +100,7 @@ impl ServicesConfig {
                 continue;
             };
             if let Some(existing) = seen_ports.insert(port, ("mcp_server", name.as_str())) {
-                return Err(ConfigValidationError::port_conflict(format!(
+                return Err(ServicesValidationError::port_conflict(format!(
                     "Port conflict: {} used by both {} '{}' and mcp_server '{}'",
                     port, existing.0, existing.1, name
                 )));
@@ -110,12 +110,12 @@ impl ServicesConfig {
         Ok(())
     }
 
-    fn validate_port_ranges(&self) -> Result<(), ConfigValidationError> {
+    fn validate_port_ranges(&self) -> Result<(), ServicesValidationError> {
         let (min, max) = self.settings.agent_port_range;
 
         for (name, agent) in &self.agents {
             if agent.port < min || agent.port > max {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Agent '{}' port {} is outside allowed range {}-{}",
                     name, agent.port, min, max
                 )));
@@ -125,7 +125,7 @@ impl ServicesConfig {
         Ok(())
     }
 
-    fn validate_mcp_port_ranges(&self) -> Result<(), ConfigValidationError> {
+    fn validate_mcp_port_ranges(&self) -> Result<(), ServicesValidationError> {
         let (min, max) = self.settings.mcp_port_range;
 
         for (name, mcp) in &self.mcp_servers {
@@ -136,7 +136,7 @@ impl ServicesConfig {
                 continue;
             };
             if port < min || port > max {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "MCP server '{}' port {} is outside allowed range {}-{}",
                     name, port, min, max
                 )));

@@ -18,7 +18,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, SecretName, SlackWorkspaceId};
 
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -56,9 +56,9 @@ impl SlackAppConfig {
         self.routing.get(key).or(self.default_agent.as_ref())
     }
 
-    pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self, name: &str) -> Result<(), ServicesValidationError> {
         if self.default_agent.is_none() && self.routing.is_empty() {
-            return Err(ConfigValidationError::required(format!(
+            return Err(ServicesValidationError::required(format!(
                 "slack app '{name}' must set default_agent or at least one routing entry"
             )));
         }

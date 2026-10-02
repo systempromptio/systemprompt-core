@@ -18,7 +18,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, SecretName, TeamsTenantId};
 
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 
 pub const BOT_FRAMEWORK_OPENID_CONFIG_URL: &str =
     "https://login.botframework.com/v1/.well-known/openidconfiguration";
@@ -78,14 +78,14 @@ impl TeamsAppConfig {
         self.routing.get(key).or(self.default_agent.as_ref())
     }
 
-    pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self, name: &str) -> Result<(), ServicesValidationError> {
         if self.app_id.is_empty() {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "teams app '{name}' has an empty app_id"
             )));
         }
         if self.default_agent.is_none() && self.routing.is_empty() {
-            return Err(ConfigValidationError::required(format!(
+            return Err(ServicesValidationError::required(format!(
                 "teams app '{name}' must set default_agent or at least one routing entry"
             )));
         }

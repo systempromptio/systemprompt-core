@@ -15,7 +15,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::PluginId;
 
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 
 const fn default_true() -> bool {
     true
@@ -121,9 +121,9 @@ pub struct PluginDependency {
 }
 
 impl PluginDependency {
-    fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
+    fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         if self.name.trim().is_empty() {
-            return Err(ConfigValidationError::required(format!(
+            return Err(ServicesValidationError::required(format!(
                 "Plugin '{key}': dependencies entries must name a plugin"
             )));
         }
@@ -132,7 +132,7 @@ impl PluginDependency {
             .as_deref()
             .is_some_and(|m| m.trim().is_empty())
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Plugin '{key}': dependency '{}' sets an empty marketplace",
                 self.name
             )));
@@ -140,7 +140,7 @@ impl PluginDependency {
         if let Some(range) = &self.version
             && semver::VersionReq::parse(range).is_err()
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Plugin '{key}': dependency '{}' version '{range}' is not a semver range",
                 self.name
             )));
@@ -239,10 +239,10 @@ impl From<&PluginConfig> for PluginSummary {
 }
 
 impl PluginConfig {
-    pub fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         let id_str = self.id.as_str();
         if id_str.len() < 3 || id_str.len() > 50 {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Plugin '{key}': id must be between 3 and 50 characters"
             )));
         }
@@ -251,13 +251,13 @@ impl PluginConfig {
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Plugin '{key}': id must be lowercase alphanumeric with hyphens only (kebab-case)"
             )));
         }
 
         if self.version.is_empty() {
-            return Err(ConfigValidationError::required(format!(
+            return Err(ServicesValidationError::required(format!(
                 "Plugin '{key}': version must not be empty"
             )));
         }
@@ -273,7 +273,7 @@ impl PluginConfig {
         let mut seen = std::collections::BTreeSet::new();
         for dependency in &self.dependencies {
             if !seen.insert((dependency.name.as_str(), dependency.marketplace.as_deref())) {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "Plugin '{key}': dependency '{}' is listed twice",
                     dependency.name
                 )));
@@ -287,9 +287,9 @@ impl PluginConfig {
         component: &PluginComponentRef,
         key: &str,
         field: &str,
-    ) -> Result<(), ConfigValidationError> {
+    ) -> Result<(), ServicesValidationError> {
         if component.source == ComponentSource::Instance && !component.include.is_empty() {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Plugin '{key}': {field}.source is 'instance' but {field}.include is set (ignored)"
             )));
         }

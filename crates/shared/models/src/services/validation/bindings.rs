@@ -3,11 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 use crate::services::{ComponentSource, MarketplaceConfig, PluginConfig, ServicesConfig};
 
 impl ServicesConfig {
-    pub(crate) fn validate_marketplace_selector(&self) -> Result<(), ConfigValidationError> {
+    pub(crate) fn validate_marketplace_selector(&self) -> Result<(), ServicesValidationError> {
         if let Some(id) = &self.settings.default_marketplace_id {
             let Some(marketplace) = self
                 .marketplaces
@@ -15,14 +15,14 @@ impl ServicesConfig {
                 .find(|(k, _)| k.as_str() == id.as_str())
                 .map(|(_, m)| m)
             else {
-                return Err(ConfigValidationError::unknown_reference(format!(
+                return Err(ServicesValidationError::unknown_reference(format!(
                     "settings.default_marketplace_id '{}' does not match any configured \
                      marketplace",
                     id.as_str()
                 )));
             };
             if !marketplace.enabled {
-                return Err(ConfigValidationError::business_rule(format!(
+                return Err(ServicesValidationError::business_rule(format!(
                     "settings.default_marketplace_id '{}' selects a disabled marketplace",
                     id.as_str()
                 )));
@@ -36,10 +36,10 @@ impl ServicesConfig {
         &self,
         name: &str,
         marketplace: &MarketplaceConfig,
-    ) -> Result<(), ConfigValidationError> {
+    ) -> Result<(), ServicesValidationError> {
         for plugin_ref in &marketplace.plugins.include {
             if !self.plugins.contains_key(plugin_ref) {
-                return Err(ConfigValidationError::unknown_reference(format!(
+                return Err(ServicesValidationError::unknown_reference(format!(
                     "Marketplace '{name}': plugins.include references unknown plugin \
                      '{plugin_ref}'"
                 )));
@@ -58,13 +58,13 @@ impl ServicesConfig {
 
         for mcp_ref in &marketplace.mcp_servers.include {
             if marketplace.enabled && self.mcp_servers.get(mcp_ref).is_some_and(|d| !d.enabled) {
-                return Err(ConfigValidationError::business_rule(format!(
+                return Err(ServicesValidationError::business_rule(format!(
                     "Marketplace '{name}': mcp_servers.include names disabled mcp_server \
                      '{mcp_ref}' — enable the server or drop it from the marketplace"
                 )));
             }
             if !self.mcp_servers.contains_key(mcp_ref) {
-                return Err(ConfigValidationError::unknown_reference(format!(
+                return Err(ServicesValidationError::unknown_reference(format!(
                     "Marketplace '{name}': mcp_servers.include references unknown mcp_server \
                      '{mcp_ref}'"
                 )));
@@ -73,7 +73,7 @@ impl ServicesConfig {
 
         for agent_ref in &marketplace.agents.include {
             if !self.agents.contains_key(agent_ref) {
-                return Err(ConfigValidationError::unknown_reference(format!(
+                return Err(ServicesValidationError::unknown_reference(format!(
                     "Marketplace '{name}': agents.include references unknown agent '{agent_ref}'"
                 )));
             }
@@ -90,7 +90,7 @@ impl ServicesConfig {
         &self,
         name: &str,
         marketplace: &MarketplaceConfig,
-    ) -> Result<(), ConfigValidationError> {
+    ) -> Result<(), ServicesValidationError> {
         let members = self.marketplace_plugin_configs(marketplace);
         for plugin in &members {
             for dependency in &plugin.dependencies {
@@ -101,7 +101,7 @@ impl ServicesConfig {
                             .iter()
                             .any(|p| p.name == dependency.name);
                     if !carried {
-                        return Err(ConfigValidationError::unknown_reference(format!(
+                        return Err(ServicesValidationError::unknown_reference(format!(
                             "Marketplace '{name}': plugin '{}' depends on '{}', which this \
                              marketplace does not carry — name its marketplace, add it to \
                              plugins.include or list it under external_plugins",
@@ -119,7 +119,7 @@ impl ServicesConfig {
                     .iter()
                     .any(|allowed| allowed == target)
                 {
-                    return Err(ConfigValidationError::business_rule(format!(
+                    return Err(ServicesValidationError::business_rule(format!(
                         "Marketplace '{name}': plugin '{}' depends on '{}@{target}' but \
                          '{target}' is not in allow_cross_marketplace_dependencies_on",
                         plugin.id.as_str(),
@@ -128,7 +128,7 @@ impl ServicesConfig {
                 }
                 let local = self.marketplaces.keys().any(|id| id.as_str() == target);
                 if !local && marketplace.external_marketplace(target).is_none() {
-                    return Err(ConfigValidationError::unknown_reference(format!(
+                    return Err(ServicesValidationError::unknown_reference(format!(
                         "Marketplace '{name}': plugin '{}' depends on '{}@{target}' but \
                          '{target}' is neither a configured marketplace nor declared under \
                          external_marketplaces",
@@ -145,11 +145,11 @@ impl ServicesConfig {
         &self,
         plugin_name: &str,
         plugin: &PluginConfig,
-    ) -> Result<(), ConfigValidationError> {
+    ) -> Result<(), ServicesValidationError> {
         if plugin.skills.source == ComponentSource::Explicit {
             for skill_ref in &plugin.skills.include {
                 if !self.skills.skills.contains_key(skill_ref) {
-                    return Err(ConfigValidationError::unknown_reference(format!(
+                    return Err(ServicesValidationError::unknown_reference(format!(
                         "Plugin '{plugin_name}': skills.include references unknown skill \
                          '{skill_ref}'"
                     )));
@@ -180,13 +180,13 @@ impl ServicesConfig {
         for mcp_ref in &plugin.mcp_servers.include {
             match self.mcp_servers.get(mcp_ref) {
                 None => {
-                    return Err(ConfigValidationError::unknown_reference(format!(
+                    return Err(ServicesValidationError::unknown_reference(format!(
                         "Plugin '{plugin_name}': mcp_servers.include references unknown \
                          mcp_server '{mcp_ref}'"
                     )));
                 },
                 Some(deployment) if plugin.enabled && !deployment.enabled => {
-                    return Err(ConfigValidationError::business_rule(format!(
+                    return Err(ServicesValidationError::business_rule(format!(
                         "Plugin '{plugin_name}' is enabled but depends on disabled mcp_server \
                          '{mcp_ref}' — enable the server or disable the plugin"
                     )));
@@ -197,7 +197,7 @@ impl ServicesConfig {
 
         for agent_ref in &plugin.agents.include {
             if !self.agents.contains_key(agent_ref) {
-                return Err(ConfigValidationError::unknown_reference(format!(
+                return Err(ServicesValidationError::unknown_reference(format!(
                     "Plugin '{plugin_name}': agents.include references unknown agent '{agent_ref}'"
                 )));
             }
@@ -206,7 +206,7 @@ impl ServicesConfig {
         Ok(())
     }
 
-    pub(crate) fn validate_single_default_agent(&self) -> Result<(), ConfigValidationError> {
+    pub(crate) fn validate_single_default_agent(&self) -> Result<(), ServicesValidationError> {
         let default_agents: Vec<&str> = self
             .agents
             .iter()
@@ -221,7 +221,7 @@ impl ServicesConfig {
 
         match default_agents.len() {
             0 | 1 => Ok(()),
-            _ => Err(ConfigValidationError::business_rule(format!(
+            _ => Err(ServicesValidationError::business_rule(format!(
                 "Multiple agents marked as default: {}. Only one agent can have 'default: true'",
                 default_agents.join(", ")
             ))),
@@ -230,7 +230,7 @@ impl ServicesConfig {
 
     pub(crate) fn validate_single_governance_hook_owner(
         &self,
-    ) -> Result<(), ConfigValidationError> {
+    ) -> Result<(), ServicesValidationError> {
         let owners: Vec<&str> = self
             .plugins
             .values()
@@ -247,7 +247,7 @@ impl ServicesConfig {
                 Ok(())
             },
             1 => Ok(()),
-            _ => Err(ConfigValidationError::business_rule(format!(
+            _ => Err(ServicesValidationError::business_rule(format!(
                 "Multiple plugins set 'hooks.governance: true': {}. Hooks run session-globally, \
                  so at most one plugin may own them",
                 owners.join(", ")
@@ -257,7 +257,7 @@ impl ServicesConfig {
 
     pub(crate) fn validate_single_evaluation_hook_owner(
         &self,
-    ) -> Result<(), ConfigValidationError> {
+    ) -> Result<(), ServicesValidationError> {
         let owners: Vec<&str> = self
             .plugins
             .values()
@@ -270,7 +270,7 @@ impl ServicesConfig {
             .values()
             .find(|p| p.enabled && p.hooks.judge && !p.hooks.governance)
         {
-            return Err(ConfigValidationError::business_rule(format!(
+            return Err(ServicesValidationError::business_rule(format!(
                 "Plugin '{}' sets 'hooks.judge: true' without 'hooks.governance: true'. \
                  The judge consumes the track hook that only the governance owner installs",
                 orphan.id
@@ -286,7 +286,7 @@ impl ServicesConfig {
                 Ok(())
             },
             1 => Ok(()),
-            _ => Err(ConfigValidationError::business_rule(format!(
+            _ => Err(ServicesValidationError::business_rule(format!(
                 "Multiple plugins set 'hooks.judge: true': {}. The judge has \
                  one owner",
                 owners.join(", ")

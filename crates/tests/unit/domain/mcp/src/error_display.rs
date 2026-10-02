@@ -46,7 +46,9 @@ fn transport_display_contains_message() {
 #[test]
 fn config_validation_display_contains_message() {
     let e = McpDomainError::from(
-        systemprompt_models::errors::ConfigValidationError::Required("missing field x".to_owned()),
+        systemprompt_models::errors::ServicesValidationError::Required(
+            "missing field x".to_owned(),
+        ),
     );
     let s = e.to_string();
     assert!(s.contains("missing field x"));

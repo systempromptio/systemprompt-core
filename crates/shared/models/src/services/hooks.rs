@@ -14,7 +14,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Deserializer, Serialize};
 use systemprompt_identifiers::HookId;
 
-use crate::errors::{ConfigValidationError, ParseEnumError};
+use crate::errors::{ParseEnumError, ServicesValidationError};
 
 pub const HOOK_CONFIG_FILENAME: &str = "config.yaml";
 
@@ -260,14 +260,14 @@ impl HookEventsConfig {
         }
     }
 
-    pub fn validate(&self) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self) -> Result<(), ServicesValidationError> {
         for event in HookEvent::ALL_VARIANTS {
             for matcher in self.matchers_for_event(*event) {
                 for action in &matcher.hooks {
                     match action.hook_type {
                         HookType::Command => {
                             if action.command.is_none() {
-                                return Err(ConfigValidationError::required(format!(
+                                return Err(ServicesValidationError::required(format!(
                                     "Hook matcher '{}': command hook requires a 'command' field",
                                     matcher.matcher
                                 )));
@@ -275,7 +275,7 @@ impl HookEventsConfig {
                         },
                         HookType::Prompt => {
                             if action.prompt.is_none() {
-                                return Err(ConfigValidationError::required(format!(
+                                return Err(ServicesValidationError::required(format!(
                                     "Hook matcher '{}': prompt hook requires a 'prompt' field",
                                     matcher.matcher
                                 )));

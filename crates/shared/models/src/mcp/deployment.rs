@@ -12,7 +12,7 @@
 pub use super::connector::{ConnectorConfig, ConnectorIdentity};
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 use crate::mcp::capabilities::ToolVisibility;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -158,7 +158,7 @@ impl ExternalAuth {
 }
 
 impl Deployment {
-    pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self, name: &str) -> Result<(), ServicesValidationError> {
         match self.server_type {
             McpServerType::Internal => self.validate_internal(name)?,
             McpServerType::External => self.validate_external(name)?,
@@ -172,23 +172,23 @@ impl Deployment {
         Ok(())
     }
 
-    fn validate_internal(&self, name: &str) -> Result<(), ConfigValidationError> {
+    fn validate_internal(&self, name: &str) -> Result<(), ServicesValidationError> {
         if self.binary.as_deref().is_none_or(|b| b.trim().is_empty()) || self.port.is_none() {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "MCP server '{name}': internal servers require a binary and a port."
             )));
         }
         if let Some(ep) = self.endpoint.as_deref()
             && (ep.starts_with("http://") || ep.starts_with("https://"))
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "MCP server '{name}': endpoint must be a relative path (e.g. \
                      /api/v1/mcp/{name}/mcp) or omitted; the host is derived from \
                      server.api_external_url. Remove the scheme+host prefix."
             )));
         }
         if self.external_auth.is_some() || self.connector.is_some() || !self.headers.is_empty() {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "MCP server '{name}': external_auth and headers are only valid on \
                      external servers; internal servers are reached through the gateway \
                      with the systemprompt credential."
@@ -197,18 +197,18 @@ impl Deployment {
         Ok(())
     }
 
-    fn validate_external(&self, name: &str) -> Result<(), ConfigValidationError> {
+    fn validate_external(&self, name: &str) -> Result<(), ServicesValidationError> {
         if self
             .endpoint
             .as_deref()
             .is_none_or(|ep| ep.trim().is_empty())
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "MCP server '{name}': external servers require an endpoint."
             )));
         }
         if self.binary.is_some() || self.package.is_some() || self.port.is_some() {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "MCP server '{name}': binary, package and port are only valid on internal \
                      servers; an external server is reached at its endpoint and is never \
                      bound locally. Remove them."
@@ -221,19 +221,19 @@ impl Deployment {
         &self,
         name: &str,
         connector: &ConnectorConfig,
-    ) -> Result<(), ConfigValidationError> {
+    ) -> Result<(), ServicesValidationError> {
         if connector.adapter != "generic"
             || !self
                 .endpoint
                 .as_deref()
                 .is_some_and(|endpoint| endpoint.starts_with("https://"))
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "MCP server '{name}': generic connector requires an HTTPS resource"
             )));
         }
         if connector.client_secret.is_some() && connector.client_id_secret.is_none() {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "MCP server '{name}': connector client secret requires a client ID"
             )));
         }
@@ -241,22 +241,22 @@ impl Deployment {
     }
 }
 
-fn validate_external_auth(name: &str, ext: &ExternalAuth) -> Result<(), ConfigValidationError> {
+fn validate_external_auth(name: &str, ext: &ExternalAuth) -> Result<(), ServicesValidationError> {
     if ext.token_endpoint.starts_with("http://") || ext.token_endpoint.starts_with("https://") {
-        return Err(ConfigValidationError::invalid_field(format!(
+        return Err(ServicesValidationError::invalid_field(format!(
             "MCP server '{name}': external_auth.token_endpoint must be a relative \
                  path (e.g. /api/public/<provider>/token); the host is derived from \
                  server.api_external_url. Remove the scheme+host prefix."
         )));
     }
     if !ext.token_endpoint.starts_with('/') {
-        return Err(ConfigValidationError::invalid_field(format!(
+        return Err(ServicesValidationError::invalid_field(format!(
             "MCP server '{name}': external_auth.token_endpoint must be an absolute \
                  path beginning with '/'."
         )));
     }
     if ext.header.trim().is_empty() {
-        return Err(ConfigValidationError::invalid_field(format!(
+        return Err(ServicesValidationError::invalid_field(format!(
             "MCP server '{name}': external_auth.header must not be empty."
         )));
     }

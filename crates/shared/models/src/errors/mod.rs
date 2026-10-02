@@ -10,7 +10,7 @@
 //! Public re-exports:
 //!
 //! - [`ParseEnumError`], [`ConfigError`] — string parsing failures.
-//! - [`ConfigValidationError`] — services / agents / plugins validation.
+//! - [`ServicesValidationError`] — services / agents / plugins validation.
 //! - [`MetadataError`] — MCP `_meta` payload decoding.
 //! - [`SecretsError`] — on-disk secrets document.
 //! - [`AiInferenceError`] / [`McpRegistryError`] — the typed errors of the
@@ -35,4 +35,4 @@ pub use metadata::MetadataError;
 pub use parse::{GlobalConfigError, ParseEnumError};
 pub use provider::{AiInferenceError, AiInferenceResult, McpRegistryError, McpRegistryResult};
 pub use secrets::SecretsError;
-pub use validation::ConfigValidationError;
+pub use validation::ServicesValidationError;

@@ -15,7 +15,7 @@ pub use disk::DiskAgentConfig;
 pub use summary::AgentSummary;
 
 use crate::auth::Permission;
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 use serde::{Deserialize, Serialize};
 
 pub const AGENT_CONFIG_FILENAME: &str = "config.yaml";
@@ -42,9 +42,9 @@ pub struct AgentConfig {
 }
 
 impl AgentConfig {
-    pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self, name: &str) -> Result<(), ServicesValidationError> {
         if self.name != name {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Agent config key '{}' does not match name field '{}'",
                 name, self.name
             )));
@@ -55,21 +55,21 @@ impl AgentConfig {
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Agent name '{}' must be lowercase alphanumeric with underscores only",
                 self.name
             )));
         }
 
         if self.name.len() < 3 || self.name.len() > 50 {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Agent name '{}' must be between 3 and 50 characters",
                 self.name
             )));
         }
 
         if self.port == 0 {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "Agent '{}' has invalid port {}",
                 self.name, self.port
             )));

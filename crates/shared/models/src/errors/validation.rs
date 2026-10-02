@@ -8,7 +8,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, thiserror::Error)]
-pub enum ConfigValidationError {
+pub enum ServicesValidationError {
     #[error("{0}")]
     Required(String),
 
@@ -41,7 +41,7 @@ pub enum ConfigValidationError {
     MissingSystemAdmin,
 }
 
-impl ConfigValidationError {
+impl ServicesValidationError {
     #[must_use]
     pub fn required(msg: impl Into<String>) -> Self {
         Self::Required(msg.into())
