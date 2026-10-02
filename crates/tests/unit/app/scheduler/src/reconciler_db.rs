@@ -189,7 +189,9 @@ mod reconciler_db {
 
         let result = reconciler
             .reconcile(&configs, |_name: ServiceName, _port: u16| async {
-                Err(SchedulerError::Io(std::io::Error::other("simulated start failure")))
+                Err(SchedulerError::Io(std::io::Error::other(
+                    "simulated start failure",
+                )))
             })
             .await
             .expect("reconcile itself must not fail even if start_service does");
