@@ -19,7 +19,7 @@ pub mod tool_result_formatter;
 pub mod tools;
 
 pub use execution_plan::{
-    ExecutionState, PlannedToolCall, PlanningResult, TemplateRef, ToolCallResult,
+    ExecutionState, PlannedToolCall, PlannedToolResult, PlanningResult, TemplateRef,
 };
 pub use media_types::{
     SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES, SUPPORTED_TEXT_TYPES, SUPPORTED_VIDEO_TYPES,

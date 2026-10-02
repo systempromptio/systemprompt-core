@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use systemprompt_identifiers::{
     Actor, AgentName, AiRequestId, ContextId, McpServerId, SessionId, TraceId, UserId,
 };
-use systemprompt_models::ai::execution_plan::ToolCallResult;
+use systemprompt_models::ai::execution_plan::PlannedToolResult;
 use systemprompt_models::ai::{
     AiContentPart, AiMessage, AiRequest, AiResponse, McpTool, MessageRole, SamplingParams,
     StructuredOutputOptions, TemplateResolver, ToolCall, ToolModelConfig,
@@ -198,8 +198,8 @@ fn mcp_tool_builders_set_all_fields() {
     assert!(bare.description.is_none());
 }
 
-fn tool_result(output: Value) -> ToolCallResult {
-    ToolCallResult {
+fn tool_result(output: Value) -> PlannedToolResult {
+    PlannedToolResult {
         tool_name: "t".to_owned(),
         arguments: json!({}),
         success: true,

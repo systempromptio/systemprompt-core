@@ -8,7 +8,7 @@ use systemprompt_identifiers::{
     Actor, AgentName, ContextId, McpToolName, SessionId, TraceId, UserId,
 };
 use systemprompt_models::McpTool;
-use systemprompt_models::ai::{ExecutionState, PlannedToolCall, ToolCallResult};
+use systemprompt_models::ai::{ExecutionState, PlannedToolCall, PlannedToolResult};
 use systemprompt_models::execution::context::RequestContext;
 
 struct AlwaysOkExecutor;
@@ -83,13 +83,13 @@ fn convert_to_tool_calls_empty() {
 #[test]
 fn convert_to_call_tool_results_maps_success_and_failure() {
     let mut state = ExecutionState::new();
-    state.add_result(ToolCallResult::success(
+    state.add_result(PlannedToolResult::success(
         "ok_tool".to_string(),
         serde_json::json!({}),
         serde_json::json!({"out": "ok"}),
         10,
     ));
-    state.add_result(ToolCallResult::failure(
+    state.add_result(PlannedToolResult::failure(
         "bad_tool".to_string(),
         serde_json::json!({}),
         "fail reason".to_string(),
@@ -121,13 +121,13 @@ async fn executed_tools_keep_the_wire_meta_for_the_artifact_transformer() {
 #[test]
 fn format_results_for_response_includes_indices_and_status() {
     let mut state = ExecutionState::new();
-    state.add_result(ToolCallResult::success(
+    state.add_result(PlannedToolResult::success(
         "first".to_string(),
         serde_json::json!({}),
         serde_json::json!({"answer": 42}),
         5,
     ));
-    state.add_result(ToolCallResult::failure(
+    state.add_result(PlannedToolResult::failure(
         "second".to_string(),
         serde_json::json!({}),
         "oops".to_string(),

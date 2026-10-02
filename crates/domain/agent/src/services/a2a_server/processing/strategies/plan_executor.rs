@@ -15,7 +15,9 @@ use serde_json::Value;
 use std::time::Instant;
 
 use systemprompt_identifiers::{AiToolCallId, McpToolName};
-use systemprompt_models::ai::{ExecutionState, PlannedToolCall, TemplateResolver, ToolCallResult};
+use systemprompt_models::ai::{
+    ExecutionState, PlannedToolCall, PlannedToolResult, TemplateResolver,
+};
 use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
 pub type CallToolResult = rmcp::model::CallToolResult;
@@ -131,7 +133,7 @@ fn finish_tool_call(
     arguments: Value,
     result: Result<ToolOutcome>,
     duration_ms: u64,
-) -> ToolCallResult {
+) -> PlannedToolResult {
     let tool_name = call.tool_name.as_str();
     match result {
         Ok(outcome) => {
@@ -141,7 +143,7 @@ fn finish_tool_call(
                 "Tool completed successfully"
             );
 
-            ToolCallResult::success(tool_name.to_owned(), arguments, outcome.output, duration_ms)
+            PlannedToolResult::success(tool_name.to_owned(), arguments, outcome.output, duration_ms)
                 .with_meta(outcome.meta)
         },
         Err(e) => {
@@ -153,7 +155,7 @@ fn finish_tool_call(
                 "Tool failed"
             );
 
-            ToolCallResult::failure(tool_name.to_owned(), arguments, error_msg, duration_ms)
+            PlannedToolResult::failure(tool_name.to_owned(), arguments, error_msg, duration_ms)
         },
     }
 }
