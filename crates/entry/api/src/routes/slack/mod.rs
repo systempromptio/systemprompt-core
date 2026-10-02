@@ -67,7 +67,7 @@ async fn handle_events(State(ctx): State<AppContext>, headers: HeaderMap, body: 
             }
         },
         EventsApiEnvelope::EventCallback { team_id, event } => {
-            let Some(app) = resolve_app(team_id.as_str()) else {
+            let Some(app) = resolve_app(&team_id) else {
                 return StatusCode::OK.into_response();
             };
             if !verify_app(&app, &headers, &body) {
@@ -113,7 +113,7 @@ async fn handle_commands(
     let Some(cmd) = slash_command_from_form(&form) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
-    let Some(app) = resolve_app(cmd.team_id.as_str()) else {
+    let Some(app) = resolve_app(&cmd.team_id) else {
         return StatusCode::OK.into_response();
     };
     if !verify_app(&app, &headers, &body) {
@@ -159,7 +159,7 @@ async fn handle_interactivity(
         Ok(p) => p,
         Err(_) => return StatusCode::BAD_REQUEST.into_response(),
     };
-    let Some(app) = resolve_app(payload.team.id.as_str()) else {
+    let Some(app) = resolve_app(&payload.team.id) else {
         return StatusCode::OK.into_response();
     };
     if !verify_app(&app, &headers, &body) {
