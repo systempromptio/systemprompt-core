@@ -40,6 +40,7 @@ impl BanDuration {
     }
 }
 
+#[derive(Debug)]
 pub struct BanIpParams<'a> {
     pub ip_address: &'a str,
     pub reason: &'a str,
@@ -70,6 +71,7 @@ impl<'a> BanIpParams<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct BanIpWithMetadataParams<'a> {
     pub ip_address: &'a str,
     pub reason: &'a str,

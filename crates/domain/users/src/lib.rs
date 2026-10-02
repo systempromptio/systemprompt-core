@@ -31,12 +31,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#![expect(
-    missing_debug_implementations,
-    reason = "service types in this crate hold pools/clients that intentionally do not implement \
-              Debug"
-)]
-
 pub mod error;
 pub(crate) mod extension;
 pub mod jobs;

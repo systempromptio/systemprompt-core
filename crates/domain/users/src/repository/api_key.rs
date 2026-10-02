@@ -10,6 +10,7 @@ use crate::error::Result;
 use crate::models::{UserApiKey, UserApiKeyRow};
 use crate::repository::UserRepository;
 
+#[derive(Debug)]
 pub struct CreateApiKeyParams<'a> {
     pub id: &'a ApiKeyId,
     pub user_id: &'a UserId,
