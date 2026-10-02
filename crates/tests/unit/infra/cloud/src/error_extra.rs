@@ -1,8 +1,8 @@
 //! Additional CloudError tests covering variants not exercised in
 //! `error.rs` (Network/Io/Json conversions, Unauthorized, HttpStatus,
 //! ApiError/ApiValidationFailed/InvalidCredentials, Credentials* states,
-//! SessionVersionMismatch, OAuthFlow/CheckoutFlow/SseStream/ProvisioningFailed,
-//! Other) plus the `is_local_mode_recoverable` predicate.
+//! SessionVersionMismatch, OAuthFlow/CheckoutFlow/SseStream/ProvisioningFailed)
+//! plus the `is_local_mode_recoverable` predicate.
 
 use systemprompt_cloud::CloudError;
 
@@ -13,6 +13,8 @@ fn make_json_error() -> serde_json::Error {
 #[test]
 fn test_api_error_display() {
     let err = CloudError::ApiError {
+        status: 422,
+        code: "invalid".to_string(),
         message: "boom".to_string(),
     };
     let s = err.to_string();
@@ -38,7 +40,10 @@ fn test_api_validation_failed_display() {
 #[test]
 fn test_invalid_credentials_display() {
     let err = CloudError::InvalidCredentials {
-        source: Box::new(CloudError::other("bad shape")),
+        source: Box::new(CloudError::HttpStatus {
+            status: 400,
+            body: "bad shape".to_string(),
+        }),
     };
     let s = err.to_string();
     assert!(s.contains("Cloud credentials file invalid"));
@@ -132,14 +137,6 @@ fn test_http_status() {
         err.user_message(),
         "Cloud API returned a non-success status"
     );
-}
-
-#[test]
-fn test_other_via_helper() {
-    let err = CloudError::other("misc");
-    assert_eq!(err.to_string(), "misc");
-    assert_eq!(err.user_message(), "Cloud operation failed");
-    assert!(err.recovery_hint().contains("error message"));
 }
 
 #[test]
