@@ -165,7 +165,7 @@ async fn process_single_file(
         return;
     }
 
-    let file = build_file_record(&file_path, &public_url, extension, path);
+    let file = build_file_record(&file_path, &public_url, extension, path).await;
     insert_file_record(ctx, &public_url, file, stats).await;
 }
 
@@ -216,8 +216,20 @@ async fn insert_file_record(
     }
 }
 
-fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &Path) -> File {
+async fn build_file_record(
+    file_path: &str,
+    public_url: &str,
+    extension: &str,
+    path: &Path,
+) -> File {
     let now = Utc::now();
+    let size_bytes = tokio::fs::metadata(path)
+        .await
+        .map(|m| m.len() as i64)
+        .inspect_err(
+            |e| tracing::debug!(error = %e, path = %path.display(), "Failed to get file size"),
+        )
+        .ok();
 
     File {
         id: FileId::generate(),
@@ -226,12 +238,7 @@ fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &
         mime_type: systemprompt_models::mime::from_extension(extension)
             .unwrap_or("application/octet-stream")
             .to_owned(),
-        size_bytes: std::fs::metadata(path)
-            .map(|m| m.len() as i64)
-            .inspect_err(
-                |e| tracing::debug!(error = %e, path = %path.display(), "Failed to get file size"),
-            )
-            .ok(),
+        size_bytes,
         ai_content: path.to_string_lossy().contains(storage::GENERATED),
         metadata: sqlx::types::Json(FileMetadata::default()),
         user_id: None,

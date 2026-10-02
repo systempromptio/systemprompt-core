@@ -93,7 +93,7 @@ impl IngestionService {
         override_existing: bool,
         dry_run: bool,
     ) -> Result<IngestFileResult, ContentError> {
-        let markdown_text = std::fs::read_to_string(path)?;
+        let markdown_text = tokio::fs::read_to_string(path).await?;
         let parsed = scanner::parse_frontmatter(&markdown_text)?;
 
         let resolved_category_id = match parsed.metadata.category.clone() {

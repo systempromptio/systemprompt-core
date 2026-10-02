@@ -33,6 +33,7 @@ systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
 
 # Async
+tokio = { workspace = true, features = ["fs"] }
 
 # Database
 sqlx = { workspace = true, features = ["postgres", "uuid"] }
