@@ -276,7 +276,7 @@ async fn spawned_server_receives_service_environment_and_owned_stop_ends_it() {
     std::fs::write(
         &binary,
         format!(
-            "#!/bin/sh\nprintf '%s|%s|%s' \"$SYSTEMPROMPT_SUBPROCESS\" \"$MCP_SERVICE_ID\" \"$MCP_PORT\" > '{}'\nexec /bin/sleep 60\n",
+            "#!/bin/sh\nexec python3 -c 'import os,time\ne=os.environ.get\nm=\"{}\"\nwith open(m+\".tmp\",\"w\") as f: f.write(\"|\".join([e(\"SYSTEMPROMPT_SUBPROCESS\",\"\"),e(\"MCP_SERVICE_ID\",\"\"),e(\"MCP_PORT\",\"\")]))\nos.replace(m+\".tmp\",m)\ntime.sleep(60)'\n",
             marker.display()
         ),
     )

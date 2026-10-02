@@ -31,10 +31,16 @@ async fn wait_for_startup_reports_ready_on_healthy_endpoint() {
 
     let config = internal_at(&mock, "startup-healthy");
     let (tx, _rx) = startup_channel();
+    let mut server = std::process::Command::new("sleep")
+        .arg("30")
+        .spawn()
+        .expect("spawn a live stand-in server process");
 
-    let startup_ms = wait_for_startup(&config, std::process::id(), Some(&tx))
-        .await
-        .expect("healthy endpoint ready");
+    let startup = wait_for_startup(&config, server.id(), Some(&tx)).await;
+    server.kill().expect("stop the stand-in server");
+    server.wait().expect("reap the stand-in server");
+
+    let startup_ms = startup.expect("healthy endpoint ready");
     startup_ms.expect("healthy endpoint reports startup duration");
 }
 
