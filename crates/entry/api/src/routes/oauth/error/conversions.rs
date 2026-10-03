@@ -8,9 +8,11 @@ use systemprompt_config::SecretsBootstrapError;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
+use systemprompt_oauth_issuance::IssuanceError;
 use systemprompt_traits::auth::AuthProviderError;
 
 use super::OAuthHttpError;
+use crate::routes::oauth::internal;
 
 impl From<GlobalConfigError> for OAuthHttpError {
     fn from(err: GlobalConfigError) -> Self {
@@ -86,5 +88,42 @@ impl From<sqlx::Error> for OAuthHttpError {
 impl From<anyhow::Error> for OAuthHttpError {
     fn from(err: anyhow::Error) -> Self {
         Self::server_error("Authorization operation failed").with_source(err)
+    }
+}
+
+impl From<IssuanceError> for OAuthHttpError {
+    fn from(error: IssuanceError) -> Self {
+        match error {
+            IssuanceError::InvalidRequest { field, message } => {
+                Self::invalid_request(format!("{field}: {message}"))
+            },
+            IssuanceError::MalformedField {
+                field,
+                reason,
+                source,
+            } => internal::rejected(Self::invalid_request(format!("{field}: {reason}")), source),
+            IssuanceError::UnsupportedGrantType { grant_type } => {
+                Self::unsupported_grant_type(format!("Grant type '{grant_type}' is not supported"))
+            },
+            IssuanceError::InvalidClient => Self::invalid_client("Client authentication failed"),
+            IssuanceError::InvalidGrant { reason } => Self::invalid_grant(reason),
+            IssuanceError::RejectedGrant { reason, source } => {
+                internal::rejected(Self::invalid_grant(reason), source)
+            },
+            IssuanceError::InvalidRefreshToken { reason } => {
+                Self::invalid_grant(format!("Refresh token invalid: {reason}"))
+            },
+            IssuanceError::InvalidCredentials => Self::invalid_grant("Invalid credentials"),
+            IssuanceError::InvalidClientSecret => Self::invalid_client("Invalid client secret"),
+            IssuanceError::ExpiredCode => Self::invalid_grant("Authorization code expired"),
+            IssuanceError::ServerError { context, source } => {
+                internal::server_error(context, source)
+            },
+            IssuanceError::InvalidTarget { message } => Self::invalid_target(message),
+            IssuanceError::InvalidScope { message } => Self::invalid_scope(message),
+            IssuanceError::IdJagRejected(error) => Self::invalid_grant(error.to_string()),
+            IssuanceError::BoundResource(error) => Self::invalid_target(error.to_string()),
+            IssuanceError::Oauth(error) => Self::from(error),
+        }
     }
 }

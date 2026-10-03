@@ -3,6 +3,7 @@ mod anthropic;
 mod canonical_bridge;
 mod cost_estimation;
 mod gemini;
+mod gemini_image_wire;
 mod gemini_images_http;
 mod gemini_params;
 mod image_provider_factory;

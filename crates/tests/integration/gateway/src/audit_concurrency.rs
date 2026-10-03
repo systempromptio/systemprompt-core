@@ -1,8 +1,6 @@
 use bytes::Bytes;
 use futures::future::join_all;
-use systemprompt_api::services::gateway::{
-    GatewayAudit, GatewayRepositories, GatewayRequestContext,
-};
+use systemprompt_gateway::{GatewayAudit, GatewayRepositories, GatewayRequestContext};
 use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId};
 
 use crate::support::{minimal_request, seed_user, setup_db};
@@ -11,8 +9,8 @@ use systemprompt_models::origin::{
 };
 use systemprompt_security::policy::types::AccessScope;
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()

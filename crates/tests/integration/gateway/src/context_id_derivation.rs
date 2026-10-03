@@ -68,9 +68,7 @@ fn context_id_changes_when_system_prompt_changes_mid_conversation() {
 fn context_id_derivation_ignores_later_messages() {
     let mut a = minimal_request(Some("sys"), "first turn");
     let mut b = minimal_request(Some("sys"), "first turn");
-    use systemprompt_api::services::gateway::protocol::canonical::{
-        CanonicalContent, CanonicalMessage, Role,
-    };
+    use systemprompt_gateway::protocol::canonical::{CanonicalContent, CanonicalMessage, Role};
     b.messages.push(CanonicalMessage {
         role: Role::Assistant,
         content: vec![CanonicalContent::text("assistant reply")],

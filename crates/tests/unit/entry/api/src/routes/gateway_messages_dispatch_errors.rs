@@ -15,9 +15,9 @@ use systemprompt_api::routes::gateway::messages::dispatch::errors::{
 use systemprompt_api::routes::gateway::messages::error::{
     GATEWAY_SERVER_ERROR_MESSAGE, RejectionError,
 };
-use systemprompt_api::services::gateway::pricing::MissingPricing;
-use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
-use systemprompt_api::services::gateway::service::{
+use systemprompt_gateway::pricing::MissingPricing;
+use systemprompt_gateway::protocol::outbound::UpstreamError;
+use systemprompt_gateway::service::{
     DispatchError, GatewayError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded,
     SafetyBlocked,
 };
@@ -480,7 +480,7 @@ async fn coverage_gateway_error_envelopes_round_trip_control_characters_and_unic
 
 #[tokio::test]
 async fn coverage_image_fetch_errors_distinguish_caller_and_upstream_faults() {
-    use systemprompt_api::services::gateway::image_fetch::{ImageFetchFailed, ImageFetchFault};
+    use systemprompt_gateway::image_fetch::{ImageFetchFailed, ImageFetchFault};
     let cases = [
         (
             ImageFetchFault::UnsupportedType("image/tiff".to_owned()),
@@ -566,7 +566,7 @@ fn coverage_invalid_upstream_headers_fall_back_to_a_classified_rejection() {
 
 #[tokio::test]
 async fn prompt_repair_error_reports_the_affected_provider_field() {
-    let error = systemprompt_api::services::gateway::service::PromptRepairRequired {
+    let error = systemprompt_gateway::service::PromptRepairRequired {
         message: "Secret content could not be safely sanitized".to_owned(),
         locations: vec!["forwarded.$.messages[0].id".to_owned()],
     };

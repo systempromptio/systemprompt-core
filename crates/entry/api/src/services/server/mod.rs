@@ -26,7 +26,6 @@ pub mod runner;
 pub mod scheduler_health;
 pub mod shutdown;
 pub mod startup;
-pub(crate) mod state_dirs;
 
 pub use builder::*;
 pub use readiness::{

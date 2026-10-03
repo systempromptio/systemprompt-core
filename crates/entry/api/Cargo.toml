@@ -21,7 +21,6 @@ all-features = true
 # Core runtime
 tokio = { workspace = true, features = ["fs", "process", "signal"] }
 tokio-stream = { workspace = true }
-tokio-util = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 async-stream = { workspace = true }
@@ -81,6 +80,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-users = { workspace = true }
 systemprompt-oauth = { workspace = true }
+systemprompt-oauth-issuance = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-mcp = { workspace = true }
@@ -88,6 +88,7 @@ systemprompt-content = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-scheduler = { workspace = true }
+systemprompt-gateway = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-ai = { workspace = true }
@@ -98,9 +99,6 @@ systemprompt-teams = { workspace = true }
 
 # API registry
 inventory = { workspace = true }
-
-# JWT
-jsonwebtoken = { workspace = true }
 
 # Authentication
 bcrypt = { workspace = true }
@@ -115,8 +113,6 @@ nix = { workspace = true }
 # OTel ingest (OTLP/HTTP Protobuf)
 prost = { workspace = true }
 opentelemetry-proto = { workspace = true }
-
-chacha20poly1305 = { workspace = true }
 
 [lints]
 workspace = true

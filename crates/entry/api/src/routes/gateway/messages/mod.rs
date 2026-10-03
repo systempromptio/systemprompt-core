@@ -29,9 +29,9 @@ use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::origin::RequestOrigin;
 use systemprompt_runtime::AppContext;
 
-use crate::services::gateway::audit::GatewayAccessLog;
-use crate::services::gateway::protocol::inbound::{InboundAdapter, error_type_for_status};
 use crate::services::middleware::JwtContextExtractor;
+use systemprompt_gateway::audit::GatewayAccessLog;
+use systemprompt_gateway::protocol::inbound::{InboundAdapter, error_type_for_status};
 
 use dispatch::{RejectionError, build_error_response, dispatch_to_provider};
 use extract::{RejectionPartial, extract_request_context};
@@ -40,7 +40,7 @@ use rejection::persist_rejection;
 pub(super) struct RequestContext<'a> {
     pub jwt_extractor: &'a JwtContextExtractor,
     pub ctx: &'a AppContext,
-    pub repos: &'a crate::services::gateway::GatewayRepositories,
+    pub repos: &'a systemprompt_gateway::GatewayRepositories,
     pub services: &'static ServicesConfig,
     pub ai_request_id: &'a AiRequestId,
     pub access_log: Option<GatewayAccessLog>,
@@ -50,7 +50,7 @@ pub async fn handle(
     inbound: Arc<dyn InboundAdapter>,
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
-    repos: Arc<crate::services::gateway::GatewayRepositories>,
+    repos: Arc<systemprompt_gateway::GatewayRepositories>,
     request: Request<Body>,
 ) -> Response<Body> {
     let ai_request_id = AiRequestId::generate();
@@ -117,7 +117,7 @@ struct HandleInner<'a> {
     inbound: Arc<dyn InboundAdapter>,
     jwt_extractor: &'a JwtContextExtractor,
     ctx: &'a AppContext,
-    repos: &'a crate::services::gateway::GatewayRepositories,
+    repos: &'a systemprompt_gateway::GatewayRepositories,
     ai_request_id: &'a AiRequestId,
     partial: &'a mut RejectionPartial,
 }

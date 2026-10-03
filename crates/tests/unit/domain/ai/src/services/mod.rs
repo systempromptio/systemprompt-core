@@ -2,7 +2,6 @@
 
 mod config;
 mod core;
-mod gateway;
 mod providers;
 mod schema;
 mod storage;

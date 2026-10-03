@@ -906,7 +906,7 @@ install-nextest:
 # drops+recreates the target DB so cross-run pollution can't occur. Override the
 # DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`,
 # whose URL carries no password (PGPASSWORD or ~/.pgpass supplies it).
-# Groups: shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge
+# Groups: shared infra domain app-runtime app-scheduler app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge
 test-shard GROUP *args:
     #!/usr/bin/env bash
     set -euo pipefail

@@ -185,7 +185,7 @@ async fn openai_responses_in_streaming_truncated_mid_tool_call_reports_the_cutof
 async fn anthropic_in_anthropic_out_streaming_ends_the_turn_exactly_once() -> anyhow::Result<()> {
     use std::sync::Arc;
 
-    use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+    use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 
     use super::gateway_matrix::{anthropic_request_body, assert_tool_call_survived, run_scenario};
 

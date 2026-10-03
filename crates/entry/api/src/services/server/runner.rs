@@ -166,10 +166,10 @@ async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<OwnedTask<()>
 
 async fn start_accounting_recovery(ctx: &AppContext) -> Result<()> {
     let settlement = crate::routes::gateway::gateway_repositories(ctx)?.settlement();
-    let settled = crate::services::gateway::audit::journal::recover(&settlement).await?;
+    let settled = systemprompt_gateway::audit::journal::recover(&settlement).await?;
     if settled > 0 {
         tracing::info!(settled, "Gateway accounting receipts recovered at startup");
     }
-    crate::services::gateway::audit::journal::spawn_recovery(settlement, ctx.background_tasks());
+    systemprompt_gateway::audit::journal::spawn_recovery(settlement, ctx.background_tasks());
     Ok(())
 }

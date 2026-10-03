@@ -12,10 +12,10 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use systemprompt_api::services::gateway::protocol::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
-use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use systemprompt_gateway::protocol::InboundAdapter;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
+use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 
 use super::gateway_matrix::{
     OutWire, Scenario, anthropic_request_body, assert_declares_tool_use,

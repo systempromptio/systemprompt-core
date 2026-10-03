@@ -8,15 +8,15 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_api::services::gateway::protocol::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
-use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
-use systemprompt_api::services::gateway::service::GatewayService;
-use systemprompt_api::services::gateway::{
+use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::InboundAdapter;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
+use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use systemprompt_gateway::service::GatewayService;
+use systemprompt_gateway::{
     DispatchInputs, GatewayAudit, GatewayRepositories, GatewayRequestContext,
 };
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, ProviderId, SecretName, TraceId};
 use systemprompt_manifest::services::{
     GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
@@ -229,7 +229,7 @@ async fn replay() -> Result<()> {
     let db = test_db_pool().await;
     let _context = test_app_context(&db, &bootstrap.database_url);
     let background = BackgroundTasks::new();
-    let journal = systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+    let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         bootstrap.app_paths.storage().data(),
         systemprompt_config::SecretsBootstrap::get()?,
     )?;
@@ -328,7 +328,7 @@ async fn replay() -> Result<()> {
                 false,
             );
             ensure!(
-                systemprompt_api::services::gateway::pricing::resolve(
+                systemprompt_gateway::pricing::resolve(
                     "native-fixture",
                     &[request.model.as_str()],
                     Some(&configured),
@@ -452,10 +452,10 @@ async fn replay() -> Result<()> {
                 );
                 counted += 18;
                 let audit = GatewayAudit::new(&repos, fault_ctx);
-                systemprompt_api::services::gateway::service::finalize::record_accounting_outcome(
+                systemprompt_gateway::service::finalize::record_accounting_outcome(
                     &audit,
                     QuotaFaultMode::Closed,
-                    systemprompt_api::services::gateway::quota::AccountingOutcome::Faulted {
+                    systemprompt_gateway::quota::AccountingOutcome::Faulted {
                         message: "deterministic native replay accounting failure".to_owned(),
                     },
                 )

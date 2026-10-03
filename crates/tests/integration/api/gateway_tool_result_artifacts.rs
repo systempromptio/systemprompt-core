@@ -5,8 +5,8 @@ use std::sync::Arc;
 use axum::body::to_bytes;
 use http::StatusCode;
 use systemprompt_ai::repository::InsertToolCallParams;
-use systemprompt_api::services::gateway::protocol::{CanonicalContent, CanonicalMessage, Role};
-use systemprompt_api::services::gateway::service::GatewayService;
+use systemprompt_gateway::protocol::{CanonicalContent, CanonicalMessage, Role};
+use systemprompt_gateway::service::GatewayService;
 use systemprompt_identifiers::{AiToolCallId, McpToolName};
 use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::{fixture_artifact_ingest, seed_admin_credential};
@@ -236,12 +236,12 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
         .mount(&upstream)
         .await;
     let ingest = fixture_artifact_ingest(&pool)?;
-    let resolver = systemprompt_api::services::gateway::policy::PolicyResolver::from_repository(
+    let resolver = systemprompt_gateway::policies::PolicyResolver::from_repository(
         systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
     );
-    ingest.register_scanner(Arc::new(
-        systemprompt_api::services::gateway::GatewayArtifactScanner::new(resolver),
-    ));
+    ingest.register_scanner(Arc::new(systemprompt_gateway::GatewayArtifactScanner::new(
+        resolver,
+    )));
     let mut repositories = gw_repos(&pool);
     repositories.artifact_ingest = Some(ingest);
     let call_id = unique("artifact_scan_call");

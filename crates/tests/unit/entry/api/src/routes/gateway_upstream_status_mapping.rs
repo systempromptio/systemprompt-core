@@ -6,7 +6,7 @@
 use axum::http::StatusCode;
 use systemprompt_api::routes::gateway::messages::error::RejectionError;
 use systemprompt_api::routes::gateway::messages::map_upstream_error;
-use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
+use systemprompt_gateway::protocol::outbound::UpstreamError;
 
 fn status(code: u16) -> UpstreamError {
     UpstreamError::Status {

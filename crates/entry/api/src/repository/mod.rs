@@ -1,12 +1,7 @@
-//! Composition modules that construct-and-store repository bundles and
-//! single repositories for router state.
+//! Composition helpers that construct single repositories for router state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-pub mod gateway;
-
-pub use gateway::GatewayRepositories;
 
 use std::sync::Arc;
 use systemprompt_database::DbPool;

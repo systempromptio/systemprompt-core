@@ -1,0 +1,254 @@
+//! Outbound protocol adapters: canonical model to upstream provider.
+//!
+//! The [`OutboundAdapter`] trait sends a [`CanonicalRequest`] to an upstream
+//! provider and yields an [`OutboundOutcome`] — a buffered response or a stream
+//! of canonical events. Adapters register themselves via
+//! [`OutboundAdapterRegistration`] (collected by `inventory`) so the upstream
+//! registry can resolve one by provider tag. Implementations cover Anthropic,
+//! Gemini, `OpenAI` Chat Completions, and `OpenAI` Responses. Where a request
+//! goes and how it authenticates is the resolved [`UpstreamCall`] — the same
+//! seam the in-process AI service sends through — so an adapter renders its
+//! wire and never decides a URL, an auth header or a hosting variant itself.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+pub mod anthropic;
+pub mod gemini;
+pub mod openai_chat;
+pub mod openai_responses;
+pub mod retry;
+
+use std::sync::Arc;
+use systemprompt_identifiers::ProviderRequestId;
+
+use async_trait::async_trait;
+use futures_util::stream::BoxStream;
+use systemprompt_ai::UpstreamCall;
+use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_wire::ModelLimits;
+use systemprompt_wire::error::WireStreamError;
+use thiserror::Error;
+
+use super::canonical::{CanonicalEvent, CanonicalRequest, CanonicalResponse};
+
+/// Upstream provider failure.
+///
+/// Carries the real HTTP status a provider answered, or the transport failure
+/// that kept it from answering, so the route layer can relay the status instead
+/// of flattening every failure to 502.
+#[derive(Debug, Error)]
+pub enum UpstreamError {
+    #[error("{provider} returned {status}: {message}")]
+    Status {
+        provider: String,
+        status: u16,
+        message: String,
+        body: Box<bytes::Bytes>,
+        retry_after: Option<String>,
+        request_id: Option<ProviderRequestId>,
+    },
+    #[error("{provider} request failed: {source}")]
+    Transport {
+        provider: String,
+        #[source]
+        source: reqwest::Error,
+    },
+}
+
+/// Why an outbound adapter could not produce an [`OutboundOutcome`]: the
+/// provider's own answer, or a body the gateway could not render or read.
+#[derive(Debug, Error)]
+pub enum OutboundError {
+    #[error(transparent)]
+    Upstream(#[from] UpstreamError),
+    #[error("render {wire} request body")]
+    RenderBody {
+        wire: &'static str,
+        #[source]
+        source: serde_json::Error,
+    },
+    #[error("read {wire} response body")]
+    ReadBody {
+        wire: &'static str,
+        #[source]
+        source: reqwest::Error,
+    },
+    #[error("{wire} response body is not valid JSON")]
+    DecodeBody {
+        wire: &'static str,
+        #[source]
+        source: serde_json::Error,
+    },
+}
+
+impl OutboundError {
+    #[must_use]
+    pub const fn upstream(&self) -> Option<&UpstreamError> {
+        match self {
+            Self::Upstream(upstream) => Some(upstream),
+            Self::RenderBody { .. } | Self::ReadBody { .. } | Self::DecodeBody { .. } => None,
+        }
+    }
+}
+
+impl UpstreamError {
+    pub async fn from_response(provider: &str, response: reqwest::Response) -> Self {
+        let status = response.status().as_u16();
+        let header = |name: &str| {
+            response
+                .headers()
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .map(ToOwned::to_owned)
+        };
+        let retry_after = header("retry-after");
+        let request_id = header("request-id")
+            .or_else(|| header("x-request-id"))
+            .and_then(|id| ProviderRequestId::try_new(id).ok());
+        let body = response
+            .bytes()
+            .await
+            .unwrap_or_else(|e| bytes::Bytes::from(format!("<unreadable body: {e}>")));
+        Self::Status {
+            provider: provider.to_owned(),
+            status,
+            message: extract_upstream_message(&String::from_utf8_lossy(&body)),
+            body: Box::new(body),
+            retry_after,
+            request_id,
+        }
+    }
+}
+
+pub(crate) fn http_client() -> &'static reqwest::Client {
+    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+    CLIENT.get_or_init(reqwest::Client::new)
+}
+
+pub(crate) async fn send_checked(
+    provider: &str,
+    req: reqwest::RequestBuilder,
+) -> Result<reqwest::Response, UpstreamError> {
+    let policy = retry::current_policy();
+    let (response, _retries) = retry::send_with_retry(provider, req, &policy).await?;
+    Ok(response)
+}
+
+pub fn extract_upstream_message(body: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| v["error"]["message"].as_str().map(ToOwned::to_owned))
+        .unwrap_or_else(|| body.chars().take(500).collect())
+}
+
+#[derive(Debug)]
+pub struct OutboundCtx<'a> {
+    pub route: &'a GatewayRoute,
+    pub upstream: &'a UpstreamCall,
+    pub request: &'a CanonicalRequest,
+    pub upstream_model: &'a str,
+    pub model_limits: Option<ModelLimits>,
+    pub automatic_prompt_caching: bool,
+    pub forward_headers: &'a [(String, String)],
+    pub raw_body: Option<&'a bytes::Bytes>,
+}
+
+#[expect(
+    missing_debug_implementations,
+    reason = "variants hold streaming bodies that intentionally do not implement Debug"
+)]
+pub enum OutboundOutcome {
+    Buffered(Box<CanonicalResponse>),
+    Streaming(BoxStream<'static, Result<CanonicalEvent, WireStreamError>>),
+    RawBuffered {
+        body: bytes::Bytes,
+        content_type: Option<String>,
+        canonical: Box<CanonicalResponse>,
+    },
+    RawStreaming {
+        content_type: Option<String>,
+        stream: BoxStream<'static, Result<bytes::Bytes, WireStreamError>>,
+    },
+}
+
+/// The exact bytes an adapter will put on the wire.
+///
+/// `raw_lane` records that the bytes started as the caller's own; they are
+/// still normalised in place, so they are not byte-identical to what arrived.
+#[derive(Debug, Clone)]
+pub struct PreparedBody {
+    pub bytes: bytes::Bytes,
+    pub raw_lane: bool,
+}
+
+/// Adapters are looked up by wire name as `Arc<dyn OutboundAdapter>`;
+/// `#[async_trait]` keeps the trait object-safe.
+#[async_trait]
+pub trait OutboundAdapter: Send + Sync {
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody, OutboundError>;
+
+    async fn send(
+        &self,
+        ctx: OutboundCtx<'_>,
+        body: &PreparedBody,
+    ) -> Result<OutboundOutcome, OutboundError>;
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct OutboundAdapterRegistration {
+    pub tag: &'static str,
+    pub factory: fn() -> Arc<dyn OutboundAdapter>,
+}
+
+inventory::collect!(OutboundAdapterRegistration);
+
+const DEFECTIVE_BODY_STATUS: u16 = 502;
+
+pub(crate) fn reject_defective_body(
+    provider: &str,
+    wire: &str,
+    defect: &systemprompt_wire::defect::BodyDefect,
+    body: &bytes::Bytes,
+) -> OutboundError {
+    let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();
+    tracing::warn!(
+        provider = %provider,
+        wire = %wire,
+        defect = %defect,
+        body = %excerpt,
+        "upstream returned a success status with a body carrying no turn"
+    );
+    OutboundError::Upstream(UpstreamError::Status {
+        provider: provider.to_owned(),
+        status: DEFECTIVE_BODY_STATUS,
+        message: format!("{defect}: {excerpt}"),
+        body: Box::new(body.clone()),
+        retry_after: None,
+        request_id: None,
+    })
+}
+
+pub(crate) fn reject_unparsable_body(
+    provider: &str,
+    wire: &str,
+    error: &systemprompt_wire::error::WireParseError,
+    body: &bytes::Bytes,
+) -> OutboundError {
+    let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();
+    tracing::error!(
+        provider = %provider,
+        wire = %wire,
+        error = %error,
+        body = %excerpt,
+        "upstream returned a success status with a body that does not parse"
+    );
+    OutboundError::Upstream(UpstreamError::Status {
+        provider: provider.to_owned(),
+        status: DEFECTIVE_BODY_STATUS,
+        message: format!("{error}: {excerpt}"),
+        body: Box::new(body.clone()),
+        retry_after: None,
+        request_id: None,
+    })
+}

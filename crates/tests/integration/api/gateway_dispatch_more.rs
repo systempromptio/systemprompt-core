@@ -13,14 +13,12 @@ use systemprompt_api::routes::gateway::messages::dispatch::errors::{
     build_error_response, classify_dispatch_error, map_dispatch_error,
 };
 use systemprompt_api::routes::gateway::messages::error::RejectionError;
-use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
-use systemprompt_api::services::gateway::protocol::{
+use systemprompt_gateway::protocol::outbound::UpstreamError;
+use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
 };
-use systemprompt_api::services::gateway::service::finalize::{
-    apply_system_prompt_override, attach_request_id,
-};
-use systemprompt_api::services::gateway::service::{
+use systemprompt_gateway::service::finalize::{apply_system_prompt_override, attach_request_id};
+use systemprompt_gateway::service::{
     DispatchError, GatewayError, PolicyDenied, QuotaExceeded, REQUEST_ID_HEADER, SafetyBlocked,
 };
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};

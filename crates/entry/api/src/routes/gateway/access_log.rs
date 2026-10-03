@@ -1,23 +1,9 @@
 //! Gateway access-log middleware and the response extension carrying the
 //! authenticated identity it logs against.
 //!
-//! A gateway request produces two records. The `headers` record is written when
-//! the response head is ready; for a streamed response that is long before the
-//! outcome is known, so a `terminal` record is written once the body has
-//! finished — carrying the true status, the full elapsed time, and any upstream
-//! error. Without the second record a stream that fails mid-body is logged as
-//! the 200 its headers promised.
-//!
-//! Timer-driven bridge routes are the exception. A bridge polls `profile`,
-//! `profile/usage` and `heartbeat` on a fixed interval and checks `latest` and
-//! `manifest` on its own schedule, so a successful hit on one of those is
-//! evidence of nothing: persisting every one of them made those five routes
-//! nine of every ten rows in a production `logs` table (392k of 439k in three
-//! weeks) while the ten thousand inference calls the table exists to record sat
-//! underneath. Successes on a polling route are emitted to the tracing
-//! subscriber at debug and never reach the database; failures on the same
-//! routes still persist, because a 401 heartbeat or a 502 update check is the
-//! signal an operator looks for.
+//! The middleware writes the `headers` record of a gateway request; the
+//! `terminal` record, the polling-route policy and the record shape live in
+//! [`systemprompt_gateway::audit::access_log`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,25 +12,11 @@ use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
 use std::time::Instant;
+use systemprompt_gateway::audit::access_log::{
+    GatewayAccessLog, LOG_TARGET, PHASE_HEADERS, level_for, persists_access_record,
+};
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
-use systemprompt_logging::{LogActor, LogEntry, LogLevel};
-
-use crate::services::gateway::audit::GatewayAccessLog;
-
-pub(crate) const PHASE_HEADERS: &str = "headers";
-pub(crate) const PHASE_TERMINAL: &str = "terminal";
-
-const POLLING_ROUTES: [&str; 5] = [
-    "/v1/bridge/profile",
-    "/v1/bridge/profile/usage",
-    "/v1/bridge/heartbeat",
-    "/v1/bridge/latest",
-    "/v1/bridge/manifest",
-];
-
-pub fn persists_access_record(path: &str, status: u16) -> bool {
-    status >= 400 || !POLLING_ROUTES.contains(&path)
-}
+use systemprompt_logging::{LogActor, LogEntry};
 
 #[derive(Debug, Clone)]
 pub(crate) struct GatewayLogIdentity {
@@ -126,7 +98,7 @@ pub(super) async fn log_gateway_request(req: Request, next: Next) -> Response {
     if let Some(actor) = gateway_log_actor(&resp) {
         let entry = LogEntry::new(
             level,
-            "systemprompt_api::gateway",
+            LOG_TARGET,
             format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
             actor,
         )
@@ -135,83 +107,4 @@ pub(super) async fn log_gateway_request(req: Request, next: Next) -> Response {
     }
 
     resp
-}
-
-const fn level_for(status: u16) -> LogLevel {
-    if status >= 500 {
-        LogLevel::Error
-    } else if status >= 400 {
-        LogLevel::Warn
-    } else {
-        LogLevel::Info
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct TerminalOutcome<'a> {
-    pub access: &'a GatewayAccessLog,
-    pub status: u16,
-    pub actor: Option<LogActor>,
-    pub error: Option<&'a str>,
-}
-
-pub(crate) fn log_gateway_terminal(outcome: TerminalOutcome<'_>) {
-    let TerminalOutcome {
-        access,
-        status,
-        actor,
-        error,
-    } = outcome;
-    let elapsed_ms = access.started.elapsed().as_millis() as u64;
-    let method = access.method.as_str();
-    let path = access.path.as_str();
-    let persist = persists_access_record(path, status);
-
-    if status >= 500 {
-        tracing::error!(
-            method,
-            path,
-            status,
-            elapsed_ms,
-            error,
-            "gateway stream failed"
-        );
-    } else if status >= 400 {
-        tracing::warn!(
-            method,
-            path,
-            status,
-            elapsed_ms,
-            error,
-            "gateway stream aborted"
-        );
-    } else if persist {
-        tracing::info!(method, path, status, elapsed_ms, "gateway stream completed");
-    } else {
-        tracing::debug!(method, path, status, elapsed_ms, "gateway poll completed");
-    }
-
-    if !persist {
-        return;
-    }
-    let Some(actor) = actor else {
-        return;
-    };
-    let metadata = serde_json::json!({
-        "kind": "access_log",
-        "method": method,
-        "path": path,
-        "status": status,
-        "elapsed_ms": elapsed_ms,
-        "phase": PHASE_TERMINAL,
-        "error": error,
-    });
-    let entry = LogEntry::new(
-        level_for(status),
-        "systemprompt_api::gateway",
-        format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
-        actor,
-    )
-    .with_metadata(metadata);
-    systemprompt_logging::enqueue_background(entry);
 }

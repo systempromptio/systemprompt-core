@@ -1,0 +1,188 @@
+use std::collections::HashMap;
+
+use async_trait::async_trait;
+use systemprompt_gateway::{
+    RouteSelector, RouteSelectorEngine, RouteSelectorError, register_route_selector,
+};
+use systemprompt_identifiers::{ModelId, ProviderId};
+use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_wire::canonical::CanonicalRequest;
+
+fn route(pattern: &str, provider: &str) -> GatewayRoute {
+    let mut r = GatewayRoute {
+        id: None,
+        name: None,
+        description: None,
+        model_pattern: pattern.to_owned(),
+        provider: ProviderId::new(provider),
+        upstream_model: None,
+        extra_headers: HashMap::new(),
+        pricing: None,
+        when: None,
+        requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
+    };
+    r.ensure_id();
+    r
+}
+
+fn req(model: &str) -> CanonicalRequest {
+    CanonicalRequest {
+        model: ModelId::new(model),
+        cache_control: None,
+        system: Vec::new(),
+        messages: Vec::new(),
+        max_tokens: 0,
+        temperature: None,
+        top_p: None,
+        top_k: None,
+        stop_sequences: Vec::new(),
+        tools: Vec::new(),
+        tool_choice: None,
+        stream: false,
+        thinking: None,
+        metadata: None,
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
+        forwarded_surface: Default::default(),
+    }
+}
+
+struct RerouteToGemini;
+
+impl RerouteToGemini {
+    fn new() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl RouteSelector for RerouteToGemini {
+    fn name(&self) -> &'static str {
+        "reroute-to-gemini"
+    }
+
+    async fn refine(
+        &self,
+        matched: &GatewayRoute,
+        request: &CanonicalRequest,
+    ) -> Result<Option<GatewayRoute>, RouteSelectorError> {
+        if request.model == "reroute-me" {
+            let mut refined = matched.clone();
+            refined.provider = ProviderId::new("gemini");
+            refined.ensure_id();
+            return Ok(Some(refined));
+        }
+        Ok(None)
+    }
+}
+
+register_route_selector!(RerouteToGemini::new, name = "reroute-to-gemini");
+
+#[tokio::test]
+async fn engine_collects_the_registered_selector() {
+    assert!(
+        RouteSelectorEngine::global().has_selectors(),
+        "the inventory-registered selector must be visible to the engine"
+    );
+}
+
+#[tokio::test]
+async fn selector_passes_through_unmatched_requests() {
+    let matched = route("claude-*", "anthropic");
+    let refined = RouteSelectorEngine::global()
+        .refine(&matched, &req("claude-opus-4-8"))
+        .await;
+    assert!(
+        refined.is_none(),
+        "a selector that returns None re-routes nothing"
+    );
+}
+
+#[tokio::test]
+async fn selector_reroutes_and_reports_its_name() {
+    let matched = route("claude-*", "anthropic");
+    let (refined, name) = RouteSelectorEngine::global()
+        .refine(&matched, &req("reroute-me"))
+        .await
+        .expect("selector must re-route the matching request");
+    assert_eq!(refined.provider.as_str(), "gemini");
+    assert_eq!(name, "reroute-to-gemini");
+}
+
+#[tokio::test]
+async fn selector_trait_refine_is_invoked_directly() {
+    let matched = route("claude-*", "anthropic");
+    let out = RerouteToGemini::new()
+        .refine(&matched, &req("reroute-me"))
+        .await
+        .expect("refine must not error");
+    assert_eq!(out.expect("re-routed").provider.as_str(), "gemini");
+}
+
+struct AlwaysErrors;
+
+impl AlwaysErrors {
+    fn new() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl RouteSelector for AlwaysErrors {
+    fn name(&self) -> &'static str {
+        "always-errors"
+    }
+
+    async fn refine(
+        &self,
+        _matched: &GatewayRoute,
+        _request: &CanonicalRequest,
+    ) -> Result<Option<GatewayRoute>, RouteSelectorError> {
+        Err(RouteSelectorError::Failed {
+            name: "always-errors",
+            message: "selector backend unavailable".to_owned(),
+        })
+    }
+}
+
+register_route_selector!(AlwaysErrors::new, name = "always-errors");
+
+#[tokio::test]
+async fn a_failing_selector_does_not_abort_the_chain_or_the_matched_route() {
+    let matched = route("claude-*", "anthropic");
+
+    // The erroring selector runs in the same chain as the rerouter; a chain
+    // that aborted on the first error would take the gateway down whenever an
+    // extension's selector backend was unavailable.
+    let unmatched = RouteSelectorEngine::global()
+        .refine(&matched, &req("claude-opus-4-8"))
+        .await;
+    assert!(
+        unmatched.is_none(),
+        "an erroring selector must leave the matched route in place, not re-route"
+    );
+
+    let (refined, name) = RouteSelectorEngine::global()
+        .refine(&matched, &req("reroute-me"))
+        .await
+        .expect("a later healthy selector must still be reached");
+    assert_eq!(refined.provider.as_str(), "gemini");
+    assert_eq!(name, "reroute-to-gemini");
+}
+
+#[test]
+fn the_engine_debug_reports_how_many_selectors_it_holds_without_naming_them() {
+    let rendered = format!("{:?}", RouteSelectorEngine::global());
+
+    assert!(rendered.contains("RouteSelectorEngine"));
+    assert!(
+        !rendered.contains("reroute-to-gemini"),
+        "the Debug is a count, not a dump of extension internals: {rendered}"
+    );
+}

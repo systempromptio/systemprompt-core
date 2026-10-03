@@ -5,7 +5,7 @@
 
 use bytes::Bytes;
 use futures::StreamExt;
-use systemprompt_api::services::gateway::protocol::{
+use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalEvent, CanonicalRequest, CanonicalStopReason, ContentBlockKind,
     Role, SystemBlock, anthropic_messages, openai_responses as openai_responses_in,
     outbound_anthropic,
@@ -76,12 +76,10 @@ fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
         model: ModelId::new(model),
         cache_control: None,
         system: vec![SystemBlock::text("be brief".to_owned())],
-        messages: vec![
-            systemprompt_api::services::gateway::protocol::CanonicalMessage {
-                role: Role::User,
-                content: vec![CanonicalContent::text("hello".to_owned())],
-            },
-        ],
+        messages: vec![systemprompt_gateway::protocol::CanonicalMessage {
+            role: Role::User,
+            content: vec![CanonicalContent::text("hello".to_owned())],
+        }],
         max_tokens: 256,
         temperature: Some(0.5),
         top_p: None,
@@ -351,12 +349,12 @@ async fn streaming_decoder_yields_no_events_on_empty_stream() {
 
 #[test]
 fn anthropic_render_response_value_emits_id_model_content() {
-    let canon = systemprompt_api::services::gateway::protocol::CanonicalResponse {
+    let canon = systemprompt_gateway::protocol::CanonicalResponse {
         id: "msg_render_1".to_owned(),
         model: "claude-3-5".to_owned(),
         content: vec![CanonicalContent::text("done".to_owned())],
         stop_reason: Some(CanonicalStopReason::EndTurn),
-        usage: systemprompt_api::services::gateway::protocol::CanonicalUsage {
+        usage: systemprompt_gateway::protocol::CanonicalUsage {
             input_tokens: 1,
             output_tokens: 2,
             ..Default::default()

@@ -26,11 +26,11 @@ use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, der
 use systemprompt_api::routes::gateway::messages::rejection::{
     build_rejection_record, persist_rejection,
 };
-use systemprompt_api::services::gateway::protocol::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::protocol::{
+use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role,
 };
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, SessionId, TraceId, UserId};
 use systemprompt_security::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
@@ -51,8 +51,8 @@ fn test_partial() -> RejectionPartial {
     ))
 }
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()
@@ -63,10 +63,8 @@ fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::Gat
 }
 
 
-fn gw_repos(
-    db: &systemprompt_database::DbPool,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(

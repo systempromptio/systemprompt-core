@@ -1,0 +1,181 @@
+//! `client_credentials` grant token generation (RFC 6749 §4.4).
+//!
+//! Mints an access token for a client acting as itself, intersecting the
+//! requested scopes with both the client's static grant and (for delegated
+//! user-tier roles) the owner's permissions. [`ClientCredentialsError`]
+//! partitions failures so the caller maps recoverable client mistakes to 4xx.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, UserId};
+use systemprompt_manifest::Config;
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
+use systemprompt_models::errors::ParseEnumError;
+use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
+use thiserror::Error;
+
+use crate::session::create_oauth_session;
+use crate::{RequestOrigin, TokenResponse};
+
+pub mod scope;
+
+pub use self::scope::{authorize_client_grant, resolve_audience, scope_permissions};
+
+#[derive(Debug, Default)]
+pub struct ClientTokenOptions<'a> {
+    pub scope: Option<&'a str>,
+    pub plugin_id: Option<PluginId>,
+    pub audience: Option<&'a str>,
+}
+
+/// Failure modes of the `client_credentials` grant.
+///
+/// Variants partition by RFC 6749 §5.2 error code so the route handler can map
+/// each to the right HTTP status. Recoverable client mistakes (unknown client,
+/// orphaned or inactive owner, bad scope/audience) must surface as 4xx, never
+/// 5xx — the latter masks operator-visible misconfiguration as gateway
+/// failures and triggers spurious paging.
+#[derive(Debug, Error)]
+pub enum ClientCredentialsError {
+    #[error("Client not found")]
+    ClientNotFound,
+    #[error("Client owner not found")]
+    OwnerNotFound,
+    #[error("Client owner is not active")]
+    OwnerInactive,
+    #[error("Invalid scope: {0}")]
+    InvalidScope(String),
+    #[error("Requested scope is not a list of known permissions")]
+    UnparseableScope(#[source] ParseEnumError),
+    #[error("Invalid audience: {0}")]
+    InvalidAudience(String),
+    #[error("Audience '{audience}' is not a known audience")]
+    UnknownAudience {
+        audience: String,
+        #[source]
+        source: ParseEnumError,
+    },
+    #[error("Hook scopes require audience=hook on the token request")]
+    HookScopeRequiresHookAudience,
+    #[error("Failed to load client owner: {0}")]
+    UserProviderUnavailable(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("Failed to create session: {0}")]
+    SessionCreate(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("JWT signing failed: {0}")]
+    JwtSign(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("Config unavailable: {0}")]
+    ConfigUnavailable(#[source] Box<dyn std::error::Error + Send + Sync>),
+}
+
+struct OwnerProfile {
+    name: String,
+    email: String,
+    permissions: Vec<Permission>,
+}
+
+async fn load_active_owner(
+    state: &OAuthState,
+    owner_user_id: &UserId,
+) -> Result<OwnerProfile, ClientCredentialsError> {
+    let owner = state
+        .user_provider()
+        .find_by_id(owner_user_id)
+        .await
+        .map_err(|e| ClientCredentialsError::UserProviderUnavailable(e.into()))?
+        .ok_or(ClientCredentialsError::OwnerNotFound)?;
+    if !owner.is_active {
+        return Err(ClientCredentialsError::OwnerInactive);
+    }
+    Ok(OwnerProfile {
+        permissions: scope_permissions(&owner.roles),
+        name: owner.name,
+        email: owner.email,
+    })
+}
+
+pub async fn generate_client_tokens(
+    repo: &OAuthRepository,
+    client_id: &ClientId,
+    origin: RequestOrigin<'_>,
+    state: &OAuthState,
+    options: ClientTokenOptions<'_>,
+) -> Result<TokenResponse, ClientCredentialsError> {
+    let global_config =
+        Config::get().map_err(|e| ClientCredentialsError::ConfigUnavailable(e.into()))?;
+    let expires_in = global_config.jwt_access_token_expiration;
+
+    let client = repo
+        .find_client_by_id(client_id)
+        .await
+        .map_err(|e| ClientCredentialsError::UserProviderUnavailable(e.into()))?
+        .ok_or(ClientCredentialsError::ClientNotFound)?;
+
+    let requested_permissions = match options.scope {
+        Some(scope_str) => {
+            parse_permissions(scope_str).map_err(ClientCredentialsError::UnparseableScope)?
+        },
+        None => scope_permissions(&client.scopes),
+    };
+
+    let owner = load_active_owner(state, &client.owner_user_id).await?;
+
+    let permissions =
+        authorize_client_grant(&requested_permissions, &client.scopes, &owner.permissions)?;
+
+    let audience = resolve_audience(options.audience, global_config)?;
+
+    if permissions.iter().any(Permission::is_hook_scope)
+        && !audience.iter().any(|a| matches!(a, JwtAudience::Hook))
+    {
+        return Err(ClientCredentialsError::HookScopeRequiresHookAudience);
+    }
+
+    let authenticated = AuthenticatedUser::new(
+        client.owner_user_id.clone(),
+        owner.name,
+        owner.email,
+        permissions.clone(),
+    );
+
+    let config = JwtConfig {
+        permissions: permissions.clone(),
+        audience,
+        expires_in: chrono::Duration::seconds(global_config.jwt_access_token_expiration),
+        plugin_id: options.plugin_id,
+        client_id: Some(client_id.clone()),
+        ..Default::default()
+    };
+    let session_id = create_oauth_session(state, origin, &client.owner_user_id, expires_in)
+        .await
+        .map_err(|e| ClientCredentialsError::SessionCreate(e.into()))?;
+
+    let signing = JwtSigningParams {
+        issuer: &global_config.jwt_issuer,
+    };
+    let jwt_token = generate_jwt(
+        &authenticated,
+        config,
+        AccessTokenId::generate(),
+        &session_id,
+        &signing,
+    )
+    .map_err(|e| ClientCredentialsError::JwtSign(e.into()))?;
+
+    Ok(TokenResponse {
+        access_token: jwt_token,
+        token_type: "Bearer".to_owned(),
+        expires_in,
+        refresh_token: None,
+        scope: Some(
+            permissions
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(" "),
+        ),
+        issued_token_type: None,
+    })
+}

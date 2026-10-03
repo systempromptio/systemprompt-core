@@ -15,8 +15,8 @@ use axum::body::Body;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 
-use crate::services::gateway::protocol::outbound::UpstreamError;
-use crate::services::gateway::service::{DispatchError, GatewayError, upstream_status};
+use systemprompt_gateway::protocol::outbound::UpstreamError;
+use systemprompt_gateway::service::{DispatchError, GatewayError, upstream_status};
 
 use super::RejectionError;
 

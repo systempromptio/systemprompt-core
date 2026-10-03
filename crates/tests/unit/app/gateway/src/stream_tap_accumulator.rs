@@ -1,0 +1,610 @@
+//! Unit tests for the streaming-tap accumulator: folding canonical SSE events
+//! into `TapState` and extracting the audit `Summary`.
+
+use systemprompt_gateway::protocol::canonical::{
+    CanonicalContent, CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
+    ContentBlockKind,
+};
+use systemprompt_gateway::stream_tap::accumulator::{
+    TapState, accumulate_event, extract_summary, snapshot,
+};
+use systemprompt_test_fixtures as fixtures;
+
+fn usage(input: u32, output: u32) -> CanonicalUsage {
+    fixtures::usage().input(input).output(output).build()
+}
+
+fn start(state: &mut TapState, id: &str, model: &str) {
+    accumulate_event(
+        state,
+        &CanonicalEvent::MessageStart {
+            id: id.to_owned(),
+            model: model.to_owned(),
+            usage: usage(10, 0),
+        },
+    );
+}
+
+#[test]
+fn text_block_accumulates_deltas() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::Text,
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::TextDelta {
+            index: 0,
+            text: "Hello, ".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::TextDelta {
+            index: 0,
+            text: "world".to_owned(),
+        },
+    );
+
+    let response = snapshot(&state);
+    assert_eq!(response.id, "resp-1");
+    assert_eq!(response.model, "model-a");
+    assert_eq!(response.content.len(), 1);
+    assert!(matches!(
+        &response.content[0],
+        CanonicalContent::Text { text: t, .. } if t == "Hello, world"
+    ));
+}
+
+#[test]
+fn thinking_block_collects_text_and_signature() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-2", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::Thinking {
+                id: None,
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ThinkingDelta {
+            index: 0,
+            text: "pondering".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::SignatureDelta {
+            index: 0,
+            signature: "sig-abc".to_owned(),
+        },
+    );
+
+    let response = snapshot(&state);
+    assert!(matches!(
+        &response.content[0],
+        CanonicalContent::Thinking { text, signature, .. }
+            if text == "pondering" && signature.as_deref() == Some("sig-abc")
+    ));
+}
+
+#[test]
+fn tool_use_partial_json_is_parsed_when_valid() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-3", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::ToolUse {
+                id: "call-1".to_owned(),
+                name: "search".to_owned(),
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ToolUseDelta {
+            index: 0,
+            partial_json: "{\"query\":".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ToolUseDelta {
+            index: 0,
+            partial_json: "\"rust\"}".to_owned(),
+        },
+    );
+
+    let response = snapshot(&state);
+    let CanonicalContent::ToolUse {
+        id, name, input, ..
+    } = &response.content[0]
+    else {
+        panic!("expected tool use block");
+    };
+    assert_eq!(id, "call-1");
+    assert_eq!(name, "search");
+    assert_eq!(input["query"], "rust");
+}
+
+#[test]
+fn tool_use_invalid_partial_json_falls_back_to_empty_object() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-4", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::ToolUse {
+                id: "call-2".to_owned(),
+                name: "search".to_owned(),
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ToolUseDelta {
+            index: 0,
+            partial_json: "{\"trunc".to_owned(),
+        },
+    );
+
+    let response = snapshot(&state);
+    let CanonicalContent::ToolUse { input, .. } = &response.content[0] else {
+        panic!("expected tool use block");
+    };
+    assert_eq!(*input, serde_json::json!({}));
+}
+
+#[test]
+fn block_start_at_sparse_index_pads_with_empty_text_blocks() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-5", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 2,
+            block: ContentBlockKind::Text,
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::TextDelta {
+            index: 2,
+            text: "third".to_owned(),
+        },
+    );
+
+    let response = snapshot(&state);
+    assert_eq!(response.content.len(), 3);
+    assert!(matches!(&response.content[0], CanonicalContent::Text { text: t, .. } if t.is_empty()));
+    assert!(matches!(&response.content[2], CanonicalContent::Text { text: t, .. } if t == "third"));
+}
+
+#[test]
+fn deltas_for_unknown_or_mismatched_blocks_are_ignored() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-6", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::Text,
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ThinkingDelta {
+            index: 0,
+            text: "ignored".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::TextDelta {
+            index: 9,
+            text: "ignored".to_owned(),
+        },
+    );
+    accumulate_event(&mut state, &CanonicalEvent::ContentBlockStop { index: 0 });
+
+    let response = snapshot(&state);
+    assert_eq!(response.content.len(), 1);
+    assert!(matches!(&response.content[0], CanonicalContent::Text { text: t, .. } if t.is_empty()));
+}
+
+#[test]
+fn usage_delta_leaves_counts_its_frame_never_stated() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-8", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            output_tokens: Some(340),
+            ..CanonicalUsageUpdate::default()
+        }),
+    );
+
+    let response = snapshot(&state);
+    assert_eq!(
+        response.usage.input_tokens, 10,
+        "an Anthropic `message_delta` may state `output_tokens` alone; folding \
+         it in as a complete snapshot would zero the input count \
+         `message_start` established and bill the request short"
+    );
+    assert_eq!(response.usage.output_tokens, 340);
+    assert_eq!(
+        response.usage.total_tokens, 350,
+        "the total rederives from the merged counts, not from the frame alone"
+    );
+}
+
+#[test]
+fn usage_delta_replaces_the_message_start_snapshot_wholesale() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-7", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            input_tokens: Some(0),
+            output_tokens: Some(42),
+            cache_read_tokens: Some(7),
+            cache_creation_tokens: Some(3),
+            reasoning_tokens: None,
+            total_tokens: None,
+        }),
+    );
+
+    let response = snapshot(&state);
+    // A UsageDelta is a complete cumulative snapshot, so the `message_start`
+    // estimate of 10 input tokens is replaced, not preserved by a `> 0` guard.
+    assert_eq!(response.usage.input_tokens, 0);
+    assert_eq!(response.usage.output_tokens, 42);
+    assert_eq!(response.usage.cache_read_tokens, 7);
+    assert_eq!(response.usage.cache_creation_tokens, 3);
+    // No stated wire total on this frame, so the cache-inclusive sum stands.
+    assert_eq!(response.usage.total_tokens, 52);
+}
+
+#[test]
+fn message_start_alone_does_not_count_as_reported_usage() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-8", "model-a");
+    assert!(
+        !extract_summary(&mut state).saw_usage_delta,
+        "a message_start snapshot must not satisfy the cost-capture-miss check"
+    );
+
+    let mut state = TapState::default();
+    start(&mut state, "resp-9", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            input_tokens: Some(5_000),
+            output_tokens: Some(120),
+            cache_read_tokens: Some(0),
+            cache_creation_tokens: Some(0),
+            reasoning_tokens: None,
+            total_tokens: None,
+        }),
+    );
+    assert!(extract_summary(&mut state).saw_usage_delta);
+}
+
+#[test]
+fn message_stop_without_reason_defaults_to_end_turn() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-8", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-8".to_owned(),
+            stop_reason: None,
+            raw_finish_reason: None,
+        },
+    );
+
+    let response = snapshot(&state);
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::EndTurn));
+}
+
+#[test]
+fn message_start_with_empty_model_keeps_prior_model() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-9", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStart {
+            id: "resp-9b".to_owned(),
+            model: String::new(),
+            usage: usage(1, 1),
+        },
+    );
+
+    let response = snapshot(&state);
+    assert_eq!(response.id, "resp-9b");
+    assert_eq!(response.model, "model-a");
+}
+
+#[test]
+fn extract_summary_reports_stop_error_model_and_tool_calls() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-10", "model-b");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::ToolUse {
+                id: "call-9".to_owned(),
+                name: "lookup".to_owned(),
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ToolUseDelta {
+            index: 0,
+            partial_json: "{\"k\":1}".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-10".to_owned(),
+            stop_reason: Some(CanonicalStopReason::ToolUse),
+            raw_finish_reason: None,
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::Error("upstream hiccup".to_owned()),
+    );
+
+    let summary = extract_summary(&mut state);
+    assert!(summary.saw_stop);
+    assert_eq!(summary.served_model.as_deref(), Some("model-b"));
+    assert_eq!(summary.error.as_deref(), Some("upstream hiccup"));
+    assert_eq!(summary.usage.input_tokens, 10);
+    assert_eq!(summary.tool_calls.len(), 1);
+    assert_eq!(summary.tool_calls[0].tool_name, "lookup");
+    assert_eq!(summary.tool_calls[0].ai_tool_call_id.as_str(), "call-9");
+    assert_eq!(summary.tool_calls[0].tool_input, "{\"k\":1}");
+}
+
+#[test]
+fn extract_summary_on_empty_state_has_no_model_or_stop() {
+    let mut state = TapState::default();
+    let summary = extract_summary(&mut state);
+    assert!(!summary.saw_stop);
+    assert!(summary.served_model.is_none());
+    assert!(summary.error.is_none());
+    assert!(summary.tool_calls.is_empty());
+    assert!(summary.response.content.is_empty());
+}
+
+#[test]
+fn encrypted_content_delta_lands_on_the_thinking_block() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::Thinking {
+                id: Some("rs_live".to_owned()),
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ThinkingDelta {
+            index: 0,
+            text: "chain".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::EncryptedContentDelta {
+            index: 0,
+            data: "opaque==".to_owned(),
+        },
+    );
+    let snapshot = snapshot(&state);
+    match snapshot.content.first() {
+        Some(CanonicalContent::Thinking {
+            text,
+            id,
+            encrypted_content,
+            ..
+        }) => {
+            assert_eq!(text, "chain");
+            assert_eq!(id.as_deref(), Some("rs_live"));
+            assert_eq!(encrypted_content.as_deref(), Some("opaque=="));
+        },
+        other => panic!("expected Thinking, got {other:?}"),
+    }
+}
+
+// Why: Anthropic ends a stream twice -- `message_delta` carries the real stop
+// reason and the `message_stop` frame that follows carries none. Assigning on
+// every stop let that second frame default the turn back to EndTurn, so a
+// streamed tool-use turn was audited and rendered as "stop" and the client
+// dropped the call.
+#[test]
+fn a_reason_less_stop_does_not_overwrite_the_reason_already_stated() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: Some(CanonicalStopReason::ToolUse),
+            raw_finish_reason: None,
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: None,
+            raw_finish_reason: None,
+        },
+    );
+
+    assert_eq!(
+        snapshot(&state).stop_reason,
+        Some(CanonicalStopReason::ToolUse),
+        "the trailing message_stop frame must not weaken the reason message_delta gave"
+    );
+}
+
+// The raw reason is what the audit row records; the normalised one is what
+// the wire renders. Anthropic states it on message_delta and follows with a
+// bare message_stop, which must not blank it.
+#[test]
+fn the_raw_finish_reason_is_recorded_and_survives_a_bare_message_stop() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: Some(CanonicalStopReason::Refusal),
+            raw_finish_reason: Some("SAFETY".to_owned()),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: None,
+            raw_finish_reason: None,
+        },
+    );
+
+    let summary = extract_summary(&mut state);
+    assert_eq!(
+        summary.response.raw_finish_reason.as_deref(),
+        Some("SAFETY")
+    );
+    assert_eq!(
+        summary.response.stop_reason,
+        Some(CanonicalStopReason::Refusal)
+    );
+}
+
+// Why: an upstream that states a generic reason beside a fully accumulated
+// tool-use block must not reach the terminal render as "stop".
+#[test]
+fn an_end_turn_stop_beside_an_accumulated_tool_call_becomes_tool_use() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::ToolUse {
+                id: "call_1".to_owned(),
+                name: "lookup".to_owned(),
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ToolUseDelta {
+            index: 0,
+            partial_json: "{\"q\":\"rust\"}".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: Some(CanonicalStopReason::EndTurn),
+            raw_finish_reason: None,
+        },
+    );
+
+    assert_eq!(
+        snapshot(&state).stop_reason,
+        Some(CanonicalStopReason::ToolUse),
+        "a turn that accumulated a tool call is a tool-use turn"
+    );
+}
+
+#[test]
+fn a_max_tokens_stop_survives_beside_a_truncated_tool_call() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::ToolUse {
+                id: "call_1".to_owned(),
+                name: "lookup".to_owned(),
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ToolUseDelta {
+            index: 0,
+            partial_json: "{\"q\":\"ru".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: Some(CanonicalStopReason::MaxTokens),
+            raw_finish_reason: None,
+        },
+    );
+
+    assert_eq!(
+        snapshot(&state).stop_reason,
+        Some(CanonicalStopReason::MaxTokens),
+        "truncation must survive the tool-use correction"
+    );
+}
+
+#[test]
+fn a_stated_wire_total_survives_the_accumulator() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-10", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            input_tokens: Some(20),
+            output_tokens: Some(106),
+            reasoning_tokens: Some(100),
+            total_tokens: Some(126),
+            ..CanonicalUsageUpdate::default()
+        }),
+    );
+    assert_eq!(
+        snapshot(&state).usage.total_tokens,
+        126,
+        "the wire's own total is the signal normalise_reasoning reads; \
+         recomputing it here discards it"
+    );
+}

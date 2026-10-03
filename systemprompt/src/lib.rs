@@ -12,7 +12,7 @@
 //! | `database` | `systemprompt-database`, `sqlx` | SQLx-backed `DbPool` and repository helpers. |
 //! | `config` | `systemprompt-config` | Profile, secrets, and credential bootstrap loaders. |
 //! | `mcp` | `rmcp` | Implement Model Context Protocol servers with `rmcp`. The `systemprompt::mcp` module (`systemprompt-mcp`) is gated on `full`, not on this flag. |
-//! | `api` | `systemprompt-api`, `systemprompt-runtime`, `axum` (implies `core` + `database`) | HTTP server, `AppContext`, Axum router. `systemprompt-api` always compiles `systemprompt-slack`, `systemprompt-teams` and the runtime's `geolocation` (MaxMind) feature. |
+//! | `api` | `systemprompt-api`, `systemprompt-gateway`, `systemprompt-runtime`, `systemprompt-oauth-issuance`, `axum` (implies `core` + `database`) | HTTP server, AI gateway, `AppContext`, Axum router, OAuth token issuance. `systemprompt-api` always compiles `systemprompt-slack`, `systemprompt-teams` and the runtime's `geolocation` (MaxMind) feature. |
 //! | `cloud` | `systemprompt-cloud` | Cloud API client, credentials bootstrap, OAuth. |
 //! | `logging` | `systemprompt-logging` | Tracing setup with the workspace's layer stack. |
 //! | `loader` | `systemprompt-loader` | Filesystem and module discovery. |
@@ -151,6 +151,15 @@ pub mod api {
     pub use systemprompt_api::*;
 }
 
+/// The AI gateway: protocol translation, gateway policies and the
+/// safety-scanner, route-selector and system-prompt-override extension
+/// contracts.
+#[cfg(feature = "api")]
+#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+pub mod gateway {
+    pub use systemprompt_gateway::*;
+}
+
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli {
@@ -243,6 +252,12 @@ pub mod teams {
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod generator {
     pub use systemprompt_generator::*;
+}
+
+#[cfg(feature = "api")]
+#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+pub mod oauth_issuance {
+    pub use systemprompt_oauth_issuance::*;
 }
 
 #[cfg(feature = "full")]

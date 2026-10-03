@@ -19,7 +19,7 @@ use systemprompt::prelude::*;
 |---------|----------|
 | `core` *(default)* | traits, models, wire, manifest, identifiers, extension |
 | `database` | PostgreSQL abstraction (`DbPool`) |
-| `api` | HTTP server and `AppContext` (requires `core` + `database`) |
+| `api` | HTTP server, `AppContext` and OAuth token issuance (requires `core` + `database`) |
 | `cli` | CLI entry point |
 | `full` | Everything: all domain modules + CLI |
 | `slack` | `systemprompt::slack` module (not in `full`; `api` compiles the crate regardless) |

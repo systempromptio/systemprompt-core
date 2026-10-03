@@ -10,7 +10,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 
 use super::gateway_matrix::{
     OutWire, assert_declares_tool_use, assert_tool_call_survived, openai_responses_request_body,

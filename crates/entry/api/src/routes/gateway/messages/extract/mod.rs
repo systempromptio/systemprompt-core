@@ -28,13 +28,13 @@ use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
 use super::error::RejectionError;
-use crate::services::gateway::protocol::canonical::CanonicalRequest;
-use crate::services::gateway::protocol::inbound::InboundAdapter;
 use authz::enforce_authz_pre_dispatch;
 use headers::{
     classify_client_headers, optional_gateway_conversation_id, read_gateway_body,
     require_session_id,
 };
+use systemprompt_gateway::protocol::canonical::CanonicalRequest;
+use systemprompt_gateway::protocol::inbound::InboundAdapter;
 
 pub use attribution::AttributionHeaders;
 use attribution::classify_client;

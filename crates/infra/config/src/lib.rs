@@ -44,6 +44,7 @@ pub mod paths;
 pub mod private_file;
 pub(crate) mod services;
 pub(crate) mod skill_validator;
+pub mod state_dir;
 
 pub use bootstrap::{
     ENCRYPTION_MASTER_KEY_BYTES, KeyMaterialError, MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap,
@@ -64,3 +65,4 @@ pub use services::{
     validate_yaml_str,
 };
 pub use skill_validator::SkillConfigValidator;
+pub use state_dir::{StateDirError, StateDirsError, create_state_dir, ensure_state_dirs_writable};

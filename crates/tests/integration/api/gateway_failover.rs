@@ -2,8 +2,8 @@
 //! healthy provider after an upstream failure.
 
 use axum::body::to_bytes;
-use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
-use systemprompt_api::services::gateway::service::{DispatchError, GatewayService};
+use systemprompt_gateway::protocol::outbound::UpstreamError;
+use systemprompt_gateway::service::{DispatchError, GatewayService};
 use systemprompt_identifiers::ProviderId;
 use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::seed_admin_credential;

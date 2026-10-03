@@ -7,8 +7,9 @@
 //!
 //! Gemini authenticates with an `x-goog-api-key` header (the `?key=` query
 //! param is the alternative; this codec uses the header so keys stay out of
-//! request lines and logs). The wire shapes are kept private to this module so
-//! the shared wire codec stays free of the agent-side `domain/ai` crate.
+//! request lines and logs). The serde shapes of the Gemini bodies
+//! (`GeminiRequest`, `GeminiResponse`, …) are public so other Gemini callers —
+//! the image-generation provider — build on the same definitions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +25,14 @@ mod wire;
 pub use request::build_request_body;
 pub use response::{buffered_defect, parse_response, stop_reason};
 pub use streaming::sse_to_canonical_events;
+pub use wire::{
+    GeminiCandidate, GeminiCodeExecutionResult, GeminiContent, GeminiEmpty, GeminiExecutableCode,
+    GeminiFunctionCall, GeminiFunctionCallingConfig, GeminiFunctionDeclaration,
+    GeminiFunctionResponse, GeminiGenerationConfig, GeminiGroundingChunk, GeminiGroundingMetadata,
+    GeminiImageConfig, GeminiInlineData, GeminiPart, GeminiPromptFeedback, GeminiRequest,
+    GeminiResponse, GeminiSystemInstruction, GeminiThinkingConfig, GeminiTool, GeminiToolConfig,
+    GeminiUsageMetadata, GeminiWebSource,
+};
 
 pub const API_KEY_HEADER: &str = "x-goog-api-key";
 
