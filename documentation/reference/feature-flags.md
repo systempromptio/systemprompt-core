@@ -20,7 +20,7 @@ Cargo enables the transitive dependencies of each selected feature.
 | `database` | `dep:systemprompt-database`, `dep:sqlx` |
 | `config` | `dep:systemprompt-config` |
 | `mcp` | `dep:rmcp` |
-| `api` | `core`, `database`, `dep:systemprompt-api`, `dep:systemprompt-runtime`, `dep:axum` |
+| `api` | `core`, `database`, `dep:systemprompt-api`, `dep:systemprompt-runtime`, `dep:systemprompt-oauth-issuance`, `dep:axum` |
 | `cloud` | `dep:systemprompt-cloud` |
 | `logging` | `dep:systemprompt-logging` |
 | `loader` | `dep:systemprompt-loader` |

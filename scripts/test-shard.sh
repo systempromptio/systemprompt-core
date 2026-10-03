@@ -12,6 +12,7 @@ group_prefixes() {
     app-runtime)   echo "/tests/unit/app/runtime/" ;;
     app-scheduler) echo "/tests/unit/app/scheduler/" ;;
     app-generator) echo "/tests/unit/app/generator/" ;;
+    app-oauth-issuance) echo "/tests/unit/app/oauth-issuance/" ;;
     entry-api)     echo "/tests/unit/entry/api/" ;;
     entry-cli)     echo "/tests/unit/entry/cli/" ;;
     bridge)        echo "/tests/unit/bridge/" ;;
@@ -35,7 +36,7 @@ group_prefixes() {
     *) echo "unknown shard group: $1" >&2; exit 2 ;;
   esac
 }
-SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge"
+SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge"
 
 [ "${1:-}" = "--list" ] && { echo $SHARD_GROUPS; exit 0; }
 group="${1:?usage: test-shard.sh <group|--list> [extra nextest args]}"; shift || true

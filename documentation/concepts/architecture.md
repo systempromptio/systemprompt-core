@@ -18,7 +18,8 @@ Dependencies flow in one direction only — downward. A crate may depend on crat
 └───────────────────┬───────────────────────────┘
                     │
 ┌───────────────────▼───────────────────────────┐
-│  APP      runtime, scheduler, generator        │  cross-domain orchestration
+│  APP      runtime, scheduler, generator,       │  cross-domain orchestration
+│           oauth-issuance                       │
 └───────────────────┬───────────────────────────┘
                     │
 ┌───────────────────▼───────────────────────────┐
