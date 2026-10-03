@@ -4,10 +4,8 @@
 //! settings. Lives in the integration crate so we can pull the test-fixtures
 //! DB pool.
 
-use systemprompt_api::services::gateway::policy::{PolicyResolver, QuotaWindow, merge_policy_rows};
-use systemprompt_api::services::gateway::quota::{
-    PostUpdateParams, post_update_tokens, precheck_and_reserve,
-};
+use systemprompt_gateway::policies::{PolicyResolver, QuotaWindow, merge_policy_rows};
+use systemprompt_gateway::quota::{PostUpdateParams, post_update_tokens, precheck_and_reserve};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::QuotaFaultMode;
 
@@ -193,7 +191,7 @@ async fn fault_decision(
     user: &UserId,
     subject: &str,
     mode: QuotaFaultMode,
-) -> Option<systemprompt_api::services::gateway::quota::QuotaDecision> {
+) -> Option<systemprompt_gateway::quota::QuotaDecision> {
     precheck_and_reserve(p, &quota_repo(p), user, &[subject_window(subject)], mode)
         .await
         .expect("ok")

@@ -14,15 +14,13 @@ use std::time::Duration;
 
 use axum::body::to_bytes;
 use bytes::Bytes;
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::protocol::{
+use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role, SystemBlock,
 };
-use systemprompt_api::services::gateway::service::{DispatchError, GatewayService};
-use systemprompt_api::services::gateway::{
-    DispatchInputs, GatewayRepositories, GatewayRequestContext,
-};
-use systemprompt_database::DbPool;
+use systemprompt_gateway::service::{DispatchError, GatewayService};
+use systemprompt_gateway::{DispatchInputs, GatewayRepositories, GatewayRequestContext};
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, SecretName, TraceId,
 };
@@ -43,8 +41,8 @@ use systemprompt_models::origin::{
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()
@@ -57,8 +55,8 @@ fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::Gat
 
 pub(super) fn gw_repos(
     db: &systemprompt_database::DbPool,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
@@ -640,8 +638,7 @@ async fn enforcing_secret_scan_denies_before_upstream_and_persists_the_decision(
     let DispatchError::Recorded(inner) = error else {
         panic!("governance denial must already be audited");
     };
-    let systemprompt_api::services::gateway::service::GatewayError::PromptRepair(repair) = &inner
-    else {
+    let systemprompt_gateway::service::GatewayError::PromptRepair(repair) = &inner else {
         panic!("secret denial must request prompt repair, got {inner:?}");
     };
     assert_eq!(repair.locations, ["forwarded.$.messages[0].content"]);
@@ -764,7 +761,7 @@ async fn unexposed_model_is_policy_denied() -> anyhow::Result<()> {
         DispatchError::PreAudit(inner) => assert!(
             matches!(
                 inner,
-                systemprompt_api::services::gateway::service::GatewayError::PolicyDenied(_)
+                systemprompt_gateway::service::GatewayError::PolicyDenied(_)
             ),
             "expected PolicyDenied, got {inner}"
         ),
@@ -1115,9 +1112,7 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
 
     match err {
         DispatchError::Recorded(inner) => {
-            let systemprompt_api::services::gateway::service::GatewayError::Safety(blocked) =
-                &inner
-            else {
+            let systemprompt_gateway::service::GatewayError::Safety(blocked) = &inner else {
                 panic!("expected SafetyBlocked, got {inner:?}");
             };
             assert_eq!(blocked.category, "jailbreak");
@@ -1359,8 +1354,7 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         let DispatchError::Recorded(error) = result.unwrap_err() else {
             panic!("quota denial must already be audited");
         };
-        let systemprompt_api::services::gateway::service::GatewayError::Quota(quota) = &error
-        else {
+        let systemprompt_gateway::service::GatewayError::Quota(quota) = &error else {
             panic!("expected QuotaExceeded, got {error:?}");
         };
         assert_eq!(quota.retry_after_seconds, 60);
@@ -1479,13 +1473,13 @@ async fn coverage_gateway_credit_guard_denial_keeps_its_retry_after() -> anyhow:
 fn owned_gateway_repos(
     pool: &DbPool,
     state_dir: &tempfile::TempDir,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    let journal = systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+) -> systemprompt_gateway::GatewayRepositories {
+    let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         state_dir.path(),
         systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
     )
     .expect("owned gateway journal");
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+    systemprompt_gateway::GatewayRepositories::new(
         pool,
         journal,
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
@@ -1508,7 +1502,7 @@ async fn admitted_receipt_fixture(
     label: &str,
 ) -> anyhow::Result<(
     systemprompt_test_fixtures::DisposableDb,
-    systemprompt_api::services::gateway::GatewayRepositories,
+    systemprompt_gateway::GatewayRepositories,
     tempfile::TempDir,
     std::path::PathBuf,
 )> {
@@ -1582,9 +1576,7 @@ async fn recovery_quarantines_a_tampered_receipt_without_touching_foreign_files(
     *last ^= 0x80;
     std::fs::write(&receipt, bytes)?;
 
-    let settled =
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?;
+    let settled = systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?;
     assert_eq!(settled, 0);
     assert!(!receipt.exists());
     assert!(receipt.with_extension("receipt.bad").exists());
@@ -1602,9 +1594,7 @@ async fn recovery_quarantines_a_truncated_receipt_and_removes_interrupted_temp_f
     let temp = state_dir.path().join("gateway-journal/interrupted.tmp");
     std::fs::write(&temp, b"partial")?;
 
-    let settled =
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?;
+    let settled = systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?;
     assert_eq!(settled, 0);
     assert!(!receipt.exists());
     assert!(receipt.with_extension("receipt.bad").exists());
@@ -1715,8 +1705,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         "failed settlement must not claim successful completion"
     );
     assert_eq!(
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?,
+        systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?,
         0,
         "recovery retains a terminal receipt while settlement is still faulted"
     );
@@ -1739,8 +1728,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
     .execute(write.as_ref())
     .await?;
     assert_eq!(
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?,
+        systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?,
         1
     );
     assert!(!receipts[0].exists());
@@ -1770,8 +1758,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         "terminal payload settles into the admission row"
     );
     assert_eq!(
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?,
+        systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?,
         0
     );
     assert_eq!(
@@ -1813,7 +1800,7 @@ async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_d
         .expect_err("a registry-exposed model still requires a matching gateway route");
     match error {
         DispatchError::PreAudit(inner) => assert!(
-            matches!(&inner, systemprompt_api::services::gateway::service::GatewayError::NoRoute { model } if model == MODEL),
+            matches!(&inner, systemprompt_gateway::service::GatewayError::NoRoute { model } if model == MODEL),
             "expected NoRoute, got {inner:?}"
         ),
         other => panic!("expected pre-audit route failure, got {other:?}"),

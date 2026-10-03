@@ -6,13 +6,11 @@
 //! spend is visible.
 
 use bytes::Bytes;
-use systemprompt_api::services::gateway::policy::QuotaWindow;
-use systemprompt_api::services::gateway::quota::{
-    AccountingOutcome, PostUpdateParams, post_update_tokens,
-};
-use systemprompt_api::services::gateway::service::finalize::record_accounting_outcome;
-use systemprompt_api::services::gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_database::DbPool;
+use systemprompt_gateway::policies::QuotaWindow;
+use systemprompt_gateway::quota::{AccountingOutcome, PostUpdateParams, post_update_tokens};
+use systemprompt_gateway::service::finalize::record_accounting_outcome;
+use systemprompt_gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_security::policy::types::AccessScope;
@@ -22,8 +20,8 @@ use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()
@@ -34,8 +32,8 @@ fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::Gat
 }
 
 
-fn gateway_repos(db: &DbPool) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+fn gateway_repos(db: &DbPool) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
@@ -171,10 +169,8 @@ async fn a_successful_accounting_write_is_counted() {
 
 #[tokio::test]
 async fn accounting_failure_recovers_durably_before_and_after_provider_completion() {
-    use systemprompt_api::services::gateway::protocol::CanonicalContent;
-    use systemprompt_api::services::gateway::protocol::canonical_response::{
-        CanonicalResponse, CanonicalUsage,
-    };
+    use systemprompt_gateway::protocol::CanonicalContent;
+    use systemprompt_gateway::protocol::canonical::{CanonicalResponse, CanonicalUsage};
     for before_completion in [false, true] {
         let db = setup_db().await;
         let owner = seed_user(&db).await;
@@ -231,7 +227,7 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
             "database failure must leave encrypted fault receipt pending"
         );
         assert_eq!(
-            systemprompt_api::services::gateway::audit::journal::recover(&repos.settlement())
+            systemprompt_gateway::audit::journal::recover(&repos.settlement())
                 .await
                 .expect("recovery"),
             1
@@ -254,13 +250,13 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
                 .is_err()
         );
         assert_eq!(
-            systemprompt_api::services::gateway::audit::journal::recover(&repos.settlement())
+            systemprompt_gateway::audit::journal::recover(&repos.settlement())
                 .await
                 .expect("identical recovery"),
             1
         );
         assert_eq!(
-            systemprompt_api::services::gateway::audit::journal::recover(&repos.settlement())
+            systemprompt_gateway::audit::journal::recover(&repos.settlement())
                 .await
                 .expect("empty recovery"),
             0

@@ -10,19 +10,16 @@ use anyhow::Result;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
-use systemprompt_ai::SafetyConfig;
 use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_api::routes::gateway::models::{humanize_model_id, surfaces_from_header};
-use systemprompt_api::services::gateway::GatewayRequestContext;
-use systemprompt_api::services::gateway::audit::GatewayAudit;
-use systemprompt_api::services::gateway::audit::message_text::flatten_message_content;
-use systemprompt_api::services::gateway::protocol::{CanonicalContent, ImageSource};
-use systemprompt_api::services::gateway::registry::{
-    GatewayUpstreamRegistry, SafetyScannerRegistry,
-};
 use systemprompt_database::DbPool;
+use systemprompt_gateway::audit::GatewayAudit;
+use systemprompt_gateway::audit::message_text::flatten_message_content;
+use systemprompt_gateway::protocol::{CanonicalContent, ImageSource};
+use systemprompt_gateway::registry::{GatewayUpstreamRegistry, SafetyScannerRegistry};
+use systemprompt_gateway::{GatewayRequestContext, SafetyConfig};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, TenantId, TraceId, UserId,
@@ -38,8 +35,8 @@ use systemprompt_models::origin::{
 };
 use systemprompt_security::policy::types::AccessScope;
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()
@@ -50,10 +47,8 @@ fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::Gat
 }
 
 
-fn gw_repos(
-    db: &systemprompt_database::DbPool,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(

@@ -5,7 +5,6 @@
 //! - HealthChecker configuration
 
 mod analytics_detection;
-mod gateway;
 mod health;
 mod proxy_audit;
 mod proxy_fixed_arguments;

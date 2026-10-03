@@ -1,15 +1,14 @@
 //! A safety scanner that fails is never read as clean: an enforcing policy
 //! blocks the request and persists a `scanner_failure` finding.
 
-use systemprompt_ai::{
-    CATEGORY_SCANNER_FAILURE, Finding, SafetyScanner, ScanError, register_safety_scanner,
-};
-use systemprompt_api::services::gateway::GatewayRepositories;
-use systemprompt_api::services::gateway::protocol::CanonicalContent;
-use systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest;
-use systemprompt_api::services::gateway::protocol::canonical_response::CanonicalResponse;
-use systemprompt_api::services::gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::CanonicalContent;
+use systemprompt_gateway::protocol::canonical::{CanonicalRequest, CanonicalResponse};
+use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
+use systemprompt_gateway::{
+    CATEGORY_SCANNER_FAILURE, Finding, GatewayRepositories, SafetyScanner, ScanError,
+    register_safety_scanner,
+};
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::seed_admin_credential;

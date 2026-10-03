@@ -1,0 +1,329 @@
+//! The OpenAI-chat passthrough lane.
+//!
+//! The caller's body is forwarded byte-preserving so unknown provider
+//! parameters survive, with only the gateway-owned fields rewritten. Each of
+//! those rewrites is a control the caller must not be able to defeat, and
+//! every one of them fails silently: the request succeeds either way, and the
+//! damage — a leaked identifier, an unbilled stream, an unclamped limit —
+//! shows up somewhere else entirely.
+
+use super::support;
+use bytes::Bytes;
+use serde_json::{Value, json};
+use std::collections::HashMap;
+use systemprompt_gateway::protocol::canonical::{
+    CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
+};
+use systemprompt_gateway::protocol::outbound::OutboundCtx;
+use systemprompt_gateway::protocol::outbound::openai_chat::raw::normalize_raw_body;
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
+use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_wire::ModelLimits;
+
+fn route() -> GatewayRoute {
+    GatewayRoute {
+        id: Some(RouteId::new("r1")),
+        name: None,
+        description: None,
+        model_pattern: "*".into(),
+        provider: ProviderId::new("openai"),
+        upstream_model: Some("upstream-1".into()),
+        extra_headers: HashMap::new(),
+        pricing: None,
+        when: None,
+        requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
+    }
+}
+
+fn canonical() -> CanonicalRequest {
+    CanonicalRequest {
+        model: ModelId::new("caller-model"),
+        cache_control: None,
+        system: Vec::new(),
+        messages: vec![CanonicalMessage {
+            role: Role::User,
+            content: vec![CanonicalContent::text("hi")],
+        }],
+        max_tokens: 64,
+        ..CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024)
+    }
+}
+
+fn normalize(body: &Value, limits: Option<ModelLimits>) -> Value {
+    normalize_for("upstream-1", body, limits)
+}
+
+fn normalize_for(upstream_model: &str, body: &Value, limits: Option<ModelLimits>) -> Value {
+    let raw = Bytes::from(serde_json::to_vec(body).expect("encode body"));
+    let route = route();
+    let request = canonical();
+    let ctx = OutboundCtx {
+        route: &route,
+        upstream: &support::api_key_call("https://upstream.invalid/v1/chat/completions", "sk-test"),
+        request: &request,
+        upstream_model,
+        model_limits: limits,
+        automatic_prompt_caching: false,
+        forward_headers: &[],
+        raw_body: Some(&raw),
+    };
+
+    let out = normalize_raw_body(&raw, &ctx).expect("a well-formed body normalises");
+    serde_json::from_slice(&out).expect("the normalised body is JSON")
+}
+
+// Why: `user` carries the caller's own end-user identifier. The gateway strips
+// it so the developer's identifiers never reach the upstream provider — a leak
+// that no error surfaces and no response reveals.
+#[test]
+fn the_caller_identity_field_never_reaches_the_upstream() {
+    let out = normalize(
+        &json!({"model": "caller-model", "user": "end-user-42", "messages": []}),
+        None,
+    );
+
+    assert!(
+        out.get("user").is_none(),
+        "the caller-identity field must be stripped: {out}"
+    );
+}
+
+// Why: the model is the route's decision, not the caller's. Forwarding the
+// caller's choice would let any client reach any model the credential can
+// serve, bypassing routing entirely.
+#[test]
+fn the_model_is_replaced_with_the_routes_upstream_model() {
+    let out = normalize(
+        &json!({"model": "something-expensive", "messages": []}),
+        None,
+    );
+
+    assert_eq!(out["model"], "upstream-1");
+}
+
+// Why: unknown provider parameters are the point of the passthrough lane —
+// they survive so a caller can use provider features the canonical form does
+// not model.
+#[test]
+fn unrecognised_caller_parameters_survive_the_rewrite() {
+    let out = normalize(
+        &json!({"model": "m", "messages": [], "logit_bias": {"50256": -100}, "seed": 7}),
+        None,
+    );
+
+    assert_eq!(out["seed"], 7);
+    assert_eq!(out["logit_bias"]["50256"], -100);
+}
+
+// Why: the clamp is what stops a caller asking for more output than the model
+// card allows. Unclamped, the upstream either rejects the request or bills for
+// a ceiling the operator never agreed to.
+#[test]
+fn an_output_limit_above_the_model_card_is_clamped_down() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 1_000,
+        ..Default::default()
+    };
+
+    let out = normalize(
+        &json!({"model": "m", "messages": [], "max_completion_tokens": 999_999}),
+        Some(limits),
+    );
+
+    assert_eq!(out["max_completion_tokens"], 1_000);
+}
+
+#[test]
+fn an_output_limit_within_the_model_card_is_left_alone() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 1_000,
+        ..Default::default()
+    };
+
+    let out = normalize(
+        &json!({"model": "m", "messages": [], "max_completion_tokens": 500}),
+        Some(limits),
+    );
+
+    assert_eq!(out["max_completion_tokens"], 500);
+}
+
+// Why: the older spelling is still what many clients send. Clamping only the
+// new one leaves the legacy field an unclamped way past the model card.
+#[test]
+fn the_legacy_max_tokens_spelling_is_clamped_too() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 1_000,
+        ..Default::default()
+    };
+
+    let out = normalize(
+        &json!({"model": "m", "messages": [], "max_tokens": 999_999}),
+        Some(limits),
+    );
+
+    assert_eq!(out["max_tokens"], 1_000);
+}
+
+// Why: usage reporting is what feeds the cost pipeline. A streamed request
+// that does not report usage is served and never billed.
+#[test]
+fn a_streamed_request_is_forced_to_report_usage() {
+    let out = normalize(&json!({"model": "m", "messages": [], "stream": true}), None);
+
+    assert_eq!(
+        out["stream_options"]["include_usage"], true,
+        "a stream that does not report usage is never billed: {out}"
+    );
+}
+
+// Why: the caller may already send `stream_options` for other reasons. Those
+// must survive while `include_usage` is still forced on.
+#[test]
+fn forcing_usage_preserves_the_callers_other_stream_options() {
+    let out = normalize(
+        &json!({
+            "model": "m",
+            "messages": [],
+            "stream": true,
+            "stream_options": {"include_usage": false, "something_else": "kept"}
+        }),
+        None,
+    );
+
+    assert_eq!(
+        out["stream_options"]["include_usage"], true,
+        "the caller must not be able to opt out of usage reporting"
+    );
+    assert_eq!(out["stream_options"]["something_else"], "kept");
+}
+
+#[test]
+fn a_non_streamed_request_is_not_given_stream_options() {
+    let out = normalize(
+        &json!({"model": "m", "messages": [], "stream": false}),
+        None,
+    );
+
+    assert!(
+        out.get("stream_options").is_none(),
+        "a buffered request has no usage stream to configure: {out}"
+    );
+}
+
+// Why: the lane only applies to a JSON object body. Anything else must fall
+// through to the canonical rebuild rather than being forwarded unrewritten,
+// which would skip every control above.
+#[test]
+fn a_body_that_is_not_a_json_object_declines_the_passthrough() {
+    let raw = Bytes::from_static(b"not json at all");
+    let route = route();
+    let request = canonical();
+    let ctx = OutboundCtx {
+        route: &route,
+        upstream: &support::api_key_call("https://upstream.invalid/v1/chat/completions", "sk-test"),
+        request: &request,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        automatic_prompt_caching: false,
+        forward_headers: &[],
+        raw_body: Some(&raw),
+    };
+
+    assert!(
+        normalize_raw_body(&raw, &ctx).is_none(),
+        "an unparseable body must not be forwarded through the passthrough lane"
+    );
+}
+
+// Why: a reasoning model bills its thinking against the same completion
+// budget as visible output, so the caller's limit -- sized for the answer
+// alone -- starves the turn: it stops on `length` before the tool call is
+// emitted. The model card's cap is the budget these families need, and the
+// translated lane already gives it to them.
+#[test]
+fn a_reasoning_model_is_given_the_full_model_card_budget() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 16_384,
+        max_thinking_budget: Some(8_192),
+    };
+
+    let out = normalize(
+        &json!({"model": "m", "messages": [], "max_tokens": 1_024}),
+        Some(limits),
+    );
+
+    assert_eq!(out["max_tokens"], 16_384);
+}
+
+// Why: the families that reason without carrying a catalog thinking budget
+// are recognised by name, so the passthrough lane must read the upstream
+// model it is actually sending to, not the one the caller named.
+#[test]
+fn a_reasoning_model_recognised_by_name_is_given_the_cap_too() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 32_768,
+        ..Default::default()
+    };
+
+    let out = normalize_for(
+        "gpt-5-mini",
+        &json!({"model": "m", "messages": [], "max_completion_tokens": 512}),
+        Some(limits),
+    );
+
+    assert_eq!(out["max_completion_tokens"], 32_768);
+}
+
+// Why: a non-reasoning model is never handed more budget than it asked for --
+// the cap clamps down and never up.
+#[test]
+fn a_limit_below_the_cap_is_left_alone_on_an_ordinary_model() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 16_384,
+        ..Default::default()
+    };
+
+    let out = normalize(
+        &json!({"model": "m", "messages": [], "max_tokens": 1_024}),
+        Some(limits),
+    );
+
+    assert_eq!(out["max_tokens"], 1_024);
+}
+
+// Why: applying the limit is the only edit -- every other field the caller
+// sent, modelled or not, must reach the upstream exactly as it arrived.
+#[test]
+fn applying_the_limit_changes_nothing_else_in_the_body() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 1_000,
+        ..Default::default()
+    };
+    let body = json!({
+        "model": "m",
+        "messages": [{"role": "user", "content": "hi"}],
+        "max_tokens": 999_999,
+        "reasoning_effort": "high",
+        "seed": 7,
+        "tools": [{"type": "function", "function": {"name": "t"}}],
+        "vendor_only_flag": true
+    });
+
+    let out = normalize(&body, Some(limits));
+    assert_eq!(out["max_tokens"], 1_000);
+
+    let mut expected = body;
+    expected["model"] = json!("upstream-1");
+    expected["max_tokens"] = json!(1_000);
+    assert_eq!(out, expected);
+}

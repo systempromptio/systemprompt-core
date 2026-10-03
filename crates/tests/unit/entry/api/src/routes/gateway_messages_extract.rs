@@ -22,11 +22,11 @@ use systemprompt_api::routes::gateway::messages::extract::headers::{
     optional_gateway_conversation_id, read_gateway_body, require_session_id,
 };
 use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, derive_conversation};
-use systemprompt_api::services::gateway::protocol::canonical::{
+use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
-use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::inbound::InboundAdapter;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_identifiers::headers::{
     CLIENT_ATTESTATION, CLIENT_KIND, GATEWAY_CONVERSATION_ID, SESSION_ID,
 };

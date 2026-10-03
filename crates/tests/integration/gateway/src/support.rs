@@ -1,7 +1,7 @@
-use systemprompt_api::services::gateway::protocol::canonical::{
+use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
 };
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ModelId, UserId};
 use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
 use uuid::Uuid;

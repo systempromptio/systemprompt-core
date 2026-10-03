@@ -17,9 +17,9 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use serde_json::{Value, json};
-use systemprompt_api::services::gateway::protocol::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
-use systemprompt_api::services::gateway::service::GatewayService;
+use systemprompt_gateway::protocol::InboundAdapter;
+use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
+use systemprompt_gateway::service::GatewayService;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 use systemprompt_manifest::services::{
     GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,

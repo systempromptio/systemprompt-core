@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use systemprompt_api::services::gateway::audit::payload::{slice_payload, truncate_for_tool_input};
+use systemprompt_gateway::audit::payload::{slice_payload, truncate_for_tool_input};
 
 const PAYLOAD_CAP: usize = 1024 * 1024;
 const TOOL_INPUT_CAP: usize = 64 * 1024;

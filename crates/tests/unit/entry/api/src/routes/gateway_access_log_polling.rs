@@ -1,7 +1,7 @@
 //! A successful hit on a timer-driven bridge route never earns a `logs` row;
 //! a failure on the same route, and any hit on a user-driven route, does.
 
-use systemprompt_api::routes::gateway::access_log::persists_access_record;
+use systemprompt_gateway::audit::access_log::persists_access_record;
 
 #[test]
 fn successful_polls_are_not_persisted() {

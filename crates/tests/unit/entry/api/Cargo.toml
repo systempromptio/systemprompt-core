@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-api HTTP API server and gateway"
+description = "Unit tests for systemprompt-api HTTP API server and gateway routes"
 publish = false
 
 [lints]
@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-api = { workspace = true }
+systemprompt-gateway = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-extension = { workspace = true }
@@ -26,13 +27,10 @@ systemprompt-identifiers = { workspace = true }
 axum = { workspace = true }
 http = { workspace = true }
 serde_json = { workspace = true }
-tempfile = { workspace = true }
 bytes = { workspace = true }
-sha2 = { workspace = true }
 hex = { workspace = true }
 ipnet = "2.12"
 metrics = { workspace = true }
-metrics-util = { workspace = true }
 systemprompt-traits = { workspace = true }
 anyhow = { workspace = true }
 sqlx = { workspace = true }

@@ -6,15 +6,15 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures::stream;
-use systemprompt_api::services::gateway::policy::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
-use systemprompt_api::services::gateway::protocol::canonical_response::{
+use systemprompt_database::DbPool;
+use systemprompt_gateway::policies::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
+use systemprompt_gateway::protocol::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
-use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::stream_tap::{TapFinalizeCtx, TapRender, tap};
-use systemprompt_api::services::gateway::{GatewayAudit, GatewayRequestContext};
-use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::inbound::InboundAdapter;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::stream_tap::{TapFinalizeCtx, TapRender, tap};
+use systemprompt_gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_test_fixtures as fixtures;
 
@@ -25,8 +25,8 @@ use systemprompt_models::origin::{
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_wire::error::WireStreamError;
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()
@@ -53,14 +53,8 @@ fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynC
     ))
 }
 
-fn gateway_repos(
-    db: &systemprompt_database::DbPool,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
-        db,
-        gateway_journal(),
-        materializer(db),
-    )
+fn gateway_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(db, gateway_journal(), materializer(db))
 }
 
 fn usage(input: u32, output: u32) -> CanonicalUsage {

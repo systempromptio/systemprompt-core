@@ -1,0 +1,52 @@
+[package]
+name = "systemprompt-gateway-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for the systemprompt-gateway crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-gateway = { workspace = true }
+systemprompt-ai = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-security = { workspace = true }
+systemprompt-wire = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }
+bytes = { workspace = true }
+hex = { workspace = true }
+http = { workspace = true }
+inventory = { workspace = true }
+metrics = { workspace = true }
+metrics-util = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+tempfile = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+futures-util = { workspace = true }
+jsonwebtoken = { workspace = true }
+reqwest = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+wiremock = { workspace = true }
+
+[package.metadata.cargo-machete]
+# inventory: used via the register_safety_scanner! / register_route_selector! /
+# register_system_prompt_override! macros (::inventory::submit!)
+ignored = ["inventory"]
