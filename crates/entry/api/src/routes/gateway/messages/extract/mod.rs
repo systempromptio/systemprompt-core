@@ -224,10 +224,10 @@ pub fn derive_conversation(
     let client_session_id = gateway_request
         .client_session_id()
         .map_err(|error| RejectionError::invalid(StatusCode::BAD_REQUEST, error))?;
-    let context_id = match &client_session_id {
-        Some(session) => ContextId::derived_from_client_session(session),
-        _ => ContextId::derived_from_gateway_conversation(user_id, &gateway_conversation_id),
-    };
+    let context_id = client_session_id.as_ref().map_or_else(
+        || ContextId::derived_from_gateway_conversation(user_id, &gateway_conversation_id),
+        ContextId::derived_from_client_session,
+    );
     partial.context_id = Some(context_id.clone());
     partial.gateway_conversation_id = Some(gateway_conversation_id.clone());
     partial.client_session_id.clone_from(&client_session_id);
