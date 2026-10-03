@@ -192,7 +192,7 @@ fn storage_config() -> (tempfile::TempDir, StorageConfig) {
 
 fn file_storage(dir: &tempfile::TempDir) -> Arc<dyn systemprompt_traits::FileStorage> {
     systemprompt_storage::build_file_storage(
-        systemprompt_models::profile::StorageBackend::Local,
+        systemprompt_manifest::profile::StorageBackend::Local,
         dir.path(),
     )
 }

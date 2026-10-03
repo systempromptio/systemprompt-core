@@ -32,6 +32,7 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::SkillId;
+use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
@@ -42,7 +43,6 @@ use systemprompt_models::bridge::plugin_bundle::{
 pub use systemprompt_models::bridge::plugin_bundle::{
     NODE_LOCKFILES, NODE_PACKAGE_FILE, node_lockfile,
 };
-use systemprompt_models::services::PluginConfig;
 
 use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;

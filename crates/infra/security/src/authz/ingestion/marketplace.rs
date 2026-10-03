@@ -23,7 +23,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use sqlx::PgConnection;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::MarketplaceConfig;
+use systemprompt_manifest::services::MarketplaceConfig;
 
 use super::super::error::{AuthzError, AuthzResult};
 use super::super::repository::ingestion::IngestionRepository;

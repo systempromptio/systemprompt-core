@@ -19,7 +19,7 @@ use systemprompt_api::services::server::lifecycle::reconciliation::{
 use systemprompt_api::services::server::{handle_health, readiness, scheduler_health, shutdown};
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::services::{ServiceModule, ServiceStatus};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
 use systemprompt_runtime::AppContext;
 use tower::ServiceExt;

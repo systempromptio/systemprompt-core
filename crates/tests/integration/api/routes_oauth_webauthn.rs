@@ -21,7 +21,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, StatusCode, header};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{WebAuthnService, generate_secure_token};

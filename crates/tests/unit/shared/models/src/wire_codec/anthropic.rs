@@ -1,7 +1,7 @@
 //! Anthropic Messages wire-codec tests.
 
 use serde_json::{Value, json};
-use systemprompt_models::services::ai::ModelPricing;
+use systemprompt_manifest::services::ai::ModelPricing;
 use systemprompt_wire::anthropic::AnthropicStreamState;
 use systemprompt_wire::canonical::{
     CacheControl, CacheTtl, CanonicalContent, CanonicalEvent, CanonicalMessage,

@@ -1,9 +1,9 @@
 use systemprompt_api::services::gateway::pricing::resolve;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
 };
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::usage;
 use systemprompt_wire::WireProtocol;
 

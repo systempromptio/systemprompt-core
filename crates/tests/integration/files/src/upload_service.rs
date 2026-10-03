@@ -10,7 +10,7 @@ use systemprompt_files::{
     FileUploadError, FileUploadRequest, FileUploadService, FileValidator, FilesConfig,
 };
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::profile::StorageBackend;
+use systemprompt_manifest::profile::StorageBackend;
 use systemprompt_storage::build_file_storage;
 use systemprompt_traits::FileStorage;
 

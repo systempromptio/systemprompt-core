@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use systemprompt_cli::cloud::deploy::pipeline::{
     DeploySecretsSource, bootstrap_env_names, collect_bootstrap_env,
 };
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     SecretsConfig, SecretsSource, SecretsValidationMode, VaultAuth, VaultSecretsConfig,
 };
 

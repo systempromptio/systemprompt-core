@@ -127,7 +127,7 @@ async fn anonymous_catalog_withholds_managed_keys_but_preserves_public_disk() {
     let (dir, _) = disk_catalog_with(&f.key);
     crate::helpers::write_skill_on_disk(dir.path(), "ordinary_public");
     let disk = systemprompt_marketplace::CatalogContent::load(
-        &systemprompt_models::services::ServicesConfig::default(),
+        &systemprompt_manifest::services::ServicesConfig::default(),
         dir.path(),
         "https://api.example.invalid",
     )

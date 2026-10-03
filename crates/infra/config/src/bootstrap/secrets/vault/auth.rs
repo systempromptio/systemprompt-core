@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
-use systemprompt_models::profile::VaultAuth;
+use systemprompt_manifest::profile::VaultAuth;
 use zeroize::Zeroizing;
 
 use super::EnvLookup;

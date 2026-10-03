@@ -30,7 +30,7 @@ use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
 use systemprompt_database::DbPool;
-use systemprompt_models::services::{GatewayConfig, ProviderRegistry, QuotaFaultMode};
+use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry, QuotaFaultMode};
 
 use self::abandon::AbandonGuard;
 use self::failover::{FailoverSend, send_with_failover};
@@ -126,7 +126,7 @@ struct OpenedDispatch<'a> {
     stream_usage: bool,
     ai_request_id: systemprompt_identifiers::AiRequestId,
     upstream: ResolvedUpstream<'a>,
-    pricing: systemprompt_models::services::ModelPricing,
+    pricing: systemprompt_manifest::services::ModelPricing,
     request: CanonicalRequest,
     raw_body: Bytes,
     ctx: GatewayRequestContext,

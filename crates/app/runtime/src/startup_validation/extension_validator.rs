@@ -10,7 +10,7 @@ use systemprompt_extension::{ExtensionConfigError, ExtensionRegistry, LoaderErro
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_traits::validation_report::ValidationIssue;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 

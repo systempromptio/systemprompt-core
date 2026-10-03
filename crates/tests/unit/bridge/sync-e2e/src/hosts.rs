@@ -71,7 +71,7 @@ fn plugin_entry() -> PluginEntry {
         version: "1.0.0".into(),
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files,
-        hooks: systemprompt_models::services::PluginHooksRef::default(),
+        hooks: systemprompt_models::plugin::PluginHooksRef::default(),
     }
 }
 
@@ -452,7 +452,7 @@ fn each_host_copy_of_hooks_json_is_stamped_with_the_host_that_runs_it() {
         true,
         "dddd0001",
     );
-    m.plugins[0].hooks = systemprompt_models::services::PluginHooksRef {
+    m.plugins[0].hooks = systemprompt_models::plugin::PluginHooksRef {
         governance: true,
         comms: false,
         judge: false,
@@ -1386,7 +1386,7 @@ fn foreign_plugin_entry(plugin_id: &str, files: &[(String, Vec<u8>)]) -> PluginE
                 size: bytes.len() as u64,
             })
             .collect(),
-        hooks: systemprompt_models::services::PluginHooksRef::default(),
+        hooks: systemprompt_models::plugin::PluginHooksRef::default(),
     }
 }
 

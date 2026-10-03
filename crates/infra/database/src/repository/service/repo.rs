@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 
 use super::model::{CreateServiceInput, ServiceConfig, ServiceRow, UpsertServiceProcessInput};
 use crate::DbPool;

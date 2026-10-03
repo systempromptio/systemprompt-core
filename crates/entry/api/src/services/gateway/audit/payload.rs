@@ -12,7 +12,7 @@
 use bytes::Bytes;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use systemprompt_models::profile::AuditConfig;
+use systemprompt_manifest::profile::AuditConfig;
 
 const EXCERPT_BYTES: usize = 8 * 1024;
 

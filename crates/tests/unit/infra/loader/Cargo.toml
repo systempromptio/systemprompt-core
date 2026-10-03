@@ -16,6 +16,7 @@ systemprompt-config = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 serde = { workspace = true }
 tempfile = { workspace = true }

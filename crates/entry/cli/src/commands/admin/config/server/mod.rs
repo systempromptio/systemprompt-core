@@ -14,7 +14,7 @@ use clap::{Args, Subcommand};
 use std::fs;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use super::types::{ServerConfigOutput, ServerSetOutput};
 use crate::CliConfig;

@@ -6,7 +6,8 @@
 use anyhow::Result;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use systemprompt_models::{ComponentFilter, ComponentSource, PluginConfig, strip_frontmatter};
+use systemprompt_manifest::{PluginConfig, strip_frontmatter};
+use systemprompt_models::plugin::{ComponentFilter, ComponentSource};
 
 #[derive(Debug, Deserialize)]
 struct SkillConfigHeader {

@@ -17,7 +17,7 @@ use std::path::Path;
 use std::process::Command;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
-use systemprompt_models::{Config, Secrets};
+use systemprompt_manifest::{Config, Secrets};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 

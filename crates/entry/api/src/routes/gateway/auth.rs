@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_identifiers::{JwtToken, headers};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
 use systemprompt_models::bridge::gateway::DevicePatResponse;
 use systemprompt_oauth::services::{

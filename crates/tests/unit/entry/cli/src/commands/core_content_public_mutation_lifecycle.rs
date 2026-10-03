@@ -9,7 +9,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
 use systemprompt_identifiers::SourceId;
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, fixture_app_context_with, install_test_signing_key,
 };

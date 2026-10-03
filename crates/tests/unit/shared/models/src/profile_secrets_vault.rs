@@ -1,4 +1,4 @@
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     SecretsConfig, SecretsSource, SecretsValidationMode, VaultAuth, VaultKeyRef, VaultSecretsConfig,
 };
 

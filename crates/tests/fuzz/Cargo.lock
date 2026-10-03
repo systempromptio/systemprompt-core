@@ -3087,6 +3087,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-traits",
@@ -3129,8 +3130,10 @@ dependencies = [
  "serde_yaml_ng",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-traits",
+ "systemprompt-wire",
  "thiserror 2.0.19",
  "tokio",
  "tracing",
@@ -3155,7 +3158,7 @@ dependencies = [
  "sqlx",
  "systemprompt-extension",
  "systemprompt-identifiers",
- "systemprompt-models",
+ "systemprompt-manifest",
  "systemprompt-traits",
  "thiserror 2.0.19",
  "tokio",
@@ -3189,7 +3192,7 @@ dependencies = [
  "serde_yaml_ng",
  "systemprompt-agent",
  "systemprompt-identifiers",
- "systemprompt-models",
+ "systemprompt-manifest",
 ]
 
 [[package]]
@@ -3223,8 +3226,10 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-security",
+ "systemprompt-wire",
  "tar",
  "thiserror 2.0.19",
  "tokio",
@@ -3246,7 +3251,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
- "systemprompt-models",
+ "systemprompt-manifest",
  "systemprompt-traits",
  "thiserror 2.0.19",
  "tokio",
@@ -3256,20 +3261,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-manifest"
+version = "0.62.0"
+dependencies = [
+ "base64 0.23.0",
+ "chrono",
+ "hex",
+ "ipnet",
+ "regex",
+ "schemars",
+ "semver",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.11.0",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "systemprompt-wire",
+ "thiserror 2.0.19",
+ "tracing",
+ "url",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
 name = "systemprompt-models"
 version = "0.62.0"
 dependencies = [
  "async-trait",
  "axum",
- "base64 0.23.0",
- "bytes",
  "chrono",
  "futures",
- "futures-util",
  "hex",
  "http",
  "indexmap",
- "ipnet",
  "regex",
  "rmcp",
  "schemars",
@@ -3287,7 +3315,6 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
- "zeroize",
 ]
 
 [[package]]
@@ -3335,7 +3362,9 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-wire",
  "thiserror 2.0.19",
  "tokio",
  "tracing",
@@ -3359,6 +3388,22 @@ dependencies = [
  "thiserror 2.0.19",
  "tracing",
  "xxhash-rust",
+]
+
+[[package]]
+name = "systemprompt-wire"
+version = "0.62.0"
+dependencies = [
+ "bytes",
+ "futures-util",
+ "schemars",
+ "serde",
+ "serde_json",
+ "systemprompt-identifiers",
+ "thiserror 2.0.19",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]

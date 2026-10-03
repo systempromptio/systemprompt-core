@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 
 use systemprompt_identifiers::ProviderId;
-use systemprompt_models::services::ProviderEntry;
+use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialKind, ProviderCredential, fill_endpoint};
 use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::upstream::UpstreamDialect;

@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::str::FromStr;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{JwtAudience, Permission, permissions_to_string};
 
 use super::ClientCredentialsError;

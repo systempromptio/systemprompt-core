@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use systemprompt_models::AgentConfig;
+use systemprompt_manifest::AgentConfig;
 use systemprompt_models::ai::DynAiProvider;
 use tokio::sync::{RwLock, Semaphore};
 

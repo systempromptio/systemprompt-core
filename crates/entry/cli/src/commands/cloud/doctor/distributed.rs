@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 use systemprompt_database::{PostgresProvider, replica_status};
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use super::CheckResult;
 

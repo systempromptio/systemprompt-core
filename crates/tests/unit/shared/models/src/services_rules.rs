@@ -1,4 +1,4 @@
-use systemprompt_models::services::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig};
+use systemprompt_manifest::services::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig};
 
 fn parse(yaml: &str) -> DiskRuleConfig {
     serde_yaml::from_str(yaml).expect("rule config parses")

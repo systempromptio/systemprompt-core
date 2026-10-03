@@ -21,7 +21,7 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::PluginConfigFile;
+use systemprompt_manifest::PluginConfigFile;
 
 use super::types::{PluginGenerateAllOutput, PluginGenerateOutput};
 

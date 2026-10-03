@@ -11,7 +11,7 @@
 
 use chrono::{TimeZone, Utc};
 use systemprompt_identifiers::{JobName, ScheduledJobId, ServiceName};
-use systemprompt_models::services::{ServiceModule, ServiceStatus};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{
     DbServiceRecord, DesiredStatus, JobStatus, ReconciliationResult, RuntimeStatus, ScheduledJob,

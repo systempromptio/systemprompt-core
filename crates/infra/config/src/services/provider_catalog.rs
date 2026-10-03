@@ -13,9 +13,9 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
+use systemprompt_manifest::services::ai::{ModelCapabilities, ModelPricing};
+use systemprompt_manifest::services::{ProviderEntry, ProviderModel, ProviderRegistry};
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::ai::{ModelCapabilities, ModelPricing};
-use systemprompt_models::services::{ProviderEntry, ProviderModel, ProviderRegistry};
 use systemprompt_wire::{ModelLimits, WireProtocol};
 
 use crate::error::{ConfigError, ConfigResult};

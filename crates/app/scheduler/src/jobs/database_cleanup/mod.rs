@@ -27,7 +27,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use systemprompt_database::DbPool;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::profile::RetentionConfig;
+use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 

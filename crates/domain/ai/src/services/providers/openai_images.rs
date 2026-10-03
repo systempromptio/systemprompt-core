@@ -20,8 +20,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
+use systemprompt_manifest::services::ModelDefinition;
 use systemprompt_models::net::IMAGE_GEN_OPENAI_TIMEOUT;
-use systemprompt_models::services::ModelDefinition;
 use systemprompt_wire::WireProtocol;
 
 use crate::services::upstream::UpstreamTarget;

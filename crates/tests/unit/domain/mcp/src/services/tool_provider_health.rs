@@ -6,9 +6,9 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, UserId};
+use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
-use systemprompt_models::services::ResilienceSettings;
 use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
 use systemprompt_traits::{ToolContext, ToolProvider};
 use wiremock::MockServer;

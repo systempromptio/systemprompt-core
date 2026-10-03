@@ -21,7 +21,7 @@ use systemprompt_api::services::gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundOutcome,
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_models::services::GatewayRoute;
+use systemprompt_manifest::services::GatewayRoute;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
 use systemprompt_wire::Hosting;
 use systemprompt_wire::anthropic::AnthropicBeta;

@@ -7,7 +7,8 @@ use anyhow::Result;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::path::Path;
-use systemprompt_models::{ComponentSource, PluginConfig};
+use systemprompt_manifest::PluginConfig;
+use systemprompt_models::plugin::ComponentSource;
 
 use super::DEFAULT_AGENT_TOOLS;
 

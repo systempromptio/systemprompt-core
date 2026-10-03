@@ -7,7 +7,7 @@ use crate::error::McpDomainResult;
 use std::time::Duration;
 use systemprompt_database::ServiceRepository;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 use tokio::net::TcpStream;
 
 #[derive(Debug)]

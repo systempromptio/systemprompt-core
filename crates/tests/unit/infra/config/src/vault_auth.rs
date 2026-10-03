@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use systemprompt_config::{SecretsBootstrapError, SecretsProvider, VaultError, VaultKvProvider};
-use systemprompt_models::profile::VaultAuth;
+use systemprompt_manifest::profile::VaultAuth;
 use wiremock::matchers::{body_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

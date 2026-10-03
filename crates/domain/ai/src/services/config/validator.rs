@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_models::services::AiConfig;
+use systemprompt_manifest::services::AiConfig;
 use tracing::warn;
 
 use super::error::AiConfigError;

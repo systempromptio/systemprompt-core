@@ -9,9 +9,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission};
-use systemprompt_models::profile::TrustedIssuer;
 use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_security::keys::JwksClient;
 

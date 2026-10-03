@@ -5,7 +5,7 @@
 use systemprompt_cli::admin::config::rate_limits::preset::{
     get_preset_config, get_preset_description,
 };
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_manifest::profile::RateLimitsConfig;
 
 #[test]
 fn development_preset_is_relaxed() {

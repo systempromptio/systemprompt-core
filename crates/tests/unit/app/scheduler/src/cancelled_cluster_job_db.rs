@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::JobName;
 
-use systemprompt_models::SchedulerConfig;
+use systemprompt_manifest::SchedulerConfig;
 use systemprompt_scheduler::{JobStatus, SchedulerRepository, SchedulerService};
 use systemprompt_test_fixtures::{DisposableDb, test_app_context};
 use tracing_subscriber::layer::SubscriberExt;

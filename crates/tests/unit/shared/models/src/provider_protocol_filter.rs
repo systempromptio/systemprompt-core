@@ -6,9 +6,9 @@
 //! only through routes and must never appear in an advertised catalog.
 
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
+use systemprompt_manifest::services::providers::surface_for;
+use systemprompt_manifest::services::{ProviderEntry, ProviderModel, ProviderRegistry};
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::providers::surface_for;
-use systemprompt_models::services::{ProviderEntry, ProviderModel, ProviderRegistry};
 use systemprompt_wire::WireProtocol;
 
 const ALL_SURFACES: &[ApiSurface] = &[
@@ -222,7 +222,7 @@ fn bridge_profile_dto_round_trips_typed_surface() {
 
 #[test]
 fn bridge_profile_build_excludes_backend_provider() {
-    use systemprompt_models::bridge::profile;
+    use systemprompt_manifest::bridge_profile as profile;
 
     let registry = ProviderRegistry {
         providers: vec![

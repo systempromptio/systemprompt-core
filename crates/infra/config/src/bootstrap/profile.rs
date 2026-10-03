@@ -10,7 +10,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use systemprompt_models::profile::{Profile, ProfileError};
+use systemprompt_manifest::profile::{Profile, ProfileError};
 
 use crate::error::ConfigResult;
 

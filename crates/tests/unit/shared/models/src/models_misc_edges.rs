@@ -2,9 +2,10 @@
 //! path errors, repository-error HTTP mapping, and cloud claims.
 
 use std::str::FromStr;
+use systemprompt_manifest::PathNotConfiguredError;
+use systemprompt_models::ApiError;
 use systemprompt_models::a2a::{ApiKeyLocation, ProtocolBinding, SecurityScheme};
 use systemprompt_models::auth::CloudAuthClaims;
-use systemprompt_models::{ApiError, PathNotConfiguredError};
 use systemprompt_traits::{ConstraintKind, RepositoryError};
 
 #[test]

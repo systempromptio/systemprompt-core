@@ -12,7 +12,7 @@ use super::super::paths::WebPaths;
 use super::super::types::ValidationIssue;
 
 pub(super) fn validate_config(
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     web_paths: &WebPaths,
     errors: &mut Vec<ValidationIssue>,
     warnings: &mut Vec<ValidationIssue>,

@@ -47,9 +47,9 @@ fn playwright() -> ManifestExternalPlugin {
         description: None,
         version: Some("0.1.21".into()),
         strict: Some(false),
-        skills: Some(systemprompt_models::services::ExternalPluginSkills::Paths(
-            vec!["./".into()],
-        )),
+        skills: Some(
+            systemprompt_models::bridge::manifest::ExternalPluginSkills::Paths(vec!["./".into()]),
+        ),
     }
 }
 

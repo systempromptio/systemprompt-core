@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow, bail};
 use clap::{Args, Subcommand};
 use systemprompt_identifiers::ProviderId;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     GatewayConfigSpec, GatewayRoute, GatewayState, ProviderRegistry,
 };
 

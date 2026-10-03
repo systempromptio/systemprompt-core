@@ -19,7 +19,7 @@ mod kv;
 
 use std::collections::BTreeMap;
 
-use systemprompt_models::profile::{VaultAuth, VaultKeyRef, VaultSecretsConfig};
+use systemprompt_manifest::profile::{VaultAuth, VaultKeyRef, VaultSecretsConfig};
 
 use super::SecretsBootstrapError;
 use super::provider::{SecretsDocument, SecretsProvider};

@@ -11,7 +11,8 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::{ContentConfigRaw, WebConfig};
+use systemprompt_manifest::WebConfig;
+use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{ContentDataProvider, Dependencies};
 use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
 use systemprompt_templates::{

@@ -13,7 +13,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{InstanceId, JobName, ScheduledJobId};
 
-pub use systemprompt_models::services::{JobConfig, SchedulerConfig};
+pub use systemprompt_manifest::services::{JobConfig, SchedulerConfig};
 
 /// A job dropped from the schedule due to an unresolved explicit owner.
 ///

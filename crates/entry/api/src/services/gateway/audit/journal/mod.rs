@@ -26,7 +26,7 @@ use anyhow::{Context, Result};
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::aead::KeyInit;
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_models::Secrets;
+use systemprompt_manifest::Secrets;
 use tokio::task::JoinHandle;
 
 pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);

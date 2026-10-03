@@ -8,7 +8,8 @@ use async_trait::async_trait;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_models::{Config, ContentConfigRaw, WebConfig};
+use systemprompt_manifest::{Config, WebConfig};
+use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{
     ProviderError, ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider,
     RssFeedSpec,

@@ -12,7 +12,9 @@ use std::sync::Arc;
 
 use systemprompt_ai::{RouteSelectorEngine, UpstreamCall};
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::services::{GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry};
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry,
+};
 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;

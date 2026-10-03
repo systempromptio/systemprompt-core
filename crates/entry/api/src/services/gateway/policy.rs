@@ -21,7 +21,7 @@ use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use systemprompt_identifiers::AiGatewayPolicyId;
-use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_manifest::services::QuotaFaultMode;
 
 pub use systemprompt_ai::{GatewayPolicySpec, QuotaMode, QuotaWindow, SafetyConfig};
 

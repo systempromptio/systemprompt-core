@@ -17,8 +17,8 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::feedback::inventory::InventoryAvailability;
-use systemprompt_models::services::ServicesConfig;
 
 // Why: a fetched services composition is served through the loader's atomic
 // `current` link, so the root itself may be that one link; it resolves to the

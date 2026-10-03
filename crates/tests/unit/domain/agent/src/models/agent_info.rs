@@ -126,7 +126,7 @@ fn test_agent_info_with_skills() {
 #[test]
 fn test_agent_info_with_mcp_servers() {
     let card = create_test_card();
-    let servers = systemprompt_models::services::PluginComponentRef {
+    let servers = systemprompt_models::plugin::PluginComponentRef {
         include: vec!["brave".to_string(), "postgres".to_string()],
         ..Default::default()
     };
@@ -152,7 +152,7 @@ fn test_agent_info_builder_chain() {
         output_modes: None,
         security: None,
     }];
-    let servers = systemprompt_models::services::PluginComponentRef {
+    let servers = systemprompt_models::plugin::PluginComponentRef {
         include: vec!["brave".to_string()],
         ..Default::default()
     };
@@ -227,7 +227,7 @@ fn test_agent_info_mcp_count_none() {
 #[test]
 fn test_agent_info_mcp_count_with_servers() {
     let card = create_test_card();
-    let servers = systemprompt_models::services::PluginComponentRef {
+    let servers = systemprompt_models::plugin::PluginComponentRef {
         include: vec![
             "brave".to_string(),
             "postgres".to_string(),

@@ -5,9 +5,9 @@
 
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_loader::{ConfigLoadResult, ConfigLoader};
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::UserInfo;
-use systemprompt_models::services::ServicesConfig;
 use systemprompt_oauth::OauthResult;
 use systemprompt_oauth::repository::EnabledHostPrefs;
 use systemprompt_runtime::AppContext;

@@ -26,7 +26,9 @@
 //!   sha256 digest, signature, tool policy, …) so wire fields carry their
 //!   semantics through every layer.
 //! - [`profile`] — the `/v1/bridge/profile` payload (gateway base url, auth
-//!   scheme, advertised models, per-provider health) and its single builder.
+//!   scheme, advertised models, per-provider health).
+//! - [`update_policy`] — [`update_policy::AutoUpdatePolicy`], the self-update
+//!   rule carried in the manifest.
 //!
 //! Signing, signature verification, and manifest construction
 //! (builders) deliberately live in the bridge crate alongside the
@@ -44,3 +46,4 @@ pub mod manifest;
 pub mod manifest_version;
 pub mod plugin_bundle;
 pub mod profile;
+pub mod update_policy;

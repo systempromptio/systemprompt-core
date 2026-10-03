@@ -9,7 +9,7 @@
 
 use systemprompt_api::services::gateway::service::resolve::describe_route_match;
 use systemprompt_identifiers::{ProviderId, RouteId};
-use systemprompt_models::services::{GatewayRoute, RouteRequirements};
+use systemprompt_manifest::services::{GatewayRoute, RouteRequirements};
 
 fn route(requires: Option<RouteRequirements>) -> GatewayRoute {
     GatewayRoute {

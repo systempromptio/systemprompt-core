@@ -19,11 +19,12 @@ use std::path::PathBuf;
 
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::{ConfigWriteError, ConfigWriter};
-use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
-    PluginComponentRef, ProviderRegistry,
+    ProviderRegistry,
 };
+use systemprompt_models::modules::ApiPaths;
+use systemprompt_models::plugin::PluginComponentRef;
 use thiserror::Error;
 
 pub use edit::AgentEditRequest;
@@ -77,7 +78,7 @@ pub enum ConfigAuthoringError {
     ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
 
     #[error("Failed to load the provider catalogue for defaults: {0}")]
-    ProviderCatalog(#[from] systemprompt_models::services::ProviderRegistryError),
+    ProviderCatalog(#[from] systemprompt_manifest::services::ProviderRegistryError),
 }
 
 #[derive(Debug, Clone, Default)]

@@ -13,8 +13,8 @@ use std::time::Duration;
 
 use reqwest::redirect::Policy;
 use reqwest::{Method, RequestBuilder, Response, StatusCode};
+use systemprompt_manifest::profile::VaultSecretsConfig;
 use systemprompt_models::net::{trusted_http_hosts_from_env, validate_outbound_url_with_trust};
-use systemprompt_models::profile::VaultSecretsConfig;
 
 use super::error::{VaultAttemptFailure, VaultError};
 

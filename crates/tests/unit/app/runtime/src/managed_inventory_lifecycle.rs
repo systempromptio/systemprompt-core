@@ -1,6 +1,6 @@
 use systemprompt_identifiers::UserId;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::inventory::LatestPublicationStatus;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::managed::inventory;
 use systemprompt_test_fixtures::{
     fixture_app_context_with, init_isolated_bootstrap, seed_user_row, test_db_pool,

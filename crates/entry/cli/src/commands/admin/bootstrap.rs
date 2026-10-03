@@ -11,7 +11,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::UserId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_users::{User, UserRepository, UserRole, UserService, UserStatus};
 
 use crate::CliConfig;

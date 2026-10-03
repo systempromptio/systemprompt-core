@@ -21,7 +21,7 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::ai::tools::McpTool;
 
 mod bounded_sse;

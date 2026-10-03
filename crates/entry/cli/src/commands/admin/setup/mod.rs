@@ -29,7 +29,7 @@ pub mod wizard_prompts;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_models::none_if_blank;
+use systemprompt_manifest::none_if_blank;
 
 pub use secrets::SecretsData;
 pub use types::*;

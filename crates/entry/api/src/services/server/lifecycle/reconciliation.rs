@@ -11,7 +11,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEventExt, StartupEventSender};
 

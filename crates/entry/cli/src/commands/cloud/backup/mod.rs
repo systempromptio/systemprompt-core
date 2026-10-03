@@ -44,7 +44,7 @@ pub(super) async fn execute(
     CliService::section("systemprompt.io Cloud Backup");
 
     let (profile, _profile_path) = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
-    if profile.target != systemprompt_models::ProfileType::Cloud {
+    if profile.target != systemprompt_manifest::ProfileType::Cloud {
         bail!("Cannot back up a local profile. Select a cloud profile with --profile <name>.");
     }
 

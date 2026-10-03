@@ -14,7 +14,7 @@ use axum::{Router, middleware};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::AgentConfig;
+use systemprompt_manifest::AgentConfig;
 use systemprompt_models::ai::DynAiProvider;
 use systemprompt_models::modules::ApiPaths;
 use tokio::sync::{RwLock, Semaphore};

@@ -12,7 +12,7 @@ use systemprompt_identifiers::TeamsAppId;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, SecretName, SlackWorkspaceId, TeamsTenantId};
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     SlackAppConfig, SlackAuthzConfig, TeamsAppConfig, TeamsAuthzConfig,
 };
 use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
@@ -79,7 +79,7 @@ fn teams_app(tenant: &str, roles: &[&str], enabled: bool) -> TeamsAppConfig {
         authz: TeamsAuthzConfig {
             allowed_roles: roles.iter().map(|r| (*r).to_owned()).collect(),
         },
-        endpoints: systemprompt_models::services::teams::TeamsEndpoints::default(),
+        endpoints: systemprompt_manifest::services::teams::TeamsEndpoints::default(),
     }
 }
 

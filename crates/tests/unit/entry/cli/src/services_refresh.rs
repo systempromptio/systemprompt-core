@@ -12,7 +12,7 @@ use chrono::Utc;
 use systemprompt_cli::core::services::refresh::{
     RefreshOutcome, diff_states, exit_code_for, outcome_for,
 };
-use systemprompt_models::services::bundle::{BundleSourceState, ServicesBundleState};
+use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 
 fn state(entries: &[(&str, &str)]) -> ServicesBundleState {
     let sources: BTreeMap<String, BundleSourceState> = entries

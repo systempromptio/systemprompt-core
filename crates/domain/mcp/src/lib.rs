@@ -98,7 +98,8 @@ pub use services::registry::trait_impl::McpDeploymentProviderImpl;
 pub use services::tool_provider::McpToolProvider;
 pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator, McpRestartOutcome};
 
-pub use systemprompt_models::mcp::{McpDeploymentProvider, McpRegistry, McpServerState};
+pub use systemprompt_manifest::services::McpDeploymentProvider;
+pub use systemprompt_models::mcp::{McpRegistry, McpServerState};
 
 pub fn mcp_protocol_version() -> String {
     ProtocolVersion::V_2026_07_28.to_string()

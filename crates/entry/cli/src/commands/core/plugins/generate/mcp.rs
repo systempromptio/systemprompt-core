@@ -7,7 +7,7 @@ use anyhow::Result;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
-use systemprompt_models::PluginConfig;
+use systemprompt_manifest::PluginConfig;
 
 #[derive(Debug, Deserialize)]
 struct McpPortConfig {

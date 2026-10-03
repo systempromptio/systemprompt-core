@@ -6,7 +6,7 @@
 use std::fs;
 use std::path::Path;
 
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_manifest::services::ServicesConfig;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 

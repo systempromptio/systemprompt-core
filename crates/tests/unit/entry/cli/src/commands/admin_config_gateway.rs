@@ -9,7 +9,7 @@ use systemprompt_cli::admin::config::gateway::{
 };
 use systemprompt_cli::admin::config::services_io::GatewayFile;
 use systemprompt_identifiers::ProviderId;
-use systemprompt_models::services::{GatewayConfigSpec, GatewayState, ProviderRegistry};
+use systemprompt_manifest::services::{GatewayConfigSpec, GatewayState, ProviderRegistry};
 
 fn file() -> GatewayFile {
     GatewayFile { gateway: None }

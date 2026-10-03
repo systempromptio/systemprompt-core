@@ -21,7 +21,7 @@ use axum::extract::FromRequestParts;
 use axum::response::{IntoResponse, Response};
 use http::header;
 use http::request::Parts;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::errors::GlobalConfigError;
 

@@ -18,7 +18,8 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bcrypt::hash;
 use chrono::Utc;
 use rand::Rng;
-use systemprompt_models::{Config, RequestContext};
+use systemprompt_manifest::Config;
+use systemprompt_models::RequestContext;
 use uuid::Uuid;
 
 use systemprompt_oauth::OauthResult;

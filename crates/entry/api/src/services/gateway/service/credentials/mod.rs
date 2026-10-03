@@ -21,7 +21,7 @@
 pub mod google;
 
 use systemprompt_ai::{UpstreamCall, UpstreamTarget, UpstreamTargetError};
-use systemprompt_models::services::ProviderEntry;
+use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialError, CredentialScope, fill_endpoint};
 
 use super::DispatchError;

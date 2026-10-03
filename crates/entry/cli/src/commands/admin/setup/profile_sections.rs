@@ -13,15 +13,15 @@ use std::path::Path;
 
 use systemprompt_cloud::ProjectContext;
 use systemprompt_loader::ExtensionLoader;
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     default_resource_audiences,
 };
-use systemprompt_models::{
+use systemprompt_manifest::{
     ContentNegotiationConfig, Environment, LogLevel, OutputFormat, PathsConfig, RuntimeConfig,
     SecurityConfig, SecurityHeadersConfig, ServerConfig,
 };
+use systemprompt_models::auth::JwtAudience;
 
 
 pub(super) fn server(is_prod: bool) -> ServerConfig {
@@ -45,7 +45,7 @@ pub(super) fn server(is_prod: bool) -> ServerConfig {
         security_headers: SecurityHeadersConfig::default(),
         instance_id: None,
         metrics_port: None,
-        max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+        max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         trusted_proxies: Vec::new(),
     }
 }
@@ -89,7 +89,7 @@ pub(super) fn security(api_external_url: &str) -> SecurityConfig {
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         trusted_issuers: Vec::new(),
-        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+        id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
     }
 }
 

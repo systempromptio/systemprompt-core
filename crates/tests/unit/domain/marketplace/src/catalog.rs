@@ -1,6 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 
+use systemprompt_manifest::services::{
+    AgentCardConfig, AgentConfig, AgentMetadataConfig, OAuthConfig, ServicesConfig,
+};
 use systemprompt_marketplace::catalog::{
     disabled_mcp_server_names, load_agents, load_artifacts, load_hooks, load_managed_mcp_servers,
     load_plugins, load_rules, load_skills,
@@ -10,9 +13,6 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::bridge::ids::ToolPolicy;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{Deployment, ExternalAuth, McpServerType};
-use systemprompt_models::services::{
-    AgentCardConfig, AgentConfig, AgentMetadataConfig, OAuthConfig, ServicesConfig,
-};
 
 use crate::helpers::{config_with, warn_subscriber_guard};
 

@@ -13,7 +13,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_MANIFEST_FILE, ServicesBundleState, SignedBundleManifest,
 };
 

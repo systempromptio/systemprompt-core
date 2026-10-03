@@ -14,7 +14,7 @@ use systemprompt_cli::core::services::reconcile::reconcile_after_swap;
 use systemprompt_cli::env_overrides::EnvOverrides;
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
-use systemprompt_models::services::bundle::ServicesBundleState;
+use systemprompt_manifest::services::bundle::ServicesBundleState;
 
 use crate::services_profile_fixture as fx;
 
@@ -129,8 +129,8 @@ async fn a_moved_composition_with_no_cached_fetch_state_refuses_to_guess() {
 #[tokio::test]
 async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     use chrono::Utc;
-    use systemprompt_models::profile::ServicesSource;
-    use systemprompt_models::services::bundle::{
+    use systemprompt_manifest::profile::ServicesSource;
+    use systemprompt_manifest::services::bundle::{
         BundleOwnership, BundleSourceInfo, BundleSourceState, ServicesBundleManifest,
         SignedBundleManifest,
     };

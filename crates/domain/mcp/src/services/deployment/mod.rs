@@ -10,7 +10,7 @@
 use crate::Deployment;
 use crate::error::{McpDomainError, McpDomainResult};
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 
 fn missing_deployment(name: &str) -> McpDomainError {
     McpDomainError::Configuration(format!(

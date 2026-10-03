@@ -20,6 +20,7 @@ systemprompt-users = { workspace = true }
 systemprompt-cloud = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-config = { workspace = true }

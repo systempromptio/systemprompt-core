@@ -3,7 +3,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::config::catalog::discovery_rows;
-use systemprompt_models::services::{DiscoveryReport, VertexRateCard};
+use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard};
 
 fn card() -> VertexRateCard {
     VertexRateCard::embedded().expect("embedded rate card")

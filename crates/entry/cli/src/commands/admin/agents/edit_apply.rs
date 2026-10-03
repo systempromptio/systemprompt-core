@@ -41,7 +41,7 @@ fn edit_request(args: &EditArgs) -> AgentEditRequest {
 }
 
 pub(super) fn apply_enabled_flags(
-    agent: &mut systemprompt_models::AgentConfig,
+    agent: &mut systemprompt_manifest::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
 ) {
@@ -49,7 +49,7 @@ pub(super) fn apply_enabled_flags(
 }
 
 pub(super) fn apply_runtime_fields(
-    agent: &mut systemprompt_models::AgentConfig,
+    agent: &mut systemprompt_manifest::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
 ) -> Result<()> {
@@ -58,7 +58,7 @@ pub(super) fn apply_runtime_fields(
 }
 
 pub(super) fn apply_card_fields(
-    agent: &mut systemprompt_models::AgentConfig,
+    agent: &mut systemprompt_manifest::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
 ) {
@@ -66,7 +66,7 @@ pub(super) fn apply_card_fields(
 }
 
 pub(super) fn apply_capability_fields(
-    agent: &mut systemprompt_models::AgentConfig,
+    agent: &mut systemprompt_manifest::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
 ) {
@@ -74,7 +74,7 @@ pub(super) fn apply_capability_fields(
 }
 
 pub(super) fn apply_metadata_fields(
-    agent: &mut systemprompt_models::AgentConfig,
+    agent: &mut systemprompt_manifest::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
 ) -> Result<()> {
@@ -83,9 +83,9 @@ pub(super) fn apply_metadata_fields(
 }
 
 pub(super) fn apply_mcp_server_changes(
-    agent: &mut systemprompt_models::AgentConfig,
+    agent: &mut systemprompt_manifest::AgentConfig,
     args: &EditArgs,
-    services_config: &systemprompt_models::ServicesConfig,
+    services_config: &systemprompt_manifest::ServicesConfig,
     changes: &mut Vec<String>,
 ) -> Result<()> {
     let skipped = AgentConfigAuthoringService::apply_mcp_server_changes(
@@ -104,7 +104,7 @@ pub(super) fn apply_mcp_server_changes(
 }
 
 pub(super) fn apply_skill_changes(
-    agent: &mut systemprompt_models::AgentConfig,
+    agent: &mut systemprompt_manifest::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
 ) {
@@ -119,7 +119,7 @@ pub(super) fn apply_skill_changes(
 }
 
 pub(super) fn apply_set_value_changes(
-    agent: &mut systemprompt_models::AgentConfig,
+    agent: &mut systemprompt_manifest::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
 ) -> Result<()> {

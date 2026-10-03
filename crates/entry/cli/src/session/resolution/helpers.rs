@@ -15,7 +15,7 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{Email, ProfileName};
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 use systemprompt_models::auth::UserType;
 
 use super::ProfileContext;

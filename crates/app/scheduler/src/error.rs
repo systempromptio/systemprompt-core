@@ -19,7 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::JobName;
-use systemprompt_models::profile::OtlpSignal;
+use systemprompt_manifest::profile::OtlpSignal;
 use systemprompt_provider_contracts::{MissingDependency, ProviderError};
 use systemprompt_traits::{BoxedSource, RepositoryError};
 use thiserror::Error;

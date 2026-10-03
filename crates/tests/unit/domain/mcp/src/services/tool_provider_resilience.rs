@@ -7,9 +7,9 @@ use std::time::Duration;
 use systemprompt_identifiers::{
     Actor, ContextId, JwtToken, McpServerId, SessionId, TraceId, UserId,
 };
+use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
-use systemprompt_models::services::ResilienceSettings;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 use wiremock::matchers::{body_partial_json, method, path};

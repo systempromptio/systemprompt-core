@@ -196,7 +196,7 @@ fn failure_outcome(
 
 pub fn prompt_server_selection(
     prompter: &dyn Prompter,
-    config: &systemprompt_models::ServicesConfig,
+    config: &systemprompt_manifest::ServicesConfig,
 ) -> Result<McpServerId> {
     let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
     servers.sort();

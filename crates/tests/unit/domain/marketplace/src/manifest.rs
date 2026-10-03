@@ -109,7 +109,9 @@ fn keep_everything(candidate: &MarketplaceCandidate) -> EntryKeepSets {
 
 // Two marketplaces over two plugins: `alpha` carries only `plugin-a`, `beta`
 // carries both. Each plugin ships one on-disk skill so it resolves to content.
-fn two_marketplace_config(dir: &std::path::Path) -> systemprompt_models::services::ServicesConfig {
+fn two_marketplace_config(
+    dir: &std::path::Path,
+) -> systemprompt_manifest::services::ServicesConfig {
     write_skill_on_disk(dir, "skill_a");
     write_skill_on_disk(dir, "skill_b");
     let mut alpha = marketplace("alpha");
@@ -278,7 +280,7 @@ async fn assemble_candidate_unscoped_without_marketplace() {
 // The artifact fixtures below declare `mcp__x__y`, and catalogue assembly now
 // rejects an artifact naming an mcp_server the deployment does not run, so the
 // server has to exist for the assertion under test to be the one that fires.
-fn register_artifact_mcp_server(config: &mut systemprompt_models::services::ServicesConfig) {
+fn register_artifact_mcp_server(config: &mut systemprompt_manifest::services::ServicesConfig) {
     config.mcp_servers.insert(
         "x".to_owned(),
         enabled_deployment(Some("https://x.example.com/mcp")),
@@ -519,9 +521,8 @@ async fn assemble_candidate_scopes_managed_mcp_servers_to_marketplace_include() 
 #[tokio::test]
 async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
     use systemprompt_identifiers::PluginId;
-    use systemprompt_models::services::{
-        ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
-    };
+    use systemprompt_manifest::services::{PluginAuthor, PluginConfig};
+    use systemprompt_models::plugin::{ComponentSource, PluginComponentRef};
 
     let dir = tempfile::tempdir().expect("temp services root");
 
@@ -1144,11 +1145,11 @@ async fn traced_manifest_prunes_only_resources_orphaned_by_the_access_filter() {
 }
 #[test]
 fn marketplace_agent_include_is_exact_while_empty_include_admits_the_catalogue() {
-    use systemprompt_marketplace::MarketplaceMembership;
-    use systemprompt_marketplace::catalog::load_agents;
-    use systemprompt_models::services::{
+    use systemprompt_manifest::services::{
         AgentCardConfig, AgentConfig, AgentMetadataConfig, OAuthConfig, ServicesConfig,
     };
+    use systemprompt_marketplace::MarketplaceMembership;
+    use systemprompt_marketplace::catalog::load_agents;
 
     fn agent(name: &str) -> AgentConfig {
         AgentConfig {

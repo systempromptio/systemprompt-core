@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::bridge::ids::ManifestSignature;
 use crate::bridge::manifest_version::ManifestVersion;
-use crate::services::bridge_policy::AutoUpdatePolicy;
+use crate::bridge::update_policy::AutoUpdatePolicy;
 use systemprompt_identifiers::{ApiKeyId, MarketplaceId, PluginId, TenantId, UserId};
 
 pub use entries::{
@@ -39,8 +39,8 @@ pub use entries::{
     SkillPublication,
 };
 pub use external::{
-    ManifestExternalMarketplace, ManifestExternalMarketplaceSource, ManifestExternalPlugin,
-    ManifestExternalPluginSource,
+    ExternalPluginSkills, ManifestExternalMarketplace, ManifestExternalMarketplaceSource,
+    ManifestExternalPlugin, ManifestExternalPluginSource,
 };
 pub use managed_mcp::ManagedMcpServer;
 
@@ -143,7 +143,7 @@ pub struct ManifestMarketplace {
 /// The Claude Code client settings a marketplace asks the bridge to write.
 ///
 /// Tolerant of unknown keys, unlike the kit-side
-/// [`ClaudeCodeMarketplaceConfig`](crate::services::ClaudeCodeMarketplaceConfig),
+/// `ClaudeCodeMarketplaceConfig` (services manifest),
 /// so a bridge ignores a setting a newer gateway adds.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestClaudeCode {

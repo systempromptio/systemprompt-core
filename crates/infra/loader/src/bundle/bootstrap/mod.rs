@@ -17,8 +17,8 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use systemprompt_models::profile::{FetchFailurePolicy, Profile};
-use systemprompt_models::services::bundle::ServicesBundleState;
+use systemprompt_manifest::profile::{FetchFailurePolicy, Profile};
+use systemprompt_manifest::services::bundle::ServicesBundleState;
 
 use super::cache::BundleCache;
 use super::compose::{BundleMember, compose};

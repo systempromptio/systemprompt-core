@@ -47,7 +47,7 @@ impl SessionCreationService {
             return None;
         }
 
-        let config = systemprompt_models::Config::get()
+        let config = systemprompt_manifest::Config::get()
             .inspect_err(|e| {
                 tracing::warn!(error = %e, "Failed to get config for session lookup");
             })

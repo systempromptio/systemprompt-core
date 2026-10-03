@@ -8,7 +8,7 @@
 //! advisory `x-inference-protocol` header.
 
 use std::collections::HashMap;
-use systemprompt_models::services::providers::surface_for;
+use systemprompt_manifest::services::providers::surface_for;
 
 use axum::http::HeaderMap;
 use systemprompt_api::error::ApiHttpError;
@@ -16,14 +16,13 @@ use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_
 use systemprompt_api::routes::gateway::models::{model_entries, surfaces_from_header};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName, TenantId};
-use systemprompt_models::api::ErrorCode;
-use systemprompt_models::bridge::profile::{
-    BridgeProfileParams, BridgeProfileResponse, build as profile_build,
-};
-use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::{
+use systemprompt_manifest::bridge_profile::{BridgeProfileParams, build as profile_build};
+use systemprompt_manifest::services::{
     GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
 };
+use systemprompt_models::api::ErrorCode;
+use systemprompt_models::bridge::profile::BridgeProfileResponse;
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_wire::WireProtocol;
 
 fn build_profile(registry: &ProviderRegistry) -> BridgeProfileResponse {

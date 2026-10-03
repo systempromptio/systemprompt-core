@@ -11,10 +11,10 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::{PluginId, SkillId};
+use systemprompt_manifest::services::plugin::{PluginConfig, PluginConfigFile};
 use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_RELPATH, PluginManifest};
-use systemprompt_models::services::plugin::{
-    ComponentSource, PluginComponentRef, PluginConfig, PluginConfigFile, PluginDependency,
-    PluginHooksRef,
+use systemprompt_models::plugin::{
+    ComponentSource, PluginComponentRef, PluginDependency, PluginHooksRef,
 };
 
 use crate::bundle::{NODE_PACKAGE_FILE, node_lockfile};

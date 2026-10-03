@@ -1,6 +1,6 @@
 //! Tests for the declarative Teams app config.
 
-use systemprompt_models::services::{ServicesConfig, TeamsAppConfig};
+use systemprompt_manifest::services::{ServicesConfig, TeamsAppConfig};
 
 fn yaml(doc: &str) -> TeamsAppConfig {
     serde_yaml::from_str(doc).unwrap()

@@ -5,7 +5,7 @@ use systemprompt_bridge::gateway::manifest::{
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{McpServerId, PluginId, Sha256Digest, SkillId, SkillName};
 use systemprompt_identifiers::{HookId, TenantId};
-use systemprompt_models::services::hooks::{HookCategory, HookEvent};
+use systemprompt_models::hooks::{HookCategory, HookEvent};
 use systemprompt_test_fixtures::fixture_user_id;
 
 const FAKE_SHA: &str = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";

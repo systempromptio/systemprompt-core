@@ -7,7 +7,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::AssetDefinition;
 use systemprompt_generator::{copy_asset, execute_copy_extension_assets};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::profile::PathsConfig;
 use tempfile::TempDir;
 
 fn make_app_paths(tmp: &TempDir) -> AppPaths {
@@ -21,7 +21,7 @@ fn make_app_paths(tmp: &TempDir) -> AppPaths {
             storage: Some(p),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths")

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::MarketplaceConfig;
+use systemprompt_manifest::services::MarketplaceConfig;
 use systemprompt_security::authz::{
     Access, AccessControlConfig, AccessControlIngestionService, AccessControlRepository,
     DASHBOARD_SOURCE, EntityKind, IngestOptions, IngestScope, RegisteredEntities, RuleType,

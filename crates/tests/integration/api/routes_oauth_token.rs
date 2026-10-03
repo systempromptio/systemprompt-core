@@ -14,11 +14,11 @@ use axum::http::{Request, Response, StatusCode, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{Actor, AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::Config;
-use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
 use systemprompt_oauth::services::hash_client_secret;
@@ -71,7 +71,7 @@ fn ensure_config() {
             signing_key_path: std::path::PathBuf::from("signing_key.pem"),
             use_https: false,
             rate_limits: RateLimitsConfig::default(),
-            retention: systemprompt_models::profile::RetentionConfig::default(),
+            retention: systemprompt_manifest::profile::RetentionConfig::default(),
             cors_allowed_origins: vec![],
             trusted_proxies: vec![],
             is_cloud: false,

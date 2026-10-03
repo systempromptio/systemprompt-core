@@ -66,7 +66,7 @@ fn a_provider_declares_its_betas_as_a_yaml_list() {
     let yaml = "name: vertex-anthropic\nwire: anthropic\nsurface: anthropic\n\
                 endpoint: https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/anthropic\n\
                 api_key_secret: vertex\naccepted_betas: [a-2025, b-2025]\n";
-    let entry: systemprompt_models::services::ProviderEntry =
+    let entry: systemprompt_manifest::services::ProviderEntry =
         serde_yaml::from_str(yaml).expect("provider parses");
     let declared = entry.accepted_betas.expect("declared");
     assert!(declared.contains(&AnthropicBeta::new("a-2025")));

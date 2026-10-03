@@ -18,7 +18,7 @@ use systemprompt_ai::services::providers::{
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
 use systemprompt_identifiers::{AiRequestId, McpServerId};
-use systemprompt_models::services::ResilienceSettings;
+use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_wire::WireProtocol;
 
 fn settings() -> ResilienceSettings {

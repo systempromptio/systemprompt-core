@@ -1,7 +1,7 @@
 use anyhow::Result;
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 use uuid::Uuid;
 
 use crate::common::Fixture;

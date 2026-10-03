@@ -11,7 +11,7 @@
 //!   active profile and secrets document, initialised in that order by the
 //!   entry-crate boot sequence.
 //! - [`try_init_config`] / [`build_from_profile`] — build a runtime
-//!   [`systemprompt_models::Config`] from the active profile.
+//!   [`systemprompt_manifest::Config`] from the active profile.
 //! - [`ProviderCatalogService`], [`SecurityConfigService`] — typed mutations of
 //!   the services provider registry and the profile's security section, backing
 //!   the `admin config catalog` / `admin config security` CLI surfaces.

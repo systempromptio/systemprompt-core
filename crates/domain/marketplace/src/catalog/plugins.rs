@@ -24,11 +24,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::{LibraryArtifactId, MarketplaceRuleId, PluginId, SkillId};
+use systemprompt_manifest::services::{MarketplaceMemberKind, PluginConfig, ServicesConfig};
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::{ArtifactEntry, PluginEntry, PluginFile};
-use systemprompt_models::services::{
-    ComponentSource, MarketplaceMemberKind, PluginConfig, ServicesConfig,
-};
+use systemprompt_models::plugin::ComponentSource;
 
 use crate::bundle::{BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content};
 use crate::catalog::MarketplaceCache;

@@ -10,7 +10,7 @@ use systemprompt_cloud::{CloudPath, ProfilePath, ProjectContext, TenantStore, ge
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
@@ -40,7 +40,7 @@ fn to_deployable_profile(
     discovered: DiscoveredProfile,
     tenant_store: &TenantStore,
 ) -> Option<DeployableProfile> {
-    if discovered.profile.target != systemprompt_models::ProfileType::Cloud {
+    if discovered.profile.target != systemprompt_manifest::ProfileType::Cloud {
         return None;
     }
 

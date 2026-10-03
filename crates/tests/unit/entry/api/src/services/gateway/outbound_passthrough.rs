@@ -20,7 +20,7 @@ use systemprompt_api::services::gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, UpstreamError,
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_models::services::GatewayRoute;
+use systemprompt_manifest::services::GatewayRoute;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 

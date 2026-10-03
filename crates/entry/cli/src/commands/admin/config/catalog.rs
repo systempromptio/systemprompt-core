@@ -18,8 +18,8 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 use systemprompt_config::{ModelSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
+use systemprompt_manifest::services::ProviderRegistry;
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::ProviderRegistry;
 use systemprompt_wire::WireProtocol;
 
 use super::services_io::{

@@ -5,8 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{AgentId, AgentName, ModelId, ProviderId};
+use systemprompt_manifest::services::{AgentConfig, ServicesConfig};
 use systemprompt_models::bridge::manifest::AgentEntry;
-use systemprompt_models::services::{AgentConfig, ServicesConfig};
 
 use crate::error::MarketplaceError;
 

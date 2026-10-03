@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::ServiceType;
+use systemprompt_manifest::ServiceType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StartupRequest {

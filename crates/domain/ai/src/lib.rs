@@ -84,7 +84,7 @@ pub use systemprompt_models::ai::{
 
 pub use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};
 
-pub use systemprompt_models::services::AiConfig;
+pub use systemprompt_manifest::services::AiConfig;
 
 pub use models::image_generation::{
     AspectRatio, GeneratedImageRecord, ImageGenerationRequest, ImageGenerationResponse,

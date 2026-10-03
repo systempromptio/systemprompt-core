@@ -1,5 +1,5 @@
 use serde_yaml::{Mapping, Value};
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use crate::profile_services_sources::local_profile;
 

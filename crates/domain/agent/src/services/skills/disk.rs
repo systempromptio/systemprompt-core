@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::SkillId;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
+use systemprompt_manifest::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 
 pub(super) struct LoadedDiskSkill {
     pub(super) skill_id: SkillId,

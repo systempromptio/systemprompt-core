@@ -6,8 +6,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::PluginId;
+use systemprompt_manifest::services::plugin::PluginAuthor;
 use systemprompt_models::bridge::plugin_bundle::PluginManifest;
-use systemprompt_models::services::plugin::PluginAuthor;
 
 use super::super::anthropic::MarketplacePluginEntry;
 use super::super::marketplace::DEFAULT_VERSION;

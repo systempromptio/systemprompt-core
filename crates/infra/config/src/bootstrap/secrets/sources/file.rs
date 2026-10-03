@@ -5,8 +5,8 @@
 
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::profile::resolve_with_home;
-use systemprompt_models::secrets::Secrets;
+use systemprompt_manifest::profile::resolve_with_home;
+use systemprompt_manifest::secrets::Secrets;
 
 use crate::bootstrap::profile::ProfileBootstrap;
 use crate::bootstrap::secrets::SecretsBootstrapError;

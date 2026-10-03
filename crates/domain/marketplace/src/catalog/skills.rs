@@ -13,12 +13,12 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::{SkillId, SkillName};
-use systemprompt_models::bridge::ids::Sha256Digest;
-use systemprompt_models::bridge::manifest::SkillEntry;
-use systemprompt_models::services::skill_frontmatter::{
+use systemprompt_manifest::services::skill_frontmatter::{
     check_json_compatible, render_passthrough_frontmatter,
 };
-use systemprompt_models::services::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
+use systemprompt_manifest::services::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
+use systemprompt_models::bridge::ids::Sha256Digest;
+use systemprompt_models::bridge::manifest::SkillEntry;
 
 use crate::error::MarketplaceError;
 use crate::managed::{ManagedSkill, RevisionFiles};

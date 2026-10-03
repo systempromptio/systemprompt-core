@@ -5,8 +5,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{AgentId, ModelId};
+use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::manifest::AgentEntry;
-use systemprompt_models::services::{ComponentSource, PluginConfig};
+use systemprompt_models::plugin::ComponentSource;
 
 use super::{BundleFile, PluginBundle};
 

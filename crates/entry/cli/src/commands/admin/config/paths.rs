@@ -13,7 +13,7 @@ use clap::Subcommand;
 use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
 use crate::CliConfig;

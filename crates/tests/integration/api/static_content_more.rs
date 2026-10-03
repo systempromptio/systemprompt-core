@@ -17,9 +17,9 @@ use systemprompt_api::services::static_content::session::ensure_session;
 use systemprompt_api::services::static_content::static_files::{StaticContentState, compute_etag};
 use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::JwtToken;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with, fixture_config, install_test_signing_key,
     test_db_pool,
@@ -101,7 +101,7 @@ async fn serve_homepage_missing_index_is_404() -> anyhow::Result<()> {
 #[tokio::test]
 async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Result<()> {
     let b = ensure_test_bootstrap();
-    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
     install_test_signing_key();
     let (_tmp, state) = state_with_dist().await?;
 
@@ -123,7 +123,7 @@ async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Resul
 async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_session()
 -> anyhow::Result<()> {
     let b = ensure_test_bootstrap();
-    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
     install_test_signing_key();
     let (_tmp, state) = state_with_dist().await?;
     let mut first_headers = HeaderMap::new();

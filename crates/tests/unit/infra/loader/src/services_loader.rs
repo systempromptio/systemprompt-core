@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_manifest::services::ServicesConfig;
 use tempfile::TempDir;
 
 fn create_minimal_config() -> String {

@@ -19,6 +19,7 @@ systemprompt-marketplace = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-content = { workspace = true }

@@ -35,7 +35,7 @@ sqlx = { workspace = true, features = ["postgres", "uuid"] }
 # systemprompt.io dependencies
 systemprompt-traits = { workspace = true, features = ["sqlx"] }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
-systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-extension = { workspace = true }
 
 # Utilities

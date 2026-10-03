@@ -9,10 +9,10 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_loader::ServicesBootstrap;
+use systemprompt_manifest::bridge_profile::is_model_servable;
+use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry};
 use systemprompt_models::api::ApiError;
-use systemprompt_models::bridge::profile::is_model_servable;
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::{GatewayConfig, ProviderRegistry};
 
 use crate::error::ApiHttpError;
 

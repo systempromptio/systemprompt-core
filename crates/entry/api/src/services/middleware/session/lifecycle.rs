@@ -59,7 +59,7 @@ pub(super) async fn refresh_session_for_user(
             },
         })?;
 
-    let config = systemprompt_models::Config::get().map_err(|e| {
+    let config = systemprompt_manifest::Config::get().map_err(|e| {
         tracing::error!(error = %e, "Failed to get config during session refresh");
         ApiError::internal_error("Failed to refresh session")
     })?;

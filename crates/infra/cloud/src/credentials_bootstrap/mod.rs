@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{CloudAuthToken, Email};
-use systemprompt_models::read_env_optional;
+use systemprompt_manifest::read_env_optional;
 
 pub use error::CredentialsBootstrapError;
 

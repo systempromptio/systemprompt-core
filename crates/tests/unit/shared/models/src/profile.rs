@@ -1,15 +1,15 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::{ProfileError, expand_home, resolve_path, resolve_with_home};
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
+use systemprompt_manifest::profile::{ProfileError, expand_home, resolve_path, resolve_with_home};
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileStyle, ProfileType,
     RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig, ServerConfig,
     SiteConfig,
 };
+use systemprompt_models::auth::JwtAudience;
 
 fn make_paths_config(base: &str) -> PathsConfig {
     PathsConfig {
@@ -35,7 +35,7 @@ fn make_server_config() -> ServerConfig {
         security_headers: SecurityHeadersConfig::default(),
         instance_id: None,
         metrics_port: None,
-        max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+        max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         trusted_proxies: Vec::new(),
     }
 }
@@ -52,7 +52,7 @@ fn make_security_config() -> SecurityConfig {
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
         trusted_issuers: vec![],
-        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+        id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
     }
 }
 
@@ -706,7 +706,7 @@ fn security_headers_default() {
     assert!(config.enabled);
     assert_eq!(
         config.frame_options,
-        systemprompt_models::profile::FrameOptions::Deny
+        systemprompt_manifest::profile::FrameOptions::Deny
     );
     assert_eq!(config.content_type_options, "nosniff");
     assert!(config.content_security_policy.is_none());
@@ -871,7 +871,7 @@ fn validate_rejects_cors_origin_with_path() {
 
 #[test]
 fn validate_rejects_trusted_issuer_non_https_jwks() {
-    use systemprompt_models::profile::TrustedIssuer;
+    use systemprompt_manifest::profile::TrustedIssuer;
     let mut profile = valid_profile("bad-jwks");
     profile.security.trusted_issuers = vec![TrustedIssuer {
         issuer: "https://idp.example.com".to_string(),
@@ -893,7 +893,7 @@ fn validate_rejects_trusted_issuer_non_https_jwks() {
 
 #[test]
 fn validate_rejects_trusted_issuer_malformed_issuer() {
-    use systemprompt_models::profile::TrustedIssuer;
+    use systemprompt_manifest::profile::TrustedIssuer;
     let mut profile = valid_profile("bad-issuer");
     profile.security.trusted_issuers = vec![TrustedIssuer {
         issuer: "not-a-url".to_string(),
@@ -914,7 +914,7 @@ fn validate_rejects_trusted_issuer_malformed_issuer() {
 
 #[test]
 fn validate_rejects_governance_webhook_malformed_url() {
-    use systemprompt_models::profile::{
+    use systemprompt_manifest::profile::{
         AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     };
     let mut profile = valid_profile("bad-webhook");
@@ -940,11 +940,11 @@ fn validate_rejects_governance_webhook_malformed_url() {
 
 #[test]
 fn referrer_policy_deserializes_header_token() {
-    let policy: systemprompt_models::profile::ReferrerPolicy =
+    let policy: systemprompt_manifest::profile::ReferrerPolicy =
         serde_yaml::from_str("same-origin").expect("valid token must parse");
     assert_eq!(policy.header_value(), "same-origin");
     assert!(
-        serde_yaml::from_str::<systemprompt_models::profile::ReferrerPolicy>("bogus-policy")
+        serde_yaml::from_str::<systemprompt_manifest::profile::ReferrerPolicy>("bogus-policy")
             .is_err(),
         "an unknown referrer-policy token must fail load"
     );

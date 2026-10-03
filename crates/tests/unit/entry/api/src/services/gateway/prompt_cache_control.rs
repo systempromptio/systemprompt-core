@@ -20,7 +20,7 @@ use systemprompt_api::services::gateway::protocol::outbound::anthropic::{
     AnthropicOutbound, request,
 };
 use systemprompt_api::services::gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
-use systemprompt_models::services::GatewayRoute;
+use systemprompt_manifest::services::GatewayRoute;
 
 /// The shape Claude Code sends: breakpoints on the last system block, the last
 /// tool, and the last block of the newest user turn.

@@ -68,6 +68,7 @@ systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-client = { workspace = true }
 systemprompt-config = { workspace = true }

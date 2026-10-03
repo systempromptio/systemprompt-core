@@ -14,10 +14,10 @@ use systemprompt_analytics::AnalyticsService;
 use systemprompt_api::services::server::setup_api_server;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
@@ -43,7 +43,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
     };
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )?);
 
@@ -120,7 +120,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
             file_storage: systemprompt_storage::build_file_storage(
-                systemprompt_models::profile::StorageBackend::Local,
+                systemprompt_manifest::profile::StorageBackend::Local,
                 &std::env::temp_dir(),
             ),
             shutdown: Default::default(),

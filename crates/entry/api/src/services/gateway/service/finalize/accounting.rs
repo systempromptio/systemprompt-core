@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_manifest::services::QuotaFaultMode;
 
 use super::super::super::audit::GatewayAudit;
 use super::super::super::quota;

@@ -25,7 +25,7 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 systemprompt-identifiers = { workspace = true }
-systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-traits = { workspace = true }
 
 [package.metadata.docs.rs]

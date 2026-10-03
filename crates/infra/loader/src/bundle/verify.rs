@@ -15,8 +15,8 @@ use std::path::Path;
 
 use flate2::read::GzDecoder;
 use sha2::{Digest, Sha256};
-use systemprompt_models::profile::BundleVerification;
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::profile::BundleVerification;
+use systemprompt_manifest::services::bundle::{
     BUNDLE_ALLOWED_DIRS, BUNDLE_FORMAT_VERSION, BUNDLE_MANIFEST_FILE, BUNDLE_SIGNATURE_ALG,
     ServicesBundleManifest, SignedBundleManifest,
 };
@@ -171,7 +171,8 @@ pub fn verify_extracted(root: &Path, manifest: &ServicesBundleManifest) -> Bundl
 
 pub fn require_marketplace_only(manifest: &ServicesBundleManifest) -> BundleResult<()> {
     for dir in &manifest.owns.dirs {
-        if !systemprompt_models::services::bundle::MARKETPLACE_BUNDLE_DIRS.contains(&dir.as_str()) {
+        if !systemprompt_manifest::services::bundle::MARKETPLACE_BUNDLE_DIRS.contains(&dir.as_str())
+        {
             return Err(VerifyFailure::NotMarketplaceOnly { dir: dir.clone() }.into());
         }
     }

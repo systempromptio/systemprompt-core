@@ -1,14 +1,14 @@
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT, default_resource_audiences,
 };
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
     ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
     ServerConfig, SiteConfig,
 };
+use systemprompt_models::auth::JwtAudience;
 
 fn webhook_governance() -> GovernanceConfig {
     GovernanceConfig {
@@ -37,7 +37,7 @@ fn server_config() -> ServerConfig {
         security_headers: SecurityHeadersConfig::default(),
         instance_id: None,
         metrics_port: None,
-        max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+        max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
     }
 }
@@ -54,7 +54,7 @@ fn security_config() -> SecurityConfig {
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
         trusted_issuers: vec![],
-        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+        id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
     }
 }
 
@@ -124,7 +124,7 @@ fn errors_of(profile: &Profile) -> String {
 
 mod storage {
     use super::*;
-    use systemprompt_models::profile::{StorageBackend, StorageConfig};
+    use systemprompt_manifest::profile::{StorageBackend, StorageConfig};
 
     #[test]
     fn local_backend_requires_paths_storage() {
@@ -270,7 +270,7 @@ mod security_settings {
 
 mod database_pool {
     use super::*;
-    use systemprompt_models::profile::PoolConfig;
+    use systemprompt_manifest::profile::PoolConfig;
 
     #[test]
     fn absent_pool_passes() {

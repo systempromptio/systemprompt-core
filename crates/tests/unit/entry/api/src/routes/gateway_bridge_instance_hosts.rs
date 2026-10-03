@@ -5,9 +5,9 @@
 
 use systemprompt_api::routes::gateway::bridge::instance_enabled_hosts;
 use systemprompt_identifiers::ExternalAgentId;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::external_agent::{ExternalAgentConfig, ExternalAgentKind};
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::services::external_agent::{ExternalAgentConfig, ExternalAgentKind};
 
 fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConfig) {
     let agent_id = ExternalAgentId::try_new(id).expect("valid ExternalAgentId");

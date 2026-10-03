@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
+use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use tempfile::TempDir;
 
 pub const MASTER_KEY: &str = "0000000000000000000000000000000000000000000000000000000000000000";

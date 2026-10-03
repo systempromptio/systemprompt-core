@@ -9,9 +9,9 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
 
 use crate::harness::{
@@ -67,7 +67,7 @@ async fn live_server(prefix: &str) -> LiveServer {
     let app_paths = Arc::new(
         AppPaths::from_profile(
             &profile_paths(bootstrap),
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
         .expect("app paths"),

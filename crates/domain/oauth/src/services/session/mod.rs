@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, SessionSource, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_traits::{
     BoxedSource, CreateSessionInput, FingerprintProvider, SessionAnalytics, SessionProvider,
     UserProvider,

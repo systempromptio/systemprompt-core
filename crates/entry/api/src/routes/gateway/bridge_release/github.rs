@@ -6,7 +6,7 @@
 
 use axum::http::header;
 use serde::Deserialize;
-use systemprompt_models::services::BridgeReleasesSpec;
+use systemprompt_manifest::services::BridgeReleasesSpec;
 
 use super::error::ReleaseError;
 

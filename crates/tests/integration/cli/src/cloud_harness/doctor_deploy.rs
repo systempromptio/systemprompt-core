@@ -248,7 +248,7 @@ async fn doctor_check_functions_cover_pass_and_fail() {
     assert!(key_via_secret.detail.contains("secrets.json"));
 
     let providers = check_provider_secrets(
-        &systemprompt_models::services::ProviderRegistry::default_seed().unwrap(),
+        &systemprompt_manifest::services::ProviderRegistry::default_seed().unwrap(),
         &secrets,
     );
     let _ = format!("{providers:?}");

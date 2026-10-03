@@ -1,5 +1,5 @@
 use systemprompt_identifiers::{ExtensionId, JobName};
-use systemprompt_models::services::scheduler::JobScope;
+use systemprompt_manifest::services::scheduler::JobScope;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 
 mod job_config_tests {

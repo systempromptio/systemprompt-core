@@ -17,7 +17,7 @@ use systemprompt_agent::services::a2a_server::streaming::{
 };
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 
 use super::a2a_helpers::{StubAiProvider, agent_config, make_handler_state, request_context};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session};

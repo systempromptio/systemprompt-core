@@ -6,7 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
-use systemprompt_models::AgentOAuthConfig;
+use systemprompt_manifest::AgentOAuthConfig;
 
 use crate::models::a2a::{OAuth2Flow, OAuth2Flows, SecurityScheme};
 

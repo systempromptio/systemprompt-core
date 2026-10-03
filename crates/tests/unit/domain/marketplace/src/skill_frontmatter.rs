@@ -5,11 +5,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
+use systemprompt_manifest::services::split_frontmatter;
 use systemprompt_marketplace::bundle::{BundleContent, build_plugin_bundle};
 use systemprompt_marketplace::catalog::load_skills;
 use systemprompt_marketplace::{ImportOptions, import_anthropic_tree};
 use systemprompt_models::bridge::manifest::SkillEntry;
-use systemprompt_models::services::{PluginComponentRef, split_frontmatter};
+use systemprompt_models::plugin::PluginComponentRef;
 use tempfile::TempDir;
 
 use crate::bundle::{explicit, plugin_config};

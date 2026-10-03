@@ -7,7 +7,7 @@
 
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::Deserialize;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_security::keys::JwksClient;
 
 use super::super::super::{TokenError, TokenResult};

@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_manifest::profile::RateLimitsConfig;
 
 use super::DiffArgs;
 use crate::CliConfig;

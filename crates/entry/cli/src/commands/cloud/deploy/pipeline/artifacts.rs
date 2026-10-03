@@ -14,7 +14,7 @@ use anyhow::{Result, bail};
 use systemprompt_cloud::ProjectContext;
 use systemprompt_extension::{AssetPaths, ExtensionRegistry};
 use systemprompt_identifiers::ProfileName;
-use systemprompt_models::paths::constants::build;
+use systemprompt_manifest::paths::constants::build;
 
 struct ProjectAssetPaths {
     storage_files: PathBuf,

@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{MarketplaceId, PluginId};
-use systemprompt_models::bridge::plugin_bundle::ManifestDependency;
-use systemprompt_models::services::{
-    ExternalMarketplace, ExternalMarketplaceSource, ExternalPluginEntry, ExternalPluginSkills,
-    ExternalPluginSource, MarketplaceConfig, MarketplaceVisibility, PluginAuthor,
-    PluginComponentRef, PluginConfig, PluginDependency, ServicesConfig,
+use systemprompt_manifest::services::{
+    ExternalMarketplace, ExternalMarketplaceSource, ExternalPluginEntry, ExternalPluginSource,
+    MarketplaceConfig, MarketplaceVisibility, PluginAuthor, PluginConfig, ServicesConfig,
 };
+use systemprompt_models::bridge::manifest::ExternalPluginSkills;
+use systemprompt_models::bridge::plugin_bundle::ManifestDependency;
+use systemprompt_models::plugin::{PluginComponentRef, PluginDependency};
 
 fn author() -> PluginAuthor {
     PluginAuthor {

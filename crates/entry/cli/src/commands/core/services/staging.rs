@@ -16,7 +16,7 @@ use systemprompt_loader::bundle::source::MAX_BUNDLE_BYTES;
 use systemprompt_loader::bundle::{
     BundleCache, ExtractOptions, TarLayout, compose, extract_tarball, pack, verify,
 };
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_ALLOWED_DIRS, BundleSourceInfo, ServicesBundleManifest, SignedBundleManifest,
 };
 

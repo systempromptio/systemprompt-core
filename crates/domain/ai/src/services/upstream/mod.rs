@@ -1,6 +1,6 @@
 //! The one way this crate and the gateway address an upstream provider.
 //!
-//! A catalog [`ProviderEntry`](systemprompt_models::services::providers::ProviderEntry) names an endpoint template and the secret that
+//! A catalog [`ProviderEntry`](systemprompt_manifest::services::providers::ProviderEntry) names an endpoint template and the secret that
 //! authenticates it. [`UpstreamTarget::resolve`] turns the pair into something
 //! a request can be sent to: the secret parsed into a
 //! [`ProviderCredential`](systemprompt_security::credential::ProviderCredential),

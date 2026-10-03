@@ -10,8 +10,8 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::ServicesSourceBootstrap;
 use systemprompt_loader::bundle::source::{AnyFetcher, BundleFetcher};
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_models::services::bundle::ServicesBundleState;
-use systemprompt_models::{Profile, Secrets};
+use systemprompt_manifest::services::bundle::ServicesBundleState;
+use systemprompt_manifest::{Profile, Secrets};
 
 use super::reconcile::{ReconcileRow, reconcile_after_swap};
 use crate::context::CommandContext;

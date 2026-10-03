@@ -10,8 +10,8 @@ use systemprompt_identifiers::{
     InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId,
     ResourceRevisionId, UserId,
 };
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
-use systemprompt_models::services::ServicesConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema)]
 pub struct InventoryEntry {

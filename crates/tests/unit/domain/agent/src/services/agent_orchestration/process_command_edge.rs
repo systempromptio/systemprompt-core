@@ -10,7 +10,7 @@ use systemprompt_identifiers::AgentName;
 use systemprompt_agent::services::agent_orchestration::process::command::{
     BuildAgentCommandParams, build_agent_command, prepare_agent_log_file,
 };
-use systemprompt_models::Secrets;
+use systemprompt_manifest::Secrets;
 
 fn secrets() -> Secrets {
     Secrets::parse(

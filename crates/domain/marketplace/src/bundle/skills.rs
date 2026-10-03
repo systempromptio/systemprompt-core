@@ -24,9 +24,10 @@ use systemprompt_identifiers::{AgentId, SkillId};
 use crate::dev_files::DevFileFilter;
 use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;
+use systemprompt_manifest::services::PluginConfig;
+use systemprompt_manifest::services::skill_frontmatter::render_passthrough_frontmatter;
 use systemprompt_models::bridge::manifest::SkillEntry;
-use systemprompt_models::services::skill_frontmatter::render_passthrough_frontmatter;
-use systemprompt_models::services::{ComponentSource, PluginConfig};
+use systemprompt_models::plugin::ComponentSource;
 
 use super::{BundleContent, BundleFile, PluginBundle};
 

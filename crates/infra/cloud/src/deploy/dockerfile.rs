@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
-use systemprompt_models::{CliPaths, ServicesConfig};
+use systemprompt_manifest::ServicesConfig;
+use systemprompt_models::CliPaths;
 
 use super::find_services_config;
 use crate::constants::{container, storage};

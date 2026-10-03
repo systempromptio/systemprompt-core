@@ -1,4 +1,4 @@
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_manifest::services::ServicesConfig;
 
 fn agent_yaml(name: &str, port: u16, default: bool) -> String {
     format!(

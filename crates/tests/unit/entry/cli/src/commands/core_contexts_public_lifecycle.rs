@@ -15,8 +15,8 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_identifiers::{Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_loader::ProfileLoader;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, fixture_app_context_with, install_test_signing_key,
     seed_user_row, seed_user_session,

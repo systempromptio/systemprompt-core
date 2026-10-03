@@ -6,8 +6,9 @@
 //! shape.
 
 use systemprompt_identifiers::McpServerId;
+use systemprompt_manifest::services::McpDeploymentProvider;
 use systemprompt_mcp::{McpDeploymentProviderImpl, RegistryService};
-use systemprompt_models::mcp::{McpDeploymentProvider, McpRegistry};
+use systemprompt_models::mcp::McpRegistry;
 use systemprompt_test_fixtures::fixture_user_id;
 
 #[tokio::test]

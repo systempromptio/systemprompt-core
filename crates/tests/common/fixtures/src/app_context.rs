@@ -16,12 +16,13 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
-use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_models::{Config, RouteClassifier};
+use systemprompt_manifest::Config;
+use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
+use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_models::RouteClassifier;
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
 use systemprompt_users::UserService;
@@ -82,14 +83,14 @@ pub fn fixture_config(database_url: &str) -> Config {
         jwt_audiences: systemprompt_models::auth::JwtAudience::standard(),
         allowed_resource_audiences: vec![],
         trusted_issuers: vec![],
-        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+        id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
         rate_limits: RateLimitsConfig {
             disabled: true,
             ..RateLimitsConfig::default()
         },
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: vec!["http://localhost:3000".to_string()],
         trusted_proxies: vec![],
         is_cloud: false,
@@ -238,7 +239,7 @@ fn fixture_app_context_assembled(
     );
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )?);
 
@@ -247,7 +248,7 @@ fn fixture_app_context_assembled(
     let session_store = Arc::clone(analytics_service.session_store());
     let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
     let file_storage = systemprompt_storage::build_file_storage(
-        systemprompt_models::profile::StorageBackend::Local,
+        systemprompt_manifest::profile::StorageBackend::Local,
         app_paths.storage().root(),
     );
     let ctx = AppContext::from_parts(

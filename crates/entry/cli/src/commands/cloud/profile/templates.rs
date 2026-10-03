@@ -14,7 +14,8 @@ use systemprompt_cloud::constants::container;
 use systemprompt_config::write_private_atomic;
 use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
-use systemprompt_models::{CliPaths, Profile};
+use systemprompt_manifest::Profile;
+use systemprompt_models::CliPaths;
 
 use crate::commands::cloud::init::templates::ai_config;
 
@@ -148,7 +149,7 @@ pub fn save_secrets(
     _is_cloud_tenant: bool,
 ) -> Result<()> {
     use serde_json::json;
-    use systemprompt_models::Profile;
+    use systemprompt_manifest::Profile;
 
     if Profile::is_masked_database_url(db_urls.external) {
         CliService::warning(

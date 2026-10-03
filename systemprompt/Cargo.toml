@@ -19,10 +19,12 @@ workspace = true
 [features]
 default = ["core"]
 
-# Core functionality - traits, models, extension framework
+# Core functionality - traits, models, wire codecs, services manifest, extension framework
 core = [
     "dep:systemprompt-traits",
     "dep:systemprompt-models",
+    "dep:systemprompt-wire",
+    "dep:systemprompt-manifest",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-extension",
     "dep:systemprompt-template-provider",
@@ -108,6 +110,8 @@ full = [
 # Core shared crates
 systemprompt-traits = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
+systemprompt-wire = { workspace = true, optional = true }
+systemprompt-manifest = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-extension = { workspace = true, optional = true }
 systemprompt-template-provider = { workspace = true, optional = true }

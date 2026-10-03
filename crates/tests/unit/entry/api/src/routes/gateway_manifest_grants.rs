@@ -16,6 +16,7 @@ use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DeviceCertId, ManagedResourceId, UserId};
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, NewResource, NewRevision, PublicationAction,
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
@@ -28,7 +29,6 @@ use systemprompt_models::feedback::receipts::{
     ConsumerReceiptRequest, RuntimeFileReadback, SessionBindingRequest,
 };
 use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, install_test_signing_key,

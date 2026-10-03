@@ -79,10 +79,10 @@ fn get_plugins_path() -> Result<std::path::PathBuf> {
     ))
 }
 
-fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_models::PluginConfigFile> {
+fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_manifest::PluginConfigFile> {
     let content = std::fs::read_to_string(config_path)
         .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let plugin_file: systemprompt_models::PluginConfigFile = serde_yaml::from_str(&content)
+    let plugin_file: systemprompt_manifest::PluginConfigFile = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse {}", config_path.display()))?;
     Ok(plugin_file)
 }

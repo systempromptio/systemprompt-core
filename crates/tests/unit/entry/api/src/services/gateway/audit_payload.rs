@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use systemprompt_api::services::gateway::audit::payload::{
     excerpt_payload, prepared_tools, slice_payload, truncate_for_tool_input,
 };
-use systemprompt_models::profile::AuditConfig;
+use systemprompt_manifest::profile::AuditConfig;
 
 const PAYLOAD_CAP: usize = AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES;
 const EXCERPT_BYTES: usize = 8 * 1024;

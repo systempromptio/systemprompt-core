@@ -104,7 +104,7 @@ fn load_from_secret_or_file() -> TokenAuthorityResult<Authority> {
 }
 
 fn load() -> TokenAuthorityResult<Authority> {
-    let config = systemprompt_models::Config::get().map_err(TokenAuthorityError::Config)?;
+    let config = systemprompt_manifest::Config::get().map_err(TokenAuthorityError::Config)?;
     let path = &config.signing_key_path;
     if path.as_os_str().is_empty() {
         return Err(TokenAuthorityError::PathMissing);

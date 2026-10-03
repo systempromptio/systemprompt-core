@@ -16,7 +16,7 @@ use std::time::Instant;
 
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{Actor, JobName};
-use systemprompt_models::SchedulerConfig;
+use systemprompt_manifest::SchedulerConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job;
 

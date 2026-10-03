@@ -73,7 +73,7 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
 
 pub async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
-    route: &systemprompt_models::services::GatewayRoute,
+    route: &systemprompt_manifest::services::GatewayRoute,
     model: &str,
     context_id: &ContextId,
     hook: &SharedAuthzHook,

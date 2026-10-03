@@ -18,7 +18,7 @@ use std::net::IpAddr;
 use systemprompt_identifiers::{
     AccessTokenId, ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
 };
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
 use systemprompt_traits::{
     AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider, UserProvider,

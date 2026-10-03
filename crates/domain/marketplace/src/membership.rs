@@ -17,8 +17,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_identifiers::{AgentId, MarketplaceId, McpServerId, PluginId};
+use systemprompt_manifest::services::{MarketplaceAccess, ServicesConfig};
 use systemprompt_models::bridge::manifest::{AgentEntry, ManagedMcpServer};
-use systemprompt_models::services::{MarketplaceAccess, ServicesConfig};
 
 #[derive(Debug, Clone, Default)]
 pub struct MarketplaceMembership {

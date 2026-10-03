@@ -104,7 +104,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
 fn resolve_targets(
     args: &DeleteArgs,
     prompter: &dyn Prompter,
-    services_config: &systemprompt_models::ServicesConfig,
+    services_config: &systemprompt_manifest::ServicesConfig,
     config: &CliConfig,
 ) -> Result<Vec<AgentName>> {
     let available: Vec<AgentName> = services_config.agents.keys().map(AgentName::new).collect();

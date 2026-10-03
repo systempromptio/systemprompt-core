@@ -108,11 +108,11 @@ fn sample_manifest() -> SignedManifest {
             is_primary: true,
             provider: Some(systemprompt_identifiers::ProviderId::new("anthropic")),
             model: Some(systemprompt_identifiers::ModelId::new("claude-opus")),
-            mcp_servers: systemprompt_models::services::PluginComponentRef {
+            mcp_servers: systemprompt_models::plugin::PluginComponentRef {
                 include: vec!["github".into()],
                 ..Default::default()
             },
-            skills: systemprompt_models::services::PluginComponentRef {
+            skills: systemprompt_models::plugin::PluginComponentRef {
                 include: vec!["skill_one".into()],
                 ..Default::default()
             },

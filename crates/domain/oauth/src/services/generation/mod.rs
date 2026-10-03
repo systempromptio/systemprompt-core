@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
 use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, SessionId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{
     ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
 };

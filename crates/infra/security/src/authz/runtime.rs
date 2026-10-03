@@ -37,10 +37,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_models::net::validate_outbound_url;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuthzConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
+use systemprompt_models::net::validate_outbound_url;
 
 use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository};
 use super::composite::CompositeAuthzHook;

@@ -8,9 +8,10 @@ use std::future::ready;
 use async_trait::async_trait;
 
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
+use systemprompt_manifest::services::McpDeploymentProvider;
 use systemprompt_models::errors::{McpRegistryError, McpRegistryResult};
-use systemprompt_models::mcp::{McpDeploymentProvider, McpRegistry, McpServerState};
+use systemprompt_models::mcp::{McpRegistry, McpServerState};
 use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig};
 
 use super::RegistryService;

@@ -11,10 +11,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::cowork_artifact::{
     CoworkArtifactBundleManifest, CoworkArtifactBundleRecord, CoworkLibraryArtifactRecord,
 };
-use systemprompt_models::services::PluginConfig;
 
 use crate::catalog::selects_artifact;
 use crate::error::MarketplaceError;

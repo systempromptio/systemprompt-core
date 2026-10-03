@@ -225,7 +225,7 @@ async fn connect_and_validate(
 }
 
 pub fn rewrite_url_for_internal_use(url: &str) -> String {
-    use systemprompt_models::Config;
+    use systemprompt_manifest::Config;
 
     let Ok(config) = Config::get() else {
         return url.to_owned();

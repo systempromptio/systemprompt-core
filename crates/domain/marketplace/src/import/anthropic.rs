@@ -21,8 +21,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
+use systemprompt_manifest::services::hooks::HookEventsConfig;
 use systemprompt_models::managed::RevisionBundleError;
-use systemprompt_models::services::hooks::HookEventsConfig;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct MarketplaceOwner {

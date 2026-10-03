@@ -11,7 +11,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use systemprompt_models::services::{SlackAppConfig, TeamsAppConfig};
+use systemprompt_manifest::services::{SlackAppConfig, TeamsAppConfig};
 
 use super::super::error::AuthzResult;
 use super::super::repository::ingestion::IngestionRepository;

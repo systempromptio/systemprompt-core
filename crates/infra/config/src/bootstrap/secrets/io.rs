@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use systemprompt_models::secrets::Secrets;
+use systemprompt_manifest::secrets::Secrets;
 
 use super::SecretsBootstrapError;
 use crate::error::ConfigResult;

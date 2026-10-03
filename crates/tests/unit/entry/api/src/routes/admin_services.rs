@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::{TimeZone, Utc};
 use systemprompt_api::routes::admin::services::{RefreshLock, build_status};
 use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesProvenance};
-use systemprompt_models::services::bundle::{BundleSourceState, ServicesBundleState};
+use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 
 fn staged_state() -> ServicesBundleState {
     let mut sources = BTreeMap::new();

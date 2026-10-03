@@ -9,9 +9,9 @@
 use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::claims::resolve_audience;
 use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::subject::jwks_host_allowlist;
 use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::validate_resource;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::TrustedIssuer;
 use systemprompt_test_fixtures::fixture_config;
 
 fn config_with_audiences(allowed: &[&str]) -> Config {

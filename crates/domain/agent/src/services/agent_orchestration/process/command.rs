@@ -9,7 +9,8 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::{CliPaths, Config, Secrets};
+use systemprompt_manifest::{Config, Secrets};
+use systemprompt_models::CliPaths;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 

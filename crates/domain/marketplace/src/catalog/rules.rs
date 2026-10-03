@@ -14,9 +14,9 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::RuleName;
+use systemprompt_manifest::services::{DiskRuleConfig, RULE_CONFIG_FILENAME, strip_frontmatter};
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::RuleEntry;
-use systemprompt_models::services::{DiskRuleConfig, RULE_CONFIG_FILENAME, strip_frontmatter};
 
 use crate::error::MarketplaceError;
 use crate::trace::{NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};

@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 use systemprompt_cli::core::services::bundle::{BundleArgs, pack_bundle};
 use systemprompt_cli::core::services::inspect::{InspectArgs, describe_bundle, execute};
 use systemprompt_cli::core::services::signing::BundleSigningKey;
-use systemprompt_models::Profile;
-use systemprompt_models::services::bundle::SignedBundleManifest;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::bundle::SignedBundleManifest;
 
 use crate::services_profile_fixture as fx;
 

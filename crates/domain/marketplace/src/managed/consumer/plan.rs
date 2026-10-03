@@ -16,13 +16,13 @@ use crate::dev_files::DevFileFilter;
 use crate::managed::error::integrity;
 use crate::managed::{ManagedError, Result, RevisionBundle};
 use systemprompt_identifiers::{ManagedResourceId, PublicationId};
+use systemprompt_manifest::services::skill_frontmatter::{
+    authored_skill_frontmatter, render_passthrough_frontmatter, split_skill_frontmatter,
+};
 use systemprompt_models::feedback::receipts::{
     ConsumerInstallationPlan, FileReadback, InstallationPlanFile, ReadbackStatus,
 };
 use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
-use systemprompt_models::services::skill_frontmatter::{
-    authored_skill_frontmatter, render_passthrough_frontmatter, split_skill_frontmatter,
-};
 
 pub(super) fn ships(path: &str) -> bool {
     !DevFileFilter::defaults().excludes(path, None, false)
@@ -81,7 +81,7 @@ pub(super) fn runtime_files(
 fn render_skill(bundle: &RevisionBundle, host: EvaluatorClient, key: &str) -> Result<String> {
     let root = bundle.revision_files(&bundle.root)?;
     let (name, description, raw, frontmatter) = if let Some(config) = root.0.get("config.yaml") {
-        let config: systemprompt_models::DiskSkillConfig =
+        let config: systemprompt_manifest::DiskSkillConfig =
             serde_yaml::from_slice(&config.bytes).map_err(integrity)?;
         let content = root
             .0
@@ -105,7 +105,7 @@ fn render_skill(bundle: &RevisionBundle, host: EvaluatorClient, key: &str) -> Re
             split_skill_frontmatter(authored).passthrough,
         )
     };
-    let instructions = systemprompt_models::strip_frontmatter(raw);
+    let instructions = systemprompt_manifest::strip_frontmatter(raw);
     let (rendered_name, passthrough) = match host {
         EvaluatorClient::ClaudeCode | EvaluatorClient::ClaudeDesktop => (
             key.replace('_', "-"),

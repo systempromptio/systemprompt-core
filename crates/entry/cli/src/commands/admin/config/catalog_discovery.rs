@@ -12,8 +12,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Context;
+use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard};
 use systemprompt_models::artifacts::NoticeLine;
-use systemprompt_models::services::{DiscoveryReport, VertexRateCard};
 
 use super::types::DiscoveryRow;
 use crate::CliConfig;

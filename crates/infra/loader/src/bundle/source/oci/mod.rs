@@ -3,7 +3,7 @@
 //! Only the parts of the distribution spec a bundle needs are implemented:
 //! a manifest GET, the Bearer challenge dance, and a single blob pull whose
 //! `mediaType` is
-//! [`BUNDLE_MEDIA_TYPE`](systemprompt_models::services::bundle::BUNDLE_MEDIA_TYPE).
+//! [`BUNDLE_MEDIA_TYPE`](systemprompt_manifest::services::bundle::BUNDLE_MEDIA_TYPE).
 //! A manifest carrying zero or several
 //! such layers is refused rather than guessed at, because picking one would
 //! make which bytes an instance runs depend on registry ordering.
@@ -22,8 +22,8 @@ pub mod push;
 use std::path::Path;
 use std::str::FromStr;
 
+use systemprompt_manifest::profile::OciReference;
 use systemprompt_models::net::{trusted_http_hosts_from_env, validate_outbound_url_with_trust};
-use systemprompt_models::profile::OciReference;
 
 use super::{BundleFetcher, FetchedBundle, MAX_BUNDLE_BYTES, RemoteRef};
 use crate::bundle::error::{BundleError, BundleResult};

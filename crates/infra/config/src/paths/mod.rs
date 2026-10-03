@@ -4,7 +4,7 @@
 //! against the local filesystem — canonicalising, probing sibling build
 //! directories, creating storage directories — so every consumer works from
 //! absolute, verified paths. The pure vocabulary (`PathResolution`, the
-//! directory and file name constants) stays in `systemprompt_models::paths`.
+//! directory and file name constants) stays in `systemprompt_manifest::paths`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,8 +24,8 @@ pub use web::WebPaths;
 use std::path::Path;
 
 use systemprompt_extension::AssetPaths;
-use systemprompt_models::paths::PathResolution;
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::paths::PathResolution;
+use systemprompt_manifest::profile::PathsConfig;
 
 #[derive(Debug, Clone)]
 pub struct AppPaths {

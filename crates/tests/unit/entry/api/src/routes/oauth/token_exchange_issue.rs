@@ -18,8 +18,8 @@ use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchang
     ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE,
 };
 use systemprompt_identifiers::ClientId;
-use systemprompt_models::Config;
-use systemprompt_models::profile::TrustedIssuer;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_test_fixtures::fixture_config;
 
 const IDP: &str = "https://idp.test";

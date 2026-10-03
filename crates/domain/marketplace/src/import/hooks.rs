@@ -16,7 +16,8 @@
 use std::path::Path;
 
 use systemprompt_identifiers::{HookId, PluginId};
-use systemprompt_models::services::hooks::{HookCategory, HookEvent, HookType};
+use systemprompt_manifest::services::hooks::HookType;
+use systemprompt_models::hooks::{HookCategory, HookEvent};
 
 use crate::error::MarketplaceError;
 
@@ -86,7 +87,7 @@ pub(super) fn import_plugin_hooks(
     Ok(out)
 }
 
-fn command_of(action: &systemprompt_models::services::hooks::HookAction) -> Option<String> {
+fn command_of(action: &systemprompt_manifest::services::hooks::HookAction) -> Option<String> {
     match action.hook_type {
         HookType::Command => action.command.clone().filter(|c| !c.trim().is_empty()),
         HookType::Prompt | HookType::Agent => None,

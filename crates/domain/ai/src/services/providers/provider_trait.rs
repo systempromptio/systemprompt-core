@@ -6,7 +6,7 @@
 //! ([`GenerationParams`], [`ToolGenerationParams`], [`SchemaGenerationParams`],
 //! [`StructuredGenerationParams`], [`SearchGenerationParams`],
 //! [`ToolResultsParams`]) keep large call signatures readable.
-//! [`systemprompt_models::services::ai::ModelPricing`] is re-exported here as
+//! [`systemprompt_manifest::services::ai::ModelPricing`] is re-exported here as
 //! the single pricing type for usage accounting.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -23,8 +23,8 @@ use futures::stream::Stream;
 use rmcp::model::ContentBlock;
 use std::pin::Pin;
 
-use systemprompt_models::services::ProviderModel;
-pub use systemprompt_models::services::ai::ModelPricing;
+use systemprompt_manifest::services::ProviderModel;
+pub use systemprompt_manifest::services::ai::ModelPricing;
 
 #[must_use]
 pub fn catalog_supports_model(models: &[ProviderModel], model: &str) -> bool {

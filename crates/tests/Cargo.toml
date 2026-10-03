@@ -240,6 +240,7 @@ systemprompt-traits = { path = "../shared/traits" }
 systemprompt-extension = { path = "../shared/extension" }
 systemprompt-models = { path = "../shared/models" }
 systemprompt-wire = { path = "../shared/wire" }
+systemprompt-manifest = { path = "../shared/manifest" }
 systemprompt-client = { path = "../shared/client" }
 systemprompt-template-provider = { path = "../shared/template-provider", features = ["tokio"] }
 systemprompt-database = { path = "../infra/database" }

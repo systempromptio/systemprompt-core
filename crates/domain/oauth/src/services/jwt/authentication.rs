@@ -18,7 +18,7 @@ impl AuthenticationService {
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let config =
-            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let claims =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)

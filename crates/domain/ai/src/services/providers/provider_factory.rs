@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_models::services::{ProviderModel, ResilienceSettings};
+use systemprompt_manifest::services::{ProviderModel, ResilienceSettings};
 use systemprompt_wire::WireProtocol;
 
 use crate::services::upstream::UpstreamTarget;

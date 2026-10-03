@@ -5,13 +5,13 @@
 use std::collections::BTreeMap;
 
 use systemprompt_identifiers::{ManagedResourceId, UserId};
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::CatalogContent;
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, ManagedResolution, ManagedResourceResolver,
     ManagedSkillResolution, NewResource, NewRevision, PublicationAction, PublicationRequest,
     ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
 };
-use systemprompt_models::services::ServicesConfig;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 use systemprompt_traits::{ManagedSkillResolver, SkillResolution, WithheldReason};
 use uuid::Uuid;

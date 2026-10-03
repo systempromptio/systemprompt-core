@@ -18,7 +18,8 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::Serialize;
 use systemprompt_identifiers::{JwtToken, UserId};
-use systemprompt_models::{A2AEvent, AgUiEvent, Config};
+use systemprompt_manifest::Config;
+use systemprompt_models::{A2AEvent, AgUiEvent};
 
 pub use super::lifecycle_event::LifecycleEvent;
 

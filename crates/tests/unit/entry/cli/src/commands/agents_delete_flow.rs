@@ -10,7 +10,7 @@ use std::path::Path;
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_cli::admin::agents::delete::{delete_single_agent, stop_verified_port_holder};
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
 

@@ -27,7 +27,7 @@ pub use self::decision::{
 
 use systemprompt_database::resilience::Probe;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::services::ProviderRegistry;
+use systemprompt_manifest::services::ProviderRegistry;
 
 use self::breakers::{acquire, breaker_settings, settle};
 use super::pricing::failover_pricing;

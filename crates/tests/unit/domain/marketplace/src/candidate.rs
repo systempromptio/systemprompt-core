@@ -1,13 +1,13 @@
 use std::collections::BTreeSet;
 
 use systemprompt_identifiers::MarketplaceId;
+use systemprompt_manifest::services::MarketplaceAccess;
 use systemprompt_marketplace::{
     MarketplaceCandidate, MarketplaceError, MarketplaceFilterError, MarketplaceMembership,
 };
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
-use systemprompt_models::services::MarketplaceAccess;
 
 use crate::plugin;
 use systemprompt_models::bridge::manifest::PluginEntry;
@@ -76,7 +76,7 @@ fn agent(id: &str) -> AgentEntry {
 fn hook(id: &str) -> HookEntry {
     use systemprompt_identifiers::HookId;
     use systemprompt_models::bridge::ids::Sha256Digest;
-    use systemprompt_models::services::hooks::HookEvent;
+    use systemprompt_models::hooks::HookEvent;
     HookEntry {
         id: HookId::new(id),
         name: id.to_owned(),

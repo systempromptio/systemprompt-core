@@ -10,7 +10,7 @@ use systemprompt_models::content_config::ContentConfigRaw;
 use super::super::types::ValidationIssue;
 
 pub fn validate_sitemap(
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     errors: &mut Vec<ValidationIssue>,
     warnings: &mut Vec<ValidationIssue>,
 ) {

@@ -4,8 +4,8 @@ use std::collections::HashMap;
 
 use systemprompt_config::{ConfigError, ModelSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
+use systemprompt_manifest::services::ProviderRegistry;
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::ProviderRegistry;
 use systemprompt_wire::WireProtocol;
 
 fn spec(name: &str, endpoint: &str) -> ProviderSpec {

@@ -14,7 +14,7 @@ use std::fs;
 use std::path::Path;
 
 use chrono::Utc;
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_ALLOWED_DIRS, BUNDLE_MANIFEST_FILE, BundleSourceInfo, BundleSourceState,
     ServicesBundleManifest, SignedBundleManifest,
 };

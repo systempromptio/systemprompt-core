@@ -16,8 +16,8 @@
 use std::path::PathBuf;
 
 use systemprompt_identifiers::{ModelId, ProviderId};
+use systemprompt_manifest::profile::ProfileError;
 use systemprompt_models::errors::{GlobalConfigError, SecretsError};
-use systemprompt_models::profile::ProfileError;
 
 use crate::bootstrap::{ProfileBootstrapError, SecretsBootstrapError};
 use crate::services::ConfigValidationError;

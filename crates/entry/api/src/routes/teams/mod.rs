@@ -32,7 +32,7 @@ use axum::routing::post;
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::services::TeamsAppConfig;
+use systemprompt_manifest::services::TeamsAppConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::EntityRef;
 use systemprompt_teams::activities::Activity;

@@ -1,5 +1,5 @@
 use systemprompt_config::paths::{PathError, StoragePaths};
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::profile::PathsConfig;
 
 fn paths_config_with_storage(storage: &str) -> PathsConfig {
     PathsConfig {
@@ -130,8 +130,8 @@ fn paths_config_storage_resolved_none_when_unset() {
 
 mod path_resolution {
     use systemprompt_config::paths::{AppPaths, PathError};
-    use systemprompt_models::paths::PathResolution;
-    use systemprompt_models::profile::PathsConfig;
+    use systemprompt_manifest::paths::PathResolution;
+    use systemprompt_manifest::profile::PathsConfig;
 
     const CONTAINER_ROOT: &str = "/nonexistent/container/app";
 

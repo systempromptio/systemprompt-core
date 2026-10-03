@@ -11,7 +11,7 @@
 
 use serde::Serialize;
 use systemprompt_identifiers::{HookId, SkillId};
-use systemprompt_models::services::hooks::{HookCategory, HookEvent};
+use systemprompt_models::hooks::{HookCategory, HookEvent};
 
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct SkillDoc {

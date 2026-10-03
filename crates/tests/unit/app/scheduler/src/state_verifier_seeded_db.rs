@@ -9,7 +9,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::ServiceName;
 
-use systemprompt_models::ServiceType;
+use systemprompt_manifest::ServiceType;
 use systemprompt_scheduler::{
     DesiredStatus, ServiceAction, ServiceConfig, ServiceReconciler, ServiceStateVerifier,
 };
@@ -96,7 +96,7 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_models::RuntimeStatus;
+        use systemprompt_manifest::RuntimeStatus;
         assert_eq!(
             state.runtime_status,
             RuntimeStatus::Crashed,
@@ -140,7 +140,7 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_models::RuntimeStatus;
+        use systemprompt_manifest::RuntimeStatus;
         assert_eq!(
             state.runtime_status,
             RuntimeStatus::Crashed,
@@ -179,7 +179,7 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_models::RuntimeStatus;
+        use systemprompt_manifest::RuntimeStatus;
         assert_eq!(
             state.runtime_status,
             RuntimeStatus::Stopped,
@@ -223,7 +223,7 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_models::RuntimeStatus;
+        use systemprompt_manifest::RuntimeStatus;
         assert_eq!(
             state.runtime_status,
             RuntimeStatus::Stopped,
@@ -301,7 +301,7 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_models::RuntimeStatus;
+        use systemprompt_manifest::RuntimeStatus;
         assert_eq!(
             state.runtime_status,
             RuntimeStatus::Crashed,
@@ -402,7 +402,7 @@ mod state_verifier_seeded {
         }
 
         let state_a = states.iter().find(|s| s.name == name_a.as_str()).unwrap();
-        use systemprompt_models::RuntimeStatus;
+        use systemprompt_manifest::RuntimeStatus;
         assert_eq!(state_a.runtime_status, RuntimeStatus::Crashed);
 
         let state_b = states.iter().find(|s| s.name == name_b.as_str()).unwrap();
@@ -727,7 +727,7 @@ mod state_verifier_live {
     use std::net::TcpListener;
     use std::process::{Child, Command};
 
-    use systemprompt_models::RuntimeStatus;
+    use systemprompt_manifest::RuntimeStatus;
 
     fn spawn_sleep() -> Child {
         Command::new("sleep")

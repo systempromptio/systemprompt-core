@@ -334,7 +334,7 @@ async fn generate_feed_with_providers_propagates_fetch_failure() {
 fn tempdir_paths(tmp: &tempfile::TempDir) -> systemprompt_config::paths::AppPaths {
     let p = tmp.path().to_string_lossy().to_string();
     systemprompt_config::paths::AppPaths::from_profile(
-        &systemprompt_models::profile::PathsConfig {
+        &systemprompt_manifest::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),
@@ -342,7 +342,7 @@ fn tempdir_paths(tmp: &tempfile::TempDir) -> systemprompt_config::paths::AppPath
             storage: Some(p),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths")

@@ -24,7 +24,7 @@ use systemprompt_cli::runner::routing_decision::{
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_cloud::SessionKey;
 use systemprompt_identifiers::{ContextId, SessionToken, TenantId};
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 fn cli(args: &[&str]) -> Cli {
     Cli::try_parse_from(std::iter::once("systemprompt").chain(args.iter().copied()))
@@ -240,7 +240,7 @@ async fn an_unreachable_host_is_a_connection_error_not_an_exit_code() {
 
 fn cloud_profile() -> Profile {
     let mut profile = fixture_profile();
-    profile.target = systemprompt_models::profile::ProfileType::Cloud;
+    profile.target = systemprompt_manifest::profile::ProfileType::Cloud;
     profile.database.external_db_access = false;
     profile
 }

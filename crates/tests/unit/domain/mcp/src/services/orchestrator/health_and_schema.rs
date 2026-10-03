@@ -1,4 +1,5 @@
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::database::ServiceInfo;
 use systemprompt_mcp::services::monitoring::health::{
     HealthCheckDetails, HealthCheckResult, HealthStatus,
@@ -6,7 +7,6 @@ use systemprompt_mcp::services::monitoring::health::{
 use systemprompt_mcp::services::network::port::{
     MAX_PORT_CLEANUP_ATTEMPTS, PORT_BACKOFF_BASE_MS, POST_KILL_DELAY_MS,
 };
-use systemprompt_models::services::ServiceStatus;
 use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]

@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::MarketplaceConfig;
+use systemprompt_manifest::services::MarketplaceConfig;
 
 #[must_use]
 // JSON: outgoing marketplace listing with a fixed, client-facing shape

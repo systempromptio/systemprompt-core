@@ -8,7 +8,7 @@ use axum::http::{Request, header};
 use http::StatusCode;
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential, test_db_pool};
 use tower::ServiceExt;
 

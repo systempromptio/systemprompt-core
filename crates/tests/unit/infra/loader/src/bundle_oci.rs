@@ -10,7 +10,7 @@ use serde_json::json;
 use sha2::Digest;
 use systemprompt_loader::bundle::BundleFetcher;
 use systemprompt_loader::bundle::source::oci::OciFetcher;
-use systemprompt_models::services::bundle::BUNDLE_MEDIA_TYPE;
+use systemprompt_manifest::services::bundle::BUNDLE_MEDIA_TYPE;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

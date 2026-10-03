@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-pub use systemprompt_models::{RuntimeStatus, ServiceType};
+pub use systemprompt_manifest::{RuntimeStatus, ServiceType};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DesiredStatus {

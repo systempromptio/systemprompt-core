@@ -14,7 +14,7 @@ use systemprompt_cloud::{
     CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType, get_cloud_paths,
 };
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use systemprompt_identifiers::ProfileName;
 

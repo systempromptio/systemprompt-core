@@ -24,7 +24,7 @@ use http::HeaderValue;
 use systemprompt_ai::{OverrideAction, OverrideContext, OverrideEngine};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
-use systemprompt_models::services::{GatewayConfig, QuotaFaultMode};
+use systemprompt_manifest::services::{GatewayConfig, QuotaFaultMode};
 use systemprompt_wire::inspect::{SurfaceBudget, string_leaves};
 
 pub mod accounting;

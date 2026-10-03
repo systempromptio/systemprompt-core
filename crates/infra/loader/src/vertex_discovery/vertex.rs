@@ -13,7 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_models::services::{ProviderEntry, VertexRateCard};
+use systemprompt_manifest::services::{ProviderEntry, VertexRateCard};
 use systemprompt_security::credential::{
     AuthHeader, CredentialKind, CredentialScope, ProviderCredential,
 };

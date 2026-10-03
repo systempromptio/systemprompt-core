@@ -6,7 +6,7 @@
 use crate::models::a2a::{AgentCard, AgentSkill};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::AgentId;
-use systemprompt_models::services::PluginComponentRef;
+use systemprompt_models::plugin::PluginComponentRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInfo {

@@ -13,8 +13,8 @@ use systemprompt_cli::cloud::doctor::{
     CheckStatus, check_extension_configs, check_profile_valid, check_provider_secrets,
     check_signing_key,
 };
-use systemprompt_models::Profile;
-use systemprompt_models::services::ProviderRegistry;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::ProviderRegistry;
 
 fn fixture_profile() -> (Profile, PathBuf) {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();

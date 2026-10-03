@@ -19,7 +19,9 @@ use crate::services::upstream::UpstreamTarget;
 use super::super::request_storage::{RequestStorage, StoreParams};
 
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderEntry, ProviderRegistry};
+use systemprompt_manifest::services::{
+    AiConfig, AiProviderConfig, ProviderEntry, ProviderRegistry,
+};
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 use tokio_util::task::TaskTracker;
 

@@ -6,7 +6,7 @@
 
 use chrono::{Duration, Utc};
 use serde::Serialize;
-use systemprompt_models::profile::OtlpSignal;
+use systemprompt_manifest::profile::OtlpSignal;
 
 /// What one run did for one signal.
 #[derive(Debug, Clone, Serialize)]

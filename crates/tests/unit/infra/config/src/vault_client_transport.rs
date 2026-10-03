@@ -1,7 +1,7 @@
 use systemprompt_config::{
     SecretsBootstrapError, SecretsProvider, VaultAttemptFailure, VaultError, VaultKvProvider,
 };
-use systemprompt_models::profile::VaultSecretsConfig;
+use systemprompt_manifest::profile::VaultSecretsConfig;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

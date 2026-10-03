@@ -12,8 +12,8 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
-use systemprompt_models::services::BridgeReleasesSpec;
 
 use super::CACHE_TTL;
 use super::error::ReleaseError;

@@ -8,8 +8,8 @@ use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::IntoResponse;
 use systemprompt_api::services::proxy::auth::access::{AccessValidator, OAuthRequirement};
 use systemprompt_identifiers::{ServiceName, UserId};
-use systemprompt_models::Config;
-use systemprompt_models::services::ServiceModule;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::services::ServiceModule;
 use systemprompt_test_fixtures::{install_test_signing_key, mint_admin_jwt};
 use uuid::Uuid;
 

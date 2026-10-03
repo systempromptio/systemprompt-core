@@ -69,10 +69,10 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
     };
 
     let scheduler_config = systemprompt_loader::ConfigLoader::load().map_or_else(
-        |_| systemprompt_models::SchedulerConfig::with_system_admin(),
+        |_| systemprompt_manifest::SchedulerConfig::with_system_admin(),
         |c| {
             c.scheduler
-                .unwrap_or_else(systemprompt_models::SchedulerConfig::with_system_admin)
+                .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin)
         },
     );
     let service = JobExecutionService::new(app, registry, scheduler_config);

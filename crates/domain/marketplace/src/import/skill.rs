@@ -21,9 +21,9 @@
 //! [`crate::dev_files`]).
 //!
 //! Every frontmatter key the platform does not own (see
-//! `systemprompt_models::services::skill_frontmatter`) is kept in `config.yaml`
-//! under `frontmatter`, in authored order, and rendered back into the client
-//! `SKILL.md`.
+//! `systemprompt_manifest::services::skill_frontmatter`) is kept in
+//! `config.yaml` under `frontmatter`, in authored order, and rendered back into
+//! the client `SKILL.md`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,11 +33,11 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_yaml::Value;
 use systemprompt_identifiers::SkillId;
-use systemprompt_models::bridge::host::HostKind;
-use systemprompt_models::services::skill_frontmatter::{
+use systemprompt_manifest::services::skill_frontmatter::{
     SplitSkillFrontmatter, authored_skill_frontmatter, check_json_compatible,
     split_skill_frontmatter,
 };
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::error::MarketplaceError;
 

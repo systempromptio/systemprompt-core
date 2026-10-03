@@ -1,8 +1,9 @@
 use systemprompt_identifiers::{MarketplaceId, PluginId};
-use systemprompt_models::services::{
-    MarketplaceAccess, MarketplaceConfig, MarketplaceVisibility, PluginAuthor, PluginComponentRef,
-    PluginConfig, ServicesConfig,
+use systemprompt_manifest::services::{
+    MarketplaceAccess, MarketplaceConfig, MarketplaceVisibility, PluginAuthor, PluginConfig,
+    ServicesConfig,
 };
+use systemprompt_models::plugin::PluginComponentRef;
 
 #[must_use]
 pub fn marketplace(id: &str) -> MarketplaceConfig {

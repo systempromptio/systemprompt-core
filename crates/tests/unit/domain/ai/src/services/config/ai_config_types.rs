@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
     ModelPricing, SamplingConfig,
 };

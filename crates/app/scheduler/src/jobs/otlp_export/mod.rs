@@ -35,7 +35,7 @@ use sqlx::PgPool;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, InstanceId};
-use systemprompt_models::profile::{OtlpExportConfig, OtlpSignal};
+use systemprompt_manifest::profile::{OtlpExportConfig, OtlpSignal};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 

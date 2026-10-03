@@ -14,8 +14,10 @@
 
 use systemprompt_api::services::gateway::pricing::resolve;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
+use systemprompt_manifest::services::{
+    ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
+};
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::{ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry};
 use systemprompt_test_fixtures::usage;
 use systemprompt_wire::WireProtocol;
 

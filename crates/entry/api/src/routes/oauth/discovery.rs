@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;

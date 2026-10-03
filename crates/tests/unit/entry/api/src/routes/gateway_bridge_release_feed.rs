@@ -4,7 +4,7 @@ use std::time::Duration;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use systemprompt_api::routes::gateway::bridge_release::{ReleaseError, ReleaseFeed};
-use systemprompt_models::services::BridgeReleasesSpec;
+use systemprompt_manifest::services::BridgeReleasesSpec;
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

@@ -12,8 +12,8 @@ use serde::Serialize;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_loader::bundle::{BundleCache, cache_root, verify};
-use systemprompt_models::Profile;
-use systemprompt_models::services::bundle::SignedBundleManifest;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_security::manifest_signing::{canonical_manifest_bytes, verify_with_pubkey};
 
 use crate::shared::CommandOutput;
@@ -94,7 +94,7 @@ pub fn describe_bundle(signed: &SignedBundleManifest, profile: Option<&Profile>)
 }
 
 fn owns_summary(
-    manifest: &systemprompt_models::services::bundle::ServicesBundleManifest,
+    manifest: &systemprompt_manifest::services::bundle::ServicesBundleManifest,
 ) -> String {
     let owns = &manifest.owns;
     format!(

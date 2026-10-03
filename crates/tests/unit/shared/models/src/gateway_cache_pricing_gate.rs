@@ -17,11 +17,11 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     GatewayConfig, GatewayProfileError, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel,
     ProviderRegistry,
 };
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_wire::WireProtocol;
 
 fn priced(cache_read: Option<f64>) -> ModelPricing {

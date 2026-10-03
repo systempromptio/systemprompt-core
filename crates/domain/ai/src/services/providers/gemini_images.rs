@@ -21,8 +21,8 @@ use async_trait::async_trait;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::time::Instant;
+use systemprompt_manifest::services::ModelDefinition;
 use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, IMAGE_GEN_LONG_POLL_TIMEOUT};
-use systemprompt_models::services::ModelDefinition;
 use systemprompt_wire::WireProtocol;
 use tracing::error;
 

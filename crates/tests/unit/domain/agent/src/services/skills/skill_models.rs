@@ -1,6 +1,7 @@
 use systemprompt_agent::services::skills::SkillMetadata;
 use systemprompt_identifiers::SkillId;
-use systemprompt_models::{DiskSkillConfig, IngestionReport, strip_frontmatter};
+use systemprompt_manifest::{DiskSkillConfig, strip_frontmatter};
+use systemprompt_models::IngestionReport;
 
 #[test]
 fn test_strip_frontmatter_with_yaml_block() {

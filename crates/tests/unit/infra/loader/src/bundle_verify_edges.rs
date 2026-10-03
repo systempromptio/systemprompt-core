@@ -12,8 +12,8 @@ use flate2::write::GzEncoder;
 use systemprompt_loader::bundle::verify::{
     file_digest, read_manifest, require_marketplace_only, verify_bundle, verify_extracted,
 };
-use systemprompt_models::profile::BundleVerification;
-use systemprompt_models::services::bundle::{BUNDLE_MANIFEST_FILE, SignedBundleManifest};
+use systemprompt_manifest::profile::BundleVerification;
+use systemprompt_manifest::services::bundle::{BUNDLE_MANIFEST_FILE, SignedBundleManifest};
 
 use crate::bundle_support::{SEED, base_tree, pack, pack_with, pubkey};
 

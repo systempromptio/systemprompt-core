@@ -11,7 +11,7 @@ use serde_json::json;
 use systemprompt_loader::bundle::BundleFetcher;
 use systemprompt_loader::bundle::source::oci::RegistryClient;
 use systemprompt_loader::bundle::source::{AnyFetcher, RemoteRef};
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     BundleVerification, HttpsServicesSource, OciServicesSource, ServicesSource,
 };
 use wiremock::matchers::{method, path};
@@ -115,7 +115,7 @@ async fn the_dispatching_fetcher_forwards_head_and_fetch_to_the_registry() {
                     "schemaVersion": 2,
                     "config": {"mediaType": "application/json", "digest": "sha256:0", "size": 0},
                     "layers": [{
-                        "mediaType": systemprompt_models::services::bundle::BUNDLE_MEDIA_TYPE,
+                        "mediaType": systemprompt_manifest::services::bundle::BUNDLE_MEDIA_TYPE,
                         "digest": digest,
                         "size": body.len()
                     }]

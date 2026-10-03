@@ -12,7 +12,7 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::process::utils;
 use systemprompt_database::ServiceRepository;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 use tokio::net::TcpStream;
 use tokio::time::{Duration, timeout};
 

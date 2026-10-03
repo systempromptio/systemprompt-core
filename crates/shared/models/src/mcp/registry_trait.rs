@@ -1,8 +1,7 @@
-//! MCP registry and provider traits.
+//! MCP registry trait.
 //!
-//! [`McpRegistry`] and [`McpDeploymentProvider`] are called on concrete
-//! implementations, never held as trait objects, so they declare native
-//! `async` methods.
+//! [`McpRegistry`] is called on concrete implementations, never held as a
+//! trait object, so it declares native `async` methods.
 //! Every fallible method returns
 //! [`McpRegistryResult`](crate::errors::McpRegistryResult).
 //!
@@ -31,10 +30,4 @@ pub trait McpRegistry: Send + Sync {
     ) -> impl Future<Output = Result<Option<McpServerState>>> + Send;
 
     fn server_exists(&self, name: &McpServerId) -> impl Future<Output = Result<bool>> + Send;
-}
-
-pub trait McpDeploymentProvider: Send + Sync {
-    fn load_config(&self) -> impl Future<Output = Result<crate::ServicesConfig>> + Send;
-
-    fn protocol_version(&self) -> &str;
 }

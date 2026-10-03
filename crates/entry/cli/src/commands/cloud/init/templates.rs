@@ -86,7 +86,7 @@ oauth:
 }
 
 pub fn ai_config(default_provider: &str) -> anyhow::Result<String> {
-    let seed = systemprompt_models::services::ProviderRegistry::default_seed()
+    let seed = systemprompt_manifest::services::ProviderRegistry::default_seed()
         .context("embedded provider catalog is unreadable")?;
     let default_model = |provider: &str| -> String {
         seed.find_provider(provider)

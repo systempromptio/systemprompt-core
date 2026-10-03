@@ -18,7 +18,7 @@
 use systemprompt_database::{ServiceConfig, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::live_pid_is_subprocess;
-use systemprompt_models::services::ServiceModule;
+use systemprompt_manifest::services::ServiceModule;
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV};
 use tracing::warn;
 

@@ -4,7 +4,7 @@
 
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
 use tempfile::TempDir;

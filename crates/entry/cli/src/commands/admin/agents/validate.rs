@@ -11,9 +11,9 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::secrets::Secrets;
-use systemprompt_models::services::ProviderRegistry;
-use systemprompt_models::{AgentConfig, ServicesConfig};
+use systemprompt_manifest::secrets::Secrets;
+use systemprompt_manifest::services::ProviderRegistry;
+use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {

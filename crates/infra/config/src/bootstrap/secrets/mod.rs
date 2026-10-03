@@ -39,9 +39,9 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use base64::Engine;
+use systemprompt_manifest::profile::{ProfileError, resolve_with_home};
+use systemprompt_manifest::secrets::Secrets;
 use systemprompt_models::errors::SecretsError;
-use systemprompt_models::profile::{ProfileError, resolve_with_home};
-use systemprompt_models::secrets::Secrets;
 
 use super::key_material::KeyMaterialError;
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};

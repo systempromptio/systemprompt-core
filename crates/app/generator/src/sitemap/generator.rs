@@ -10,7 +10,8 @@ use std::path::Path;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_models::{Config, ContentConfigRaw, ContentSourceConfigRaw, WebConfig};
+use systemprompt_manifest::{Config, WebConfig};
+use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
 use tokio::fs;
 
 use super::xml::{SitemapUrl, SitemapUrlAlternate, build_sitemap_index, build_sitemap_xml};

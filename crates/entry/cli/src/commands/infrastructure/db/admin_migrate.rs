@@ -12,7 +12,7 @@ use systemprompt_database::{
 use systemprompt_extension::{ExtensionRegistry, LoaderError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
-use systemprompt_models::{Config, Profile};
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;

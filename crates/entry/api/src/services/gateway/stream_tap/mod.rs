@@ -17,7 +17,7 @@ use bytes::Bytes;
 use futures_util::stream::{BoxStream, Stream};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_wire::error::WireStreamError;
 
 use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};

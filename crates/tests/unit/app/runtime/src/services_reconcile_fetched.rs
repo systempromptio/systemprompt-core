@@ -13,10 +13,10 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ActiveServicesRoot, ServicesBootstrap, ServicesProvenance};
-use systemprompt_models::Profile;
-use systemprompt_models::profile::ServicesSource;
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::ServicesSource;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::bundle::{
     BundleOwnership, BundleSourceInfo, BundleSourceState, ServicesBundleManifest,
     ServicesBundleState, SignedBundleManifest,
 };

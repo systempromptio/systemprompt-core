@@ -10,7 +10,7 @@ use crate::services::client::{validate_connection_by_url, validate_connection_wi
 use crate::services::database::DatabaseService;
 use crate::services::registry::RegistryService;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 
 pub(super) async fn validate_service(
     service_name: &ServiceName,

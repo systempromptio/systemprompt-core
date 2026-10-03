@@ -3,8 +3,8 @@
 //! `Profile::payload_cap_bytes` accessor the gateway reads.
 
 use serde_yaml::{Mapping, Value};
-use systemprompt_models::Profile;
-use systemprompt_models::profile::AuditConfig;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::AuditConfig;
 
 use crate::profile_services_sources::local_profile;
 

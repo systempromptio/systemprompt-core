@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::{AgentConfig, ServicesConfig};
+use systemprompt_manifest::{AgentConfig, ServicesConfig};
 use systemprompt_traits::{AgentRegistryProvider, RegistryError};
 
 use super::a2a_server::a2a_helpers::agent_config;
@@ -33,7 +33,7 @@ async fn get_agent_projects_agent_info_with_oauth() {
     assert!(info.enabled);
     assert_eq!(
         info.oauth.required,
-        systemprompt_models::AgentOAuthConfig::default().required
+        systemprompt_manifest::AgentOAuthConfig::default().required
     );
 }
 

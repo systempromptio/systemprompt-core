@@ -14,7 +14,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
-use systemprompt_models::profile::OtlpSignal;
+use systemprompt_manifest::profile::OtlpSignal;
 
 use crate::error::SchedulerResult;
 

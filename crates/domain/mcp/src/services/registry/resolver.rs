@@ -6,7 +6,7 @@
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ExtensionBinaryIndex;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::mcp::McpServerType;
 
 use crate::error::{McpDomainError, McpDomainResult};

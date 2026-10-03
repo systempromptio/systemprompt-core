@@ -26,10 +26,10 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, SecretName, TraceId,
 };
-use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
 };
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential};
 use systemprompt_wire::WireProtocol;
 use tracing_subscriber::prelude::*;

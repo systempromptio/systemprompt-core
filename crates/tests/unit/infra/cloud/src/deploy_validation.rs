@@ -4,7 +4,7 @@ use systemprompt_cloud::deploy::{
     find_services_config, get_required_mcp_copy_lines, validate_dockerfile_has_mcp_binaries,
     validate_dockerfile_has_no_stale_binaries, validate_profile_dockerfile,
 };
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 use tempfile::TempDir;
 
 #[test]

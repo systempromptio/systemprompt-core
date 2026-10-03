@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use systemprompt_identifiers::{AgentName, McpServerId};
 
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::{AgentConfig, ServicesConfig};
+use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
 use super::super::a2a_server::a2a_helpers::agent_config;
 

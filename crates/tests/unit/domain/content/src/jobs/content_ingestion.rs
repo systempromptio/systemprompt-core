@@ -11,10 +11,10 @@ use systemprompt_content::execute_content_ingestion;
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, LocaleCode, SourceId};
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::content_config::{
     ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig,
 };
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
@@ -33,7 +33,7 @@ fn app_paths_rooted(root: &str) -> AppPaths {
     };
     AppPaths::from_profile(
         &paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths")

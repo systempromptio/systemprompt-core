@@ -17,7 +17,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_models::services::ProviderEntry;
+use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_security::credential::{AuthHeader, CredentialScope, ProviderCredential};
 use thiserror::Error;
 
@@ -56,7 +56,7 @@ pub struct DiscoveredModel {
 /// Failures travel beside the models rather than instead of them: a publisher
 /// we are not entitled to answers 403, and that must not cost us the
 /// publishers we are entitled to. Each string is already in the shape
-/// [`DiscoveryReport::failed_publishers`](systemprompt_models::services::DiscoveryReport)
+/// [`DiscoveryReport::failed_publishers`](systemprompt_manifest::services::DiscoveryReport)
 /// takes.
 #[derive(Debug, Default)]
 pub struct CatalogListing {

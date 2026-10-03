@@ -10,10 +10,11 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceRuleAccess,
-    MarketplaceVisibility, PluginAuthor, PluginComponentRef,
+    MarketplaceVisibility, PluginAuthor,
 };
+use systemprompt_models::plugin::PluginComponentRef;
 use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;

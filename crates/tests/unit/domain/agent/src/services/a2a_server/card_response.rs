@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use systemprompt_agent::AgentError;
 use systemprompt_agent::services::a2a_server::handlers::card::agent_card_response;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 
 use super::a2a_helpers::agent_config;
 

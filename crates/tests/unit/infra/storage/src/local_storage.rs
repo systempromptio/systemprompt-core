@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use systemprompt_models::profile::StorageBackend;
+use systemprompt_manifest::profile::StorageBackend;
 use systemprompt_storage::{LocalFileStorage, build_file_storage};
 use systemprompt_traits::{FileStorage, FileStorageError, StoredFileId};
 use tempfile::TempDir;

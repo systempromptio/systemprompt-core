@@ -56,7 +56,7 @@ fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
 }
 
 fn get_userinfo(token: &str) -> anyhow::Result<UserinfoResponse> {
-    let config = systemprompt_models::Config::get()?;
+    let config = systemprompt_manifest::Config::get()?;
     let claims = validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences)?;
 
     Ok(UserinfoResponse {

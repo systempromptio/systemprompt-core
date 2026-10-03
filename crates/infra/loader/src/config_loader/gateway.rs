@@ -1,7 +1,7 @@
 //! Gateway-section post-parse fix-ups for the services loader.
 //!
 //! Resolution itself lives in
-//! [`systemprompt_models::services::GatewayConfigSpec::resolve`]; this module
+//! [`systemprompt_manifest::services::GatewayConfigSpec::resolve`]; this module
 //! owns what happens to the parsed spec beforehand — route-id backfill and
 //! `!include` prompt resolution — and the final projection to
 //! [`GatewayState::Resolved`] once every include has been merged.
@@ -11,7 +11,7 @@
 
 use std::path::Path;
 
-use systemprompt_models::services::{GatewayConfigSpec, GatewayState, ServicesConfig};
+use systemprompt_manifest::services::{GatewayConfigSpec, GatewayState, ServicesConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 

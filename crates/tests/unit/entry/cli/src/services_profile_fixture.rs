@@ -150,7 +150,7 @@ runtime:
         bin = root.join("bin").display(),
         web = root.join("system/web").display(),
         storage = root.join("storage").display(),
-        ack = systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT,
+        ack = systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT,
     )
 }
 
@@ -158,14 +158,14 @@ pub fn set_env(key: &str, value: &str) {
     unsafe { std::env::set_var(key, value) };
 }
 
-pub fn loaded(services_block: &str) -> (ProfileTree, systemprompt_models::Profile) {
+pub fn loaded(services_block: &str) -> (ProfileTree, systemprompt_manifest::Profile) {
     let tree = write_tree(
         services_block,
         "secrets:\n  secrets_path: secrets.json\n  source: env\n",
     );
     let body = std::fs::read_to_string(&tree.profile_path).expect("read profile.yaml");
-    let profile =
-        systemprompt_models::Profile::from_yaml(&body, &tree.profile_path).expect("profile parses");
+    let profile = systemprompt_manifest::Profile::from_yaml(&body, &tree.profile_path)
+        .expect("profile parses");
     (tree, profile)
 }
 

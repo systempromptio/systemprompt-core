@@ -15,7 +15,8 @@ use std::sync::Arc;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_content::{LinkAnalyticsService, LinkGenerationService};
 use systemprompt_identifiers::{CampaignId, LinkId};
-use systemprompt_models::{ApiError, Config, RequestContext};
+use systemprompt_manifest::Config;
+use systemprompt_models::{ApiError, RequestContext};
 use systemprompt_runtime::AppContext;
 use tracing::error;
 

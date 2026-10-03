@@ -10,7 +10,7 @@ use systemprompt_identifiers::{
     AiRequestId, AiToolCallId, ContextId, InstanceId, McpExecutionId, McpServerId, McpToolName,
     PluginId, ProviderRequestId, SessionId, TraceId, UserId,
 };
-use systemprompt_models::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
+use systemprompt_manifest::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
 use systemprompt_scheduler::jobs::otlp_export::{
     GOVERNANCE_SPAN, OtlpExportJob, REQUEST_SPAN, RETRY_DELAYS, TOOL_SPAN, TraceBatch,
     is_retryable, pacing_elapsed, severity_number, span_id_bytes, to_log_record, to_spans,

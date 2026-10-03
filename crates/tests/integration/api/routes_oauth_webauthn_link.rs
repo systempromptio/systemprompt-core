@@ -19,7 +19,7 @@ use axum::response::IntoResponse;
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_api::routes::oauth::webauthn::link::link_passkey_page;
 use systemprompt_identifiers::{ChallengeId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
 use systemprompt_oauth::services::WebAuthnService;

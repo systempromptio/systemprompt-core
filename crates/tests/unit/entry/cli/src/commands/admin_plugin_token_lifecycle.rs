@@ -10,7 +10,7 @@ use clap::Parser;
 use systemprompt_cli::admin::keys::{self, KeysCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_security::HookTokenValidator;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles,

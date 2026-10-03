@@ -16,12 +16,12 @@ use axum::http::HeaderMap;
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::UserId;
+use systemprompt_manifest::services::BridgePolicyConfig;
 use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, manifest_min_bridge_version,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
-use systemprompt_models::services::BridgePolicyConfig;
 use systemprompt_runtime::AppContext;
 
 use super::bridge::instance_enabled_hosts;
@@ -116,9 +116,9 @@ pub async fn manifest(
 
 pub(crate) async fn assemble_candidate(
     ctx: &AppContext,
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     user_id: &UserId,
-    services: systemprompt_models::services::ServicesConfig,
+    services: systemprompt_manifest::services::ServicesConfig,
     freshness: bridge_resolved::Freshness,
 ) -> Result<(MarketplaceCandidate, BridgePolicyConfig), BridgeError> {
     let bridge_policy = services.bridge_policy.unwrap_or_default();

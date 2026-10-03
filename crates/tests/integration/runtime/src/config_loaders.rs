@@ -6,8 +6,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_models::Config;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_runtime::AppContext;
@@ -20,7 +20,7 @@ fn minimal_config(
     services_path: String,
 ) -> Config {
     Config {
-        instance_id: systemprompt_models::config::InstanceId::new("test-instance"),
+        instance_id: systemprompt_manifest::config::InstanceId::new("test-instance"),
         metrics_port: None,
         max_concurrent_streams: 256,
         sitename: "test".to_string(),
@@ -54,7 +54,7 @@ fn minimal_config(
         signing_key_path: PathBuf::new(),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,
@@ -85,7 +85,7 @@ fn make_app_paths(base: &std::path::Path) -> AppPaths {
     };
     AppPaths::from_profile(
         &paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("AppPaths from profile")

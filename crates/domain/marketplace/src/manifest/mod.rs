@@ -25,11 +25,11 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use systemprompt_identifiers::{LibraryArtifactId, SkillId, UserId};
+use systemprompt_manifest::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_models::bridge::ids::ManifestSignature;
 use systemprompt_models::bridge::manifest::{
     ManifestClaudeCode, ManifestMarketplace, SignedManifest, SignedManifestEnvelope,
 };
-use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;

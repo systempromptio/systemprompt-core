@@ -5,7 +5,7 @@ use systemprompt_ai::{
     RouteSelector, RouteSelectorEngine, RouteSelectorError, register_route_selector,
 };
 use systemprompt_identifiers::{ModelId, ProviderId};
-use systemprompt_models::services::GatewayRoute;
+use systemprompt_manifest::services::GatewayRoute;
 use systemprompt_wire::canonical::CanonicalRequest;
 
 fn route(pattern: &str, provider: &str) -> GatewayRoute {

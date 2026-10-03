@@ -15,6 +15,7 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-cloud = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

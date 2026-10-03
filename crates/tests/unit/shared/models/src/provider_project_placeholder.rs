@@ -7,9 +7,9 @@
 //! from the service account in the secret.
 
 use systemprompt_identifiers::{ProviderId, SecretName};
+use systemprompt_manifest::services::providers::ProviderRegistryError;
+use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_models::services::providers::ProviderRegistryError;
-use systemprompt_models::services::{ProviderEntry, ProviderRegistry};
 use systemprompt_wire::WireProtocol;
 use systemprompt_wire::hosting::{PROJECT_PLACEHOLDER, names_a_project_literally};
 

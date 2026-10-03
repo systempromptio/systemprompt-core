@@ -23,7 +23,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{AccessTokenId, ClientId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;

@@ -24,7 +24,7 @@ impl ResolvedPaths {
         }
     }
 
-    pub fn from_profile(profile: &systemprompt_models::Profile) -> Self {
+    pub fn from_profile(profile: &systemprompt_manifest::Profile) -> Self {
         Self::for_root(Path::new(&profile.paths.system))
     }
 

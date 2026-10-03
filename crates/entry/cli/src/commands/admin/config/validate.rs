@@ -3,7 +3,7 @@
 //!
 //! Resolves a target to a single file, a [`ConfigSection`], or the full set of
 //! sections, parses each as YAML, and validates a full profile document against
-//! the [`systemprompt_models::profile::Profile`] schema. Also prints the
+//! the [`systemprompt_manifest::profile::Profile`] schema. Also prints the
 //! generated `Profile` JSON schema on demand.
 //!
 //! Whenever the scheduler section is in scope, the merged services config is
@@ -23,7 +23,7 @@ use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput, read_yam
 use crate::CliConfig;
 use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::profile::Profile;
+use systemprompt_manifest::profile::Profile;
 use systemprompt_scheduler::SchedulerConfig;
 
 #[derive(Debug, Clone, Args)]

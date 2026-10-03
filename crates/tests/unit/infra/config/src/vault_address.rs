@@ -1,5 +1,5 @@
 use systemprompt_config::{VaultError, VaultKvProvider};
-use systemprompt_models::profile::SecretsConfig;
+use systemprompt_manifest::profile::SecretsConfig;
 
 use crate::vault_fixture as fx;
 

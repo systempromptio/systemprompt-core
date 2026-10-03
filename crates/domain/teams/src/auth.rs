@@ -22,7 +22,7 @@ use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::Deserialize;
 use systemprompt_identifiers::TeamsAppId;
-use systemprompt_models::services::teams::BOT_FRAMEWORK_OPENID_CONFIG_URL;
+use systemprompt_manifest::services::teams::BOT_FRAMEWORK_OPENID_CONFIG_URL;
 
 use crate::error::{TeamsError, TeamsResult};
 

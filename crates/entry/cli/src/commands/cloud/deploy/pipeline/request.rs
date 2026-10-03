@@ -12,8 +12,8 @@ use std::path::PathBuf;
 
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_identifiers::{ProfileName, TenantId};
-use systemprompt_models::env::contains_placeholder;
-use systemprompt_models::profile::{SecretsConfig, SecretsSource, VaultAuth, VaultSecretsConfig};
+use systemprompt_manifest::env::contains_placeholder;
+use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, VaultAuth, VaultSecretsConfig};
 
 pub const VAULT_ADDR_ENV: &str = "VAULT_ADDR";
 pub const VAULT_NAMESPACE_ENV: &str = "VAULT_NAMESPACE";

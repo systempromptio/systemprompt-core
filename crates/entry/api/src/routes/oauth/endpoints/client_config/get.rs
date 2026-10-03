@@ -6,7 +6,7 @@
 use axum::extract::Path;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json, Response};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 
 use super::validation::authenticate_client_configuration;
 use crate::routes::oauth::OAuthHttpError;

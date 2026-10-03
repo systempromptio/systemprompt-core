@@ -5,7 +5,7 @@
 
 use anyhow::{Context, Result};
 use systemprompt_logging::CliService;
-use systemprompt_models::{Environment, LogLevel, Profile};
+use systemprompt_manifest::{Environment, LogLevel, Profile};
 
 use crate::interactive::Prompter;
 

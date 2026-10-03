@@ -2,7 +2,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
 use systemprompt_api::routes::wellknown::agent_cards::wellknown_router;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_test_fixtures::{
     fixture_app_context_with_config, init_isolated_bootstrap, test_db_pool,
 };

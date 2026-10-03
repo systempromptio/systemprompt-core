@@ -11,7 +11,7 @@ use std::fs;
 
 use systemprompt_loader::bundle::pack::{build_manifest, collect_files, derive_ownership};
 use systemprompt_loader::bundle::{ExtractOptions, TarLayout, extract_tarball};
-use systemprompt_models::services::bundle::{BUNDLE_ALLOWED_DIRS, BundleSourceInfo};
+use systemprompt_manifest::services::bundle::{BUNDLE_ALLOWED_DIRS, BundleSourceInfo};
 
 use crate::bundle_support::{base_tree, marketplace_tree, pack, write};
 

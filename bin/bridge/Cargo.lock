@@ -4031,15 +4031,11 @@ name = "systemprompt-models"
 version = "0.62.0"
 dependencies = [
  "async-trait",
- "base64 0.23.0",
- "bytes",
  "chrono",
  "futures",
- "futures-util",
  "hex",
  "http",
  "indexmap",
- "ipnet",
  "regex",
  "rmcp",
  "schemars",
@@ -4052,12 +4048,10 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
- "systemprompt-wire",
  "thiserror 2.0.20",
  "tracing",
  "url",
  "uuid",
- "zeroize",
 ]
 
 [[package]]
@@ -4089,22 +4083,6 @@ dependencies = [
  "thiserror 2.0.20",
  "tracing",
  "xxhash-rust",
-]
-
-[[package]]
-name = "systemprompt-wire"
-version = "0.62.0"
-dependencies = [
- "bytes",
- "futures-util",
- "schemars",
- "serde",
- "serde_json",
- "systemprompt-identifiers",
- "thiserror 2.0.20",
- "tracing",
- "url",
- "uuid",
 ]
 
 [[package]]

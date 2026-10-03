@@ -37,8 +37,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserRateLimitBucketRepository;
 

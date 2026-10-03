@@ -8,7 +8,8 @@ use systemprompt_identifiers::AgentName;
 use systemprompt_agent::services::agent_orchestration::process::command::{
     BuildAgentCommandParams, build_agent_command, prepare_agent_log_file, rotate_log_if_needed,
 };
-use systemprompt_models::{CliPaths, Secrets};
+use systemprompt_manifest::Secrets;
+use systemprompt_models::CliPaths;
 
 fn secrets() -> Secrets {
     Secrets::parse(

@@ -27,7 +27,7 @@ impl JwtValidationProviderImpl {
     }
 
     pub fn from_config() -> JwtResult<Self> {
-        let config = systemprompt_models::Config::get()
+        let config = systemprompt_manifest::Config::get()
             .map_err(|e| JwtProviderError::Internal(Box::new(e)))?;
 
         Ok(Self {

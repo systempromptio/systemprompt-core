@@ -32,7 +32,7 @@ pub(super) fn build_data_plane(
 
 pub(super) async fn ensure_legacy_context(
     repositories: &RepositoryBundles,
-    system_admin: &systemprompt_models::services::SystemAdmin,
+    system_admin: &systemprompt_manifest::services::SystemAdmin,
 ) -> RuntimeResult<()> {
     repositories
         .a2a

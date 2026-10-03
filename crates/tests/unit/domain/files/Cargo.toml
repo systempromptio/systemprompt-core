@@ -19,7 +19,7 @@ systemprompt-storage = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-config = { workspace = true }
-systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

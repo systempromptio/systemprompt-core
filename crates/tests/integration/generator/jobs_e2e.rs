@@ -10,7 +10,7 @@ use systemprompt_generator::{
     ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_assets,
 };
 use systemprompt_identifiers::{Actor, UserId};
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_provider_contracts::{Dependencies, Job, JobContext};
 use tempfile::TempDir;
 
@@ -34,7 +34,7 @@ fn paths_in(tmp: &TempDir) -> AppPaths {
 
     AppPaths::from_profile(
         &paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("from_profile")

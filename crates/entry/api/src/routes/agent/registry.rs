@@ -15,7 +15,7 @@ use systemprompt_runtime::AppContext;
 
 use systemprompt_agent::models::a2a::{AgentCard, AgentExtension, McpServerMetadata};
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::AgentConfig;
+use systemprompt_manifest::AgentConfig;
 
 pub async fn handle_agent_registry(
     Extension(_req_ctx): Extension<RequestContext>,

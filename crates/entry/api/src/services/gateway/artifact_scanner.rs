@@ -14,8 +14,8 @@
 
 use async_trait::async_trait;
 use systemprompt_ai::Finding;
+use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_mcp::{ArtifactFinding, ArtifactScanner, PHASE_TOOL_RESULT};
-use systemprompt_models::services::QuotaFaultMode;
 use systemprompt_traits::BoxedSource;
 use systemprompt_wire::inspect::ForwardedSurface;
 

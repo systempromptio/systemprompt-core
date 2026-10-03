@@ -20,6 +20,7 @@ systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 bytes = { workspace = true }

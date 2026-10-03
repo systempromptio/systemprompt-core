@@ -14,7 +14,7 @@ use std::path::Path;
 
 use serde::Serialize;
 use systemprompt_identifiers::SkillId;
-use systemprompt_models::DiskSkillConfig;
+use systemprompt_manifest::DiskSkillConfig;
 
 use super::error::invalid;
 use super::{AssetDigest, AssetFile, FileEntry, ManagedError, Result, RevisionFiles};

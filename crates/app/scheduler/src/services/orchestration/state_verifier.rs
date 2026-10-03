@@ -16,7 +16,7 @@ use super::verified_state::VerifiedServiceState;
 use crate::error::{SchedulerError, SchedulerResult};
 use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool, JsonRow};
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_models::services::{ServiceModule, ServiceStatus};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_traits::RepositoryError;
 
 const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(

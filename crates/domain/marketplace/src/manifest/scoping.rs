@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 use systemprompt_identifiers::{LibraryArtifactId, SkillId};
 use systemprompt_models::bridge::manifest::{ArtifactEntry, SkillEntry};
 
-use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind};
+use systemprompt_manifest::services::{MarketplaceConfig, MarketplaceMemberKind};
 
 use crate::candidate::MarketplaceCandidate;
 use crate::catalog::MarketplaceCache;

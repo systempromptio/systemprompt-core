@@ -15,7 +15,7 @@
 //!
 //! Token acquisition is a separate path on a separate client. Its URL is
 //! operator-configured —
-//! [`BOT_FRAMEWORK_TOKEN_URL`](systemprompt_models::services::teams::BOT_FRAMEWORK_TOKEN_URL)
+//! [`BOT_FRAMEWORK_TOKEN_URL`](systemprompt_manifest::services::teams::BOT_FRAMEWORK_TOKEN_URL)
 //! or an explicit override
 //! via [`TeamsClient::with_endpoints`] — never caller-supplied, so it stays on
 //! the plain client the caller injects.

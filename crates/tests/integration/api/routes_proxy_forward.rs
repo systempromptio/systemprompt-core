@@ -27,7 +27,7 @@ use axum::middleware::{self, Next};
 use axum::response::Response;
 use systemprompt_api::routes::proxy::{agents, mcp};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
     TestBootstrap, ensure_test_bootstrap, fixture_config, init_services_bootstrap,

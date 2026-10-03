@@ -12,7 +12,7 @@
 
 use std::path::Path;
 
-use systemprompt_models::services::bundle::{BUNDLE_ALLOWED_DIRS, MARKETPLACE_BUNDLE_DIRS};
+use systemprompt_manifest::services::bundle::{BUNDLE_ALLOWED_DIRS, MARKETPLACE_BUNDLE_DIRS};
 
 use crate::error::MarketplaceError;
 

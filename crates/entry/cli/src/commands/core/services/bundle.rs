@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
 use systemprompt_loader::bundle::{pack, verify};
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_SIGNATURE_ALG, BundleSignature, BundleSourceInfo, SignedBundleManifest,
 };
 use systemprompt_security::manifest_signing::{canonical_manifest_bytes, sign_with_seed};
@@ -98,7 +98,7 @@ pub fn pack_bundle(args: &BundleArgs, key: Option<&BundleSigningKey>) -> Result<
 
 fn sign_manifest(
     key: &BundleSigningKey,
-    manifest: &systemprompt_models::services::bundle::ServicesBundleManifest,
+    manifest: &systemprompt_manifest::services::bundle::ServicesBundleManifest,
 ) -> Result<BundleSignature> {
     let payload =
         canonical_manifest_bytes(manifest).context("Manifest could not be canonicalised")?;

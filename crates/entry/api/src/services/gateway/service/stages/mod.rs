@@ -12,7 +12,7 @@ use bytes::Bytes;
 use systemprompt_ai::SafetyConfig;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::services::GatewayConfig;
+use systemprompt_manifest::services::GatewayConfig;
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{ChainEntryResult, GovernanceEngine, SECRET_SCAN_ID};
 use systemprompt_wire::ModelLimits;

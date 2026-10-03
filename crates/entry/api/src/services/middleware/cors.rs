@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::Method;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use thiserror::Error;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 

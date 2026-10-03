@@ -91,7 +91,7 @@ async fn enforce_routing_policy(
 }
 
 pub fn require_explicit_cloud_profile(
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     source: ProfileSource,
     desc: &CommandDescriptor,
 ) -> Result<()> {
@@ -157,7 +157,7 @@ async fn initialize_post_routing(
 
 async fn try_remote_routing(
     cli: &args::Cli,
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     cli_config: &CliConfig,
     desc: &CommandDescriptor,
 ) -> Result<BootstrapOutcome> {
@@ -190,7 +190,7 @@ async fn try_remote_routing(
 pub fn confirm_remote_job_run(
     cli: &args::Cli,
     cli_config: &CliConfig,
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     hostname: &str,
 ) -> Result<()> {
     let Some(args::Commands::Infra(infrastructure::InfraCommands::Jobs(

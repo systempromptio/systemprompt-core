@@ -18,8 +18,8 @@ use std::sync::RwLock;
 
 use serde::Deserialize;
 use systemprompt_identifiers::TeamsAppId;
+use systemprompt_manifest::services::teams::BOT_FRAMEWORK_TOKEN_URL;
 use systemprompt_models::net::validate_outbound_url;
-use systemprompt_models::services::teams::BOT_FRAMEWORK_TOKEN_URL;
 
 use crate::error::{TeamsError, TeamsResult};
 

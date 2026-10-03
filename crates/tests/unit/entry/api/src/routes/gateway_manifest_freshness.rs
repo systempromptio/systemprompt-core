@@ -16,8 +16,8 @@ use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::routes::gateway::bridge_resolved::Freshness;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_identifiers::UserId;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError};
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, install_test_signing_key,

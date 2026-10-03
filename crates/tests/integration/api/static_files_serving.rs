@@ -18,9 +18,9 @@ use systemprompt_api::services::static_content::static_files::{
     StaticContentState, compute_etag, serve_static_content,
 };
 use systemprompt_files::FilesConfig;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context_with, test_db_pool};
 use tempfile::TempDir;
 

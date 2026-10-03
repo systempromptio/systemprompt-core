@@ -396,7 +396,7 @@ lint-no-untyped-admin:
         | grep -v 'crates/shared/identifiers/src/user.rs' \
         | grep -v 'crates/entry/cli/src/commands/admin/bootstrap.rs' \
         | grep -v 'crates/entry/cli/src/commands/infrastructure/jobs/run.rs' \
-        | grep -v 'crates/shared/models/src/services/scheduler.rs' \
+        | grep -v 'crates/shared/manifest/src/services/scheduler.rs' \
         | grep -v 'crates/domain/mcp/src/services/registry/manager.rs' \
         | grep -v 'crates/infra/logging/src/models/log_entry.rs' \
         || true)

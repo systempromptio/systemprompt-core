@@ -15,6 +15,7 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }

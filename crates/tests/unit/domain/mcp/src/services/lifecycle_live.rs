@@ -7,6 +7,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::lifecycle::LifecycleService;
 use systemprompt_mcp::services::monitoring::MonitoringService;
@@ -16,7 +17,6 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use wiremock::MockServer;
 
@@ -35,7 +35,7 @@ async fn make_lifecycle() -> (LifecycleService, systemprompt_database::DbPool) {
     let app_paths = Arc::new(
         AppPaths::from_profile(
             &paths,
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
         .expect("app paths"),

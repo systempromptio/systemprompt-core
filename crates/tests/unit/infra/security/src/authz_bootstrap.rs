@@ -9,7 +9,7 @@
 //! inventory hooks, which `build_authz_hook` discovers through the pool.
 
 use systemprompt_identifiers::{RouteId, TraceId};
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
 };

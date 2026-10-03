@@ -1,4 +1,4 @@
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_manifest::profile::RateLimitsConfig;
 
 #[test]
 fn rate_limit_config_default_has_sensible_values() {

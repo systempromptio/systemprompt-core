@@ -213,13 +213,13 @@ fn build_artifact_ingest(
 }
 
 async fn build_domain_layer(
-    config: &systemprompt_models::Config,
+    config: &systemprompt_manifest::Config,
     database: &systemprompt_database::DbPool,
     analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
 ) -> RuntimeResult<(
     composition::RepositoryBundles,
     Arc<UserService>,
-    Arc<systemprompt_models::SystemAdmin>,
+    Arc<systemprompt_manifest::SystemAdmin>,
     RegistryService,
 )> {
     let mut repositories =

@@ -105,16 +105,16 @@ pub fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {
     Ok(plugins)
 }
 
-fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_models::PluginConfigFile> {
+fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_manifest::PluginConfigFile> {
     let content = std::fs::read_to_string(config_path)
         .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let plugin_file: systemprompt_models::PluginConfigFile = serde_yaml::from_str(&content)
+    let plugin_file: systemprompt_manifest::PluginConfigFile = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse {}", config_path.display()))?;
     Ok(plugin_file)
 }
 
-fn estimate_component_count(component: &systemprompt_models::PluginComponentRef) -> usize {
-    if component.source == systemprompt_models::ComponentSource::Explicit {
+fn estimate_component_count(component: &systemprompt_models::plugin::PluginComponentRef) -> usize {
+    if component.source == systemprompt_models::plugin::ComponentSource::Explicit {
         component.include.len()
     } else {
         0

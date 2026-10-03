@@ -33,7 +33,7 @@ async fn boom_handler() -> StatusCode {
 
 async fn setup() -> Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
-    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
     install_test_signing_key();
     setup_ctx().await
 }

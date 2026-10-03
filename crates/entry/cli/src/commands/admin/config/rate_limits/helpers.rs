@@ -5,8 +5,8 @@
 
 use anyhow::{Context, Result, bail};
 use std::fs;
-use systemprompt_models::Profile;
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::RateLimitsConfig;
 
 use super::super::types::ResetChange;
 

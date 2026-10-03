@@ -10,7 +10,7 @@ use crate::services::spawn_target::SpawnTarget;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::services::{ServiceModule, ServiceStatus};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 
 use super::ServiceInfo;
 use crate::McpServerConfig;

@@ -17,9 +17,11 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::LibraryArtifactId;
+use systemprompt_manifest::services::{
+    ARTIFACT_CONFIG_FILENAME, DiskArtifactConfig, ServicesConfig,
+};
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::ArtifactEntry;
-use systemprompt_models::services::{ARTIFACT_CONFIG_FILENAME, DiskArtifactConfig, ServicesConfig};
 
 use crate::error::MarketplaceError;
 

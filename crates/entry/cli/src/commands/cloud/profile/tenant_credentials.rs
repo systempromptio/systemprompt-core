@@ -10,7 +10,7 @@ use anyhow::Result;
 use systemprompt_cloud::{CloudApiClient, StoredTenant, TenantStore, TenantType};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use crate::commands::cloud::tenant::get_credentials;
 

@@ -13,13 +13,13 @@ use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_identifiers::{
     ContextId, Email, McpServerId, McpToolName, ProfileName, SessionId, SessionToken, UserId,
 };
-use systemprompt_models::auth::UserType;
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
     ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
     ServerConfig, SiteConfig,
 };
+use systemprompt_models::auth::UserType;
 
 fn session_ctx() -> CliSessionContext {
     let session = CliSession::builder(
@@ -71,7 +71,7 @@ fn minimal_profile() -> Profile {
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
             metrics_port: None,
-            max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {
@@ -93,7 +93,7 @@ fn minimal_profile() -> Profile {
             login_page_url: None,
             signing_key_path: PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],
-            id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+            id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
         },
         rate_limits: RateLimitsConfig::default(),
         runtime: RuntimeConfig::default(),

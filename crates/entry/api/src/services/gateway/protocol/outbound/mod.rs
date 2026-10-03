@@ -25,7 +25,7 @@ use systemprompt_identifiers::ProviderRequestId;
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 use systemprompt_ai::UpstreamCall;
-use systemprompt_models::services::GatewayRoute;
+use systemprompt_manifest::services::GatewayRoute;
 use systemprompt_wire::ModelLimits;
 use systemprompt_wire::error::WireStreamError;
 use thiserror::Error;

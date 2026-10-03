@@ -16,7 +16,7 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
-use systemprompt_models::services::{GatewayConfigSpec, GatewayState, ProviderRegistry};
+use systemprompt_manifest::services::{GatewayConfigSpec, GatewayState, ProviderRegistry};
 
 use super::catalog;
 use super::secrets::SecretsData;

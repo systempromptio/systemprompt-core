@@ -2,7 +2,7 @@ use std::str::FromStr;
 use systemprompt_identifiers::{ExtensionId, JobName};
 
 use systemprompt_identifiers::{ExternalAgentId, SkillId, UserId};
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     DiskSkillConfig, ExternalAgentConfig, ExternalAgentKind, JobConfig, RuntimeStatus,
     SchedulerConfig, ServiceType, Settings, SystemAdmin, split_frontmatter, strip_frontmatter,
 };

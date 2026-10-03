@@ -10,7 +10,7 @@ use systemprompt_api::services::gateway::service::failover::{
     AttemptPlan, FailoverReason, ProviderBreakers, failover_reason, is_failover_status,
     plan_attempts,
 };
-use systemprompt_models::services::ResilienceSettings;
+use systemprompt_manifest::services::ResilienceSettings;
 
 fn status_error(status: u16) -> GatewayError {
     GatewayError::Upstream(UpstreamError::Status {

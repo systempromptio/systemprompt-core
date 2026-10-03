@@ -14,7 +14,7 @@ use systemprompt_api::services::gateway::service::finalize::record_accounting_ou
 use systemprompt_api::services::gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
-use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_security::policy::types::AccessScope;
 
 use crate::support::{minimal_request, seed_user, setup_db};
@@ -190,7 +190,7 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
             .await
             .expect("open");
         audit
-            .pin_pricing(systemprompt_models::services::ModelPricing {
+            .pin_pricing(systemprompt_manifest::services::ModelPricing {
                 input_per_million: 1.0,
                 output_per_million: 2.0,
                 ..Default::default()

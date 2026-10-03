@@ -12,7 +12,7 @@ use clap::Args;
 use std::path::Path;
 use systemprompt_identifiers::SkillId;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::SKILL_CONFIG_FILENAME;
+use systemprompt_manifest::SKILL_CONFIG_FILENAME;
 
 use crate::CommandContext;
 use crate::shared::{CommandOutput, truncate_with_ellipsis};

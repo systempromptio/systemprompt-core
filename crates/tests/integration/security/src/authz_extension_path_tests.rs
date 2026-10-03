@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{ContextId, RouteId, TaskId, TraceId};
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
 };
 use systemprompt_security::authz::{

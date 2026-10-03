@@ -19,7 +19,7 @@ use axum::http::{Request, Response, StatusCode, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::authenticated_router;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{

@@ -13,7 +13,7 @@ use systemprompt_config::{
     ProfileBootstrap, SecurityChange, SecurityConfigService, SecurityUpdate,
 };
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::TrustedIssuer;
+use systemprompt_manifest::profile::TrustedIssuer;
 
 use super::profile_io::{load_profile, save_profile};
 use super::types::{SecurityConfigOutput, SecuritySetOutput};

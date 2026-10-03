@@ -42,7 +42,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use systemprompt_identifiers::SecretName;
-use systemprompt_models::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
+use systemprompt_manifest::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
 use systemprompt_security::credential::ProviderCredential;
 
 use classify::Classification;

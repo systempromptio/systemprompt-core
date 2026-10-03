@@ -22,8 +22,8 @@ use std::sync::Arc;
 use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
+use systemprompt_manifest::services::gateway::{GatewayConfig, GatewayRoute};
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
-use systemprompt_models::services::gateway::{GatewayConfig, GatewayRoute};
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
@@ -238,7 +238,7 @@ pub fn derive_conversation(
 }
 
 fn upstream_model_for(
-    providers: &systemprompt_models::services::ProviderRegistry,
+    providers: &systemprompt_manifest::services::ProviderRegistry,
     route: &GatewayRoute,
     requested: &str,
 ) -> String {

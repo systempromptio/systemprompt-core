@@ -1,8 +1,8 @@
+use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::monitoring::health::HealthStatus;
 use systemprompt_mcp::services::monitoring::status::{
     McpServiceStatus, display_service_status, get_all_service_status,
 };
-use systemprompt_models::services::ServiceStatus;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

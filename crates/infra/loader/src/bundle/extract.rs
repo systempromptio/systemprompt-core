@@ -20,7 +20,7 @@ use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 
 use flate2::read::GzDecoder;
-use systemprompt_models::services::bundle::BUNDLE_MANIFEST_FILE;
+use systemprompt_manifest::services::bundle::BUNDLE_MANIFEST_FILE;
 use tar::Archive;
 
 use super::error::{BundleError, BundleResult};

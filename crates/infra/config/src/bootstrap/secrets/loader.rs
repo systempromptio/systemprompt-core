@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::profile::VaultSecretsConfig;
-use systemprompt_models::secrets::{OAUTH_AT_REST_PEPPER_MIN_LENGTH, Secrets};
+use systemprompt_manifest::profile::VaultSecretsConfig;
+use systemprompt_manifest::secrets::{OAUTH_AT_REST_PEPPER_MIN_LENGTH, Secrets};
 
 use super::SecretsBootstrapError;
 use super::logging::log_secrets_failure;

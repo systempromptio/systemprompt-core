@@ -10,7 +10,7 @@
 
 use std::future::Future;
 
-use systemprompt_models::secrets::Secrets;
+use systemprompt_manifest::secrets::Secrets;
 
 use super::SecretsBootstrapError;
 

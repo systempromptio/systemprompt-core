@@ -5,12 +5,12 @@
 //! the provider is constructed via `with_target`.
 
 use std::collections::HashMap;
-use systemprompt_models::services::providers::surface_for;
+use systemprompt_manifest::services::providers::surface_for;
 
 use serde_json::json;
 use systemprompt_ai::UpstreamTarget;
 use systemprompt_identifiers::{ProviderId, SecretName};
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     ModelGovernance, ProviderEntry, ProviderModel, ProviderRegistry,
 };
 use systemprompt_wire::WireProtocol;

@@ -31,7 +31,7 @@ pub async fn ensure_session(
     caller_ip: Option<IpAddr>,
     ctx: &AppContext,
 ) -> Result<SessionInfo> {
-    let config = systemprompt_models::Config::get()?;
+    let config = systemprompt_manifest::Config::get()?;
 
     if let Ok(token) = TokenExtractor::browser_only().extract(headers)
         && let Ok(claims) = validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)

@@ -3,7 +3,7 @@
 //! skill entry missing its content file, printed through the verbose
 //! domain-error branch.
 
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::StartupValidator;
 
 use crate::boot::{BootOptions, boot};

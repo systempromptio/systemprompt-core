@@ -8,7 +8,7 @@ use systemprompt_loader::vertex_discovery::source::{
     CatalogListing, CatalogSource, DiscoveredModel, DiscoveryError, LaunchStage,
 };
 use systemprompt_loader::vertex_discovery::{Catalog, discover, discover_with};
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     DiscoveryReport, ProviderEntry, ProviderRegistry, VertexRateCard,
 };
 use systemprompt_security::credential::{

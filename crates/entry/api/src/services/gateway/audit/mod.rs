@@ -77,7 +77,7 @@ pub struct GatewayRequestContext {
 pub struct GatewayAudit {
     settlement: journal::Settlement,
     journal_lease: std::sync::OnceLock<std::fs::File>,
-    pricing_snapshot: Mutex<Option<systemprompt_models::services::ModelPricing>>,
+    pricing_snapshot: Mutex<Option<systemprompt_manifest::services::ModelPricing>>,
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
     client_evidence: Arc<AiRequestClientEvidenceRepository>,

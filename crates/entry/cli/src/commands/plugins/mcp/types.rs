@@ -17,7 +17,7 @@ pub struct McpListOutput {
     pub servers: Vec<McpServerSummary>,
 }
 
-pub use systemprompt_models::services::McpServerSummary;
+pub use systemprompt_manifest::services::McpServerSummary;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpValidateOutput {

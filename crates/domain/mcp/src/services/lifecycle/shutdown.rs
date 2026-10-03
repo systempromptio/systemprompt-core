@@ -8,7 +8,7 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::process::ProcessService;
 use crate::services::spawn_target::SpawnTarget;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 
 pub async fn stop_server(
     lifecycle: &LifecycleService,

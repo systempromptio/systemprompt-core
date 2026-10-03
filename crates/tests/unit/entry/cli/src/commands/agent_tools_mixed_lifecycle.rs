@@ -13,8 +13,8 @@ use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, ServiceName, SessionId, SessionToken,
 };
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     DisposableDb, TestBootstrap, fixture_app_context_with, fixture_user_id,
     init_services_bootstrap, install_test_signing_key,

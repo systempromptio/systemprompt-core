@@ -8,10 +8,10 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::HookId;
+use systemprompt_manifest::services::DiskHookConfig;
+use systemprompt_manifest::services::hooks::HOOK_CONFIG_FILENAME;
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::HookEntry;
-use systemprompt_models::services::DiskHookConfig;
-use systemprompt_models::services::hooks::HOOK_CONFIG_FILENAME;
 
 use crate::error::MarketplaceError;
 

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use chrono::NaiveDate;
 use systemprompt_loader::vertex_discovery::merge;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     DiscoveryReport, ProviderEntry, VertexRateCard, VertexRateCardEntry,
 };
 

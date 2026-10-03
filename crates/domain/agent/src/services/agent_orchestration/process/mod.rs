@@ -16,7 +16,7 @@ mod signals;
 use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 

@@ -7,9 +7,9 @@ use std::path::Path;
 
 use systemprompt_identifiers::{Email, TenantId};
 use systemprompt_loader::ExtensionLoader;
-use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
+use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, ExtensionsConfig, PathsConfig,
     Profile, ProfileDatabaseConfig, ProfileType, RateLimitsConfig, SecurityHeadersConfig,
     ServerConfig, SiteConfig,
@@ -57,8 +57,8 @@ impl LocalProfileBuilder {
         let internal_url = local_url.clone();
 
         Profile {
-            storage: systemprompt_models::profile::StorageConfig::default(),
-            observability: systemprompt_models::profile::ObservabilityConfig::default(),
+            storage: systemprompt_manifest::profile::StorageConfig::default(),
+            observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
             name: self.name,
             display_name,
             target: ProfileType::Local,
@@ -83,7 +83,8 @@ impl LocalProfileBuilder {
                 security_headers: SecurityHeadersConfig::default(),
                 instance_id: None,
                 metrics_port: None,
-                max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+                max_concurrent_streams:
+                    systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
                 trusted_proxies: crate::trusted_proxies::default_local_trusted_proxies(),
             },
             paths: PathsConfig {
@@ -114,9 +115,9 @@ impl LocalProfileBuilder {
             }),
             extensions: ExtensionsConfig::default(),
             governance: Some(webhook_governance(&internal_url)),
-            services: systemprompt_models::profile::ServicesProfileConfig::default(),
-            judge: systemprompt_models::profile::JudgeProfile::default(),
-            retention: systemprompt_models::profile::RetentionConfig::default(),
+            services: systemprompt_manifest::profile::ServicesProfileConfig::default(),
+            judge: systemprompt_manifest::profile::JudgeProfile::default(),
+            retention: systemprompt_manifest::profile::RetentionConfig::default(),
             system_admin: SystemAdminConfig {
                 username: "admin".to_owned(),
                 email: Some(Email::local_admin()),

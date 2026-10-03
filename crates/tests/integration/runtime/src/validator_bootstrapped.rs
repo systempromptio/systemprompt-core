@@ -7,7 +7,7 @@
 use std::sync::Mutex;
 
 use systemprompt_logging::set_startup_mode;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::{StartupValidator, validate_extension_configs};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 

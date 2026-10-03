@@ -13,7 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
+use systemprompt_manifest::services::{MarketplaceConfig, ServicesConfig};
 
 use crate::error::MarketplaceError;
 

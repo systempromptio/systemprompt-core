@@ -17,6 +17,7 @@ systemprompt-marketplace = { workspace = true }
 systemprompt-loader = { workspace = true }
 serde_yaml = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-traits = { workspace = true }

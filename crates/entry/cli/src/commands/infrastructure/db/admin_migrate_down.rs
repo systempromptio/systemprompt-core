@@ -10,7 +10,7 @@ use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;

@@ -13,7 +13,7 @@ use axum::http::HeaderMap;
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_identifiers::SlackWorkspaceId;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::services::SlackAppConfig;
+use systemprompt_manifest::services::SlackAppConfig;
 use systemprompt_slack::signature::verify_slack_signature;
 
 pub(super) fn resolve_app(workspace_id: &SlackWorkspaceId) -> Option<SlackAppConfig> {

@@ -3,8 +3,8 @@
 
 use std::path::Path;
 
+use systemprompt_manifest::services::{ClaudeCodeMarketplaceConfig, MarketplaceConfigFile};
 use systemprompt_marketplace::{ImportOptions, import_anthropic_tree};
-use systemprompt_models::services::{ClaudeCodeMarketplaceConfig, MarketplaceConfigFile};
 use tempfile::TempDir;
 
 fn tree(sidecar: Option<&str>) -> TempDir {

@@ -8,7 +8,7 @@ use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::monitor::AgentMonitor;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::agent_config;

@@ -9,7 +9,7 @@
 //! carries exactly those extension errors when everything else is healthy.
 
 use systemprompt_logging::set_startup_mode;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::StartupValidator;
 
 use crate::boot::{BootOptions, boot};

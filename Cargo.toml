@@ -5,6 +5,7 @@ members = [
     "crates/shared/traits",
     "crates/shared/models",
     "crates/shared/wire",
+    "crates/shared/manifest",
     "crates/shared/client",
     "crates/shared/identifiers",
     "crates/shared/extension",
@@ -299,6 +300,7 @@ systemprompt-traits = { path = "crates/shared/traits", version = "0.62.0" }
 systemprompt-extension = { path = "crates/shared/extension", version = "0.62.0" }
 systemprompt-models = { path = "crates/shared/models", version = "0.62.0" }
 systemprompt-wire = { path = "crates/shared/wire", version = "0.62.0" }
+systemprompt-manifest = { path = "crates/shared/manifest", version = "0.62.0" }
 systemprompt-client = { path = "crates/shared/client", version = "0.62.0" }
 systemprompt-template-provider = { path = "crates/shared/template-provider", version = "0.62.0" }
 systemprompt-database = { path = "crates/infra/database", version = "0.62.0" }

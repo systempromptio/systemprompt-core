@@ -12,15 +12,14 @@ use serde::{Deserialize, Serialize};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::bridge::profile as bridge_profile;
+use systemprompt_manifest::bridge_profile;
 use systemprompt_models::providers::ApiSurface;
 
 use systemprompt_security::manifest_signing;
 use uuid::Uuid;
 
-pub use systemprompt_models::bridge::profile::{
-    BridgeProfileResponse, ProviderHealth, provider_health,
-};
+pub use systemprompt_manifest::bridge_profile::provider_health;
+pub use systemprompt_models::bridge::profile::{BridgeProfileResponse, ProviderHealth};
 
 use super::bridge_data;
 use super::bridge_error::{BridgeError, authenticate_bridge};
@@ -30,7 +29,7 @@ use crate::services::middleware::JwtContextExtractor;
 use systemprompt_models::bridge::host::HostKind;
 
 pub fn instance_enabled_hosts(
-    services: &systemprompt_models::services::ServicesConfig,
+    services: &systemprompt_manifest::services::ServicesConfig,
 ) -> Vec<HostKind> {
     HostKind::ALL
         .into_iter()

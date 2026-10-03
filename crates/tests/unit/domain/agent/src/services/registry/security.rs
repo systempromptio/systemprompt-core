@@ -3,7 +3,7 @@ use systemprompt_agent::SecurityScheme;
 use systemprompt_agent::services::registry::security::{
     oauth_to_security_config, override_oauth_urls,
 };
-use systemprompt_models::AgentOAuthConfig;
+use systemprompt_manifest::AgentOAuthConfig;
 use systemprompt_models::auth::{JwtAudience, Permission};
 
 #[test]
