@@ -4367,6 +4367,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
+ "systemprompt-oauth-issuance",
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
@@ -4497,7 +4498,6 @@ dependencies = [
  "http",
  "inventory",
  "ipnet",
- "jsonwebtoken",
  "metrics",
  "metrics-exporter-prometheus",
  "nix",
@@ -4528,6 +4528,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
+ "systemprompt-oauth-issuance",
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
@@ -5078,6 +5079,28 @@ dependencies = [
  "uuid",
  "validator",
  "webauthn-rs",
+]
+
+[[package]]
+name = "systemprompt-oauth-issuance"
+version = "0.62.0"
+dependencies = [
+ "base64 0.23.0",
+ "chrono",
+ "http",
+ "jsonwebtoken",
+ "serde",
+ "serde_json",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-oauth",
+ "systemprompt-security",
+ "systemprompt-traits",
+ "thiserror 2.0.19",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]

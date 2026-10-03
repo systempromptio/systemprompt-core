@@ -22,15 +22,15 @@ use systemprompt_oauth::services::validation::id_jag::{
 };
 use systemprompt_security::keys::{JwksClient, authority};
 
-use super::super::super::{TokenError, TokenResult};
 use super::subject::{SubjectIdentity, jwks_host_allowlist, peek_issuer};
+use crate::{IssuanceError, IssuanceResult};
 
 pub async fn validate_id_jag_subject(
     token: &str,
     authenticated_client: &ClientId,
     repo: &OAuthRepository,
     global: &Config,
-) -> TokenResult<SubjectIdentity> {
+) -> IssuanceResult<SubjectIdentity> {
     let (claims, allowed_client_ids) = verify_id_jag_signature(token, global).await?;
 
     let policy = ClaimPolicy {
@@ -40,25 +40,25 @@ pub async fn validate_id_jag_subject(
         now: Utc::now().timestamp(),
         leeway: DEFAULT_LEEWAY_SECS,
     };
-    validate_claims(&claims, &policy).map_err(TokenError::IdJagRejected)?;
+    validate_claims(&claims, &policy).map_err(IssuanceError::IdJagRejected)?;
 
     let expires_at =
         Utc.timestamp_opt(claims.exp, 0)
             .single()
-            .ok_or_else(|| TokenError::InvalidGrant {
+            .ok_or_else(|| IssuanceError::InvalidGrant {
                 reason: "ID-JAG exp is out of range".to_owned(),
             })?;
     let jti =
-        AccessTokenId::try_new(claims.jti.as_str()).map_err(|e| TokenError::RejectedGrant {
+        AccessTokenId::try_new(claims.jti.as_str()).map_err(|e| IssuanceError::RejectedGrant {
             reason: "ID-JAG jti is invalid",
             source: e.into(),
         })?;
     let first_use = repo
         .consume_id_jag_jti(&jti, expires_at)
         .await
-        .map_err(|e| TokenError::server("ID-JAG replay store unavailable", e))?;
+        .map_err(|e| IssuanceError::server("ID-JAG replay store unavailable", e))?;
     if !first_use {
-        return Err(TokenError::InvalidGrant {
+        return Err(IssuanceError::InvalidGrant {
             reason: "ID-JAG has already been used (replay)".to_owned(),
         });
     }
@@ -89,16 +89,16 @@ pub async fn validate_id_jag_subject(
 async fn verify_id_jag_signature(
     token: &str,
     global: &Config,
-) -> TokenResult<(IdJagClaims, Vec<ClientId>)> {
+) -> IssuanceResult<(IdJagClaims, Vec<ClientId>)> {
     let header = decode_header(token)
-        .map_err(|e| TokenError::rejected_grant("ID-JAG header decode failed", e))?;
-    validate_typ(header.typ.as_deref()).map_err(TokenError::IdJagRejected)?;
+        .map_err(|e| IssuanceError::rejected_grant("ID-JAG header decode failed", e))?;
+    validate_typ(header.typ.as_deref()).map_err(IssuanceError::IdJagRejected)?;
     if header.alg != Algorithm::RS256 {
-        return Err(TokenError::InvalidGrant {
+        return Err(IssuanceError::InvalidGrant {
             reason: "ID-JAG must be RS256-signed".to_owned(),
         });
     }
-    let kid = header.kid.ok_or_else(|| TokenError::InvalidGrant {
+    let kid = header.kid.ok_or_else(|| IssuanceError::InvalidGrant {
         reason: "ID-JAG missing `kid` header".to_owned(),
     })?;
 
@@ -110,12 +110,12 @@ async fn verify_id_jag_signature(
 
     if declared_iss == global.jwt_issuer {
         let key = authority::decoding_key_for_kid(&kid)
-            .map_err(|e| TokenError::server("Signing key lookup failed", e))?
-            .ok_or_else(|| TokenError::InvalidGrant {
+            .map_err(|e| IssuanceError::server("Signing key lookup failed", e))?
+            .ok_or_else(|| IssuanceError::InvalidGrant {
                 reason: format!("unknown `kid` `{kid}`"),
             })?;
         let data = decode::<IdJagClaims>(token, key, &validation)
-            .map_err(|e| TokenError::rejected_grant("ID-JAG rejected", e))?;
+            .map_err(|e| IssuanceError::rejected_grant("ID-JAG rejected", e))?;
         return Ok((data.claims, Vec::new()));
     }
 
@@ -123,16 +123,16 @@ async fn verify_id_jag_signature(
         .trusted_issuers
         .iter()
         .find(|t| t.issuer == declared_iss)
-        .ok_or_else(|| TokenError::InvalidGrant {
+        .ok_or_else(|| IssuanceError::InvalidGrant {
             reason: format!("ID-JAG issuer '{declared_iss}' is not trusted"),
         })?;
     let jwk = JwksClient::new(jwks_host_allowlist(&global.trusted_issuers))
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
-        .map_err(|e| TokenError::rejected_grant("ID-JAG JWKS resolution failed", e))?;
+        .map_err(|e| IssuanceError::rejected_grant("ID-JAG JWKS resolution failed", e))?;
     let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
-        .map_err(|e| TokenError::rejected_grant("invalid RSA components in JWK", e))?;
+        .map_err(|e| IssuanceError::rejected_grant("invalid RSA components in JWK", e))?;
     let data = decode::<IdJagClaims>(token, &key, &validation)
-        .map_err(|e| TokenError::rejected_grant("ID-JAG rejected", e))?;
+        .map_err(|e| IssuanceError::rejected_grant("ID-JAG rejected", e))?;
     Ok((data.claims, trusted.allowed_client_ids.clone()))
 }

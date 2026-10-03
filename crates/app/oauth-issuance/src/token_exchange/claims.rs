@@ -9,14 +9,14 @@ use systemprompt_identifiers::ClientId;
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{ActClaim, JwtAudience, Permission};
 
-use super::super::super::{TokenError, TokenResult};
+use crate::{IssuanceError, IssuanceResult};
 
 pub fn intersect_scopes(
     requested: &[Permission],
     subject_scope: &[Permission],
     client_scope: &[Permission],
     owner_scope: &[Permission],
-) -> TokenResult<Vec<Permission>> {
+) -> IssuanceResult<Vec<Permission>> {
     let mut out: Vec<Permission> = requested
         .iter()
         .filter(|p| subject_scope.contains(p))
@@ -27,7 +27,7 @@ pub fn intersect_scopes(
     out.sort_by_key(|p| std::cmp::Reverse(p.hierarchy_level()));
     out.dedup();
     if out.is_empty() {
-        return Err(TokenError::InvalidRequest {
+        return Err(IssuanceError::InvalidRequest {
             field: "scope".to_owned(),
             message: "no overlap between subject, client, and owner permissions".to_owned(),
         });
@@ -35,20 +35,24 @@ pub fn intersect_scopes(
     Ok(out)
 }
 
-pub fn resolve_audience(requested: Option<&str>, global: &Config) -> TokenResult<Vec<JwtAudience>> {
+pub fn resolve_audience(
+    requested: Option<&str>,
+    global: &Config,
+) -> IssuanceResult<Vec<JwtAudience>> {
     if let Some(value) = requested {
         if !global
             .allowed_resource_audiences
             .iter()
             .any(|allowed| allowed == value)
         {
-            return Err(TokenError::InvalidTarget {
+            return Err(IssuanceError::InvalidTarget {
                 message: format!("audience '{value}' not in allowed_resource_audiences"),
             });
         }
-        let aud = JwtAudience::from_str(value).map_err(|_unknown| TokenError::InvalidTarget {
-            message: format!("audience '{value}' is not a known audience"),
-        })?;
+        let aud =
+            JwtAudience::from_str(value).map_err(|_unknown| IssuanceError::InvalidTarget {
+                message: format!("audience '{value}' is not a known audience"),
+            })?;
         return Ok(vec![aud]);
     }
     Ok(global.jwt_audiences.clone())

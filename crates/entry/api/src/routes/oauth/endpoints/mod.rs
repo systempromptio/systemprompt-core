@@ -32,6 +32,6 @@ pub use introspect::*;
 pub use logout::handle_logout;
 pub use register::*;
 pub use revoke::*;
-pub use token::{TokenError, TokenResult, generation, handle_token};
+pub use token::handle_token;
 pub use userinfo::*;
 pub use webauthn_complete::*;

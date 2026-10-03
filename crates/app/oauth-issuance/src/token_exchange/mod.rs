@@ -31,8 +31,7 @@ use systemprompt_oauth::services::{
     DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_jwt_with_act,
 };
 
-use super::super::{TokenError, TokenResponse, TokenResult};
-use super::RequestOrigin;
+use crate::{IssuanceError, IssuanceResult, RequestOrigin, TokenResponse};
 
 pub mod claims;
 pub mod delegation;
@@ -74,7 +73,7 @@ pub async fn handle_token_exchange(
     request: TokenExchangeRequest<'_>,
     origin: RequestOrigin<'_>,
     state: &OAuthState,
-) -> TokenResult<TokenResponse> {
+) -> IssuanceResult<TokenResponse> {
     let global = Config::get()?;
 
     if request.requested_token_type == Some(ID_JAG_TOKEN_TYPE) {
@@ -125,7 +124,7 @@ pub async fn handle_token_exchange(
         signing: &signing,
         act,
     })
-    .map_err(|e| TokenError::server("Access token signing failed", e))?;
+    .map_err(|e| IssuanceError::server("Access token signing failed", e))?;
 
     let scope_string = final_perms
         .iter()

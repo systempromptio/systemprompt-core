@@ -15,8 +15,8 @@ use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission};
 use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_security::keys::JwksClient;
 
-use super::super::super::{TokenError, TokenResult};
 use super::{ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE};
+use crate::{IssuanceError, IssuanceResult};
 
 #[derive(serde::Deserialize)]
 struct IssOnly {
@@ -35,19 +35,19 @@ pub async fn validate_subject_token(
     token: &str,
     token_type: &str,
     global: &Config,
-) -> TokenResult<SubjectIdentity> {
+) -> IssuanceResult<SubjectIdentity> {
     if !matches!(
         token_type,
         ACCESS_TOKEN_TYPE | ID_TOKEN_TYPE | JWT_TOKEN_TYPE
     ) {
-        return Err(TokenError::InvalidRequest {
+        return Err(IssuanceError::InvalidRequest {
             field: "subject_token_type".to_owned(),
             message: format!("unsupported subject_token_type '{token_type}'"),
         });
     }
 
     let header = decode_header(token)
-        .map_err(|e| TokenError::malformed("subject_token", "malformed JWT header", e))?;
+        .map_err(|e| IssuanceError::malformed("subject_token", "malformed JWT header", e))?;
 
     let declared_iss = peek_issuer(token)?;
 
@@ -59,12 +59,12 @@ pub async fn validate_subject_token(
         .trusted_issuers
         .iter()
         .find(|t| t.issuer == declared_iss)
-        .ok_or_else(|| TokenError::InvalidRequest {
+        .ok_or_else(|| IssuanceError::InvalidRequest {
             field: "subject_token".to_owned(),
             message: format!("issuer '{declared_iss}' is not trusted"),
         })?;
 
-    let kid = header.kid.ok_or_else(|| TokenError::InvalidRequest {
+    let kid = header.kid.ok_or_else(|| IssuanceError::InvalidRequest {
         field: "subject_token".to_owned(),
         message: "trusted-issuer token must carry a kid header".to_owned(),
     })?;
@@ -74,17 +74,18 @@ pub async fn validate_subject_token(
     let jwk = client
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
-        .map_err(|e| TokenError::malformed("subject_token", "JWKS resolution failed", e))?;
+        .map_err(|e| IssuanceError::malformed("subject_token", "JWKS resolution failed", e))?;
 
-    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
-        .map_err(|e| TokenError::malformed("subject_token", "invalid RSA components in JWK", e))?;
+    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|e| {
+        IssuanceError::malformed("subject_token", "invalid RSA components in JWK", e)
+    })?;
 
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_issuer(&[&trusted.issuer]);
     validation.set_audience(&[&trusted.audience]);
 
     let data = decode::<JwtClaims>(token, &decoding_key, &validation).map_err(|e| {
-        TokenError::malformed(
+        IssuanceError::malformed(
             "subject_token",
             "subject token signature/claims rejected",
             e,
@@ -99,21 +100,21 @@ pub async fn validate_subject_token(
     })
 }
 
-pub fn peek_issuer(token: &str) -> TokenResult<String> {
+pub fn peek_issuer(token: &str) -> IssuanceResult<String> {
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
     let mut parts = token.split('.');
     let _header = parts.next();
-    let payload = parts.next().ok_or_else(|| TokenError::InvalidRequest {
+    let payload = parts.next().ok_or_else(|| IssuanceError::InvalidRequest {
         field: "subject_token".to_owned(),
         message: "subject_token is not a JWT".to_owned(),
     })?;
     let bytes = URL_SAFE_NO_PAD.decode(payload).map_err(|e| {
-        TokenError::malformed("subject_token", "subject_token payload is not base64url", e)
+        IssuanceError::malformed("subject_token", "subject_token payload is not base64url", e)
     })?;
     let parsed: IssOnly = serde_json::from_slice(&bytes).map_err(|e| {
-        TokenError::malformed("subject_token", "subject_token payload missing iss", e)
+        IssuanceError::malformed("subject_token", "subject_token payload missing iss", e)
     })?;
     Ok(parsed.iss)
 }
@@ -122,23 +123,23 @@ fn validate_self_issued(
     token: &str,
     header: &jsonwebtoken::Header,
     global: &Config,
-) -> TokenResult<SubjectIdentity> {
+) -> IssuanceResult<SubjectIdentity> {
     use systemprompt_security::keys::authority;
 
     if header.alg != Algorithm::RS256 {
-        return Err(TokenError::InvalidGrant {
+        return Err(IssuanceError::InvalidGrant {
             reason: "subject_token must be RS256-signed".to_owned(),
         });
     }
     let kid = header
         .kid
         .as_deref()
-        .ok_or_else(|| TokenError::InvalidGrant {
+        .ok_or_else(|| IssuanceError::InvalidGrant {
             reason: "subject_token missing `kid` header".to_owned(),
         })?;
     let key = authority::decoding_key_for_kid(kid)
-        .map_err(|e| TokenError::server("Signing key lookup failed", e))?
-        .ok_or_else(|| TokenError::InvalidGrant {
+        .map_err(|e| IssuanceError::server("Signing key lookup failed", e))?
+        .ok_or_else(|| IssuanceError::InvalidGrant {
             reason: format!("unknown `kid` `{kid}`"),
         })?;
 
@@ -151,7 +152,7 @@ fn validate_self_issued(
         .collect();
     validation.set_audience(&aud_strs);
     let data = decode::<JwtClaims>(token, key, &validation)
-        .map_err(|e| TokenError::rejected_grant("subject_token rejected", e))?;
+        .map_err(|e| IssuanceError::rejected_grant("subject_token rejected", e))?;
     Ok(SubjectIdentity {
         scope: data.claims.scope,
         prior_act: data.claims.act,

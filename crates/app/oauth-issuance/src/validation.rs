@@ -1,31 +1,23 @@
-//! Token-endpoint request validation.
+//! Token-request validation: required fields and authorization-code
+//! redemption.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{TokenError, TokenResult};
 use systemprompt_identifiers::{AuthorizationCode, ClientId};
-use systemprompt_oauth::models::OAuthClient;
+use systemprompt_oauth::OauthError;
 use systemprompt_oauth::repository::{AuthCodeValidationResult, OAuthRepository};
-use systemprompt_oauth::services::validation::validate_client_credentials as validate_client_credentials_shared;
-use systemprompt_oauth::{OauthError, OauthResult};
+
+use crate::{IssuanceError, IssuanceResult};
 
 pub fn extract_required_field<'a>(
     field: Option<&'a str>,
     field_name: &str,
-) -> TokenResult<&'a str> {
-    field.ok_or_else(|| TokenError::InvalidRequest {
+) -> IssuanceResult<&'a str> {
+    field.ok_or_else(|| IssuanceError::InvalidRequest {
         field: field_name.to_owned(),
         message: "is required".to_owned(),
     })
-}
-
-pub async fn validate_client_credentials(
-    repo: &OAuthRepository,
-    client_id: &ClientId,
-    client_secret: Option<&str>,
-) -> OauthResult<OAuthClient> {
-    validate_client_credentials_shared(repo, client_id, client_secret).await
 }
 
 #[derive(Debug)]
@@ -40,7 +32,7 @@ pub struct AuthCodeValidationParams<'a> {
 
 pub async fn validate_authorization_code(
     params: AuthCodeValidationParams<'_>,
-) -> TokenResult<AuthCodeValidationResult> {
+) -> IssuanceResult<AuthCodeValidationResult> {
     let redirect_uri = extract_required_field(params.redirect_uri, "redirect_uri")?;
     let code_verifier = extract_required_field(params.code_verifier, "code_verifier")?;
     let result = params
@@ -53,7 +45,7 @@ pub async fn validate_authorization_code(
         && let Some(ref stored_resource) = result.resource
         && req_resource != stored_resource
     {
-        return Err(TokenError::InvalidGrant {
+        return Err(IssuanceError::InvalidGrant {
             reason: format!(
                 "Resource parameter mismatch: expected '{stored_resource}', got '{req_resource}'"
             ),
@@ -63,9 +55,9 @@ pub async fn validate_authorization_code(
     Ok(result)
 }
 
-fn authorization_code_error(error: OauthError) -> TokenError {
+fn authorization_code_error(error: OauthError) -> IssuanceError {
     match error {
-        OauthError::Validation(reason) => TokenError::InvalidGrant { reason },
-        other => TokenError::Oauth(other),
+        OauthError::Validation(reason) => IssuanceError::InvalidGrant { reason },
+        other => IssuanceError::Oauth(other),
     }
 }

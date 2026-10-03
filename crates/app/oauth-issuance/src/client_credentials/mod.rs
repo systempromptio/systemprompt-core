@@ -3,25 +3,22 @@
 //! Mints an access token for a client acting as itself, intersecting the
 //! requested scopes with both the client's static grant and (for delegated
 //! user-tier roles) the owner's permissions. [`ClientCredentialsError`]
-//! partitions failures so the route maps recoverable client mistakes to 4xx.
+//! partitions failures so the caller maps recoverable client mistakes to 4xx.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{
-    AccessTokenId, ClientId, PluginId, SessionId, SessionSource, UserId,
-};
+use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
 use systemprompt_models::errors::ParseEnumError;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
-use systemprompt_traits::{CreateSessionInput, ExtractSignals};
 use thiserror::Error;
 
-use super::super::TokenResponse;
-use super::RequestOrigin;
+use crate::session::create_oauth_session;
+use crate::{RequestOrigin, TokenResponse};
 
 pub mod scope;
 
@@ -30,7 +27,7 @@ pub use self::scope::{authorize_client_grant, resolve_audience, scope_permission
 #[derive(Debug, Default)]
 pub struct ClientTokenOptions<'a> {
     pub scope: Option<&'a str>,
-    pub plugin_id: Option<&'a str>,
+    pub plugin_id: Option<PluginId>,
     pub audience: Option<&'a str>,
 }
 
@@ -99,38 +96,6 @@ async fn load_active_owner(
     })
 }
 
-async fn create_client_session(
-    state: &OAuthState,
-    origin: RequestOrigin<'_>,
-    owner_user_id: &UserId,
-    expires_in: i64,
-) -> Result<SessionId, ClientCredentialsError> {
-    let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
-    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
-    let analytics = state.analytics_provider().extract_analytics(
-        origin.headers,
-        ExtractSignals {
-            caller_ip: origin.caller_ip,
-            ..Default::default()
-        },
-    );
-
-    state
-        .session_provider()
-        .create_session(CreateSessionInput {
-            session_id: &session_id,
-            user_id: Some(owner_user_id),
-            analytics: &analytics,
-            session_source: SessionSource::Oauth,
-            is_bot: false,
-            is_ai_crawler: false,
-            expires_at,
-        })
-        .await
-        .map_err(|e| ClientCredentialsError::SessionCreate(e.into()))?;
-    Ok(session_id)
-}
-
 pub async fn generate_client_tokens(
     repo: &OAuthRepository,
     client_id: &ClientId,
@@ -179,12 +144,13 @@ pub async fn generate_client_tokens(
         permissions: permissions.clone(),
         audience,
         expires_in: chrono::Duration::seconds(global_config.jwt_access_token_expiration),
-        plugin_id: options.plugin_id.map(PluginId::new),
+        plugin_id: options.plugin_id,
         client_id: Some(client_id.clone()),
         ..Default::default()
     };
-    let session_id =
-        create_client_session(state, origin, &client.owner_user_id, expires_in).await?;
+    let session_id = create_oauth_session(state, origin, &client.owner_user_id, expires_in)
+        .await
+        .map_err(|e| ClientCredentialsError::SessionCreate(e.into()))?;
 
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,

@@ -1,41 +1,31 @@
-//! `/oauth/token` endpoint: dispatches by `grant_type` to the per-grant
-//! handlers in `grants`, each of which fails with the typed `TokenError`.
+//! `/oauth/token` endpoint.
+//!
+//! Binds the form-encoded grant, folds HTTP Basic client credentials into it,
+//! and hands it to [`TokenIssuanceOrchestrator`]; an [`IssuanceError`] answers
+//! with its RFC 6749 error body.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Extension, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Form, Json};
+use base64::Engine;
 use systemprompt_models::RequestContext;
-use systemprompt_oauth::{GrantType, OAuthState};
+use systemprompt_oauth::OAuthState;
+use systemprompt_oauth_issuance::{
+    IssuanceError, IssuanceResult, RequestOrigin, TokenIssuanceOrchestrator, TokenRequest,
+};
 use tracing::instrument;
 
-use base64::Engine;
-
-use super::{TokenError, TokenRequest, TokenResult};
 use crate::routes::oauth::OAuthHttpError;
-use crate::routes::oauth::extractors::OAuthRepo;
 use crate::services::middleware::client_addr::ClientIp;
 
-mod grants;
-
-use axum::http::HeaderMap;
-use grants::{
-    handle_authorization_code_grant, handle_client_credentials_grant, handle_jwt_bearer_grant,
-    handle_refresh_token_grant, handle_token_exchange_grant,
-};
-
-#[expect(
-    clippy::too_many_arguments,
-    reason = "axum handler: each extractor is a separate parameter"
-)]
-#[instrument(skip(state, _req_ctx, caller_ip, headers, request, repo), fields(grant_type = %request.grant_type))]
+#[instrument(skip(state, _req_ctx, caller_ip, headers, request), fields(grant_type = %request.grant_type))]
 pub async fn handle_token(
     Extension(_req_ctx): Extension<RequestContext>,
     State(state): State<OAuthState>,
-    OAuthRepo(repo): OAuthRepo,
     ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
     Form(mut request): Form<TokenRequest>,
@@ -44,29 +34,13 @@ pub async fn handle_token(
 
     apply_basic_client_auth(&headers, &mut request)?;
 
-    let grant_type = request
-        .grant_type
-        .parse::<GrantType>()
-        .map_err(|_unknown| TokenError::UnsupportedGrantType {
-            grant_type: request.grant_type.clone(),
-        })?;
-    let response = match grant_type {
-        GrantType::AuthorizationCode => {
-            handle_authorization_code_grant(repo, request, &headers, caller_ip, &state).await?
-        },
-        GrantType::RefreshToken => {
-            handle_refresh_token_grant(repo, request, &headers, caller_ip, &state).await?
-        },
-        GrantType::ClientCredentials => {
-            handle_client_credentials_grant(repo, request, &headers, caller_ip, &state).await?
-        },
-        GrantType::TokenExchange => {
-            handle_token_exchange_grant(repo, request, &headers, caller_ip, &state).await?
-        },
-        GrantType::JwtBearer => {
-            handle_jwt_bearer_grant(repo, request, &headers, caller_ip, &state).await?
-        },
+    let origin = RequestOrigin {
+        headers: &headers,
+        caller_ip,
     };
+    let response = TokenIssuanceOrchestrator::new(&state)
+        .issue(request, origin)
+        .await?;
     Ok((StatusCode::OK, Json(response)).into_response())
 }
 
@@ -74,7 +48,7 @@ pub async fn handle_token(
 // `client_id:client_secret` percent-encoded inside HTTP Basic; a client must
 // not also send them in the body, so a conflicting pair is rejected rather than
 // silently preferred.
-fn apply_basic_client_auth(headers: &HeaderMap, request: &mut TokenRequest) -> TokenResult<()> {
+fn apply_basic_client_auth(headers: &HeaderMap, request: &mut TokenRequest) -> IssuanceResult<()> {
     let Some(encoded) = headers
         .get(http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
@@ -83,7 +57,7 @@ fn apply_basic_client_auth(headers: &HeaderMap, request: &mut TokenRequest) -> T
         return Ok(());
     };
 
-    let invalid = || TokenError::InvalidRequest {
+    let invalid = || IssuanceError::InvalidRequest {
         field: "authorization".to_owned(),
         message: "malformed HTTP Basic client credentials".to_owned(),
     };
@@ -101,7 +75,7 @@ fn apply_basic_client_auth(headers: &HeaderMap, request: &mut TokenRequest) -> T
         .is_some_and(|body_id| body_id != client_id)
         || request.client_secret.is_some()
     {
-        return Err(TokenError::InvalidRequest {
+        return Err(IssuanceError::InvalidRequest {
             field: "client_id".to_owned(),
             message: "client credentials supplied both in the Authorization header and the body"
                 .to_owned(),

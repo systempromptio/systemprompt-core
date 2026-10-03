@@ -1,63 +1,57 @@
-//! Token generation for `/oauth/token` grants.
+//! Access- and refresh-token minting for a user-bound grant
+//! (`authorization_code` and `refresh_token`).
 //!
-//! Two grant families share this module: `client_credentials`
-//! (machine-as-itself per RFC 6749 §4.4) and
-//! `urn:ietf:params:oauth:grant-type:token-exchange` (RFC 8693). They share
-//! scope-parsing and JWT-signing infrastructure, but the two grants model the
-//! resource owner differently:
-//!
-//! * `client_credentials` (`client_credentials.rs`) has no resource owner in
-//!   the loop. The `owner_user_id` on the OAuth client is retained for *audit
-//!   attribution* — the JWT's `sub` resolves back to a human so downstream
-//!   events trace to a person — but ownership does not authorize the grant. See
-//!   [`client_credentials::ClientCredentialsError`] and the doc on the private
-//!   `authorize_client_grant` helper for the two-tier scope policy
-//!   (service-tier vs. user-tier) that this implies.
-//! * `token_exchange` (`token_exchange.rs`) is the on-behalf-of grant where the
-//!   actor and subject differ; scopes are intersected against the subject's
-//!   permissions as part of the delegation contract.
+//! Resolves the granted permissions against the user's own, binds an OAuth
+//! session, signs the access token and stores the rotated refresh token,
+//! carrying the refresh-token family forward when one is given.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod client_credentials;
-pub mod token_exchange;
-
-pub use client_credentials::{ClientCredentialsError, ClientTokenOptions, generate_client_tokens};
-pub use token_exchange::{
-    TokenExchangeRequest, build_act_chain, handle_token_exchange, intersect_scopes, peek_issuer,
-};
-
-use super::TokenResponse;
-use anyhow::Result;
-use axum::http::HeaderMap;
-use std::net::IpAddr;
 use std::sync::Arc;
+
 use systemprompt_identifiers::{
     AccessTokenId, ClientId, RefreshTokenId, SessionId, SessionSource, UserId,
 };
 use systemprompt_manifest::Config;
-use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
-use systemprompt_oauth::OAuthState;
+use systemprompt_models::auth::{
+    AuthenticatedUser, Permission, parse_permissions, permissions_to_string,
+};
+use systemprompt_models::errors::{GlobalConfigError, ParseEnumError};
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_oauth::services::{
-    JwtConfig, JwtSigningParams, generate_jwt, load_authenticated_user,
+    JwtConfig, JwtSigningParams, SessionCreationError, SessionCreationService, generate_jwt,
+    generate_secure_token, load_authenticated_user,
 };
+use systemprompt_oauth::{OAuthState, OauthError};
 use systemprompt_traits::ExtractSignals;
+use thiserror::Error;
 
-#[derive(Debug, Clone, Copy)]
-pub struct RequestOrigin<'a> {
-    pub headers: &'a HeaderMap,
-    pub caller_ip: Option<IpAddr>,
+use crate::{RequestOrigin, TokenResponse};
+
+/// Failure minting a user-bound token pair.
+#[derive(Debug, Error)]
+pub enum UserTokenError {
+    #[error("Configuration unavailable")]
+    Config(#[from] GlobalConfigError),
+    #[error("Scope is required for token generation")]
+    MissingScope,
+    #[error("Requested scope is not a list of known permissions")]
+    UnparseableScope(#[from] ParseEnumError),
+    #[error("No valid permissions available for user")]
+    NoPermissions,
+    #[error("Failed to create session")]
+    Session(#[from] SessionCreationError),
+    #[error(transparent)]
+    Oauth(#[from] OauthError),
 }
 
 #[derive(Debug)]
-pub struct TokenGenerationParams<'a> {
+pub struct UserTokenParams<'a> {
     pub client_id: &'a ClientId,
     pub user_id: &'a UserId,
     pub scope: Option<&'a str>,
-    pub headers: &'a HeaderMap,
-    pub caller_ip: Option<IpAddr>,
+    pub origin: RequestOrigin<'a>,
     pub resource: Option<&'a str>,
     pub family_id: Option<&'a str>,
 }
@@ -70,28 +64,25 @@ pub struct GeneratedTokens {
 
 pub async fn generate_tokens_by_user_id(
     repo: &OAuthRepository,
-    params: TokenGenerationParams<'_>,
+    params: UserTokenParams<'_>,
     state: &OAuthState,
-) -> Result<GeneratedTokens> {
+) -> Result<GeneratedTokens, UserTokenError> {
     let expires_in = Config::get()?.jwt_access_token_expiration;
 
-    let scope_str = params
-        .scope
-        .ok_or_else(|| anyhow::anyhow!("Scope is required for token generation"))?;
+    let scope_str = params.scope.ok_or(UserTokenError::MissingScope)?;
 
     let user = load_authenticated_user(state.user_provider().as_ref(), params.user_id).await?;
 
     let requested_permissions = parse_permissions(scope_str)?;
-    let user_perms = user.permissions().to_vec();
-    let final_permissions = resolve_user_permissions(&requested_permissions, &user_perms)?;
-    let session_service = systemprompt_oauth::services::SessionCreationService::new(
+    let final_permissions = resolve_user_permissions(&requested_permissions, user.permissions())?;
+    let session_service = SessionCreationService::new(
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
     );
     let analytics = state.analytics_provider().extract_analytics(
-        params.headers,
+        params.origin.headers,
         ExtractSignals {
-            caller_ip: params.caller_ip,
+            caller_ip: params.origin.caller_ip,
             ..Default::default()
         },
     );
@@ -135,11 +126,9 @@ async fn create_jwt_and_refresh_token(
     user: &AuthenticatedUser,
     permissions: Vec<Permission>,
     session_id: &SessionId,
-    params: &TokenGenerationParams<'_>,
-) -> Result<JwtAndRefreshToken> {
-    use systemprompt_oauth::services::generate_secure_token;
-
-    let scope_string = systemprompt_models::auth::permissions_to_string(&permissions);
+    params: &UserTokenParams<'_>,
+) -> Result<JwtAndRefreshToken, UserTokenError> {
+    let scope_string = permissions_to_string(&permissions);
     let access_token_jti = AccessTokenId::generate();
     let global_config = Config::get()?;
     let config = JwtConfig {
@@ -158,7 +147,7 @@ async fn create_jwt_and_refresh_token(
     let refresh_token_value = generate_secure_token("rt");
     let refresh_token_id = RefreshTokenId::new(&refresh_token_value);
     let refresh_expires_at =
-        chrono::Utc::now().timestamp() + Config::get()?.jwt_refresh_token_expiration;
+        chrono::Utc::now().timestamp() + global_config.jwt_refresh_token_expiration;
 
     let mut builder = RefreshTokenParams::builder(
         &refresh_token_id,
@@ -183,7 +172,7 @@ async fn create_jwt_and_refresh_token(
 pub fn resolve_user_permissions(
     requested_permissions: &[Permission],
     user_permissions: &[Permission],
-) -> Result<Vec<Permission>> {
+) -> Result<Vec<Permission>, UserTokenError> {
     let mut final_permissions = Vec::new();
 
     for requested in requested_permissions {
@@ -203,7 +192,7 @@ pub fn resolve_user_permissions(
     final_permissions.dedup();
 
     if final_permissions.is_empty() {
-        return Err(anyhow::anyhow!("No valid permissions available for user"));
+        return Err(UserTokenError::NoPermissions);
     }
 
     Ok(final_permissions)

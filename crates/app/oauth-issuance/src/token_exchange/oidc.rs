@@ -10,8 +10,8 @@ use serde::Deserialize;
 use systemprompt_manifest::Config;
 use systemprompt_security::keys::JwksClient;
 
-use super::super::super::{TokenError, TokenResult};
 use super::subject::{jwks_host_allowlist, peek_issuer};
+use crate::{IssuanceError, IssuanceResult};
 
 #[derive(Debug)]
 pub struct OidcSubject {
@@ -29,16 +29,16 @@ struct OidcIdTokenClaims {
     email_verified: bool,
 }
 
-pub async fn validate_oidc_subject(token: &str, global: &Config) -> TokenResult<OidcSubject> {
+pub async fn validate_oidc_subject(token: &str, global: &Config) -> IssuanceResult<OidcSubject> {
     let header = decode_header(token)
-        .map_err(|e| TokenError::malformed("subject_token", "malformed id_token header", e))?;
+        .map_err(|e| IssuanceError::malformed("subject_token", "malformed id_token header", e))?;
 
     let declared_iss = peek_issuer(token)?;
     let trusted = global
         .trusted_issuers
         .iter()
         .find(|t| t.issuer == declared_iss && t.can_issue_id_jag)
-        .ok_or_else(|| TokenError::InvalidRequest {
+        .ok_or_else(|| IssuanceError::InvalidRequest {
             field: "subject_token".to_owned(),
             message: format!("issuer '{declared_iss}' is not a trusted ID-JAG issuer"),
         })?;
@@ -49,19 +49,19 @@ pub async fn validate_oidc_subject(token: &str, global: &Config) -> TokenResult<
             .as_deref()
             .is_some_and(|t| trusted.typ_allowlist.iter().any(|a| a == t))
     {
-        return Err(TokenError::InvalidRequest {
+        return Err(IssuanceError::InvalidRequest {
             field: "subject_token".to_owned(),
             message: format!("id_token typ {:?} not in issuer typ_allowlist", header.typ),
         });
     }
 
     if header.alg != Algorithm::RS256 {
-        return Err(TokenError::InvalidRequest {
+        return Err(IssuanceError::InvalidRequest {
             field: "subject_token".to_owned(),
             message: "id_token must be RS256-signed".to_owned(),
         });
     }
-    let kid = header.kid.ok_or_else(|| TokenError::InvalidRequest {
+    let kid = header.kid.ok_or_else(|| IssuanceError::InvalidRequest {
         field: "subject_token".to_owned(),
         message: "id_token must carry a kid header".to_owned(),
     })?;
@@ -69,16 +69,17 @@ pub async fn validate_oidc_subject(token: &str, global: &Config) -> TokenResult<
     let jwk = JwksClient::new(jwks_host_allowlist(&global.trusted_issuers))
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
-        .map_err(|e| TokenError::malformed("subject_token", "JWKS resolution failed", e))?;
-    let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
-        .map_err(|e| TokenError::malformed("subject_token", "invalid RSA components in JWK", e))?;
+        .map_err(|e| IssuanceError::malformed("subject_token", "JWKS resolution failed", e))?;
+    let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|e| {
+        IssuanceError::malformed("subject_token", "invalid RSA components in JWK", e)
+    })?;
 
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_issuer(&[&trusted.issuer]);
     validation.set_audience(&[&trusted.audience]);
 
     let data = decode::<OidcIdTokenClaims>(token, &key, &validation).map_err(|e| {
-        TokenError::malformed("subject_token", "id_token signature/claims rejected", e)
+        IssuanceError::malformed("subject_token", "id_token signature/claims rejected", e)
     })?;
 
     Ok(OidcSubject {

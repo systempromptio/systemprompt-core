@@ -81,6 +81,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-users = { workspace = true }
 systemprompt-oauth = { workspace = true }
+systemprompt-oauth-issuance = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-mcp = { workspace = true }
@@ -98,9 +99,6 @@ systemprompt-teams = { workspace = true }
 
 # API registry
 inventory = { workspace = true }
-
-# JWT
-jsonwebtoken = { workspace = true }
 
 # Authentication
 bcrypt = { workspace = true }

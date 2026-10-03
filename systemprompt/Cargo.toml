@@ -45,6 +45,7 @@ api = [
     "database",
     "dep:systemprompt-api",
     "dep:systemprompt-runtime",
+    "dep:systemprompt-oauth-issuance",
     "dep:axum",
 ]
 
@@ -130,6 +131,7 @@ systemprompt-security = { workspace = true, optional = true }
 # Application
 systemprompt-runtime = { workspace = true, optional = true, features = ["geolocation"] }
 systemprompt-generator = { workspace = true, optional = true }
+systemprompt-oauth-issuance = { workspace = true, optional = true }
 
 # Entry points
 systemprompt-api = { workspace = true, optional = true }

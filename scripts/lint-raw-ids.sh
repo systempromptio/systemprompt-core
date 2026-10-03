@@ -79,6 +79,7 @@ BOUNDARY=(
     "crates/shared/provider-contracts/src/frontmatter.rs|content_id|extension contract: content slug handed to third-party providers"
     "crates/infra/logging/src/services/cli/banners.rs|service_name profile_name|terminal display arguments"
     "crates/app/generator/src/error/mod.rs|provider_id|page-data provider registry key, not the gateway ProviderId"
+    "crates/app/oauth-issuance/src/request.rs|client_id plugin_id|RFC 6749 token-request form fields deserialised verbatim"
 )
 
 # Derived names whose call sites still carry the raw type: `name|reason`. The

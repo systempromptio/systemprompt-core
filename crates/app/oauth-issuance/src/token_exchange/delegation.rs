@@ -14,15 +14,15 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::id_jag::resolve_bound_resource;
 use systemprompt_oauth::services::{LinkedSubject, link_enterprise_principal};
 
-use super::super::super::{TokenError, TokenResult};
-use super::super::RequestOrigin;
 use super::claims::intersect_scopes;
 use super::subject::SubjectIdentity;
+use crate::session::create_oauth_session;
+use crate::{IssuanceError, IssuanceResult, RequestOrigin};
 
 pub fn validate_resource<'a>(
     resource: Option<&'a str>,
     global: &Config,
-) -> TokenResult<Option<&'a str>> {
+) -> IssuanceResult<Option<&'a str>> {
     match resource {
         Some(value)
             if !global
@@ -30,7 +30,7 @@ pub fn validate_resource<'a>(
                 .iter()
                 .any(|allowed| allowed == value) =>
         {
-            Err(TokenError::InvalidTarget {
+            Err(IssuanceError::InvalidTarget {
                 message: format!("'{value}' not in allowed_resource_audiences"),
             })
         },
@@ -42,9 +42,9 @@ pub(super) fn resolve_resource(
     subject: &SubjectIdentity,
     requested: Option<&str>,
     global: &Config,
-) -> TokenResult<Option<String>> {
+) -> IssuanceResult<Option<String>> {
     let effective = resolve_bound_resource(subject.bound_resource.as_deref(), requested)
-        .map_err(TokenError::BoundResource)?;
+        .map_err(IssuanceError::BoundResource)?;
     Ok(validate_resource(effective, global)?.map(ToOwned::to_owned))
 }
 
@@ -54,7 +54,7 @@ pub(super) async fn resolve_delegate(
     client_id: &ClientId,
     subject: &SubjectIdentity,
     requested_scope: Option<&str>,
-) -> TokenResult<(LinkedSubject, Vec<Permission>)> {
+) -> IssuanceResult<(LinkedSubject, Vec<Permission>)> {
     let grant = load_delegation_grant(repo, state, client_id).await?;
     let delegate = match subject.principal.as_ref() {
         Some(principal) => link_enterprise_principal(state, principal).await?,
@@ -67,7 +67,7 @@ pub(super) async fn resolve_delegate(
     };
 
     let requested_perms = match requested_scope {
-        Some(s) => parse_permissions(s).map_err(|_unknown| TokenError::InvalidScope {
+        Some(s) => parse_permissions(s).map_err(|_unknown| IssuanceError::InvalidScope {
             message: "scope contains an unknown permission".to_owned(),
         })?,
         None => subject.scope.clone(),
@@ -94,19 +94,19 @@ async fn load_delegation_grant(
     repo: &OAuthRepository,
     state: &OAuthState,
     client_id: &ClientId,
-) -> TokenResult<DelegationGrant> {
+) -> IssuanceResult<DelegationGrant> {
     let client = repo
         .find_client_by_id(client_id)
         .await?
-        .ok_or(TokenError::InvalidClient)?;
+        .ok_or(IssuanceError::InvalidClient)?;
     let owner = state
         .user_provider()
         .find_by_id(&client.owner_user_id)
         .await
-        .map_err(|e| TokenError::server("Failed to load client owner", e))?
-        .ok_or(TokenError::InvalidClient)?;
+        .map_err(|e| IssuanceError::server("Failed to load client owner", e))?
+        .ok_or(IssuanceError::InvalidClient)?;
     if !owner.is_active {
-        return Err(TokenError::InvalidClient);
+        return Err(IssuanceError::InvalidClient);
     }
     let owner_perms = owner
         .roles
@@ -133,32 +133,8 @@ pub(super) async fn ensure_session(
     origin: RequestOrigin<'_>,
     user_id: &UserId,
     global: &Config,
-) -> TokenResult<SessionId> {
-    use systemprompt_identifiers::SessionSource;
-    use systemprompt_traits::{CreateSessionInput, ExtractSignals};
-
-    let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
-    let expires_at =
-        chrono::Utc::now() + chrono::Duration::seconds(global.jwt_access_token_expiration);
-    let analytics = state.analytics_provider().extract_analytics(
-        origin.headers,
-        ExtractSignals {
-            caller_ip: origin.caller_ip,
-            ..Default::default()
-        },
-    );
-    state
-        .session_provider()
-        .create_session(CreateSessionInput {
-            session_id: &session_id,
-            user_id: Some(user_id),
-            analytics: &analytics,
-            session_source: SessionSource::Oauth,
-            is_bot: false,
-            is_ai_crawler: false,
-            expires_at,
-        })
+) -> IssuanceResult<SessionId> {
+    create_oauth_session(state, origin, user_id, global.jwt_access_token_expiration)
         .await
-        .map_err(|e| TokenError::server("Failed to create session", e))?;
-    Ok(session_id)
+        .map_err(|e| IssuanceError::server("Failed to create session", e))
 }
