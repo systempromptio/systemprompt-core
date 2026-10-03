@@ -1,9 +1,10 @@
 //! Serde shapes for the Gemini v1beta `generateContent` wire format.
 //!
 //! These mirror the Google generativeLanguage request/response bodies. They are
-//! defined locally so the wire codec does not depend on the agent-side provider
-//! crate; the canonical codec is the single conversion point between them and
-//! the provider-neutral model.
+//! the one definition of the Gemini shapes: the canonical codec converts
+//! between them and the provider-neutral model, and the image-generation
+//! provider in `systemprompt-ai` builds its `generateContent` request from
+//! them (`responseModalities`, `imageConfig`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,34 +14,34 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiRequest {
-    pub(crate) contents: Vec<GeminiContent>,
+pub struct GeminiRequest {
+    pub contents: Vec<GeminiContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) system_instruction: Option<GeminiSystemInstruction>,
+    pub system_instruction: Option<GeminiSystemInstruction>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) generation_config: Option<GeminiGenerationConfig>,
+    pub generation_config: Option<GeminiGenerationConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) tools: Option<Vec<GeminiTool>>,
+    pub tools: Option<Vec<GeminiTool>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) tool_config: Option<GeminiToolConfig>,
+    pub tool_config: Option<GeminiToolConfig>,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct GeminiSystemInstruction {
-    pub(crate) parts: Vec<GeminiPart>,
+pub struct GeminiSystemInstruction {
+    pub parts: Vec<GeminiPart>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiContent {
-    pub(crate) role: String,
+pub struct GeminiContent {
+    pub role: String,
     #[serde(default)]
-    pub(crate) parts: Vec<GeminiPart>,
+    pub parts: Vec<GeminiPart>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub(crate) enum GeminiPart {
+pub enum GeminiPart {
     Text {
         text: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -84,79 +85,91 @@ pub(crate) enum GeminiPart {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiInlineData {
-    pub(crate) mime_type: String,
-    pub(crate) data: String,
+pub struct GeminiInlineData {
+    pub mime_type: String,
+    pub data: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiFunctionCall {
-    pub(crate) name: String,
+pub struct GeminiFunctionCall {
+    pub name: String,
     #[serde(default)]
     // JSON: Gemini `functionCall.args` / `functionResponse.response` are the tool's own JSON.
-    pub(crate) args: Value,
+    pub args: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct GeminiFunctionResponse {
-    pub(crate) name: String,
+pub struct GeminiFunctionResponse {
+    pub name: String,
     // JSON: Gemini `functionCall.args` / `functionResponse.response` are the tool's own JSON.
-    pub(crate) response: Value,
+    pub response: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiExecutableCode {
+pub struct GeminiExecutableCode {
     #[serde(default)]
-    pub(crate) language: Option<String>,
+    pub language: Option<String>,
     #[serde(default)]
-    pub(crate) code: String,
+    pub code: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiCodeExecutionResult {
+pub struct GeminiCodeExecutionResult {
     #[serde(default)]
-    pub(crate) outcome: Option<String>,
+    pub outcome: Option<String>,
     #[serde(default)]
-    pub(crate) output: Option<String>,
+    pub output: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiGenerationConfig {
+pub struct GeminiGenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) temperature: Option<f32>,
+    pub temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) top_p: Option<f32>,
+    pub top_p: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) top_k: Option<i32>,
+    pub top_k: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) max_output_tokens: Option<u32>,
+    pub max_output_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) stop_sequences: Option<Vec<String>>,
+    pub stop_sequences: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) response_mime_type: Option<String>,
+    pub response_mime_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     // JSON: Gemini `responseSchema` is a JSON Schema document.
-    pub(crate) response_schema: Option<Value>,
+    pub response_schema: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) thinking_config: Option<GeminiThinkingConfig>,
+    pub thinking_config: Option<GeminiThinkingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_modalities: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_config: Option<GeminiImageConfig>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeminiImageConfig {
+    pub aspect_ratio: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_size: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiThinkingConfig {
+pub struct GeminiThinkingConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) thinking_budget: Option<u32>,
+    pub thinking_budget: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) include_thoughts: Option<bool>,
+    pub include_thoughts: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
-pub(crate) enum GeminiTool {
+pub enum GeminiTool {
     Functions {
         #[serde(rename = "functionDeclarations")]
         function_declarations: Vec<GeminiFunctionDeclaration>,
@@ -175,112 +188,112 @@ pub(crate) enum GeminiTool {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 #[expect(
     clippy::empty_structs_with_brackets,
     reason = "Gemini expects these tool markers as an empty JSON object `{}`; a unit struct would \
               serialize as `null`"
 )]
-pub(crate) struct GeminiEmpty {}
+pub struct GeminiEmpty {}
 
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct GeminiFunctionDeclaration {
-    pub(crate) name: String,
+pub struct GeminiFunctionDeclaration {
+    pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) description: Option<String>,
+    pub description: Option<String>,
     // JSON: Gemini `functionDeclaration.parameters` is a JSON Schema document.
-    pub(crate) parameters: Value,
+    pub parameters: Value,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiToolConfig {
-    pub(crate) function_calling_config: GeminiFunctionCallingConfig,
+pub struct GeminiToolConfig {
+    pub function_calling_config: GeminiFunctionCallingConfig,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiFunctionCallingConfig {
-    pub(crate) mode: &'static str,
+pub struct GeminiFunctionCallingConfig {
+    pub mode: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) allowed_function_names: Option<Vec<String>>,
+    pub allowed_function_names: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiResponse {
+pub struct GeminiResponse {
     #[serde(default)]
-    pub(crate) candidates: Vec<GeminiCandidate>,
+    pub candidates: Vec<GeminiCandidate>,
     #[serde(default)]
-    pub(crate) prompt_feedback: Option<GeminiPromptFeedback>,
+    pub prompt_feedback: Option<GeminiPromptFeedback>,
     #[serde(default)]
-    pub(crate) usage_metadata: Option<GeminiUsageMetadata>,
+    pub usage_metadata: Option<GeminiUsageMetadata>,
     #[serde(default)]
-    pub(crate) response_id: Option<String>,
+    pub response_id: Option<String>,
     #[serde(default)]
-    pub(crate) model_version: Option<String>,
+    pub model_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiCandidate {
+pub struct GeminiCandidate {
     #[serde(default)]
-    pub(crate) content: Option<GeminiContent>,
+    pub content: Option<GeminiContent>,
     #[serde(default)]
-    pub(crate) finish_reason: Option<String>,
+    pub finish_reason: Option<String>,
     // Why: Gemini explains a non-STOP finish here — the malformed call text,
     // the safety category — and nowhere else.
     #[serde(default)]
-    pub(crate) finish_message: Option<String>,
+    pub finish_message: Option<String>,
     #[serde(default)]
-    pub(crate) grounding_metadata: Option<GeminiGroundingMetadata>,
+    pub grounding_metadata: Option<GeminiGroundingMetadata>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiPromptFeedback {
+pub struct GeminiPromptFeedback {
     #[serde(default)]
-    pub(crate) block_reason: Option<String>,
+    pub block_reason: Option<String>,
     #[serde(default)]
-    pub(crate) block_reason_message: Option<String>,
+    pub block_reason_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiGroundingMetadata {
+pub struct GeminiGroundingMetadata {
     #[serde(default)]
-    pub(crate) grounding_chunks: Vec<GeminiGroundingChunk>,
+    pub grounding_chunks: Vec<GeminiGroundingChunk>,
     #[serde(default)]
-    pub(crate) web_search_queries: Vec<String>,
+    pub web_search_queries: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct GeminiGroundingChunk {
+pub struct GeminiGroundingChunk {
     #[serde(default)]
-    pub(crate) web: Option<GeminiWebSource>,
+    pub web: Option<GeminiWebSource>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct GeminiWebSource {
+pub struct GeminiWebSource {
     #[serde(default)]
-    pub(crate) uri: String,
+    pub uri: String,
     #[serde(default)]
-    pub(crate) title: Option<String>,
+    pub title: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct GeminiUsageMetadata {
+pub struct GeminiUsageMetadata {
     #[serde(default, rename = "promptTokenCount")]
-    pub(crate) prompt: u32,
+    pub prompt: u32,
     #[serde(default, rename = "candidatesTokenCount")]
-    pub(crate) candidates: u32,
+    pub candidates: u32,
     #[serde(default, rename = "totalTokenCount")]
-    pub(crate) total: u32,
+    pub total: u32,
     #[serde(default, rename = "cachedContentTokenCount")]
-    pub(crate) cached: u32,
+    pub cached: u32,
     // Why: Gemini counts `thoughtsTokenCount` in `totalTokenCount`, outside
     // `candidatesTokenCount`.
     #[serde(default, rename = "thoughtsTokenCount")]
-    pub(crate) thoughts: u32,
+    pub thoughts: u32,
 }

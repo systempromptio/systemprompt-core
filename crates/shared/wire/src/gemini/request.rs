@@ -65,6 +65,8 @@ fn generation_config(
         response_mime_type,
         response_schema,
         thinking_config,
+        response_modalities: None,
+        image_config: None,
     }
 }
 

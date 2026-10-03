@@ -13,7 +13,6 @@ use crate::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageGenerationResponse, ImageResolution,
     NewImageGenerationResponse,
 };
-use crate::models::providers::gemini::{GeminiRequest, GeminiResponse};
 use crate::services::providers::image_provider_trait::{
     ImageProvider, ImageProviderCapabilities, registry_image_models, registry_per_image_cents,
 };
@@ -24,6 +23,7 @@ use std::time::Instant;
 use systemprompt_manifest::services::ModelDefinition;
 use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, IMAGE_GEN_LONG_POLL_TIMEOUT};
 use systemprompt_wire::WireProtocol;
+use systemprompt_wire::gemini::{GeminiRequest, GeminiResponse};
 use tracing::error;
 
 use crate::services::upstream::UpstreamTarget;

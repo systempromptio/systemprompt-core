@@ -1,8 +1,8 @@
 //! Domain data types for the AI crate.
 //!
-//! Includes request records, message and tool-call rows, status enums,
-//! image-generation parameters, and provider request/response shapes used
-//! internally by the [`crate::services`] module.
+//! Includes request records, message and tool-call rows, status enums, and
+//! image-generation parameters used by the [`crate::services`] module. Vendor
+//! wire shapes live in `systemprompt-wire`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,7 +27,6 @@ pub mod tools {
 
 pub mod ai_request_record;
 pub mod image_generation;
-pub mod providers;
 pub mod request_kind;
 pub(crate) mod rows;
 
