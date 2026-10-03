@@ -40,7 +40,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 
-# Job registration
+# Extension registration expands to `inventory::submit!` at the call site.
 inventory = { workspace = true }
 
 # Internal dependencies
@@ -54,3 +54,6 @@ systemprompt-config = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-traits = { workspace = true }
 
+[package.metadata.cargo-machete]
+# `register_extension!` references this dependency through macro expansion.
+ignored = ["inventory"]

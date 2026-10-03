@@ -97,9 +97,6 @@ systemprompt-marketplace = { workspace = true }
 systemprompt-slack = { workspace = true }
 systemprompt-teams = { workspace = true }
 
-# API registry
-inventory = { workspace = true }
-
 # Authentication
 bcrypt = { workspace = true }
 validator = { workspace = true }
