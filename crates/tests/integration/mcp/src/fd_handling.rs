@@ -1,9 +1,10 @@
 //! Repeated port/liveness probes must not leak file descriptors: the listener
 //! lookup shells out to `lsof`, so a leaked stdio handle would grow
-//! `/proc/self/fd` linearly. The realistic failure is one stray handle *per
-//! call*, which the `delta <= 32` guard catches within a few dozen iterations;
-//! the loop counts below are kept well above that margin while bounded so the
-//! per-call subprocess spawn cost stays inside the suite's per-test timeout.
+//! the process's open-descriptor table linearly. The realistic failure is one
+//! stray handle *per call*, which the `delta <= 32` guard catches within a few
+//! dozen iterations; the loop counts below are kept well above that margin
+//! while bounded so the per-call subprocess spawn cost stays inside the suite's
+//! per-test timeout.
 
 use std::fs;
 use systemprompt_mcp::services::process::ProcessService;
@@ -13,8 +14,8 @@ use crate::common::{spawn_sleep, spawn_tcp_accept_loop};
 const SUBPROCESS_LOOKUPS: usize = 64;
 
 fn count_open_fds() -> usize {
-    fs::read_dir("/proc/self/fd")
-        .expect("/proc/self/fd must exist on Linux")
+    fs::read_dir("/dev/fd")
+        .expect("/dev/fd lists this process's open descriptors")
         .count()
 }
 
