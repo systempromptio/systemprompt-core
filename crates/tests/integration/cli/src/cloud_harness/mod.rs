@@ -47,7 +47,7 @@ async fn harness() -> &'static Harness {
 }
 
 async fn build_harness() -> Harness {
-    let tmp = tempfile::tempdir().expect("create harness tempdir");
+    let tmp = systemprompt_test_fixtures::canonical_tempdir();
     let root = tmp.path().to_path_buf();
     scaffold_project(&root);
 

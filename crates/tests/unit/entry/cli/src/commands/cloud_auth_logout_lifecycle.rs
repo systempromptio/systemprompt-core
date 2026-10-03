@@ -43,7 +43,7 @@ fn session(key: &SessionKey, label: &str) -> CliSession {
 
 #[tokio::test]
 async fn cancellation_preserves_cloud_state_and_confirmed_logout_removes_only_tenant_sessions() {
-    let root = tempfile::tempdir().expect("owned cloud project");
+    let root = systemprompt_test_fixtures::canonical_tempdir();
     std::fs::create_dir_all(root.path().join(".systemprompt")).expect("cloud directory");
     let prior = std::env::current_dir().expect("current directory");
     std::env::set_current_dir(root.path()).expect("enter owned project");

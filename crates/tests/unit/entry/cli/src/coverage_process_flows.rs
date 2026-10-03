@@ -10,7 +10,7 @@ struct Sandbox {
 }
 impl Sandbox {
     fn new() -> Self {
-        let root = tempfile::tempdir().unwrap();
+        let root = systemprompt_test_fixtures::canonical_tempdir();
         std::fs::create_dir_all(root.path().join(".systemprompt/docker")).unwrap();
         std::fs::create_dir(root.path().join("bin")).unwrap();
         std::fs::write(root.path().join("Cargo.toml"), "[workspace]\n").unwrap();

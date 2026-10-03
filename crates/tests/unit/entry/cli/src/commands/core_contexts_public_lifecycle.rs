@@ -64,7 +64,7 @@ async fn public_context_lifecycle_helper() {
     }
     let boot = ensure_test_bootstrap();
     install_test_signing_key();
-    let project = tempfile::tempdir().expect("owned context project");
+    let project = systemprompt_test_fixtures::canonical_tempdir();
     let profile_path = project
         .path()
         .join(".systemprompt/profiles/coverage/profile.yaml");

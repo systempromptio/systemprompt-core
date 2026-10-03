@@ -158,7 +158,7 @@ async fn vault_secret_check_reports_transport_failure_then_recovers_without_expo
         .expect(4)
         .mount(&server)
         .await;
-    let project = tempfile::tempdir().expect("owned Vault profile");
+    let project = systemprompt_test_fixtures::canonical_tempdir();
     let profile_path = project
         .path()
         .join(".systemprompt/profiles/vaultcheck/profile.yaml");

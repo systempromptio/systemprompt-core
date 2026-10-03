@@ -1,13 +1,13 @@
 use std::path::Path;
 use systemprompt_cli::shared::project::{ProjectError, ProjectRoot};
-use tempfile::tempdir;
+use systemprompt_test_fixtures::canonical_tempdir;
 
 use crate::env_lock;
 
 #[test]
 fn project_root_discover_succeeds_in_valid_root_with_cargo_toml() {
     let _g = env_lock::ENV.lock().unwrap_or_else(|e| e.into_inner());
-    let dir = tempdir().unwrap();
+    let dir = canonical_tempdir();
     std::fs::create_dir_all(dir.path().join(".systemprompt")).unwrap();
     std::fs::write(dir.path().join("Cargo.toml"), "[package]\nname='x'\n").unwrap();
 
@@ -30,7 +30,7 @@ fn project_root_discover_succeeds_in_valid_root_with_cargo_toml() {
 #[test]
 fn project_root_discover_succeeds_with_services_dir() {
     let _g = env_lock::ENV.lock().unwrap_or_else(|e| e.into_inner());
-    let dir = tempdir().unwrap();
+    let dir = canonical_tempdir();
     std::fs::create_dir_all(dir.path().join(".systemprompt")).unwrap();
     std::fs::create_dir_all(dir.path().join("services")).unwrap();
     let cwd_backup = std::env::current_dir().ok();
@@ -66,7 +66,7 @@ fn project_root_path_resolution_error_displays_source() {
 #[test]
 fn project_root_discover_walks_up_to_parent() {
     let _g = env_lock::ENV.lock().unwrap_or_else(|e| e.into_inner());
-    let dir = tempdir().unwrap();
+    let dir = canonical_tempdir();
     std::fs::create_dir_all(dir.path().join(".systemprompt")).unwrap();
     std::fs::create_dir_all(dir.path().join("storage")).unwrap();
 

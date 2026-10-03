@@ -372,7 +372,7 @@ fn interactive_superuser_empty_password_is_error() {
 #[test]
 fn docker_non_interactive_reuses_reachable_database_without_compose() {
     let db = db_url();
-    let dir = tempfile::tempdir().expect("tempdir");
+    let dir = systemprompt_test_fixtures::canonical_tempdir();
     std::env::set_current_dir(dir.path()).expect("chdir");
 
     let config = PostgresConfig {
@@ -404,7 +404,7 @@ fn docker_non_interactive_refuses_occupied_port() {
     }
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("addr").port();
-    let dir = tempfile::tempdir().expect("tempdir");
+    let dir = systemprompt_test_fixtures::canonical_tempdir();
     std::env::set_current_dir(dir.path()).expect("chdir");
 
     let config = PostgresConfig {

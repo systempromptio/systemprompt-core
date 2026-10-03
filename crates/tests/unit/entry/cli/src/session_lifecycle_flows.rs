@@ -21,7 +21,7 @@ struct Project {
 impl Project {
     fn new(username: &str, tenant: bool) -> Self {
         let boot = ensure_test_bootstrap();
-        let root = tempfile::tempdir().unwrap();
+        let root = systemprompt_test_fixtures::canonical_tempdir();
         let profile = root
             .path()
             .join(".systemprompt/profiles/coverage/profile.yaml");
