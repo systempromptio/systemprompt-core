@@ -219,9 +219,9 @@ async fn health_checker_bounds_transport_retries_then_recovers_on_same_endpoint(
 -> anyhow::Result<()> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let socket = tokio::net::TcpSocket::new_v4()?;
-    socket.bind("127.0.0.1:0".parse()?)?;
-    let address = socket.local_addr()?;
+    // Why: macOS silently drops a SYN aimed at a bound socket that is not
+    // listening, where Linux answers RST; a released port refuses on both.
+    let address = std::net::TcpListener::bind("127.0.0.1:0")?.local_addr()?;
     let checker = HealthChecker::new(format!("http://{address}/health"))
         .with_max_retries(2)
         .with_retry_delay(Duration::ZERO);
@@ -229,12 +229,15 @@ async fn health_checker_bounds_transport_retries_then_recovers_on_same_endpoint(
     let error = tokio::time::timeout(Duration::from_secs(5), checker.check())
         .await
         .expect("refused transport attempts remain bounded")
-        .expect_err("a bound socket that is not listening refuses connections");
+        .expect_err("a released port refuses connections");
     assert!(
         error.to_string().contains("failed after 2 attempts"),
         "{error:#}"
     );
 
+    let socket = tokio::net::TcpSocket::new_v4()?;
+    socket.set_reuseaddr(true)?;
+    socket.bind(address)?;
     let listener = socket.listen(1)?;
     let server = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await?;
