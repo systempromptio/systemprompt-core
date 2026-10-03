@@ -123,8 +123,8 @@ pub enum RepositoryError {
         source: std::io::Error,
     },
 
-    #[error("internal repository error: {0}")]
-    Internal(String),
+    #[error("transaction already committed or rolled back")]
+    TransactionConsumed,
 }
 
 impl RepositoryError {
@@ -159,10 +159,6 @@ impl RepositoryError {
             field,
             reason: reason.into(),
         }
-    }
-
-    pub fn internal(message: impl Into<String>) -> Self {
-        Self::Internal(message.into())
     }
 
     pub fn decode(context: impl Into<String>, source: impl Into<BoxedSource>) -> Self {

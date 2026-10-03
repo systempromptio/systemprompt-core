@@ -4,7 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+
+use crate::ids::ElevatedJobId;
 
 pub const PROTOCOL_VERSION: u32 = 2;
 
@@ -33,7 +34,7 @@ pub enum ElevatedState {
 #[serde(deny_unknown_fields)]
 pub struct ElevatedResult {
     pub version: u32,
-    pub job_id: Uuid,
+    pub job_id: ElevatedJobId,
     pub outcome: ElevatedState,
 }
 
@@ -59,7 +60,7 @@ pub enum ProtocolError {
 impl ElevatedResult {
     pub fn verify(
         self,
-        job_id: Uuid,
+        job_id: &ElevatedJobId,
         exit_code: u32,
         expected: &[CompletedStep],
     ) -> Result<Vec<CompletedStep>, ProtocolError> {
@@ -68,7 +69,7 @@ impl ElevatedResult {
                 actual: self.version,
             });
         }
-        if self.job_id != job_id {
+        if self.job_id != *job_id {
             return Err(ProtocolError::JobMismatch);
         }
         match self.outcome {

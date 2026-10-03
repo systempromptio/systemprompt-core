@@ -5,6 +5,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::LifecycleService;
 use systemprompt_mcp::services::lifecycle::startup::{check_health_status, wait_for_startup};
 use systemprompt_models::mcp::McpServerConfig;
@@ -60,7 +61,11 @@ async fn wait_for_startup_detects_dead_process() {
     let err = wait_for_startup(&config, pid, None)
         .await
         .expect_err("dead pid detected");
-    assert!(err.to_string().contains("died during startup"));
+    assert!(matches!(
+        err,
+        McpDomainError::ProcessDiedDuringStartup { pid: died, ref service }
+            if died == pid && service == "startup-dead"
+    ));
 }
 
 #[tokio::test]

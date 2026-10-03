@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::process::spawner::{
     open_server_log, rotate_log_if_needed, serialize_server_configs,
@@ -10,7 +11,6 @@ use systemprompt_mcp::services::process::spawner::{
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
@@ -25,7 +25,7 @@ fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
     Arc::new(
         AppPaths::from_profile(
             &paths,
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
         .expect("paths"),
@@ -44,7 +44,7 @@ fn make_paths_with_system(system_dir: &str) -> Arc<AppPaths> {
     Arc::new(
         AppPaths::from_profile(
             &paths,
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
         .expect("paths"),
@@ -379,9 +379,11 @@ fn build_server_surfaces_failed_cargo_exit_without_claiming_success() {
     with_cargo_shim(23, |invocation| {
         let error = build_server(&config).expect_err("failed cargo exit must reject the build");
         assert!(
-            error
-                .to_string()
-                .contains("Build failed for verify-bin (binary: failing-mcp-fixture)"),
+            matches!(
+                &error,
+                systemprompt_mcp::McpDomainError::BuildFailed { service, binary }
+                    if service == "verify-bin" && binary == "failing-mcp-fixture"
+            ),
             "{error}"
         );
         assert_eq!(

@@ -1,13 +1,12 @@
 //! Gemini `generateContent` wire-codec tests.
 
 use serde_json::{Value, json};
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CacheControl, CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalStopReason,
     CanonicalToolChoice, ContentBlockKind, ResponseFormat, Role, SearchConfig, SystemBlock,
     ThinkingConfig,
 };
-use systemprompt_models::wire::gemini;
+use systemprompt_wire::{ModelLimits, gemini};
 
 use super::{
     base_request, claude_code_shaped_tool, image_url, plain_tool, tool_use,
@@ -789,7 +788,7 @@ fn gemini_parse_reports_tool_use_when_the_candidate_is_a_function_call() {
 
     assert_eq!(
         parsed.stop_reason,
-        Some(systemprompt_models::wire::canonical::CanonicalStopReason::ToolUse),
+        Some(systemprompt_wire::canonical::CanonicalStopReason::ToolUse),
         "a functionCall candidate is a tool-use turn whatever Gemini calls it"
     );
     assert_eq!(
@@ -812,7 +811,7 @@ fn gemini_parse_keeps_end_turn_for_a_plain_text_candidate() {
 
     assert_eq!(
         parsed.stop_reason,
-        Some(systemprompt_models::wire::canonical::CanonicalStopReason::EndTurn),
+        Some(systemprompt_wire::canonical::CanonicalStopReason::EndTurn),
         "a text-only turn must not be reported as tool use"
     );
 }
@@ -824,7 +823,7 @@ fn gemini_parse_keeps_end_turn_for_a_plain_text_candidate() {
 #[tokio::test]
 async fn gemini_stream_reports_tool_use_even_though_gemini_says_stop() {
     use futures::StreamExt;
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let sse = concat!(
         "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":\
@@ -880,7 +879,7 @@ fn gemini_parse_keeps_max_tokens_over_a_truncated_function_call() {
 
     assert_eq!(
         parsed.stop_reason,
-        Some(systemprompt_models::wire::canonical::CanonicalStopReason::MaxTokens),
+        Some(systemprompt_wire::canonical::CanonicalStopReason::MaxTokens),
         "a truncated turn must say so rather than claim a runnable tool call"
     );
 }
@@ -888,7 +887,7 @@ fn gemini_parse_keeps_max_tokens_over_a_truncated_function_call() {
 #[tokio::test]
 async fn gemini_stream_keeps_max_tokens_over_a_truncated_function_call() {
     use futures::StreamExt;
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let sse = concat!(
         "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":\

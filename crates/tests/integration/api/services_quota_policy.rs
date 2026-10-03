@@ -9,7 +9,7 @@ use systemprompt_api::services::gateway::quota::{
     PostUpdateParams, post_update_tokens, precheck_and_reserve,
 };
 use systemprompt_identifiers::UserId;
-use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_manifest::services::QuotaFaultMode;
 
 const ERROR_DIMENSION: &str = "quota_fault_error";
 const EMPTY_DIMENSION: &str = "quota_fault_empty";

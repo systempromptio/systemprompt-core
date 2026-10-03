@@ -29,7 +29,7 @@ pub enum KeysCommands {
 
 pub async fn execute(cmd: KeysCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
-        KeysCommands::Generate(args) => generate::execute(args),
+        KeysCommands::Generate(args) => generate::execute(&args),
         KeysCommands::IssuePluginToken(args) => {
             let result = issue_plugin_token::execute(args).await?;
             render_result(&result, &ctx.cli);

@@ -6,8 +6,8 @@ use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchang
 use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::oidc::validate_oidc_subject;
 use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::subject::validate_subject_token;
 use systemprompt_identifiers::ClientId;
-use systemprompt_models::Config;
-use systemprompt_models::profile::TrustedIssuer;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, test_key};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

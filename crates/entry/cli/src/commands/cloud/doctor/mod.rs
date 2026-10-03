@@ -29,8 +29,8 @@ use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
-use systemprompt_models::profile::SecretsSource;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::SecretsSource;
 
 use super::deploy::resolve_profile;
 use crate::cli_settings::CliConfig;

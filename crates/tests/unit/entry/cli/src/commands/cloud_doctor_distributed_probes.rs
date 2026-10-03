@@ -10,7 +10,7 @@ use systemprompt_cli::cloud::doctor::CheckStatus;
 use systemprompt_cli::cloud::doctor::distributed::{
     check_readyz, check_replica_lag, check_write_primary, run,
 };
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 use systemprompt_test_fixtures::test_database_url;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

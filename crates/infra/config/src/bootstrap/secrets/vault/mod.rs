@@ -19,12 +19,12 @@ mod kv;
 
 use std::collections::BTreeMap;
 
-use systemprompt_models::profile::{VaultAuth, VaultKeyRef, VaultSecretsConfig};
+use systemprompt_manifest::profile::{VaultAuth, VaultKeyRef, VaultSecretsConfig};
 
 use super::SecretsBootstrapError;
 use super::provider::{SecretsDocument, SecretsProvider};
 use client::VaultHttp;
-pub use error::VaultError;
+pub use error::{VaultAttemptFailure, VaultError};
 
 pub(super) type EnvLookup = Box<dyn Fn(&str) -> Option<String> + Send + Sync>;
 

@@ -6,7 +6,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{PriceId, TenantId};
+use systemprompt_identifiers::{CloudAppId, PriceId, TenantId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -58,7 +58,7 @@ pub struct CloudTenantInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subscription_status: Option<SubscriptionStatus>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub app_id: Option<String>,
+    pub app_id: Option<CloudAppId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

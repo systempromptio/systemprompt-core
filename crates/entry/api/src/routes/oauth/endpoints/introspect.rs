@@ -84,7 +84,7 @@ fn introspect_token(
     _repo: &OAuthRepository,
     token: &str,
 ) -> Result<Option<IntrospectResponse>, OAuthHttpError> {
-    let config = systemprompt_models::Config::get()?;
+    let config = systemprompt_manifest::Config::get()?;
     match validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences) {
         Ok(claims) => Ok(Some(IntrospectResponse {
             active: true,

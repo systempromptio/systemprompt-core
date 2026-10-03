@@ -222,13 +222,6 @@ mod error_helper_tests {
     use systemprompt_analytics::AnalyticsError;
 
     #[test]
-    fn missing_field_constructs_error() {
-        let err = AnalyticsError::missing_field("session_id");
-        assert!(format!("{}", err).contains("Missing field"));
-        assert!(format!("{}", err).contains("session_id"));
-    }
-
-    #[test]
     fn invalid_argument_constructs_error() {
         let err = AnalyticsError::invalid_argument("bad value");
         assert!(format!("{}", err).contains("Invalid argument"));

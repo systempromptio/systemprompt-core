@@ -14,6 +14,7 @@
 use super::{AppliedMigration, MigrationService};
 use std::hash::{Hash, Hasher};
 use systemprompt_extension::{LoaderError, Migration};
+use systemprompt_identifiers::ExtensionId;
 
 use crate::error::RepositoryError;
 
@@ -32,7 +33,7 @@ pub(super) fn matches_checksum(migration: &Migration, stored: &str) -> bool {
 impl MigrationService<'_> {
     pub(super) async fn transition_checksums(
         &self,
-        extension: &str,
+        extension: &ExtensionId,
         migrations: &[Migration],
         applied: &[AppliedMigration],
     ) -> Result<(), LoaderError> {
@@ -55,7 +56,7 @@ impl MigrationService<'_> {
             return Ok(());
         }
         let step = |context: String, source: RepositoryError| LoaderError::MigrationStepFailed {
-            extension: extension.to_owned(),
+            extension: extension.clone(),
             context,
             source: Box::new(source),
         };
@@ -77,7 +78,7 @@ impl MigrationService<'_> {
                         .await
                         .map_err(|error| step("Rollback checksum transition".to_owned(), error))?;
                     return Err(LoaderError::MigrationFailed {
-                        extension: extension.to_owned(),
+                        extension: extension.clone(),
                         message: "Migration history changed concurrently; retry verified checksum transition".to_owned(),
                     });
                 },

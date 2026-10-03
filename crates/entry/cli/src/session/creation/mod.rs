@@ -13,7 +13,7 @@ pub mod helpers;
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CliSession, CloudCredentials, SessionKey};
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use super::api::create_local_session_row;
 use super::resolution::ProfileContext;

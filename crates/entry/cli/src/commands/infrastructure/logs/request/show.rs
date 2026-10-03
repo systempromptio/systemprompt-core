@@ -9,7 +9,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_runtime::{AiTraceService, TraceQueryService};
+use systemprompt_runtime::{AiTraceService, TraceQueryService, TraceRepository};
 
 use super::{
     ClientEvidenceOutput, MessageRow, RequestShowOutput, ToolCallRow, build_request_show,
@@ -35,7 +35,7 @@ async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
 ) -> Result<CommandOutput> {
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
     let Some(row) = service.find_ai_request_detail(&args.request_id).await? else {
         return Ok(request_show_not_found(&args.request_id));
     };
@@ -91,7 +91,7 @@ pub(super) async fn fetch_messages(
     pool: &Arc<sqlx::PgPool>,
     request_id: &AiRequestId,
 ) -> Vec<MessageRow> {
-    let service = AiTraceService::new(Arc::clone(pool));
+    let service = AiTraceService::new(TraceRepository::new(Arc::clone(pool)));
     service
         .get_conversation_messages(request_id)
         .await

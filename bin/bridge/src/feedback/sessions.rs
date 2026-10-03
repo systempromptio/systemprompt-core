@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 use systemprompt_identifiers::{ClientSessionId, NativeSessionId};
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
-use systemprompt_models::wire::origin::{ClientKind, native_marker, ua_product};
+use systemprompt_models::origin::{ClientKind, native_marker, ua_product};
 
 pub const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
 

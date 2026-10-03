@@ -19,7 +19,7 @@ use tracing::{info, warn};
 use systemprompt_database::DbPool;
 use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
 use systemprompt_identifiers::{AgentName, McpServerId};
-use systemprompt_models::services::ResilienceSettings;
+use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_traits::{
     BoxedSource, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContext, ToolInventory,
     ToolProvider, ToolProviderError, ToolProviderResult,
@@ -208,7 +208,7 @@ impl ToolProvider for McpToolProvider {
             .validate()
             .map_err(|e| ToolProviderError::Internal(Box::new(e)))?;
 
-        let api_server_url = systemprompt_models::Config::get()
+        let api_server_url = systemprompt_manifest::Config::get()
             .map_err(|e| configuration_error("Failed to get configuration", e))?
             .api_server_url
             .clone();
@@ -230,7 +230,7 @@ impl ToolProvider for McpToolProvider {
     async fn health_check(&self) -> ToolProviderResult<HashMap<String, bool>> {
         let mut health_status = HashMap::new();
 
-        let config_api_server_url = systemprompt_models::Config::get()
+        let config_api_server_url = systemprompt_manifest::Config::get()
             .map_err(|e| configuration_error("Failed to get configuration", e))?
             .api_server_url
             .clone();

@@ -19,7 +19,7 @@ pub use cloud::{CloudPath, CloudPaths, get_cloud_paths};
 pub use context::UnifiedContext;
 pub use discovery::DiscoveredProject;
 pub use project::{ProfilePath, ProjectContext, ProjectPath};
-pub use systemprompt_models::profile::{expand_home, resolve_with_home};
+pub use systemprompt_manifest::profile::{expand_home, resolve_with_home};
 
 #[must_use]
 pub fn resolve_path(base_dir: &Path, path_str: &str) -> PathBuf {

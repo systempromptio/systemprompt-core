@@ -2,14 +2,16 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::profile::default_resource_audiences;
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
+use systemprompt_manifest::profile::default_resource_audiences;
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
     ModelGovernance, ModelPricing, OverrideRuleAction, ProviderEntry, ProviderModel,
     ProviderRegistry, QuotaFaultMode, ResponseFormatKind, RouteMatch, RouteRequirements,
-    SystemPromptRule, WireProtocol, slugify_pattern, synthesize_route_id,
+    SystemPromptRule, slugify_pattern, synthesize_route_id,
 };
-use systemprompt_models::wire::canonical::{
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_wire::WireProtocol;
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
     ResponseFormat, Role, SystemBlock, ThinkingConfig,
 };
@@ -1330,7 +1332,9 @@ fn a_discovered_unpriced_model_would_fail_boot() {
     );
 }
 
-fn releases_spec(token_secret: Option<&str>) -> systemprompt_models::services::BridgeReleasesSpec {
+fn releases_spec(
+    token_secret: Option<&str>,
+) -> systemprompt_manifest::services::BridgeReleasesSpec {
     serde_json::from_value(serde_json::json!({
         "repo": "Astound-Digital/systemprompt-astound",
         "token_secret": token_secret,

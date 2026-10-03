@@ -14,12 +14,6 @@ use thiserror::Error;
 pub enum MarketplaceFilterError {
     #[error("acl backend unavailable: {0}")]
     Backend(#[source] BoxedSource),
-
-    #[error("user not found: {0}")]
-    UnknownUser(String),
-
-    #[error("policy evaluation failed: {0}")]
-    Policy(String),
 }
 
 #[derive(Debug, Error)]
@@ -29,9 +23,6 @@ pub enum MarketplaceError {
 
     #[error("no default marketplace configured")]
     NoDefault,
-
-    #[error("marketplace validation failed: {0}")]
-    Validation(String),
 
     #[error("catalogue load failed: {0}")]
     Catalog(String),

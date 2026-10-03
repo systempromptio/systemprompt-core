@@ -42,6 +42,10 @@ impl LoggingRepository {
         operations::create_log(&self.write_pool, &entry).await
     }
 
+    pub async fn insert_batch(&self, entries: &[LogEntry]) -> Result<(), LoggingError> {
+        operations::insert_log_batch(&self.write_pool, entries).await
+    }
+
     pub async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {
         operations::list_logs(&self.pool, limit).await
     }

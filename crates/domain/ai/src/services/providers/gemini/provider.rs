@@ -6,8 +6,8 @@
 use crate::error::Result;
 use crate::services::upstream::UpstreamTarget;
 use reqwest::Client;
-use systemprompt_models::services::ProviderModel;
-use systemprompt_models::services::providers::upstream_model_in;
+use systemprompt_manifest::services::ProviderModel;
+use systemprompt_manifest::services::providers::upstream_model_in;
 
 use super::transport;
 

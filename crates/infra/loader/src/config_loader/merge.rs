@@ -8,7 +8,7 @@ use std::fs;
 use std::hash::Hash;
 use std::path::Path;
 
-use systemprompt_models::services::{IncludableString, ServicesConfig, SkillsConfig};
+use systemprompt_manifest::services::{IncludableString, ServicesConfig, SkillsConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 

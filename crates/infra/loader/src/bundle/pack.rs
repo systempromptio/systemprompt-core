@@ -16,7 +16,7 @@ use chrono::Utc;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use sha2::{Digest, Sha256};
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_ALLOWED_DIRS, BUNDLE_FORMAT_VERSION, BUNDLE_MANIFEST_FILE, BundleOwnership,
     BundleSourceInfo, FileEntry, ServicesBundleManifest, SignedBundleManifest,
 };

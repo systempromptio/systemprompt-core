@@ -138,7 +138,14 @@ async fn ensure_port_free(
         {
             tracing::debug!(error = %e, "startup event channel closed: PortConflict");
         }
-        handle_port_conflict(prompter, port, pid, kill_port_process, config, events).await?;
+        handle_port_conflict(
+            prompter,
+            PortConflict { port, pid },
+            kill_port_process,
+            config,
+            events,
+        )
+        .await?;
         if let Some(tx) = events
             && let Err(e) = tx.unbounded_send(StartupEvent::PortConflictResolved { port })
         {
@@ -168,6 +175,12 @@ async fn bind_early(
     Ok(Some(early))
 }
 
+#[derive(Debug, Clone, Copy)]
+struct PortConflict {
+    port: u16,
+    pid: u32,
+}
+
 async fn port_holder(port: u16) -> Result<Option<u32>> {
     Ok(port_holders(port).await?.first().copied())
 }
@@ -184,18 +197,14 @@ async fn stop_confirmed_holder(port: u16, pid: u32) -> Result<()> {
     Ok(())
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "port-conflict handling threads discrete CLI flags plus the prompt seam"
-)]
 async fn handle_port_conflict(
     prompter: &dyn Prompter,
-    port: u16,
-    pid: u32,
+    conflict: PortConflict,
     kill_port_process: bool,
     config: &CliConfig,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
+    let PortConflict { port, pid } = conflict;
     if events.is_none() {
         CliService::warning(&format!("Port {} is already in use by PID {}", port, pid));
     }

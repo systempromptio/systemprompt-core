@@ -7,10 +7,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result};
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{ExtensionMigrationStatus, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -24,7 +25,7 @@ use super::types::{
 
 pub(super) async fn execute_migrate_status(
     ctx: &AppContext,
-    extension: Option<&str>,
+    extension: Option<&ExtensionId>,
     json: bool,
     config: &CliConfig,
 ) -> Result<()> {
@@ -35,7 +36,7 @@ pub(super) async fn execute_migrate_status(
 
 pub(super) async fn execute_migrate_status_standalone(
     db_ctx: &DatabaseContext,
-    extension: Option<&str>,
+    extension: Option<&ExtensionId>,
     json: bool,
     config: &CliConfig,
 ) -> Result<()> {
@@ -47,7 +48,7 @@ pub(super) async fn execute_migrate_status_standalone(
 async fn run_migrate_status(
     db: &dyn DatabaseProvider,
     registry: &ExtensionRegistry,
-    extension: Option<&str>,
+    extension: Option<&ExtensionId>,
     json: bool,
     config: &CliConfig,
 ) -> Result<()> {
@@ -86,7 +87,7 @@ fn status_label(status: &ExtensionMigrationStatus, version: u32) -> &'static str
 fn rows_for(status: &ExtensionMigrationStatus) -> Vec<MigrateStatusRow> {
     let row =
         |version: u32, name: &str, label: &str, applied_at: Option<String>| MigrateStatusRow {
-            extension_id: status.extension_id.clone(),
+            extension_id: ExtensionId::new(status.extension_id.clone()),
             version,
             name: name.to_owned(),
             status: label.to_owned(),
@@ -127,7 +128,7 @@ async fn collect_status(
         let status = migration_service
             .status(ext.as_ref())
             .await
-            .map_err(|e| anyhow!("Failed to get migration status: {}", e))?;
+            .context("Failed to get migration status")?;
         rows.extend(rows_for(&status));
         total_applied += status.applied.len();
         total_pending += status.pending.len();
@@ -137,14 +138,14 @@ async fn collect_status(
                 .slot_collisions
                 .into_iter()
                 .map(|c| MigrationCollisionInfo {
-                    extension_id: c.extension_id,
+                    extension_id: ExtensionId::new(c.extension_id),
                     version: c.version,
                     stored_name: c.stored_name,
                     current_name: c.current_name,
                 }),
         );
         drift_rows.extend(status.drift.into_iter().map(|d| MigrationDriftInfo {
-            extension_id: d.extension_id,
+            extension_id: ExtensionId::new(d.extension_id),
             version: d.version,
             name: d.name,
             stored_checksum: d.stored_checksum,

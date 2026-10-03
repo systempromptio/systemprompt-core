@@ -208,10 +208,11 @@ async fn migrate_down_refuses_an_irreversible_migration_and_leaves_the_ledger_in
     )
     .await
     .expect_err("no in-tree migration ships down SQL, so the revert must refuse");
-    let message = err.to_string();
+    assert_eq!(err.to_string(), "Down migration failed");
+    let message = format!("{err:#}");
     assert!(
         message.contains("not reversible"),
-        "the refusal must say why, got {message}"
+        "the refusal must keep why as its cause, got {message}"
     );
 
     assert_eq!(

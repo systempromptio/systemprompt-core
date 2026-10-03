@@ -7,7 +7,7 @@ use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
 use crate::services::database::DatabaseService;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 
 use super::{EventSubscriber, McpEvent};
 

@@ -20,13 +20,14 @@ pub mod openai_responses;
 pub mod retry;
 
 use std::sync::Arc;
+use systemprompt_identifiers::ProviderRequestId;
 
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 use systemprompt_ai::UpstreamCall;
-use systemprompt_models::services::GatewayRoute;
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::error::WireStreamError;
+use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_wire::ModelLimits;
+use systemprompt_wire::error::WireStreamError;
 use thiserror::Error;
 
 use super::canonical::CanonicalRequest;
@@ -46,7 +47,7 @@ pub enum UpstreamError {
         message: String,
         body: Box<bytes::Bytes>,
         retry_after: Option<String>,
-        request_id: Option<String>,
+        request_id: Option<ProviderRequestId>,
     },
     #[error("{provider} request failed: {source}")]
     Transport {
@@ -103,7 +104,9 @@ impl UpstreamError {
                 .map(ToOwned::to_owned)
         };
         let retry_after = header("retry-after");
-        let request_id = header("request-id").or_else(|| header("x-request-id"));
+        let request_id = header("request-id")
+            .or_else(|| header("x-request-id"))
+            .and_then(|id| ProviderRequestId::try_new(id).ok());
         let body = response
             .bytes()
             .await
@@ -206,7 +209,7 @@ const DEFECTIVE_BODY_STATUS: u16 = 502;
 pub(in crate::services::gateway) fn reject_defective_body(
     provider: &str,
     wire: &str,
-    defect: &systemprompt_models::wire::defect::BodyDefect,
+    defect: &systemprompt_wire::defect::BodyDefect,
     body: &bytes::Bytes,
 ) -> OutboundError {
     let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();
@@ -230,7 +233,7 @@ pub(in crate::services::gateway) fn reject_defective_body(
 pub(in crate::services::gateway) fn reject_unparsable_body(
     provider: &str,
     wire: &str,
-    error: &systemprompt_models::wire::error::WireParseError,
+    error: &systemprompt_wire::error::WireParseError,
     body: &bytes::Bytes,
 ) -> OutboundError {
     let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();

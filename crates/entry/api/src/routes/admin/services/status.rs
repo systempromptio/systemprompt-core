@@ -7,7 +7,7 @@ use axum::Json;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesRootBootstrap};
-use systemprompt_models::services::bundle::ServicesBundleState;
+use systemprompt_manifest::services::bundle::ServicesBundleState;
 
 use super::{ProvenanceView, ServicesStatusResponse, provenance_view, source_views};
 use crate::error::ApiHttpError;

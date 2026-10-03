@@ -36,6 +36,12 @@ pub use scope::{
 
 use crate::google::{SERVICE_ACCOUNT_TYPE, ServiceAccountKey, access_token};
 
+#[derive(Debug, serde::Deserialize)]
+struct SelfDescription {
+    #[serde(rename = "type")]
+    kind: Option<String>,
+}
+
 /// An API key, held in a type that will not print itself. `expose` hands out
 /// the key itself; every call site is one that is about to send it.
 #[derive(Clone, PartialEq, Eq)]
@@ -88,13 +94,12 @@ pub enum ProviderCredential {
 
 impl ProviderCredential {
     pub fn parse(secret: &str) -> Result<Self, CredentialError> {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(secret) else {
-            return Ok(Self::ApiKey(ApiKeySecret(secret.to_owned())));
-        };
-        if value.get("type").and_then(serde_json::Value::as_str) != Some(SERVICE_ACCOUNT_TYPE) {
+        let self_described = serde_json::from_str::<SelfDescription>(secret)
+            .is_ok_and(|probe| probe.kind.as_deref() == Some(SERVICE_ACCOUNT_TYPE));
+        if !self_described {
             return Ok(Self::ApiKey(ApiKeySecret(secret.to_owned())));
         }
-        serde_json::from_value::<ServiceAccountKey>(value)
+        serde_json::from_str::<ServiceAccountKey>(secret)
             .map(|key| Self::GoogleServiceAccount(Box::new(key)))
             .map_err(CredentialError::Malformed)
     }

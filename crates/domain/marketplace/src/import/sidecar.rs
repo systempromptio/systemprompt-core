@@ -15,10 +15,11 @@
 use std::path::Path;
 
 use serde::Deserialize;
-use systemprompt_models::services::marketplace::{
+use systemprompt_manifest::services::marketplace::{
     ClaudeCodeMarketplaceConfig, ExternalMarketplace, MarketplaceAccess, MarketplaceVisibility,
 };
-use systemprompt_models::services::plugin::{PluginComponentRef, PluginHooksRef, PluginScript};
+use systemprompt_manifest::services::plugin::PluginScript;
+use systemprompt_models::plugin::{PluginComponentRef, PluginHooksRef};
 
 use crate::error::MarketplaceError;
 

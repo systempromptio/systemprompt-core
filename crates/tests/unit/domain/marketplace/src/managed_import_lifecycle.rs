@@ -1,4 +1,4 @@
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{SkillId, UserId};
 use systemprompt_marketplace::managed::{
     ManagedRepository, ResourceKind, SourceSpec, capture_skills,
 };
@@ -33,7 +33,8 @@ async fn importing_captured_skills_retains_one_snapshot_and_immutable_files_per_
     let root = tempfile::tempdir().unwrap();
     write_skill(root.path(), "alpha", "# Alpha\n");
     write_skill(root.path(), "beta", "# Beta\n");
-    let captured = capture_skills(root.path(), &["beta".to_owned(), "alpha".to_owned()]).unwrap();
+    let captured =
+        capture_skills(root.path(), &[SkillId::new("beta"), SkillId::new("alpha")]).unwrap();
 
     let imported = repository
         .import_skills(&owner, &source, &captured, None)
@@ -45,7 +46,7 @@ async fn importing_captured_skills_retains_one_snapshot_and_immutable_files_per_
         imported
             .revisions
             .keys()
-            .map(String::as_str)
+            .map(SkillId::as_str)
             .collect::<Vec<_>>(),
         ["alpha", "beta"]
     );
@@ -61,7 +62,7 @@ async fn importing_captured_skills_retains_one_snapshot_and_immutable_files_per_
         let resource = resources
             .items
             .iter()
-            .find(|item| item.resource_key == *key)
+            .find(|item| item.resource_key == key.as_str())
             .unwrap();
         assert_eq!(resource.kind, ResourceKind::Skill);
         assert_eq!(resource.source_id, source);
@@ -83,7 +84,7 @@ async fn importing_captured_skills_retains_one_snapshot_and_immutable_files_per_
     }
 
     write_skill(root.path(), "alpha", "# Alpha revised\n");
-    let revised = capture_skills(root.path(), &["alpha".to_owned()]).unwrap();
+    let revised = capture_skills(root.path(), &[SkillId::new("alpha")]).unwrap();
     let reimported = repository
         .import_skills(&owner, &source, &revised, None)
         .await

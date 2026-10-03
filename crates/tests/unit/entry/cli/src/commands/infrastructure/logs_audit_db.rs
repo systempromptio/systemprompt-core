@@ -5,7 +5,7 @@
 //! for a request that did not complete. All three are pinned here.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::origin::RequestOrigin;
 
 use clap::Parser;
 use systemprompt_ai::models::AiRequestRecord;

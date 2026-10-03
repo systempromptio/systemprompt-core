@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use systemprompt_loader::ExtensionLoader;
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 
 use crate::constants::container;
 use crate::error::{CloudError, CloudResult};

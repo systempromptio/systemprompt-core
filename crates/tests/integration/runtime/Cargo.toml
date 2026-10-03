@@ -13,7 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-runtime = { workspace = true }
-systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-config = { workspace = true }

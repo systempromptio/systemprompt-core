@@ -12,10 +12,11 @@
 
 use std::borrow::Cow;
 
+use serde::Deserialize;
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::PolicyId;
 
-use super::super::registry::PolicyRegistration;
+use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
 use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
@@ -27,19 +28,26 @@ struct ToolBlocklist {
     patterns: Vec<String>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct ToolBlocklistYaml {
+    #[serde(default)]
+    patterns: Vec<String>,
+}
+
 impl ToolBlocklist {
-    fn from_yaml(v: &YamlValue) -> Self {
-        let patterns = v
-            .get("patterns")
-            .and_then(|s| s.as_sequence())
-            .map(|seq| {
-                seq.iter()
-                    .filter_map(|p| p.as_str().map(str::to_owned))
-                    .collect::<Vec<_>>()
-            })
-            .filter(|v: &Vec<String>| !v.is_empty())
-            .unwrap_or_else(|| DEFAULT_PATTERNS.iter().map(|s| (*s).to_owned()).collect());
-        Self { patterns }
+    fn from_yaml(v: &YamlValue) -> Result<Self, PolicyConfigurationError> {
+        let cfg = serde_yaml::from_value::<Option<ToolBlocklistYaml>>(v.clone())
+            .map_err(|source| PolicyConfigurationError::Yaml {
+                context: "malformed tool_blocklist policy entry",
+                source,
+            })?
+            .unwrap_or_default();
+        let patterns = if cfg.patterns.is_empty() {
+            DEFAULT_PATTERNS.iter().map(|s| (*s).to_owned()).collect()
+        } else {
+            cfg.patterns
+        };
+        Ok(Self { patterns })
     }
 }
 
@@ -84,6 +92,6 @@ impl GovernancePolicy for ToolBlocklist {
 inventory::submit! {
     PolicyRegistration {
         id: ID,
-        factory: |v| Ok(Box::new(ToolBlocklist::from_yaml(v))),
+        factory: |v| Ok(Box::new(ToolBlocklist::from_yaml(v)?)),
     }
 }

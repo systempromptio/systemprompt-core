@@ -17,8 +17,8 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 use systemprompt_api::services::gateway::protocol::outbound::OutboundCtx;
 use systemprompt_api::services::gateway::protocol::outbound::openai_chat::raw::normalize_raw_body;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_models::services::GatewayRoute;
-use systemprompt_models::services::ai::ModelLimits;
+use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_wire::ModelLimits;
 
 fn route() -> GatewayRoute {
     GatewayRoute {

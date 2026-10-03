@@ -127,7 +127,7 @@ fn display_tenant_details(tenant: &StoredTenant) {
     CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
 
     if let Some(ref app_id) = tenant.app_id {
-        CliService::key_value("App ID", app_id);
+        CliService::key_value("App ID", app_id.as_str());
     }
 
     if let Some(ref hostname) = tenant.hostname {

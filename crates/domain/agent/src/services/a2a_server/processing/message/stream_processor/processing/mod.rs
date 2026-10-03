@@ -104,7 +104,7 @@ impl StreamProcessor {
 struct RunStreamPipelineParams {
     agent_runtime: AgentRuntimeInfo,
     agent_name: AgentName,
-    ai_service: Arc<dyn systemprompt_models::AiProvider>,
+    ai_service: systemprompt_models::ai::DynAiProvider,
     skill_service: Arc<crate::services::SkillService>,
     execution_step_repo: Arc<crate::repository::execution::ExecutionStepRepository>,
     task_id: systemprompt_identifiers::TaskId,

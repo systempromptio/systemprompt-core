@@ -1,5 +1,7 @@
 #![allow(clippy::all)]
 
+use std::path::PathBuf;
+
 use systemprompt_config::bootstrap::{ProfileBootstrapError, SecretsBootstrapError};
 use systemprompt_config::error::ConfigError;
 
@@ -54,18 +56,22 @@ fn config_error_profile_path_report() {
 }
 
 #[test]
-fn config_error_other_helper() {
-    let e = ConfigError::other("something went wrong");
-    let msg = format!("{e}");
-    assert!(msg.contains("something went wrong"), "got: {msg}");
+fn config_error_profile_path_without_parent_display() {
+    let e = ConfigError::ProfilePathWithoutParent {
+        path: PathBuf::from("/"),
+    };
+    assert_eq!(format!("{e}"), "Profile path has no parent directory: /");
 }
 
 #[test]
-fn config_error_other_variant_display() {
-    let e = ConfigError::Other {
-        message: "test message".to_owned(),
+fn config_error_secrets_file_not_object_display() {
+    let e = ConfigError::SecretsFileNotObject {
+        path: PathBuf::from("/tmp/secrets.json"),
     };
-    assert_eq!(format!("{e}"), "test message");
+    assert_eq!(
+        format!("{e}"),
+        "Secrets file root is not a JSON object: /tmp/secrets.json"
+    );
 }
 
 #[test]
@@ -93,20 +99,6 @@ fn profile_bootstrap_error_path_not_set() {
     let e = ProfileBootstrapError::PathNotSet;
     let msg = format!("{e}");
     assert!(msg.contains("SYSTEMPROMPT_PROFILE"), "got: {msg}");
-}
-
-#[test]
-fn profile_bootstrap_error_validation_failed() {
-    let e = ProfileBootstrapError::ValidationFailed("bad config".to_owned());
-    let msg = format!("{e}");
-    assert!(msg.contains("bad config"), "got: {msg}");
-}
-
-#[test]
-fn profile_bootstrap_error_load_failed() {
-    let e = ProfileBootstrapError::LoadFailed("io error".to_owned());
-    let msg = format!("{e}");
-    assert!(msg.contains("io error"), "got: {msg}");
 }
 
 #[test]
@@ -148,10 +140,10 @@ fn secrets_bootstrap_error_file_not_found() {
 #[test]
 fn secrets_bootstrap_error_invalid_secrets_file() {
     let e = SecretsBootstrapError::InvalidSecretsFile(
-        systemprompt_models::errors::SecretsError::Invalid("bad JSON".to_owned()),
+        systemprompt_models::errors::SecretsError::PepperTooShort { min: 32, actual: 4 },
     );
     let msg = format!("{e}");
-    assert!(msg.contains("bad JSON"), "got: {msg}");
+    assert!(msg.contains("oauth_at_rest_pepper"), "got: {msg}");
 }
 
 #[test]

@@ -44,9 +44,6 @@ pub enum ContextPropagationError {
         #[source]
         source: BoxedSource,
     },
-
-    #[error("invalid context: {0}")]
-    Invalid(String),
 }
 
 pub trait ContextPropagation {

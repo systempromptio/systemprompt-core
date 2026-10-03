@@ -23,9 +23,7 @@ pub(super) fn artifact_payload<T: DeserializeOwned>(artifact: &Artifact) -> McpD
         .parts
         .iter()
         .find_map(Part::as_data)
-        .ok_or_else(|| {
-            McpDomainError::Internal("Artifact has no data part to render".to_owned())
-        })?;
+        .ok_or(McpDomainError::ArtifactHasNoData)?;
 
     serde_json::from_value(data).map_err(|e| {
         McpDomainError::operation("Artifact payload does not match its declared type", e)

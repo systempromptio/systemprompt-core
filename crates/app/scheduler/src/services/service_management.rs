@@ -22,7 +22,7 @@ use std::time::Duration;
 use systemprompt_database::{ServiceConfig, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{self, StopOutcome};
-use systemprompt_models::services::ServiceModule;
+use systemprompt_manifest::services::ServiceModule;
 use tracing::warn;
 
 use super::orchestration::{
@@ -211,6 +211,7 @@ async fn await_api_port_release(port: u16, stops: &[ApiListenerStop]) -> Schedul
 const fn stop_grace(force: bool) -> Duration {
     if force { Duration::ZERO } else { STOP_GRACE }
 }
+
 
 fn stored_pid(service: &ServiceConfig) -> Option<u32> {
     service.pid.and_then(|pid| u32::try_from(pid).ok())

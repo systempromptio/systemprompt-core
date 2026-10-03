@@ -6,7 +6,7 @@
 use bytes::Bytes;
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
-use systemprompt_models::wire::anthropic::content_to_anthropic_block;
+use systemprompt_wire::anthropic::content_to_anthropic_block;
 
 use super::super::super::canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,

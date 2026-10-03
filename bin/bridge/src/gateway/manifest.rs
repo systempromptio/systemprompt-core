@@ -18,7 +18,8 @@ pub use systemprompt_models::bridge::manifest::{
     SignedManifestEnvelope, SkillEntry, UserInfo, bridge_version_is_supported,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
-pub use systemprompt_models::services::{AutoUpdatePolicy, PluginComponentRef};
+pub use systemprompt_models::bridge::update_policy::AutoUpdatePolicy;
+pub use systemprompt_models::plugin::PluginComponentRef;
 
 pub use systemprompt_identifiers::{AgentId, AgentName, ApiKeyId, TenantId, UserId, ValidatedUrl};
 

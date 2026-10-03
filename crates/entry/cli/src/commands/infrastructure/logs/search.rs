@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, McpToolName, TraceId};
 use systemprompt_logging::{CliService, LogLevel};
-use systemprompt_runtime::{LogSearchItem, ToolExecutionItem, TraceQueryService};
+use systemprompt_runtime::{LogSearchItem, ToolExecutionItem, TraceQueryService, TraceRepository};
 
 use super::duration::parse_since;
 use super::shared::display_log_row;
@@ -74,7 +74,7 @@ async fn execute_with_pool_inner(
     let since_timestamp = parse_since(args.since.as_ref())?;
     let pattern = format!("%{}%", args.pattern);
 
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
     let rows = service
         .search_logs(&pattern, since_timestamp, args.level, args.limit)

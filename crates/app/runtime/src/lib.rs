@@ -50,6 +50,7 @@ pub use trace::{
     McpToolExecution, ModelStatsRow, ModuleCount, ProviderStatsRow, RequestCursor,
     RequestCursorError, TaskArtifact, TaskInfo, ToolExecutionFilter, ToolExecutionItem,
     ToolLogEntry, TraceError, TraceEvent, TraceListFilter, TraceListItem, TraceQueryService,
+    TraceRepository,
 };
 pub use validation::{validate_database_url, validate_system};
 

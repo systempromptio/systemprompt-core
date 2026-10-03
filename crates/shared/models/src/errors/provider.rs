@@ -1,4 +1,4 @@
-//! Typed errors returned across the dyn-dispatched provider seams
+//! Typed errors returned across the provider seams
 //! ([`crate::ai::AiProvider`], [`crate::mcp::McpRegistry`] and friends).
 //!
 //! Each variant names the failure class a caller can act on; the concrete

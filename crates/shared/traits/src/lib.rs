@@ -96,7 +96,7 @@ pub use managed_resources::{
 
 pub use context_provider::{
     ContextMaterializer, ContextProvider, ContextProviderError, ContextStats, ContextWithStats,
-    DynContextMaterializer, DynContextProvider, EnsureContextParams,
+    DynContextMaterializer, EnsureContextParams,
 };
 
 pub use validation::{MetadataValidation, MetadataValidationError, Validate, ValidationResult};
@@ -108,8 +108,8 @@ pub use analytics::{
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, DynRoleProvider, FederatedIdentityClaims,
-    RoleProvider, SenderIdentity, UserProvider,
+    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, RoleProvider, SenderIdentity,
+    UserProvider,
 };
 
 pub use storage::{
@@ -124,8 +124,8 @@ pub use ai_providers::{
 };
 
 pub use registry::{
-    AgentInfo, AgentRegistryProvider, DynAgentRegistryProvider, McpRegistryProvider, McpServerInfo,
-    RegistryError, ServiceOAuthConfig,
+    AgentInfo, AgentRegistryProvider, McpRegistryProvider, McpServerInfo, RegistryError,
+    ServiceOAuthConfig,
 };
 
 pub use extension_error::{ExtensionError, McpErrorData};

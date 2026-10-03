@@ -3,7 +3,7 @@
 //! per-boot id is only tolerated for local profiles.
 
 use systemprompt_config::{ConfigError, resolve_instance_id};
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use crate::fixture;
 

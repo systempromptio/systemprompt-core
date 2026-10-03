@@ -9,8 +9,8 @@
 //! it leaves alone.
 
 use serde_json::{Value, json};
-use systemprompt_models::wire::defect::BodyDefect;
-use systemprompt_models::wire::{anthropic, gemini, openai_chat, openai_responses};
+use systemprompt_wire::defect::BodyDefect;
+use systemprompt_wire::{anthropic, gemini, openai_chat, openai_responses};
 
 type Detector = fn(&Value) -> Option<BodyDefect>;
 

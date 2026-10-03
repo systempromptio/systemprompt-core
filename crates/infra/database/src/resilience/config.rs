@@ -78,8 +78,8 @@ impl Default for ResilienceConfig {
     }
 }
 
-impl From<&systemprompt_models::services::ResilienceSettings> for ResilienceConfig {
-    fn from(settings: &systemprompt_models::services::ResilienceSettings) -> Self {
+impl From<&systemprompt_manifest::services::ResilienceSettings> for ResilienceConfig {
+    fn from(settings: &systemprompt_manifest::services::ResilienceSettings) -> Self {
         Self {
             request_timeout: Duration::from_millis(settings.request_timeout_ms),
             stream_idle_timeout: Duration::from_millis(settings.stream_idle_timeout_ms),

@@ -23,6 +23,7 @@ use std::collections::BTreeSet;
 
 use pg_query::Context;
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
 use crate::error::RepositoryError;
@@ -103,7 +104,7 @@ fn text(row: &crate::models::JsonRow, key: &str) -> String {
 pub async fn check_trigger_routines(db: &dyn DatabaseProvider) -> Result<(), LoaderError> {
     let failed =
         |context: String, source: RepositoryError| LoaderError::SchemaInstallationStepFailed {
-            extension: "database".to_owned(),
+            extension: ExtensionId::new("database"),
             context,
             source: Box::new(source),
         };

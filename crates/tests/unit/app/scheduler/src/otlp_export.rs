@@ -7,14 +7,17 @@ use opentelemetry_proto::tonic::trace::v1::Span;
 use prost::Message;
 use std::sync::{Arc, Mutex};
 use systemprompt_identifiers::{
-    AiToolCallId, ContextId, InstanceId, McpExecutionId, McpServerId, McpToolName, PluginId,
-    ProviderRequestId, SessionId, TraceId, UserId,
+    AiRequestId, AiToolCallId, ContextId, InstanceId, McpExecutionId, McpServerId, McpToolName,
+    PluginId, ProviderRequestId, SessionId, TraceId, UserId,
 };
-use systemprompt_models::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
+use systemprompt_manifest::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
 use systemprompt_scheduler::jobs::otlp_export::{
-    GOVERNANCE_SPAN, GovernanceRow, LedgerRow, LogRow, OtlpExportJob, REQUEST_SPAN, RETRY_DELAYS,
-    RequestRow, TOOL_SPAN, TraceBatch, Watermark, is_retryable, pacing_elapsed, severity_number,
-    span_id_bytes, to_log_record, to_spans, trace_id_bytes, unix_nanos,
+    GOVERNANCE_SPAN, OtlpExportJob, REQUEST_SPAN, RETRY_DELAYS, TOOL_SPAN, TraceBatch,
+    is_retryable, pacing_elapsed, severity_number, span_id_bytes, to_log_record, to_spans,
+    trace_id_bytes, unix_nanos,
+};
+use systemprompt_scheduler::repository::otlp::{
+    GovernanceRow, LedgerRow, LogRow, RequestRow, Watermark,
 };
 use systemprompt_test_fixtures::DisposableDb;
 use systemprompt_traits::Job;
@@ -69,8 +72,8 @@ fn at(secs: i64) -> DateTime<Utc> {
 
 fn request(id: &str, trace_id: Option<&str>, status: &str) -> RequestRow {
     RequestRow {
-        id: id.to_owned(),
-        request_id: format!("req-{id}"),
+        id: AiRequestId::new(id),
+        request_id: AiRequestId::new(format!("req-{id}")),
         user_id: UserId::new("user-1"),
         session_id: Some(SessionId::new("sess-1")),
         context_id: ContextId::try_new("3f2a1c4e-8b7d-4c2a-9e1f-0a1b2c3d4e5f").expect("v4"),
@@ -104,7 +107,7 @@ fn request(id: &str, trace_id: Option<&str>, status: &str) -> RequestRow {
 fn ledger(request_id: &str, call_id: &str, failed: bool) -> LedgerRow {
     LedgerRow {
         ai_tool_call_id: Some(AiToolCallId::new(call_id)),
-        request_id: Some(request_id.to_owned()),
+        request_id: Some(AiRequestId::new(request_id)),
         mcp_execution_id: Some(McpExecutionId::new(format!("exec-{call_id}"))),
         tool_name: Some(McpToolName::new("read_file")),
         server_name: Some(McpServerId::new("fs")),

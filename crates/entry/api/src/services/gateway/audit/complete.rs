@@ -98,7 +98,10 @@ impl GatewayAudit {
         Ok(cost)
     }
 
-    pub fn pin_pricing(&self, pricing: systemprompt_models::services::ModelPricing) -> Result<()> {
+    pub fn pin_pricing(
+        &self,
+        pricing: systemprompt_manifest::services::ModelPricing,
+    ) -> Result<()> {
         let mut slot = self
             .pricing_snapshot
             .lock()
@@ -113,7 +116,7 @@ impl GatewayAudit {
     // catalog rate is the one the row must be costed at; the pin taken for the
     // primary is replaced rather than guarded so the served provider always
     // wins.
-    pub fn reprice(&self, pricing: systemprompt_models::services::ModelPricing) {
+    pub fn reprice(&self, pricing: systemprompt_manifest::services::ModelPricing) {
         match self.pricing_snapshot.lock() {
             Ok(mut slot) => *slot = Some(pricing),
             Err(e) => tracing::warn!(error = %e, "pricing snapshot mutex poisoned"),
@@ -123,7 +126,7 @@ impl GatewayAudit {
     pub(super) fn completion_pricing(
         &self,
         effective_model: &str,
-    ) -> Result<systemprompt_models::services::ModelPricing> {
+    ) -> Result<systemprompt_manifest::services::ModelPricing> {
         if let Some(pricing) = self.pricing_snapshot.lock().ok().and_then(|slot| *slot) {
             return Ok(pricing);
         }

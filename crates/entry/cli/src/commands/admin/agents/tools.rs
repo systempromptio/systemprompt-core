@@ -36,7 +36,7 @@ pub struct ToolsArgs {
 }
 
 struct ToolQuery<'a> {
-    services_config: &'a systemprompt_models::ServicesConfig,
+    services_config: &'a systemprompt_manifest::ServicesConfig,
     running_servers: &'a [McpServerConfig],
     session_token: &'a SessionToken,
     detailed: bool,
@@ -124,7 +124,7 @@ fn resolve_agent_name(
     name: Option<String>,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    services_config: &systemprompt_models::ServicesConfig,
+    services_config: &systemprompt_manifest::ServicesConfig,
 ) -> Result<String> {
     match name {
         Some(n) => Ok(n),

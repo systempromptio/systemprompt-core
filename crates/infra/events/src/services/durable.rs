@@ -15,7 +15,8 @@ use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId};
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
-use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
+use super::repository::durable::{DurableOutboxRepository, DurableRow, FactRow};
+use super::routing::OutboxChannel;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DurableEventError {
@@ -70,7 +71,7 @@ impl DurableOutbox {
         &self,
         cutoff: chrono::DateTime<chrono::Utc>,
     ) -> Result<u64, sqlx::Error> {
-        prune_processed(&self.pool, cutoff).await
+        DurableOutboxRepository::prune_processed(&self.pool, cutoff).await
     }
 
     pub async fn append<T: Serialize + Sync>(
@@ -84,29 +85,20 @@ impl DurableOutbox {
             return Err(DurableEventError::InvalidContract);
         }
         let (channel, payload) = event.encode()?;
-        let encoded_fact = serde_json::to_value(fact)?;
         let id = EventOutboxId::generate();
-        let (actor_kind, actor_id) = actor.audit_columns();
-        sqlx::query!(
-            "INSERT INTO event_outbox \
-             (id, channel, user_id, payload, actor_kind, actor_id, origin_instance_id, \
-              consumer, fact, deliver_to_origin) \
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE)",
-            id.as_str(),
-            channel.as_str(),
-            actor.user_id.as_str(),
-            payload,
-            actor_kind,
-            actor_id,
-            self.instance_id.as_str(),
-            &fact.consumer,
-            encoded_fact
+        DurableOutboxRepository::insert(
+            tx,
+            DurableRow {
+                id: &id,
+                channel,
+                actor,
+                origin: &self.instance_id,
+                consumer: &fact.consumer,
+                payload,
+                fact: serde_json::to_value(fact)?,
+            },
         )
-        .execute(&mut **tx)
         .await?;
-        sqlx::query!("SELECT pg_notify($1, $2)", OUTBOX_CHANNEL, id.as_str())
-            .fetch_one(&mut **tx)
-            .await?;
         Ok(id)
     }
 }
@@ -130,18 +122,7 @@ impl OutboxConsumer {
         skipped: &[EventOutboxId],
     ) -> Result<Option<DeliveryBatch>, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
-        let skipped: Vec<String> = skipped.iter().map(ToString::to_string).collect();
-        let rows = sqlx::query_as!(
-            FactRow,
-            r#"SELECT id AS "id: EventOutboxId", fact AS "fact!" FROM event_outbox
-             WHERE consumer = $1 AND processed_at IS NULL AND id <> ALL($3)
-             ORDER BY created_at, id LIMIT $2 FOR UPDATE SKIP LOCKED"#,
-            consumer,
-            limit,
-            &skipped
-        )
-        .fetch_all(&mut *tx)
-        .await?;
+        let rows = DurableOutboxRepository::claim_batch(&mut tx, consumer, limit, skipped).await?;
         if rows.is_empty() {
             tx.rollback().await?;
             return Ok(None);
@@ -151,15 +132,7 @@ impl OutboxConsumer {
 
     pub async fn claim(&self, consumer: &str) -> Result<Option<Delivery>, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
-        let row = sqlx::query_as!(
-            FactRow,
-            r#"SELECT id AS "id: EventOutboxId", fact AS "fact!" FROM event_outbox
-             WHERE consumer = $1 AND processed_at IS NULL
-             ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED"#,
-            consumer
-        )
-        .fetch_optional(&mut *tx)
-        .await?;
+        let row = DurableOutboxRepository::claim_one(&mut tx, consumer).await?;
         if let Some(row) = row {
             Ok(Some(Delivery { tx, row }))
         } else {
@@ -167,26 +140,6 @@ impl OutboxConsumer {
             Ok(None)
         }
     }
-}
-
-pub(super) async fn prune_processed(
-    pool: &PgPool,
-    cutoff: chrono::DateTime<chrono::Utc>,
-) -> Result<u64, sqlx::Error> {
-    sqlx::query!(
-        "DELETE FROM event_outbox WHERE created_at < $1 AND (consumer IS NULL OR processed_at IS NOT NULL)",
-        cutoff
-    )
-        .execute(pool)
-        .await
-        .map(|result| result.rows_affected())
-}
-
-#[derive(Debug)]
-struct FactRow {
-    id: EventOutboxId,
-    // JSON: versioned facts are decoded by the registered consumer.
-    fact: serde_json::Value,
 }
 
 #[must_use]
@@ -210,12 +163,7 @@ impl Delivery {
     }
 
     pub async fn acknowledge(mut self) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "UPDATE event_outbox SET processed_at = now() WHERE id = $1",
-            self.row.id.as_str()
-        )
-        .execute(&mut *self.tx)
-        .await?;
+        DurableOutboxRepository::mark_processed(&mut self.tx, &self.row.id).await?;
         self.tx.commit().await
     }
 
@@ -258,12 +206,10 @@ impl DeliveryBatch {
     }
 
     pub async fn acknowledge_all(mut self) -> Result<(), sqlx::Error> {
-        let ids: Vec<String> = self.rows.iter().map(|row| row.id.to_string()).collect();
-        sqlx::query!(
-            "UPDATE event_outbox SET processed_at = now() WHERE id = ANY($1)",
-            &ids
+        DurableOutboxRepository::mark_all_processed(
+            &mut self.tx,
+            self.rows.iter().map(|row| &row.id),
         )
-        .execute(&mut *self.tx)
         .await?;
         self.tx.commit().await
     }

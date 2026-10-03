@@ -1,8 +1,7 @@
 use crate::services::providers::mock_http;
 use systemprompt_ai::services::providers::{ProviderClient, ProviderClientParams, ProviderFactory};
-use systemprompt_models::services::{
-    ProviderModel, ProviderRegistry, ResilienceSettings, WireProtocol,
-};
+use systemprompt_manifest::services::{ProviderModel, ProviderRegistry, ResilienceSettings};
+use systemprompt_wire::WireProtocol;
 
 fn seed_models(provider: &str) -> Vec<ProviderModel> {
     ProviderRegistry::default_seed()

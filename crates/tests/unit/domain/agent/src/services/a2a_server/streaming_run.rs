@@ -17,7 +17,7 @@ use systemprompt_agent::services::a2a_server::streaming::{
 };
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 
 use super::a2a_helpers::{StubAiProvider, agent_config, make_handler_state, request_context};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
@@ -174,7 +174,9 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
             request_id: RequestId::Number(12),
             context,
         },
-        Err(AgentError::Config("injected registry failure".to_owned())),
+        Err(AgentError::Io(std::io::Error::other(
+            "injected registry failure",
+        ))),
     )
     .await
     .map_err(|_| ())

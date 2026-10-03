@@ -6,7 +6,7 @@
 use std::str::FromStr;
 
 use systemprompt_identifiers::ClientId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{ActClaim, JwtAudience, Permission};
 
 use super::super::super::{TokenError, TokenResult};

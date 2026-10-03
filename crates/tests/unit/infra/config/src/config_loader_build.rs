@@ -53,7 +53,7 @@ async fn try_init_config_installs_the_global_once_and_is_idempotent() {
 
     try_init_config(None).unwrap();
 
-    assert!(systemprompt_models::Config::is_initialized());
+    assert!(systemprompt_manifest::Config::is_initialized());
     try_init_config(None).unwrap();
 }
 
@@ -64,7 +64,7 @@ async fn try_init_config_initializes_when_uninitialized() {
 
     try_init_config(None).unwrap();
 
-    assert!(systemprompt_models::Config::is_initialized());
+    assert!(systemprompt_manifest::Config::is_initialized());
 }
 
 #[tokio::test]

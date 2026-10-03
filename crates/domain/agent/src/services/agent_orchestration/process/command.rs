@@ -10,7 +10,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_loader::subprocess::ChildKind;
-use systemprompt_models::{CliPaths, Config, Secrets};
+use systemprompt_manifest::{Config, Secrets};
+use systemprompt_models::CliPaths;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 

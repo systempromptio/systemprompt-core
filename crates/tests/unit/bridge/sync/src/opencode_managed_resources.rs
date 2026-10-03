@@ -405,7 +405,7 @@ fn governance_plugin(id: &str) -> PluginEntry {
         version: "1.0.0".into(),
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files: vec![],
-        hooks: systemprompt_models::services::PluginHooksRef {
+        hooks: systemprompt_models::plugin::PluginHooksRef {
             governance: true,
             comms: false,
             judge: false,

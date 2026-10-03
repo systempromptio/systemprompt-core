@@ -5,8 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use bytes::Bytes;
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::services::providers::WireProtocol;
+use systemprompt_wire::{ModelLimits, WireProtocol};
 
 use super::super::super::audit::GatewayAudit;
 use super::super::super::image_fetch::{ImageFetchPolicy, inline_url_images};

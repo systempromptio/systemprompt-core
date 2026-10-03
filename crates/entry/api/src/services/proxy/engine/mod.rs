@@ -217,14 +217,14 @@ impl ProxyEngine {
         let req_builder =
             RequestBuilder::build_request(&client, reqwest_method, full_url, headers, body);
 
-        req_builder.send().await.map_err(|e| {
-            tracing::error!(service = %service_name, url = %full_url, error = %e, "Connection failed");
-            ProxyError::ConnectionFailed {
+        req_builder
+            .send()
+            .await
+            .map_err(|e| ProxyError::ConnectionFailed {
                 service: service_name.to_string(),
                 url: full_url.to_owned(),
                 source: e,
-            }
-        })
+            })
     }
 }
 

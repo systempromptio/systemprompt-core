@@ -16,10 +16,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::SkillId;
-use systemprompt_models::services::{
-    MarketplaceConfigFile, PluginComponentRef, PluginConfigFile, ServicesConfig, SkillConfig,
+use systemprompt_manifest::services::{
+    MarketplaceConfigFile, PluginConfigFile, ServicesConfig, SkillConfig,
 };
-use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
+use systemprompt_manifest::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
+use systemprompt_models::plugin::PluginComponentRef;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 

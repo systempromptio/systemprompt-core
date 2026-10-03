@@ -15,7 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::profile::{SecretsConfig, SecretsSource, VaultSecretsConfig};
+use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, VaultSecretsConfig};
 
 use super::SecretsBootstrapError;
 

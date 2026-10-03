@@ -7,7 +7,7 @@
 // JSON.
 use serde_json::Value;
 use systemprompt_identifiers::ModelId;
-use systemprompt_models::wire::inspect::ForwardedSurface;
+use systemprompt_wire::inspect::ForwardedSurface;
 
 mod content;
 mod params;

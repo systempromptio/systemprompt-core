@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_ai::services::storage::{ImageStorage, StorageConfig, StorageConfigError};
-use systemprompt_models::profile::StorageBackend;
+use systemprompt_manifest::profile::StorageBackend;
 use systemprompt_storage::build_file_storage;
 use systemprompt_test_mocks::MockFileStorage;
 use systemprompt_traits::{FileStorage, StoredFileId};

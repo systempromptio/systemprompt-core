@@ -8,7 +8,7 @@ use std::path::Path;
 use systemprompt_cloud::ProfilePath;
 use systemprompt_config::write_private_atomic;
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use crate::interactive::Prompter;
 

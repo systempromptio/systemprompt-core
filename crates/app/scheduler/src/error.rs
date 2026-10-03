@@ -19,7 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::JobName;
-use systemprompt_models::profile::OtlpSignal;
+use systemprompt_manifest::profile::OtlpSignal;
 use systemprompt_provider_contracts::{MissingDependency, ProviderError};
 use systemprompt_traits::{BoxedSource, RepositoryError};
 use thiserror::Error;
@@ -66,9 +66,6 @@ pub enum SchedulerError {
     #[error("Cron scheduler error: {0}")]
     CronScheduler(#[from] tokio_cron_scheduler::JobSchedulerError),
 
-    #[error("Configuration error: {message}")]
-    ConfigError { message: String },
-
     #[error("Scheduler already running")]
     AlreadyRunning,
 
@@ -89,6 +86,9 @@ pub enum SchedulerError {
 
     #[error("Managed marketplace error: {0}")]
     Managed(#[from] systemprompt_marketplace::managed::ManagedError),
+
+    #[error("No retention path for table {table}")]
+    UnknownRetentionTable { table: String },
 
     #[error("Unknown OTLP export signal '{signal}'")]
     UnknownOtlpSignal { signal: String },
@@ -123,12 +123,6 @@ impl SchedulerError {
 
     pub const fn job_execution_failed(job_name: JobName, source: ProviderError) -> Self {
         Self::JobExecutionFailed { job_name, source }
-    }
-
-    pub fn config_error(message: impl Into<String>) -> Self {
-        Self::ConfigError {
-            message: message.into(),
-        }
     }
 
     pub fn panic(message: impl Into<String>) -> Self {

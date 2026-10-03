@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use systemprompt_loader::bundle::{BundleCache, owning_bundle_hashes, sources_provenance};
-use systemprompt_models::profile::FetchFailurePolicy;
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::profile::FetchFailurePolicy;
+use systemprompt_manifest::services::bundle::{
     BUNDLE_MANIFEST_FILE, BundleSourceState, ServicesBundleState,
 };
 

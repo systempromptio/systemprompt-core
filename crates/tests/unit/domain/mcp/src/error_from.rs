@@ -26,8 +26,10 @@ fn test_from_io_error() {
 }
 
 #[test]
-fn test_internal_error_construction() {
-    let err = McpDomainError::Internal("oops".to_string());
+fn test_service_row_missing_names_the_service() {
+    let err = McpDomainError::ServiceRowMissing {
+        service: "oops".to_string(),
+    };
     assert!(err.to_string().contains("oops"));
 }
 

@@ -25,8 +25,8 @@ use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_models::origin::RequestOrigin;
 use systemprompt_runtime::AppContext;
 
 use crate::services::gateway::audit::GatewayAccessLog;

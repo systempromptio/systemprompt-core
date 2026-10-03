@@ -1,0 +1,106 @@
+//! Persistence for the cross-replica `event_outbox`.
+//!
+//! `event_outbox` rows are the durable handoff between replicas: a routed
+//! event is appended here and announced over Postgres `NOTIFY`; peer
+//! replicas load the row and re-inject the event into their local
+//! broadcasters. [`EventRouter`](super::routing::EventRouter) and
+//! [`PostgresEventBridge`](super::bridge::PostgresEventBridge) use this
+//! repository; the transactional outbox queries behind
+//! [`DurableOutbox`](super::durable::DurableOutbox) live in [`durable`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+pub(crate) mod durable;
+mod ownership;
+
+use sqlx::PgPool;
+use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId, UserId};
+
+use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
+
+pub use ownership::EventsOwnerReassignment;
+
+pub(super) struct OutboxRow {
+    pub channel: String,
+    pub user_id: UserId,
+    pub origin_instance_id: InstanceId,
+    pub deliver_to_origin: bool,
+    // JSON: the `payload` jsonb column is polymorphic by `channel`; the
+    // relay decodes it into the matching typed event after dispatch.
+    pub payload: serde_json::Value,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct EventOutboxRepository {
+    pool: PgPool,
+    instance_id: InstanceId,
+}
+
+impl EventOutboxRepository {
+    pub(super) const fn new(pool: PgPool, instance_id: InstanceId) -> Self {
+        Self { pool, instance_id }
+    }
+
+    pub(super) const fn instance_id(&self) -> &InstanceId {
+        &self.instance_id
+    }
+
+    // JSON: JSONB outbox `payload` — event body, serialised per channel.
+    pub(super) async fn insert(
+        &self,
+        id: &EventOutboxId,
+        channel: OutboxChannel,
+        actor: &Actor,
+        payload: &serde_json::Value,
+    ) -> Result<(), sqlx::Error> {
+        let (actor_kind, actor_id) = actor.audit_columns();
+        sqlx::query!(
+            "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, \
+             origin_instance_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            id.as_str(),
+            channel.as_str(),
+            actor.user_id.as_str(),
+            payload,
+            actor_kind,
+            actor_id,
+            self.instance_id.as_str(),
+        )
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+    }
+
+    pub(super) async fn notify(&self, id: &EventOutboxId) -> Result<(), sqlx::Error> {
+        sqlx::query!("SELECT pg_notify($1, $2)", OUTBOX_CHANNEL, id.as_str())
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+    }
+
+    pub(super) async fn find(&self, id: &EventOutboxId) -> Result<Option<OutboxRow>, sqlx::Error> {
+        sqlx::query_as!(
+            OutboxRow,
+            r#"
+            SELECT
+                channel,
+                user_id as "user_id: UserId",
+                payload,
+                origin_instance_id as "origin_instance_id: InstanceId",
+                deliver_to_origin
+            FROM event_outbox
+            WHERE id = $1
+            "#,
+            id.as_str(),
+        )
+        .fetch_optional(&self.pool)
+        .await
+    }
+
+    pub(super) async fn prune(
+        &self,
+        cutoff: chrono::DateTime<chrono::Utc>,
+    ) -> Result<u64, sqlx::Error> {
+        durable::DurableOutboxRepository::prune_processed(&self.pool, cutoff).await
+    }
+}

@@ -6,7 +6,7 @@
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 
 pub async fn inject_served_by(request: Request, next: Next) -> Response {
     let instance_id = Config::get()

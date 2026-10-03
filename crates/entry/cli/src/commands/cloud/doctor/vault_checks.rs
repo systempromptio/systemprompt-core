@@ -11,7 +11,7 @@
 use std::collections::HashMap;
 
 use systemprompt_config::{SecretsProvider, VaultKvProvider};
-use systemprompt_models::profile::VaultSecretsConfig;
+use systemprompt_manifest::profile::VaultSecretsConfig;
 
 use super::CheckResult;
 

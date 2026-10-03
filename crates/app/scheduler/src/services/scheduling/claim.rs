@@ -9,14 +9,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{InstanceId, JobName};
 use systemprompt_traits::{Job as JobTrait, JobScope};
 use tracing::{debug, error};
 
-use super::lock::{JobLockGuard, try_acquire_job_lock};
 use crate::models::{JobConfig, SchedulerConfig};
-use crate::repository::SchedulerRepository;
+use crate::repository::{JobLockGuard, SchedulerRepository};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum ClaimPolicy {
@@ -90,12 +88,9 @@ pub(super) async fn acquire_node_claim(
 
 pub(super) async fn acquire_cluster_claim(
     job_name: &JobName,
-    db_pool: &DbPool,
     repository: &SchedulerRepository,
 ) -> Claim {
-    let write_pool = db_pool.write_pool();
-
-    let guard = match try_acquire_job_lock(&write_pool, job_name).await {
+    let guard = match repository.try_acquire_job_lock(job_name).await {
         Ok(Some(guard)) => guard,
         Ok(None) => {
             skipped_by_lock(job_name);

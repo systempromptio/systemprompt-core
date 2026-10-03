@@ -5,6 +5,7 @@ use systemprompt_identifiers::{
     AgentId, AgentName, LibraryArtifactId, MarketplaceRuleId, McpServerId, PluginId, RuleName,
     SkillId, SkillName, ValidatedUrl,
 };
+use systemprompt_manifest::services::{PluginAuthor, PluginConfig, PluginScript, ServicesConfig};
 use systemprompt_marketplace::MarketplaceCache;
 use systemprompt_marketplace::bundle::{
     BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content,
@@ -17,9 +18,7 @@ use systemprompt_models::bridge::manifest::{
 use systemprompt_models::bridge::plugin_bundle::{
     PLUGIN_MANIFEST_RELPATH, PluginManifest, bundle_has_manifest,
 };
-use systemprompt_models::services::{
-    ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig, PluginScript, ServicesConfig,
-};
+use systemprompt_models::plugin::{ComponentSource, PluginComponentRef};
 
 use crate::helpers::{config_with, include, marketplace};
 

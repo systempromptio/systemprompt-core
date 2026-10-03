@@ -11,7 +11,7 @@ use crate::interactive::Prompter;
 pub fn prompt_agent_selection(
     prompter: &dyn Prompter,
     prompt: &str,
-    config: &systemprompt_models::ServicesConfig,
+    config: &systemprompt_manifest::ServicesConfig,
 ) -> Result<String> {
     let agents: Vec<String> = config.agents.keys().cloned().collect();
     select_agent_from_names(prompter, prompt, agents)

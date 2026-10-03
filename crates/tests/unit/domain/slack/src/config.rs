@@ -1,4 +1,4 @@
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_slack::SlackAppConfig;
 
 fn parse(yaml: &str) -> SlackAppConfig {

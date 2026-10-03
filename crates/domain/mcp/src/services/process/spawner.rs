@@ -18,7 +18,7 @@ use std::process::Command;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::subprocess::{self, ChildKind};
-use systemprompt_models::{Config, Secrets};
+use systemprompt_manifest::{Config, Secrets};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 
@@ -241,9 +241,9 @@ pub fn build_server(config: &McpServerConfig) -> McpDomainResult<()> {
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         tracing::error!(service = %config.name, binary, error = %stderr, "Build failed");
-        Err(crate::error::McpDomainError::Internal(format!(
-            "Build failed for {} (binary: {binary})",
-            config.name
-        )))
+        Err(crate::error::McpDomainError::BuildFailed {
+            service: config.name.clone(),
+            binary: binary.to_owned(),
+        })
     }
 }

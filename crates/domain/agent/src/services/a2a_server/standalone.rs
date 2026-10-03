@@ -7,14 +7,14 @@ use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
 
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::AiProvider;
+use systemprompt_models::ai::DynAiProvider;
 
 use super::Server;
 use crate::state::AgentState;
 
 pub async fn run_standalone(
     agent_state: Arc<AgentState>,
-    ai_service: Arc<dyn AiProvider>,
+    ai_service: DynAiProvider,
     agent_name: &AgentName,
     port: u16,
 ) -> Result<()> {

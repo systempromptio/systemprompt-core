@@ -14,7 +14,7 @@ workspace = true
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }
 systemprompt-identifiers = { workspace = true }
-systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-traits = { workspace = true }

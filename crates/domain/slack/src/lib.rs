@@ -11,7 +11,7 @@
 //! - [`extension::SlackExtension`] — `Extension` registration entry-point
 //!   (schemas, migrations, and the `slack` config prefix).
 //! - [`SlackAppConfig`] — the per-app YAML model (`services/slack/*.yaml`),
-//!   re-exported from `systemprompt_models::services`.
+//!   re-exported from `systemprompt_manifest::services`.
 //! - [`signature::verify_slack_signature`] — request-signature verification.
 //! - [`events`] — typed inbound payloads and their normalization.
 //! - [`client::SlackClient`] — outbound Web API client (SSRF-guarded).
@@ -39,4 +39,4 @@ pub mod signature;
 
 pub use error::{SlackError, SlackResult};
 pub use extension::SlackExtension;
-pub use systemprompt_models::services::{SlackAppConfig, SlackAuthzConfig};
+pub use systemprompt_manifest::services::{SlackAppConfig, SlackAuthzConfig};

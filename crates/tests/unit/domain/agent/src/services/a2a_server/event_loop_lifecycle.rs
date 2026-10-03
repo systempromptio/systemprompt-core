@@ -132,7 +132,9 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
 
     handle_stream_creation_error(
         &webhook_context,
-        AgentServiceError::Internal("upstream refused".to_owned()),
+        AgentServiceError::StreamFailed {
+            message: "upstream refused".to_owned(),
+        },
         &task_id,
         &context_id,
         &task_repo,

@@ -12,8 +12,8 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthCheckResult, HealthStatus, perform_health_check};
 use systemprompt_identifiers::McpServerId;
+use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_models::mcp::McpServerType;
-use systemprompt_models::services::ServiceStatus;
 
 #[derive(Debug, Clone)]
 pub struct McpServiceStatus {

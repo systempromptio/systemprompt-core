@@ -31,7 +31,7 @@ use std::hash::BuildHasher;
 
 use chrono::NaiveDate;
 use systemprompt_identifiers::ModelId;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     DiscoveryReport, ProviderEntry, VertexRateCard, VertexRateCardEntry,
 };
 

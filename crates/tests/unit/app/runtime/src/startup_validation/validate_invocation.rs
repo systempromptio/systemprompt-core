@@ -9,8 +9,8 @@
 
 use std::path::PathBuf;
 
-use systemprompt_models::Config;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_runtime::StartupValidator;
@@ -51,7 +51,7 @@ fn minimal_config() -> Config {
         signing_key_path: PathBuf::new(),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,

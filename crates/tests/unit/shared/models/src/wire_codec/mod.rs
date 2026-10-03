@@ -7,7 +7,7 @@
 
 use serde_json::json;
 use systemprompt_identifiers::ModelId;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ImageSource, Role,
 };
 

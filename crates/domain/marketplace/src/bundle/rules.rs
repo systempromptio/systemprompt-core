@@ -12,8 +12,9 @@
 use std::collections::BTreeSet;
 
 use systemprompt_identifiers::MarketplaceRuleId;
+use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::manifest::RuleEntry;
-use systemprompt_models::services::{ComponentSource, PluginConfig};
+use systemprompt_models::plugin::ComponentSource;
 
 use super::skills::targets_bundle_hosts;
 use super::{BundleContent, BundleFile, PluginBundle};

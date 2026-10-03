@@ -1,7 +1,7 @@
 //! Reads, validates, and writes profile YAML files.
 //!
 //! [`ProfileLoader`] is a thin shim over
-//! [`systemprompt_models::Profile::from_yaml`] that adds:
+//! [`systemprompt_manifest::Profile::from_yaml`] that adds:
 //!
 //! - on-disk path conventions (`profiles/<name>.secrets.profile.yaml`),
 //! - serialization with a leading "do not commit secrets" header, and
@@ -12,8 +12,8 @@
 
 use std::path::Path;
 use systemprompt_identifiers::ProfileName;
-use systemprompt_models::Profile;
-use systemprompt_models::profile::ProfileError;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::ProfileError;
 
 use crate::error::{ProfileLoadError, ProfileLoadResult};
 

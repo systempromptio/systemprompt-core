@@ -1,0 +1,216 @@
+//! `OpenAI` Chat Completions buffered-response parsing into the canonical
+//! model.
+//!
+//! `usage_from_value` in this wire's `streaming` module is the streamed
+//! counterpart of `ChatUsage::into_canonical` and owes the same cache-read
+//! subtraction; the two must agree for a buffered and a streamed reply to
+//! price identically.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use serde::Deserialize;
+use serde_json::Value;
+use uuid::Uuid;
+
+use crate::canonical::{CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage};
+use crate::defect::{BodyDefect, buffered_body_defect};
+use crate::error::WireParseError;
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatCompletion {
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+    #[serde(default)]
+    usage: Option<ChatUsage>,
+    #[serde(default)]
+    choices: Vec<ChatChoice>,
+}
+
+// Why: Vertex MaaS can send explicit nulls for `tool_calls` and token details.
+// Serde's `default` handles omitted fields, not explicit nulls.
+fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatUsage {
+    #[serde(default)]
+    prompt_tokens: u32,
+    #[serde(default)]
+    completion_tokens: u32,
+    #[serde(default)]
+    total_tokens: u32,
+    #[serde(default, deserialize_with = "null_as_default")]
+    prompt_tokens_details: ChatPromptTokensDetails,
+    #[serde(default, deserialize_with = "null_as_default")]
+    completion_tokens_details: ChatCompletionTokensDetails,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatPromptTokensDetails {
+    #[serde(default)]
+    cached_tokens: u32,
+}
+
+// Why: OpenAI reports reasoning tokens as a subset of `completion_tokens`.
+#[derive(Debug, Default, Deserialize)]
+struct ChatCompletionTokensDetails {
+    #[serde(default)]
+    reasoning_tokens: u32,
+}
+
+impl ChatUsage {
+    // Why: Chat Completions includes `cached_tokens` in `prompt_tokens`.
+    const fn into_canonical(self) -> CanonicalUsage {
+        let cached = self.prompt_tokens_details.cached_tokens;
+        CanonicalUsage {
+            input_tokens: self.prompt_tokens.saturating_sub(cached),
+            output_tokens: self.completion_tokens,
+            cache_read_tokens: cached,
+            cache_creation_tokens: 0,
+            reasoning_tokens: self.completion_tokens_details.reasoning_tokens,
+            total_tokens: self.total_tokens,
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatChoice {
+    #[serde(default)]
+    finish_reason: Option<String>,
+    #[serde(default)]
+    message: Option<ChatMessage>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatMessage {
+    #[serde(default)]
+    content: Option<String>,
+    // Why: DeepSeek, Qwen and Moonshot use the nonstandard `reasoning_content` field;
+    // some compatible providers spell it `reasoning`.
+    #[serde(default, alias = "reasoning")]
+    reasoning_content: Option<String>,
+    #[serde(default, deserialize_with = "null_as_default")]
+    tool_calls: Vec<ChatToolCall>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatToolCall {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    function: ChatFunction,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatFunction {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    arguments: String,
+}
+
+pub fn parse_response(
+    // JSON: OpenAI Chat Completions response body; upstream JSON is the contract.
+    value: &Value,
+    fallback_model: &str,
+) -> Result<CanonicalResponse, WireParseError> {
+    let resp = ChatCompletion::deserialize(value).map_err(WireParseError::OpenAiChat)?;
+    let id = resp
+        .id
+        .unwrap_or_else(|| format!("msg_{}", Uuid::new_v4().simple()));
+    let model = resp.model.unwrap_or_else(|| fallback_model.to_owned());
+    let usage = resp
+        .usage
+        .map(ChatUsage::into_canonical)
+        .unwrap_or_default();
+
+    let mut content: Vec<CanonicalContent> = Vec::new();
+    let mut stop_reason = None;
+    let mut raw_finish_reason = None;
+    if let Some(choice) = resp.choices.into_iter().next() {
+        raw_finish_reason.clone_from(&choice.finish_reason);
+        stop_reason = choice
+            .finish_reason
+            .as_deref()
+            .map(CanonicalStopReason::from_openai);
+        if let Some(msg) = choice.message {
+            collect_message_content(msg, &mut content);
+        }
+        // Why: Some OpenAI-compatible providers send `finish_reason: "stop"` alongside
+        // tool calls.
+        let has_tool_use = content
+            .iter()
+            .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
+        stop_reason = stop_reason.map(|r| r.with_tool_use(has_tool_use));
+        if let (Some(finish), Some(reason)) = (raw_finish_reason.as_deref(), stop_reason)
+            && reason.empty_terminal_is_error()
+            && content.is_empty()
+        {
+            return Err(WireParseError::EmptyTerminal(format!(
+                "upstream finished with {finish}"
+            )));
+        }
+    }
+
+    Ok(CanonicalResponse {
+        id,
+        model,
+        content,
+        stop_reason,
+        usage,
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason,
+        ..Default::default()
+    })
+}
+
+fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>) {
+    if let Some(reasoning) = msg.reasoning_content
+        && !reasoning.is_empty()
+    {
+        content.push(CanonicalContent::Thinking {
+            text: reasoning,
+            signature: None,
+            id: None,
+            encrypted_content: None,
+        });
+    }
+    if let Some(text) = msg.content
+        && !text.is_empty()
+    {
+        content.push(CanonicalContent::text(text));
+    }
+    for tc in msg.tool_calls {
+        let args = if tc.function.arguments.is_empty() {
+            "{}"
+        } else {
+            &tc.function.arguments
+        };
+        // JSON: Tool-call arguments are a user-defined schema instance; the canonical
+        // model carries them as an opaque JSON value, not a typed shape.
+        let input: Value =
+            serde_json::from_str(args).unwrap_or_else(|_| Value::Object(serde_json::Map::new()));
+        content.push(CanonicalContent::ToolUse {
+            id: tc.id,
+            name: tc.function.name,
+            input,
+            signature: None,
+            cache_control: None,
+        });
+    }
+}
+
+#[must_use]
+// JSON: OpenAI Chat Completions response body; upstream JSON is the contract.
+pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
+    buffered_body_defect(value, "choices", "usage")
+}

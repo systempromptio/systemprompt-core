@@ -9,7 +9,7 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
 use tokio::fs;
 

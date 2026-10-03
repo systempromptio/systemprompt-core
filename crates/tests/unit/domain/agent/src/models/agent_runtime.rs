@@ -1,6 +1,6 @@
 use systemprompt_agent::models::AgentRuntimeInfo;
 use systemprompt_models::ai::ToolModelOverrides;
-use systemprompt_models::services::PluginComponentRef;
+use systemprompt_models::plugin::PluginComponentRef;
 
 fn minimal_runtime_info(name: &str, port: u16) -> AgentRuntimeInfo {
     AgentRuntimeInfo {

@@ -223,12 +223,11 @@ fn compile_condition(
         _ => !strings.is_empty(),
     };
     if !usable {
-        return Err(PolicyConfigurationError::Invalid(format!(
-            "require_approval condition on `{tool}` at `{}` has no operand its `{}` operator can \
-             use",
-            spec.path,
-            spec.op.label()
-        )));
+        return Err(PolicyConfigurationError::UnusableCondition {
+            tool: tool.to_owned(),
+            path: spec.path,
+            operator: spec.op.label(),
+        });
     }
     Ok(Condition {
         path: spec.path,

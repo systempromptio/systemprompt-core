@@ -52,14 +52,15 @@ pub use error::{SchedulerError, SchedulerResult};
 pub use extension::SchedulerExtension;
 
 pub use jobs::otlp_export::{
-    ExportReport as OtlpExportReport, OtlpExportState, OtlpExportStateRepository,
-    SignalReport as OtlpSignalReport, export_now as otlp_export_now,
+    ExportReport as OtlpExportReport, SignalReport as OtlpSignalReport,
+    export_now as otlp_export_now,
 };
 pub use jobs::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
     GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob, OtlpExportJob,
 };
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
+pub use repository::otlp::{OtlpExportState, OtlpExportStateRepository};
 pub use repository::{JobRepository, SchedulerRepository};
 pub use services::{
     ApiListenerStop, DbServiceRecord, DesiredStatus, JobBatchReport, JobExecutionService,

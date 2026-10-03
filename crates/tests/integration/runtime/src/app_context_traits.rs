@@ -131,7 +131,7 @@ async fn files_config_validator_validate_returns_clean_when_uninitialised() {
 async fn files_config_validator_validate_when_initialised() {
     use std::sync::Arc;
     use systemprompt_config::paths::AppPaths;
-    use systemprompt_models::profile::PathsConfig;
+    use systemprompt_manifest::profile::PathsConfig;
     use systemprompt_runtime::FilesConfigValidator;
     use systemprompt_traits::DomainConfig;
 
@@ -147,7 +147,7 @@ async fn files_config_validator_validate_when_initialised() {
                 storage: Some(p),
                 geoip_database: None,
             },
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
         .expect("paths"),

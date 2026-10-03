@@ -6,7 +6,7 @@
 use super::resolve::ResolvedUpstream;
 use super::{CanonicalRequest, DispatchError, GatewayRequestContext};
 use crate::services::gateway::pricing as model_pricing;
-use systemprompt_models::services::{GatewayConfig, ModelPricing, ProviderRegistry};
+use systemprompt_manifest::services::{GatewayConfig, ModelPricing, ProviderRegistry};
 
 pub(super) fn dispatch_pricing(
     config: &GatewayConfig,

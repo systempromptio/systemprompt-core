@@ -104,7 +104,8 @@ pub fn validate_plugin(
         },
     };
 
-    let plugin_file: systemprompt_models::PluginConfigFile = match serde_yaml::from_str(&content) {
+    let plugin_file: systemprompt_manifest::PluginConfigFile = match serde_yaml::from_str(&content)
+    {
         Ok(p) => p,
         Err(e) => {
             errors.push(format!("Failed to parse config.yaml: {}", e));
@@ -142,12 +143,12 @@ pub fn validate_plugin(
 }
 
 fn validate_skill_refs(
-    plugin: &systemprompt_models::PluginConfig,
+    plugin: &systemprompt_manifest::PluginConfig,
     skills_path: &Path,
     errors: &mut Vec<String>,
     warnings: &mut Vec<String>,
 ) {
-    if plugin.skills.source == systemprompt_models::ComponentSource::Explicit {
+    if plugin.skills.source == systemprompt_models::plugin::ComponentSource::Explicit {
         let skills = declared_skills(skills_path);
         for skill_id in &plugin.skills.include {
             match skills.get(skill_id.as_str()) {
@@ -171,7 +172,7 @@ fn validate_skill_refs(
     }
 
     if !skills_path.exists()
-        && plugin.skills.source == systemprompt_models::ComponentSource::Instance
+        && plugin.skills.source == systemprompt_models::plugin::ComponentSource::Instance
     {
         warnings.push("Skills directory does not exist".to_owned());
     }
@@ -195,7 +196,7 @@ fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, Decl
         let Ok(content) = std::fs::read_to_string(dir.join("config.yaml")) else {
             continue;
         };
-        let Ok(config) = serde_yaml::from_str::<systemprompt_models::DiskSkillConfig>(&content)
+        let Ok(config) = serde_yaml::from_str::<systemprompt_manifest::DiskSkillConfig>(&content)
         else {
             continue;
         };
@@ -215,7 +216,7 @@ fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, Decl
 }
 
 fn validate_scripts(
-    plugin: &systemprompt_models::PluginConfig,
+    plugin: &systemprompt_manifest::PluginConfig,
     plugins_path: &Path,
     plugin_id: &PluginId,
     errors: &mut Vec<String>,

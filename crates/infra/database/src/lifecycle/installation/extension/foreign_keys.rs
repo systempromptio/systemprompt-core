@@ -28,7 +28,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::LoaderError;
-use systemprompt_identifiers::ToDbValue;
+use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use tracing::{debug, error, warn};
 
 use super::super::fk_deferral::DeferredForeignKey;
@@ -69,7 +69,7 @@ LIMIT 1";
 pub(super) async fn apply_foreign_keys(
     db: &dyn DatabaseProvider,
     keys: &[DeferredForeignKey],
-    extension_id: &str,
+    extension_id: &ExtensionId,
     fresh: bool,
 ) -> Result<Vec<ForeignKeyDrift>, LoaderError> {
     if keys.is_empty() {
@@ -78,7 +78,7 @@ pub(super) async fn apply_foreign_keys(
 
     let failed =
         |context: String, source: RepositoryError| LoaderError::SchemaInstallationStepFailed {
-            extension: extension_id.to_owned(),
+            extension: extension_id.clone(),
             context,
             source: Box::new(source),
         };
@@ -135,14 +135,14 @@ struct KeyFailure {
 fn settle_outcome(
     outcome: FkOutcome,
     key: &DeferredForeignKey,
-    extension_id: &str,
+    extension_id: &ExtensionId,
     position: KeyPosition,
     fresh: bool,
 ) -> Result<Option<ForeignKeyDrift>, KeyFailure> {
     match outcome {
         FkOutcome::Present => {
             debug!(
-                extension = extension_id,
+                extension = %extension_id,
                 table = %key.source_table,
                 constraint = %key.constraint_name,
                 "Foreign key already present; skipping"
@@ -152,7 +152,7 @@ fn settle_outcome(
         FkOutcome::Added => Ok(None),
         FkOutcome::AddedNotValid(cause) => {
             warn!(
-                extension = extension_id,
+                extension = %extension_id,
                 table = %key.source_table,
                 constraint = %key.constraint_name,
                 cause = %cause,
@@ -170,7 +170,7 @@ fn settle_outcome(
                 });
             }
             error!(
-                extension = extension_id,
+                extension = %extension_id,
                 table = %key.source_table,
                 constraint = %key.constraint_name,
                 sql = %key.sql,
@@ -179,7 +179,7 @@ fn settle_outcome(
                  created; add the referenced unique index with a migration"
             );
             Ok(Some(ForeignKeyDrift {
-                extension: extension_id.to_owned(),
+                extension: extension_id.clone(),
                 table: key.source_table.clone(),
                 constraint: key.constraint_name.clone(),
                 sql: key.sql.clone(),

@@ -25,7 +25,7 @@ use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::{SkillId, SkillName};
+use systemprompt_identifiers::{McpExecutionId, SkillId, SkillName};
 
 fn default_artifact_type() -> String {
     "dashboard".to_owned()
@@ -86,7 +86,7 @@ impl DashboardArtifact {
         self
     }
 
-    pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
+    pub fn with_execution_id(mut self, id: McpExecutionId) -> Self {
         self.metadata.set_execution_id(id);
         self
     }

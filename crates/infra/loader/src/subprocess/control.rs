@@ -66,6 +66,9 @@ pub async fn owns(pid: u32, kind: ChildKind, service: &ServiceName) -> bool {
 }
 
 pub async fn pids_listening_on(port: u16) -> Result<Vec<u32>, SupervisionError> {
+    if port == 0 {
+        return Ok(Vec::new());
+    }
     tokio::task::spawn_blocking(move || super::ports::listening_pids(port)).await?
 }
 

@@ -23,7 +23,7 @@ use systemprompt_models::ai::{
 };
 use systemprompt_models::errors::{AiInferenceError, AiInferenceResult as ProviderResult};
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::services::PluginComponentRef;
+use systemprompt_models::plugin::PluginComponentRef;
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
@@ -374,9 +374,9 @@ pub(crate) fn make_handler_state(
     })
 }
 
-pub(crate) fn agent_config(name: &str) -> systemprompt_models::AgentConfig {
-    use systemprompt_models::{AgentCardConfig, AgentMetadataConfig, CapabilitiesConfig};
-    systemprompt_models::AgentConfig {
+pub(crate) fn agent_config(name: &str) -> systemprompt_manifest::AgentConfig {
+    use systemprompt_manifest::{AgentCardConfig, AgentMetadataConfig, CapabilitiesConfig};
+    systemprompt_manifest::AgentConfig {
         name: name.to_owned(),
         port: 9100,
         endpoint: String::new(),
@@ -403,7 +403,7 @@ pub(crate) fn agent_config(name: &str) -> systemprompt_models::AgentConfig {
             supports_authenticated_extended_card: false,
         },
         metadata: AgentMetadataConfig::default(),
-        oauth: systemprompt_models::AgentOAuthConfig::default(),
+        oauth: systemprompt_manifest::AgentOAuthConfig::default(),
     }
 }
 

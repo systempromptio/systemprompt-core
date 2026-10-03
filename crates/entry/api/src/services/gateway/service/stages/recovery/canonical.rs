@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalRequest};
+use systemprompt_wire::canonical::{CanonicalContent, CanonicalRequest};
 // JSON: canonical tool arguments and metadata retain provider-defined JSON
 // values.
 use serde_json::Value;

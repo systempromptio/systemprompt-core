@@ -13,7 +13,7 @@ pub fn validate_and_extract_claims(
     server_id: &McpServerId,
     token: &str,
 ) -> Result<JwtClaims, McpError> {
-    let config = systemprompt_models::Config::get().map_err(|e| {
+    let config = systemprompt_manifest::Config::get().map_err(|e| {
         tracing::error!(server = %server_id, error = %e, "Failed to get config");
         McpError::internal_error("Failed to get config", None)
     })?;

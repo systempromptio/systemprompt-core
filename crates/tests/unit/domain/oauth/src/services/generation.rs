@@ -340,8 +340,8 @@ mod jwt_minting {
         ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
     };
     use systemprompt_oauth::services::{
-        JwtConfig, JwtSigningParams, generate_anonymous_jwt, generate_anonymous_jwt_with_expiry,
-        generate_jwt, generate_jwt_with_act,
+        DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_anonymous_jwt,
+        generate_anonymous_jwt_with_expiry, generate_jwt, generate_jwt_with_act,
     };
     use systemprompt_oauth::{OauthError, validate_jwt_token};
     use systemprompt_test_fixtures::{ensure_test_bootstrap, install_test_signing_key};
@@ -477,14 +477,14 @@ mod jwt_minting {
             act: Box::new(None),
         };
 
-        let token = generate_jwt_with_act(
-            &test_user(),
-            JwtConfig::default(),
-            AccessTokenId::new("jti-act"),
-            &SessionId::generate(),
-            &signing(),
+        let token = generate_jwt_with_act(DelegatedJwtParams {
+            user: &test_user(),
+            config: JwtConfig::default(),
+            jti: AccessTokenId::new("jti-act"),
+            session_id: &SessionId::generate(),
+            signing: &signing(),
             act,
-        )
+        })
         .expect("mint");
 
         let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");

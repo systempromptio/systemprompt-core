@@ -27,7 +27,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
-use systemprompt_models::services::{VertexRateCard, VertexRateCardEntry};
+use systemprompt_manifest::services::{VertexRateCard, VertexRateCardEntry};
 
 use super::source::{DiscoveredModel, LaunchStage};
 

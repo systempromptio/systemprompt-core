@@ -47,7 +47,7 @@ use std::path::Path;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::RouteId;
-use systemprompt_models::services::{BundleOwnership, ServicesBundleManifest, ServicesConfig};
+use systemprompt_manifest::services::{BundleOwnership, ServicesBundleManifest, ServicesConfig};
 
 use super::AuthzError;
 use super::error::AuthzResult;

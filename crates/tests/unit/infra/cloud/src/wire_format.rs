@@ -5,14 +5,14 @@
 use chrono::{TimeZone, Utc};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant};
-use systemprompt_identifiers::{CloudAuthToken, Email, TenantId};
+use systemprompt_identifiers::{CloudAppId, CloudAuthToken, Email, TenantId};
 
 #[test]
 fn stored_tenant_json_matches_legacy_string_schema() {
     let tenant = StoredTenant::new_cloud(NewCloudTenantParams {
         id: TenantId::new("tenant-42"),
         name: "Acme".to_string(),
-        app_id: Some("app-7".to_string()),
+        app_id: Some(CloudAppId::new("app-7")),
         hostname: Some("acme.fly.dev".to_string()),
         region: Some("lhr".to_string()),
         database_url: Some("postgres://ext/db".to_string()),

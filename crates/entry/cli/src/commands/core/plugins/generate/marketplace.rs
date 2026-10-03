@@ -8,9 +8,9 @@ use serde::Serialize;
 use std::path::Path;
 use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::{MarketplaceConfig, PluginConfig};
 use systemprompt_models::bridge::plugin_bundle::{ManifestAuthor, PluginManifest};
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::{MarketplaceConfig, PluginConfig};
 
 pub(super) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path) -> Result<()> {
     let services = match ConfigLoader::load() {

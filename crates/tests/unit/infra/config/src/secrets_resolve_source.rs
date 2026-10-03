@@ -1,5 +1,5 @@
 use systemprompt_config::{ResolvedSource, SecretsBootstrapError, resolve_source};
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     SecretsConfig, SecretsSource, SecretsValidationMode, VaultAuth, VaultSecretsConfig,
 };
 

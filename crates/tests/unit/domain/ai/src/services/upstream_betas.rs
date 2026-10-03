@@ -11,9 +11,10 @@ use std::collections::BTreeSet;
 use serde_json::json;
 use systemprompt_ai::UpstreamTarget;
 use systemprompt_identifiers::SecretName;
-use systemprompt_models::services::{ProviderEntry, ProviderRegistry, WireProtocol};
-use systemprompt_models::wire::anthropic::AnthropicBeta;
+use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
 use systemprompt_test_fixtures::keys::test_key;
+use systemprompt_wire::WireProtocol;
+use systemprompt_wire::anthropic::AnthropicBeta;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

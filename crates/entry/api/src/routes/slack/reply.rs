@@ -6,7 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::SlackUserId;
-use systemprompt_models::services::SlackAppConfig;
+use systemprompt_manifest::services::SlackAppConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_slack::client::SlackClient;
 use systemprompt_traits::{FederatedIdentityClaims, SenderIdentity};

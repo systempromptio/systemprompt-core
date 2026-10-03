@@ -12,7 +12,7 @@ use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
-use systemprompt_models::{AgentConfig, ServicesConfig};
+use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
 use crate::error::{AgentError, AgentResult};
 
@@ -194,7 +194,7 @@ impl AgentRegistry {
 }
 
 fn is_cloud_deployment() -> AgentResult<bool> {
-    systemprompt_models::Config::get()
+    systemprompt_manifest::Config::get()
         .map(|config| config.is_cloud)
         .map_err(|e| AgentError::invalid_config("cannot resolve dev_only agents", e))
 }

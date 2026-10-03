@@ -6,9 +6,10 @@
 use std::path::Path;
 
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::ExternalPluginEntry;
-use systemprompt_models::services::marketplace::{MarketplaceConfig, MarketplaceConfigFile};
-use systemprompt_models::services::plugin::{ComponentSource, PluginAuthor, PluginComponentRef};
+use systemprompt_manifest::services::ExternalPluginEntry;
+use systemprompt_manifest::services::marketplace::{MarketplaceConfig, MarketplaceConfigFile};
+use systemprompt_manifest::services::plugin::PluginAuthor;
+use systemprompt_models::plugin::{ComponentSource, PluginComponentRef};
 
 use crate::error::MarketplaceError;
 

@@ -9,8 +9,11 @@
 
 use std::collections::HashMap;
 
+use sqlx::PgConnection;
+
 use super::super::config::{RuleEntry, RuleTarget};
 use super::super::error::AuthzResult;
+use super::super::repository::ingestion::IngestionRepository;
 use super::super::types::{Access, EntityKind};
 use super::glob::glob_matches;
 use super::{IngestOptions, RegisteredEntities};
@@ -33,7 +36,7 @@ impl<'a> ValidatedRules<'a> {
 }
 
 pub(super) async fn prune_role_rules(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    tx: &mut PgConnection,
     resolved: &[ResolvedRule<'_>],
     options: &IngestOptions,
 ) -> AuthzResult<usize> {
@@ -48,26 +51,14 @@ pub(super) async fn prune_role_rules(
             entity_ids.push(id.clone());
         }
     }
-    let res = sqlx::query!(
-        r#"
-        DELETE FROM access_control_rules
-        WHERE rule_type = 'role'
-          AND source = $3
-          AND (entity_type, entity_id) IN (
-              SELECT * FROM UNNEST($1::text[], $2::text[])
-          )
-        "#,
-        &entity_types,
-        &entity_ids,
-        options.source,
-    )
-    .execute(&mut **tx)
-    .await?;
-    Ok(res.rows_affected() as usize)
+    let deleted =
+        IngestionRepository::delete_role_rules_for(tx, &entity_types, &entity_ids, &options.source)
+            .await?;
+    Ok(deleted as usize)
 }
 
 pub(super) async fn resolve_rules<'a>(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    tx: &mut PgConnection,
     rules: &'a [RuleEntry],
     registered: &RegisteredEntities,
 ) -> AuthzResult<ValidatedRules<'a>> {
@@ -88,7 +79,7 @@ pub(super) async fn resolve_rules<'a>(
                 if let std::collections::hash_map::Entry::Vacant(entry) =
                     catalog_cache.entry(rule.entity_type)
                 {
-                    entry.insert(list_entity_ids(tx, rule.entity_type).await?);
+                    entry.insert(IngestionRepository::list_entity_ids(tx, rule.entity_type).await?);
                 }
                 catalog_cache[&rule.entity_type]
                     .iter()
@@ -108,21 +99,4 @@ pub(super) async fn resolve_rules<'a>(
     }
 
     Ok(ValidatedRules(out))
-}
-
-async fn list_entity_ids(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    kind: EntityKind,
-) -> AuthzResult<Vec<String>> {
-    let rows = sqlx::query!(
-        r#"
-        SELECT entity_id
-        FROM access_control_entities
-        WHERE entity_type = $1
-        "#,
-        kind.as_str(),
-    )
-    .fetch_all(&mut **tx)
-    .await?;
-    Ok(rows.into_iter().map(|row| row.entity_id).collect())
 }

@@ -2,7 +2,7 @@
 //! the body is consumed, and the classification that runs once the body and
 //! the principal are known.
 //!
-//! The ladder itself is `systemprompt_models::wire::origin::classify`; this
+//! The ladder itself is `systemprompt_models::origin::classify`; this
 //! module only feeds it and records the outcome on the rejection partial.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -10,7 +10,7 @@
 
 use axum::http::{HeaderMap, StatusCode};
 use systemprompt_identifiers::headers::{CLIENT_ATTESTATION, CLIENT_KIND};
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClassificationInput, ClientAttestation, ClientEvidence, ClientKind, StainlessHeaders, classify,
 };
 

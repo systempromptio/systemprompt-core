@@ -12,9 +12,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_models::services::{
-    AiProviderConfig, ModelDefinition, ProviderEntry, WireProtocol,
-};
+use systemprompt_manifest::services::{AiProviderConfig, ModelDefinition, ProviderEntry};
+use systemprompt_wire::WireProtocol;
 
 use crate::error::Result;
 use crate::services::upstream::UpstreamTarget;
@@ -34,10 +33,9 @@ pub struct ImageProviderFactory;
 impl ImageProviderFactory {
     pub fn create(params: &ImageProviderParams<'_>) -> Result<BoxedImageProvider> {
         if !params.policy.enabled {
-            return Err(crate::error::AiError::Internal(format!(
-                "Image provider {} is disabled",
-                params.entry.name.as_str()
-            )));
+            return Err(crate::error::AiError::ProviderDisabled {
+                provider: params.entry.name.as_str().to_owned(),
+            });
         }
 
         match params.entry.wire {
@@ -45,10 +43,10 @@ impl ImageProviderFactory {
             WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => {
                 Ok(Self::create_openai(params))
             },
-            WireProtocol::Anthropic => Err(crate::error::AiError::Internal(format!(
-                "Provider {} does not support image generation",
-                params.entry.name.as_str()
-            ))),
+            WireProtocol::Anthropic => Err(crate::error::AiError::CapabilityUnsupported {
+                provider: params.entry.name.as_str().to_owned(),
+                capability: crate::error::ProviderCapability::ImageGeneration,
+            }),
         }
     }
 

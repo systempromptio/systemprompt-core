@@ -17,8 +17,9 @@
 use std::sync::RwLock;
 
 use serde::Deserialize;
+use systemprompt_identifiers::TeamsAppId;
+use systemprompt_manifest::services::teams::BOT_FRAMEWORK_TOKEN_URL;
 use systemprompt_models::net::validate_outbound_url;
-use systemprompt_models::services::teams::BOT_FRAMEWORK_TOKEN_URL;
 
 use crate::error::{TeamsError, TeamsResult};
 
@@ -56,7 +57,7 @@ struct TokenResponse {
 #[derive(Debug)]
 pub struct TokenProvider {
     http: reqwest::Client,
-    app_id: String,
+    app_id: TeamsAppId,
     app_password: String,
     token_url: String,
     cache: RwLock<Option<CachedToken>>,
@@ -64,14 +65,10 @@ pub struct TokenProvider {
 
 impl TokenProvider {
     #[must_use]
-    pub fn new(
-        http: reqwest::Client,
-        app_id: impl Into<String>,
-        app_password: impl Into<String>,
-    ) -> Self {
+    pub fn new(http: reqwest::Client, app_id: TeamsAppId, app_password: impl Into<String>) -> Self {
         Self {
             http,
-            app_id: app_id.into(),
+            app_id,
             app_password: app_password.into(),
             token_url: BOT_FRAMEWORK_TOKEN_URL.to_owned(),
             cache: RwLock::new(None),
@@ -81,13 +78,13 @@ impl TokenProvider {
     #[must_use]
     pub fn with_token_url(
         http: reqwest::Client,
-        app_id: impl Into<String>,
+        app_id: TeamsAppId,
         app_password: impl Into<String>,
         token_url: impl Into<String>,
     ) -> Self {
         Self {
             http,
-            app_id: app_id.into(),
+            app_id,
             app_password: app_password.into(),
             token_url: token_url.into(),
             cache: RwLock::new(None),
@@ -139,9 +136,7 @@ impl TokenProvider {
                 .text()
                 .await
                 .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
-            return Err(TeamsError::Outbound(format!(
-                "token endpoint returned {status}: {body}"
-            )));
+            return Err(TeamsError::TokenEndpoint { status, body });
         }
         let parsed: TokenResponse = resp.json().await?;
         Ok(CachedToken::new(

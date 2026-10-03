@@ -7,6 +7,8 @@ use super::artifact::Artifact;
 use super::message::Message;
 use super::task_metadata::TaskMetadata;
 use serde::{Deserialize, Serialize};
+
+use crate::errors::ParseEnumError;
 use systemprompt_identifiers::{ContextId, TaskId};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -134,7 +136,7 @@ impl TaskState {
 }
 
 impl std::str::FromStr for TaskState {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -148,7 +150,7 @@ impl std::str::FromStr for TaskState {
             "TASK_STATE_INPUT_REQUIRED" | "input-required" => Ok(Self::InputRequired),
             "TASK_STATE_AUTH_REQUIRED" | "auth-required" => Ok(Self::AuthRequired),
             "TASK_STATE_UNKNOWN" | "unknown" => Ok(Self::Unknown),
-            _ => Err(format!("Invalid task state: {s}")),
+            _ => Err(ParseEnumError::new("task state", s)),
         }
     }
 }

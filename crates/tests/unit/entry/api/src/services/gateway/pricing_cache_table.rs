@@ -14,10 +14,12 @@
 
 use systemprompt_api::services::gateway::pricing::resolve;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::services::{
-    ApiSurface, ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
+use systemprompt_manifest::services::{
+    ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
 };
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::usage;
+use systemprompt_wire::WireProtocol;
 
 const INPUT: u32 = 3_000;
 const OUTPUT: u32 = 700;

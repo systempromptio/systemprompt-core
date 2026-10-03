@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::{Deployment, McpServerType, OAuthRequirement};
 use systemprompt_runtime::{collect_manifest_errors, merge_mcp_errors};

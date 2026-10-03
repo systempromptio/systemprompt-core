@@ -27,7 +27,7 @@ use anyhow::{Context, Result};
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::aead::KeyInit;
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_models::Secrets;
+use systemprompt_manifest::Secrets;
 use systemprompt_traits::BackgroundTasks;
 
 pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);
@@ -151,8 +151,8 @@ pub async fn recover(settlement: &Settlement) -> Result<usize> {
     for entry in listed {
         let receipt = match entry {
             files::Listed::Receipt(receipt) => *receipt,
-            files::Listed::Quarantined { path, reason } => {
-                tracing::error!(path = %path.display(), %reason, "Gateway journal receipt unreadable; quarantined");
+            files::Listed::Quarantined { path, cause } => {
+                tracing::error!(path = %path.display(), error = format!("{cause:#}"), "Gateway journal receipt unreadable; quarantined");
                 let journal = Arc::clone(&settlement.journal);
                 let target = path.clone();
                 if let Err(error) =

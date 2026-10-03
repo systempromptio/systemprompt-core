@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_loader::bundle::pack::{build_manifest, write_tarball};
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_SIGNATURE_ALG, BundleSignature, BundleSourceInfo, SignedBundleManifest,
 };
 use systemprompt_security::manifest_signing::{

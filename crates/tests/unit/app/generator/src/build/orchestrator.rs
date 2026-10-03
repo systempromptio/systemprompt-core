@@ -75,29 +75,12 @@ fn test_build_error_css_organization_failed() {
 
 #[test]
 fn test_build_error_validation_failed() {
-    let error = BuildError::ValidationFailed("missing index.html".to_string());
-    assert_eq!(error.to_string(), "Validation failed: missing index.html");
-}
-
-#[test]
-fn test_build_error_process_error() {
-    let error = BuildError::ProcessError {
-        message: "command exited with code 1".to_string(),
+    let error = BuildError::MissingIndex {
+        path: std::path::PathBuf::from("/dist/index.html"),
     };
     assert_eq!(
         error.to_string(),
-        "Process execution error: command exited with code 1"
-    );
-}
-
-#[test]
-fn test_build_error_config_error() {
-    let error = BuildError::ConfigError {
-        message: "missing required field".to_string(),
-    };
-    assert_eq!(
-        error.to_string(),
-        "Configuration error: missing required field"
+        "Validation failed: index.html not found at /dist/index.html"
     );
 }
 
@@ -117,9 +100,12 @@ fn test_build_mode_parse_with_whitespace() {
 }
 
 #[test]
-fn test_build_error_empty_message() {
-    let error = BuildError::ValidationFailed(String::new());
-    assert_eq!(error.to_string(), "Validation failed: ");
+fn test_build_error_empty_url() {
+    let error = BuildError::InvalidSitemapUrl { url: String::new() };
+    assert_eq!(
+        error.to_string(),
+        "Validation failed: invalid sitemap URL format: "
+    );
 }
 
 #[test]
@@ -134,8 +120,8 @@ fn test_build_error_long_message() {
 
 #[test]
 fn test_build_error_special_characters_in_message() {
-    let error = BuildError::ProcessError {
-        message: "error: <script> tag not allowed".to_string(),
+    let error = BuildError::InvalidSitemapUrl {
+        url: "<script>".to_string(),
     };
     assert!(error.to_string().contains("<script>"));
 }

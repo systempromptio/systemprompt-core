@@ -11,7 +11,7 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::HookId;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::{DiskHookConfig, HOOK_CONFIG_FILENAME};
+use systemprompt_manifest::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 
 use super::types::{HookValidateEntry, HookValidateOutput};
 

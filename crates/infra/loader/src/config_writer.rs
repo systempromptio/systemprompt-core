@@ -13,7 +13,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::services::AgentConfig;
+use systemprompt_manifest::services::AgentConfig;
 
 use crate::error::{ConfigWriteError, ConfigWriteResult};
 

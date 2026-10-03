@@ -51,11 +51,11 @@ impl UiRendererRegistry {
     pub fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let artifact_type = resolve_artifact_type(artifact);
 
-        let renderer = self.get(artifact_type).ok_or_else(|| {
-            McpDomainError::Internal(format!(
-                "No renderer registered for artifact type: {artifact_type}"
-            ))
-        })?;
+        let renderer =
+            self.get(artifact_type)
+                .ok_or_else(|| McpDomainError::NoRendererForArtifactType {
+                    artifact_type: artifact_type.to_owned(),
+                })?;
 
         renderer.render(artifact)
     }

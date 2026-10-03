@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use serde_json::Value as JsonValue;
 use systemprompt_extension::prelude::*;
-use systemprompt_models::services::TeamsAppConfig;
+use systemprompt_manifest::services::TeamsAppConfig;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TeamsExtension;

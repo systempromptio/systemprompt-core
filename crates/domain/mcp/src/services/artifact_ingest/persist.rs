@@ -63,7 +63,9 @@ pub(super) fn create_record(new: &NewArtifact<'_>) -> McpDomainResult<CreateMcpA
     create.tool_name = Some(request.tool_name.clone());
     create.title.clone_from(&classified.title);
     create.source = request.source;
-    create.metadata = metadata.to_object().map(JsonValue::Object);
+    create.metadata = Some(JsonValue::Object(metadata.to_object().map_err(|e| {
+        McpDomainError::operation("serialise artifact execution metadata", e)
+    })?));
     create.payload_sha256 = Some(stored_digest.sha256.clone());
     create.payload_bytes = Some(byte_len);
     create.shape = ArtifactShape {
@@ -78,7 +80,7 @@ pub(super) fn create_record(new: &NewArtifact<'_>) -> McpDomainResult<CreateMcpA
 fn build_metadata(request: &IngestRequest, exec_id: &McpExecutionId) -> ExecutionMetadata {
     let mut builder = ExecutionMetadata::builder(&request.ctx)
         .with_tool(request.tool_name.clone())
-        .with_execution(exec_id.to_string());
+        .with_execution(exec_id.clone());
     if let Some((id, name)) = &request.skill {
         builder = builder.with_skill(id.clone(), name.clone());
     }

@@ -10,10 +10,11 @@ use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{Database, DbPool};
+use systemprompt_manifest::Config;
+use systemprompt_manifest::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
 use systemprompt_models::auth::UserRole;
-use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
-use systemprompt_models::{Config, ContentConfigRaw, ContentRouting};
+use systemprompt_models::{ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
 
 use crate::context::AppContext;

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
+use systemprompt_manifest::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_security::authz::{IngestScope, reconcile_services_authz};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;

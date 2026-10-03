@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use async_trait::async_trait;
 use systemprompt_traits::{AgentInfo, AgentRegistryProvider, RegistryError, ServiceOAuthConfig};
 
 use super::registry::AgentRegistry;
@@ -26,7 +25,6 @@ impl AgentRegistryProviderService {
     }
 }
 
-#[async_trait]
 impl AgentRegistryProvider for AgentRegistryProviderService {
     async fn get_agent(&self, name: &str) -> Result<AgentInfo, RegistryError> {
         let agent = self
@@ -95,7 +93,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
 fn registry_error(error: AgentError) -> RegistryError {
     match error {
         AgentError::NotFound(name) => RegistryError::NotFound(name),
-        AgentError::Config(_)
+        AgentError::EmptyCorsAllowlist
         | AgentError::InvalidConfig { .. }
         | AgentError::ServicesConfig(_) => RegistryError::Configuration(error.into()),
         other => RegistryError::Unavailable(other.into()),

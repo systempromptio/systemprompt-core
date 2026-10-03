@@ -15,7 +15,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use systemprompt_models::services::bundle::BUNDLE_MEDIA_TYPE;
+use systemprompt_manifest::services::bundle::BUNDLE_MEDIA_TYPE;
 
 use super::RegistryClient;
 use crate::bundle::error::{BundleError, BundleResult};

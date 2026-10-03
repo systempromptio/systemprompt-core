@@ -4,8 +4,16 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use systemprompt_models::{ComponentFilter, ComponentSource, PluginConfig, strip_frontmatter};
+use systemprompt_manifest::{PluginConfig, strip_frontmatter};
+use systemprompt_models::plugin::{ComponentFilter, ComponentSource};
+
+#[derive(Debug, Deserialize)]
+struct SkillConfigHeader {
+    name: Option<String>,
+    description: Option<String>,
+}
 
 pub fn generate_skills(
     plugin: &PluginConfig,
@@ -88,18 +96,11 @@ fn build_skill_md(skill: &str, skill_dir: &Path) -> Result<String> {
     let config_path = skill_dir.join("config.yaml");
     let (name, description) = if config_path.exists() {
         let cfg_text = std::fs::read_to_string(&config_path)?;
-        let cfg: serde_yaml::Value = serde_yaml::from_str(&cfg_text)?;
-        let name = cfg
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or(skill)
-            .to_owned();
-        let desc = cfg
-            .get("description")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_owned();
-        (name, desc)
+        let cfg: SkillConfigHeader = serde_yaml::from_str(&cfg_text)?;
+        (
+            cfg.name.unwrap_or_else(|| skill.to_owned()),
+            cfg.description.unwrap_or_default(),
+        )
     } else {
         (skill.to_owned(), String::new())
     };

@@ -24,10 +24,11 @@ use systemprompt_api::services::middleware::{
     PublicContextMiddleware, RateLimitState, RouterExt, UserOnlyContextMiddleware,
 };
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::RateLimitsConfig;
+use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::ContextExtractionError;
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::{Config, RequestContext};
 use systemprompt_test_fixtures::{fixture_config, test_db_pool};
 use systemprompt_users::UserRateLimitBucketRepository;
 use tower::ServiceExt;

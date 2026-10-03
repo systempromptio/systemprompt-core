@@ -6,7 +6,7 @@
 use super::validation::ValidatedAuthorizeRequest;
 use super::{AuthorizeQuery, AuthorizeRequest};
 use std::collections::HashMap;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::services::templating::TemplateEngine;
 use url::Url;
 

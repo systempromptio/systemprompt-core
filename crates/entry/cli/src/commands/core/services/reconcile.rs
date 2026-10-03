@@ -26,8 +26,8 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_loader::{ActiveServicesRoot, ConfigLoader};
-use systemprompt_models::Profile;
-use systemprompt_models::services::bundle::SignedBundleManifest;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 use systemprompt_security::authz::ingestion::IngestReport;
 use systemprompt_security::authz::{ReconcileReport, reconcile_composed_bundles};
@@ -115,7 +115,7 @@ fn summarise((name, report): &(String, ReconcileReport)) -> ReconcileRow {
 fn cached_manifests(
     profile: &Profile,
     cache: &BundleCache,
-    state: &systemprompt_models::services::bundle::ServicesBundleState,
+    state: &systemprompt_manifest::services::bundle::ServicesBundleState,
 ) -> Result<Vec<(String, SignedBundleManifest)>> {
     let mut signed = Vec::with_capacity(profile.services.sources.len());
     for source in &profile.services.sources {

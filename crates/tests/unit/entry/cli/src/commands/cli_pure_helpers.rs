@@ -13,7 +13,7 @@ use systemprompt_cli::admin::setup::SetupArgs;
 use systemprompt_cli::cloud::profile::CreateArgs;
 use systemprompt_cli::cloud::profile::templates::{save_dockerfile, save_profile};
 use systemprompt_cli::core::skills::types::parse_skill_from_config;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 #[derive(Debug, Parser)]
 struct SetupHarness {

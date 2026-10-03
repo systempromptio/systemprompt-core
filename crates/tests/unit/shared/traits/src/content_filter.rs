@@ -191,9 +191,12 @@ fn repository_conflict_display() {
 }
 
 #[test]
-fn repository_internal_display() {
-    let e = RepositoryError::Internal("unexpected panic".to_owned());
-    assert!(format!("{e}").contains("unexpected panic"));
+fn repository_transaction_consumed_display() {
+    let e = RepositoryError::TransactionConsumed;
+    assert_eq!(
+        format!("{e}"),
+        "transaction already committed or rolled back"
+    );
 }
 
 #[test]
@@ -214,7 +217,7 @@ fn repository_serialization_from_json_error() {
 
 #[test]
 fn repository_error_is_std_error() {
-    let e: Box<dyn std::error::Error> = Box::new(RepositoryError::Internal("test".into()));
+    let e: Box<dyn std::error::Error> = Box::new(RepositoryError::TransactionConsumed);
     assert!(!e.to_string().is_empty());
 }
 

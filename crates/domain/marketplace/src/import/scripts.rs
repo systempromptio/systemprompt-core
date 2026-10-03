@@ -6,7 +6,7 @@
 use std::path::Path;
 
 use systemprompt_identifiers::PluginId;
-use systemprompt_models::services::plugin::PluginScript;
+use systemprompt_manifest::services::plugin::PluginScript;
 
 use crate::bundle::{NODE_PACKAGE_FILE, node_lockfile};
 use crate::error::MarketplaceError;

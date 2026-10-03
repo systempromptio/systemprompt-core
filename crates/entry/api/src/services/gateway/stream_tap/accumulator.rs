@@ -6,7 +6,7 @@
 
 use bytes::{Bytes, BytesMut};
 use systemprompt_identifiers::AiToolCallId;
-use systemprompt_models::wire::inspect::{SurfaceBudget, sse_string_leaves};
+use systemprompt_wire::inspect::{SurfaceBudget, sse_string_leaves};
 
 use super::super::captures::CapturedToolUse;
 use super::super::protocol::canonical::CanonicalContent;

@@ -26,7 +26,7 @@ use axum::{Extension, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesProvenance};
-use systemprompt_models::services::bundle::ServicesBundleState;
+use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_runtime::AppContext;
 
 pub use refresh::{RefreshQuery, ServicesRefresh, process_refresh_lock, refresh};

@@ -22,7 +22,7 @@ use async_trait::async_trait;
 use chrono::{Days, NaiveDate};
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
+use systemprompt_manifest::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{info, warn};
 

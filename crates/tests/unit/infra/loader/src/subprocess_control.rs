@@ -241,10 +241,28 @@ async fn pids_listening_on_a_free_port_is_empty() {
     );
 }
 
+#[tokio::test]
+async fn port_zero_has_no_holder_even_while_this_process_listens() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+
+    assert_eq!(
+        subprocess::pids_listening_on(0).await.expect("no lookup"),
+        Vec::<u32>::new()
+    );
+    drop(listener);
+}
+
 #[test]
 fn lsof_pids_are_parsed_sorted_and_deduplicated() {
     assert_eq!(parse_lsof_pids("812\n17\n\n812\nnoise\n"), vec![17, 812]);
     assert_eq!(parse_lsof_pids(""), Vec::<u32>::new());
+}
+
+#[test]
+fn a_reported_pid_zero_is_never_a_holder() {
+    assert_eq!(parse_lsof_pids("0\n4242\n"), vec![4242]);
+    let table = "  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       0\n";
+    assert_eq!(parse_netstat_listeners(table, 8080), Vec::<u32>::new());
 }
 
 #[test]

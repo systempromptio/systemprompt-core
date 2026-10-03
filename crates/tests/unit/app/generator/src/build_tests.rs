@@ -75,10 +75,10 @@ fn test_build_error_css_organization_failed() {
 
 #[test]
 fn test_build_error_validation_failed() {
-    let error = BuildError::ValidationFailed("Missing required file".to_string());
+    let error = BuildError::MissingSitemapPages { missing: 3 };
     let error_msg = format!("{}", error);
     assert!(error_msg.contains("Validation failed"));
-    assert!(error_msg.contains("Missing required file"));
+    assert!(error_msg.contains("3 URLs missing"));
 }
 
 #[test]
@@ -90,33 +90,13 @@ fn test_build_error_io() {
 }
 
 #[test]
-fn test_build_error_process_error() {
-    let error = BuildError::ProcessError {
-        message: "npm failed with exit code 1".to_string(),
-    };
-    let error_msg = format!("{}", error);
-    assert!(error_msg.contains("Process execution error"));
-    assert!(error_msg.contains("exit code 1"));
-}
-
-#[test]
-fn test_build_error_config_error() {
-    let error = BuildError::ConfigError {
-        message: "Invalid configuration".to_string(),
-    };
-    let error_msg = format!("{}", error);
-    assert!(error_msg.contains("Configuration error"));
-    assert!(error_msg.contains("Invalid configuration"));
-}
-
-#[test]
 fn test_build_error_debug_format() {
-    let error = BuildError::ProcessError {
-        message: "test error".to_string(),
+    let error = BuildError::InvalidSitemapUrl {
+        url: "test-url".to_string(),
     };
     let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("ProcessError"));
-    assert!(debug_str.contains("test error"));
+    assert!(debug_str.contains("InvalidSitemapUrl"));
+    assert!(debug_str.contains("test-url"));
 }
 
 #[test]

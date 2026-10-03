@@ -13,7 +13,7 @@ use systemprompt_cli::core::services::inspect::{InspectArgs, execute};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap};
-use systemprompt_models::services::bundle::{BundleSourceState, ServicesBundleState};
+use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 
 use crate::services_profile_fixture as fx;
 

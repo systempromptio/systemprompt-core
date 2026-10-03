@@ -55,7 +55,7 @@ impl FilesQuery {
     }
 }
 
-pub(super) use systemprompt_models::services::FileEntry;
+pub(super) use systemprompt_manifest::services::FileEntry;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct FileManifest {

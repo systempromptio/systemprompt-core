@@ -12,7 +12,7 @@ use systemprompt_bridge::proxy::forward::headers::{
 use systemprompt_identifiers::SessionId;
 use systemprompt_identifiers::headers::{CLIENT_ATTESTATION, CLIENT_KIND};
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_models::wire::origin::ClientKind;
+use systemprompt_models::origin::ClientKind;
 
 fn inbound(client: Option<&str>, attestation: Option<&str>) -> HeaderMap {
     let mut headers = HeaderMap::new();

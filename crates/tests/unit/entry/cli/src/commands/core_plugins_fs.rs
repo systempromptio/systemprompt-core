@@ -13,8 +13,8 @@ use systemprompt_cli::core::plugins::generate::{
 };
 use systemprompt_cli::core::plugins::{generate, validate};
 use systemprompt_identifiers::PluginId;
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::{PluginConfig, PluginConfigFile};
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::{PluginConfig, PluginConfigFile};
 
 const PLUGIN_YAML: &str = r#"
 plugin:

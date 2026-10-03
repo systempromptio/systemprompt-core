@@ -25,9 +25,9 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_models::services::GatewayRoute;
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
+use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_wire::ModelLimits;
+use systemprompt_wire::inspect::{SurfaceBudget, string_leaves};
 
 const LEAKED_KEY: &str = "AKIAIOSFODNN7EXAMPLE";
 

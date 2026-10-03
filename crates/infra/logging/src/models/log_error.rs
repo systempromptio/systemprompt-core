@@ -53,9 +53,6 @@ pub enum LoggingError {
     #[error("Database connection not available")]
     DatabaseUnavailable,
 
-    #[error("Database pool unavailable: {0}")]
-    PoolUnavailable(String),
-
     #[error("No task found matching: {partial_id}")]
     TaskNotFound { partial_id: String },
 }

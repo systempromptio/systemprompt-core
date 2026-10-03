@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::inventory::{
     BaselineScope, InventoryService, LatestPublication, LatestPublicationStatus, PublishGuard,
     configured_identity, scan_configured_inventory,
@@ -9,7 +10,6 @@ use systemprompt_marketplace::managed::{
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
 };
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
-use systemprompt_models::services::ServicesConfig;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 struct Fixture {

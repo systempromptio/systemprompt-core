@@ -12,8 +12,8 @@ use std::fs;
 use systemprompt_loader::bundle::{
     ExtractOptions, TarLayout, extract_tarball, verify_bundle, verify_extracted,
 };
-use systemprompt_models::profile::BundleVerification;
-use systemprompt_models::services::bundle::BUNDLE_ALLOWED_DIRS;
+use systemprompt_manifest::profile::BundleVerification;
+use systemprompt_manifest::services::bundle::BUNDLE_ALLOWED_DIRS;
 use systemprompt_security::manifest_signing::pubkey_b64_from_seed;
 
 use crate::bundle_support::{OTHER_SEED, base_tree, pack, pack_with, pubkey, write};

@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::BoxedSource;
 use tracing::warn;
 
@@ -18,7 +19,7 @@ use crate::services::SqlExecutor;
 use crate::services::schema_linter::{created_table_names, lint_declarative_schemas};
 
 pub(super) struct PreparedSchema {
-    pub(super) extension_id: String,
+    pub(super) extension_id: ExtensionId,
     pub(super) structural: Vec<String>,
     pub(super) routines: Vec<String>,
     pub(super) dependent: Vec<String>,
@@ -35,7 +36,7 @@ pub(super) struct ColumnsToValidate {
 
 pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSchema, LoaderError> {
     let schemas = ext.schemas();
-    let extension_id = ext.metadata().id.to_owned();
+    let extension_id = ExtensionId::new(ext.metadata().id);
 
     let mut all_sql = Vec::new();
     let mut columns_to_validate: Vec<ColumnsToValidate> = Vec::new();
@@ -89,14 +90,14 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
 // Why: one lint call over every file, so a foreign key in one file is
 // checked against the table another file of the same extension declares.
 fn lint_schemas(
-    extension_id: &str,
+    extension_id: &ExtensionId,
     schemas: &[systemprompt_extension::SchemaDefinition],
 ) -> Vec<String> {
     let lint_inputs: Vec<(&str, &str)> = schemas
         .iter()
         .map(|schema| {
             (
-                schema.table.as_deref().unwrap_or(extension_id),
+                schema.table.as_deref().unwrap_or(extension_id.as_str()),
                 schema.sql.as_str(),
             )
         })
@@ -126,7 +127,10 @@ struct Phased {
     foreign_keys: Vec<DeferredForeignKey>,
 }
 
-fn phase_statements(extension_id: &str, parsed: Vec<String>) -> Result<Phased, LoaderError> {
+fn phase_statements(
+    extension_id: &ExtensionId,
+    parsed: Vec<String>,
+) -> Result<Phased, LoaderError> {
     let mut phased = Phased {
         structural: Vec::new(),
         routines: Vec::new(),
@@ -136,7 +140,7 @@ fn phase_statements(extension_id: &str, parsed: Vec<String>) -> Result<Phased, L
     for statement in parsed {
         let classified = classify_statement(&statement).map_err(|e| {
             LoaderError::SchemaInstallationStepFailed {
-                extension: extension_id.to_owned(),
+                extension: extension_id.clone(),
                 context: "declarative statement rejected".to_owned(),
                 source: Box::new(e),
             }
@@ -161,14 +165,14 @@ fn phase_statements(extension_id: &str, parsed: Vec<String>) -> Result<Phased, L
 }
 
 fn require_declarative_schema(
-    extension_id: &str,
+    extension_id: &ExtensionId,
     lint_errors: &[String],
 ) -> Result<(), LoaderError> {
     if lint_errors.is_empty() {
         return Ok(());
     }
     Err(LoaderError::SchemaInstallationFailed {
-        extension: extension_id.to_owned(),
+        extension: extension_id.clone(),
         message: format!(
             "Imperative SQL detected in declarative schema. Move offending statements to \
              schema/migrations/NNN_<name>.sql and declare them via \

@@ -13,8 +13,8 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use serde::Serialize;
 use systemprompt_config::{ProfileBootstrap, ResolvedSource, SecretsProvider, VaultKvProvider};
-use systemprompt_models::profile::resolve_with_home;
-use systemprompt_models::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
+use systemprompt_manifest::profile::resolve_with_home;
+use systemprompt_manifest::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
 
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};

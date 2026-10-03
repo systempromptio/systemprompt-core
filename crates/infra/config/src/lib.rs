@@ -11,7 +11,7 @@
 //!   active profile and secrets document, initialised in that order by the
 //!   entry-crate boot sequence.
 //! - [`try_init_config`] / [`build_from_profile`] — build a runtime
-//!   [`systemprompt_models::Config`] from the active profile.
+//!   [`systemprompt_manifest::Config`] from the active profile.
 //! - [`ProviderCatalogService`], [`SecurityConfigService`] — typed mutations of
 //!   the services provider registry and the profile's security section, backing
 //!   the `admin config catalog` / `admin config security` CLI surfaces.
@@ -48,9 +48,9 @@ pub(crate) mod skill_validator;
 pub use bootstrap::{
     ENCRYPTION_MASTER_KEY_BYTES, KeyMaterialError, MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap,
     ProfileBootstrapError, ResolvedSource, SecretsBootstrap, SecretsBootstrapError,
-    SecretsDocument, SecretsProvider, VaultError, VaultKvProvider, build_loaded_secrets_message,
-    decode_master_key, decode_seed, generate_master_key, generate_seed, load_secrets_from_path,
-    persist_seed, resolve_source,
+    SecretsDocument, SecretsProvider, VaultAttemptFailure, VaultError, VaultKvProvider,
+    build_loaded_secrets_message, decode_master_key, decode_seed, generate_master_key,
+    generate_seed, load_secrets_from_path, persist_seed, resolve_source,
 };
 pub use config_loader::{
     build_from_profile, resolve_instance_id, try_init_config, validate_database_config,

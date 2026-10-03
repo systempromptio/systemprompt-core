@@ -1,7 +1,7 @@
 //! Outbound adapter targeting the Google Gemini generativeLanguage API.
 //!
 //! [`GeminiOutbound`] renders the canonical model to a Gemini `generateContent`
-//! request via [`systemprompt_models::wire::gemini`], sends it upstream, and
+//! request via [`systemprompt_wire::gemini`], sends it upstream, and
 //! returns either a buffered [`CanonicalResponse`] or a stream of canonical
 //! events translated from the Gemini `?alt=sse` byte stream. Auth is the
 //! upstream call's: `x-goog-api-key` for an API key, a bearer for a Vertex
@@ -12,8 +12,7 @@
 
 use async_trait::async_trait;
 use serde_json::Value;
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::wire::gemini;
+use systemprompt_wire::{WireProtocol, gemini};
 
 use super::super::canonical_response::CanonicalResponse;
 use super::{OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, PreparedBody};

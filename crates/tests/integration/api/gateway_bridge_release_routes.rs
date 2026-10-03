@@ -387,7 +387,7 @@ async fn a_download_whose_asset_fetch_fails_upstream_is_a_bad_gateway() -> anyho
     Ok(())
 }
 
-fn spec(api_base: &str) -> systemprompt_models::services::BridgeReleasesSpec {
+fn spec(api_base: &str) -> systemprompt_manifest::services::BridgeReleasesSpec {
     serde_json::from_value(serde_json::json!({
         "repo": "systempromptio/systemprompt-core",
         "tag_prefix": "bridge-v",

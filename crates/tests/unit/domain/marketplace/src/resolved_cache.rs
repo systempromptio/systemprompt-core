@@ -5,11 +5,11 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use systemprompt_identifiers::UserId;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::{
     CatalogContent, MarketplaceCache, MarketplaceCandidate, RESOLVED_CAPACITY, RESOLVED_TTL,
     ResolvedCatalog, ResolvedKey,
 };
-use systemprompt_models::services::ServicesConfig;
 
 fn resolved(plugins: usize) -> Arc<ResolvedCatalog> {
     let dir = tempfile::tempdir().expect("services root");

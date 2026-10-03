@@ -2,27 +2,16 @@
 //!
 //! [`TraceQueryService`] reconstructs a request's timeline — log events, AI
 //! requests, MCP executions, and execution steps — from a trace id, while
-//! [`AiTraceService`] resolves per-task execution steps. The submodules are
-//! read-only query groups; result shapes are re-exported from `models`.
+//! [`AiTraceService`] resolves per-task execution steps. Both read through
+//! [`TraceRepository`]; result shapes are re-exported from `models`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod ai_trace_queries;
 mod ai_trace_service;
-mod audit_queries;
-mod list_queries;
-mod log_lookup_queries;
-mod log_search_queries;
-mod log_summary_queries;
-mod mcp_trace_queries;
 mod models;
-mod queries;
-mod request_queries;
-mod request_stats_queries;
+mod repository;
 mod service;
-mod step_queries;
-mod tool_queries;
 
 pub use ai_trace_service::AiTraceService;
 pub use models::{
@@ -34,6 +23,7 @@ pub use models::{
     TaskInfo, ToolExecutionFilter, ToolExecutionItem, ToolLogEntry, TraceEvent, TraceListFilter,
     TraceListItem,
 };
+pub use repository::TraceRepository;
 pub use service::TraceQueryService;
 
 /// Why a trace lookup could not be answered.

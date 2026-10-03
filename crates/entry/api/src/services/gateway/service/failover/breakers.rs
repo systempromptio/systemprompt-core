@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 use systemprompt_database::resilience::{CircuitBreaker, Probe, ResilienceConfig};
-use systemprompt_models::services::ResilienceSettings;
+use systemprompt_manifest::services::ResilienceSettings;
 
 /// Process-wide circuit breakers, one per provider name, sharing the
 /// provider's `resilience:` settings with the internal `ResilientProvider`.

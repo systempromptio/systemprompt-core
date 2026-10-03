@@ -13,8 +13,9 @@ use systemprompt_cli::cloud::profile::show_types::{
     CoreEnvVars, DatabaseEnvVars, EnvironmentConfig, FullConfig, JwtEnvVars, PathsEnvVars,
     RateLimitEnvVars, SettingsOutput, SystempromptEnvVars,
 };
-use systemprompt_models::services::{AgentConfig, SkillsConfig};
-use systemprompt_models::{AiConfig, ContentConfigRaw, Deployment};
+use systemprompt_manifest::AiConfig;
+use systemprompt_manifest::services::{AgentConfig, SkillsConfig};
+use systemprompt_models::{ContentConfigRaw, Deployment};
 
 fn env() -> EnvironmentConfig {
     EnvironmentConfig {

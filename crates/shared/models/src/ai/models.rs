@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use systemprompt_identifiers::ModelId;
 
 pub use systemprompt_provider_contracts::ToolModelConfig;
 
@@ -12,7 +13,7 @@ pub type ToolModelOverrides = HashMap<String, HashMap<String, ToolModelConfig>>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelConfig {
-    pub id: String,
+    pub id: ModelId,
     pub max_tokens: u32,
     pub supports_tools: bool,
     #[serde(default)]
@@ -20,9 +21,9 @@ pub struct ModelConfig {
 }
 
 impl ModelConfig {
-    pub fn new(id: impl Into<String>, max_tokens: u32, supports_tools: bool) -> Self {
+    pub const fn new(id: ModelId, max_tokens: u32, supports_tools: bool) -> Self {
         Self {
-            id: id.into(),
+            id,
             max_tokens,
             supports_tools,
             cost_per_1k_tokens: 0.0,

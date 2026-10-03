@@ -27,14 +27,15 @@ use async_trait::async_trait;
 use chrono::Utc;
 use systemprompt_database::DbPool;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::profile::RetentionConfig;
+use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
+use crate::repository::RetentionRepository;
 use crate::services::scheduling::job_app_context;
 
 use self::orphans::{delete_orphaned_logs, fail_orphaned_requests};
-use self::tables::{RetentionPass, count_before, delete_in_batches};
+use self::tables::{RetentionPass, delete_in_batches};
 
 const QUOTA_BUCKET_DAYS: u32 = 62;
 const DEFAULT_MESSAGES_DAYS: u32 = 30;
@@ -66,7 +67,7 @@ impl Job for DatabaseCleanupJob {
         if let Some(days) = ctx.get_parameter_parsed::<u32>("log_retention_days")? {
             retention.logs_days = days;
         }
-        let pool = db_pool.write_pool();
+        let retention_repo = RetentionRepository::new(&db_pool);
 
         debug!("Job started");
         let orphaned = delete_orphaned_logs(&db_pool, ctx.enforce()).await?;
@@ -77,9 +78,9 @@ impl Job for DatabaseCleanupJob {
         for (table, days) in plan {
             let cutoff = Utc::now() - chrono::Duration::days(i64::from(days));
             let pass = if ctx.enforce() {
-                delete_in_batches(&pool, table, days, cutoff, start_time).await?
+                delete_in_batches(&retention_repo, table, days, cutoff, start_time).await?
             } else {
-                let would = count_before(&pool, table, cutoff).await?;
+                let would = retention_repo.count_before(table, cutoff).await?;
                 info!(
                     table,
                     would_delete = would,

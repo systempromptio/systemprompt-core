@@ -7,8 +7,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
+use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
-use systemprompt_models::services::PluginConfig;
 
 use super::{BundleFile, PluginBundle};
 use crate::error::MarketplaceError;

@@ -297,7 +297,7 @@ fn plugin_entry_for_capture() -> systemprompt_bridge::gateway::manifest::PluginE
         version: "1.0.0".into(),
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files: vec![],
-        hooks: systemprompt_models::services::PluginHooksRef::default(),
+        hooks: systemprompt_models::plugin::PluginHooksRef::default(),
     }
 }
 

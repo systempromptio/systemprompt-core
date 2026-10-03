@@ -10,7 +10,7 @@
 //! `input_tokens` excludes cache reads, and `reasoning_tokens` is a breakdown
 //! of `output_tokens` rather than an addition to it.
 
-use systemprompt_models::wire::canonical::{CanonicalUsage, CanonicalUsageUpdate};
+use systemprompt_wire::canonical::{CanonicalUsage, CanonicalUsageUpdate};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct UsageBuilder {

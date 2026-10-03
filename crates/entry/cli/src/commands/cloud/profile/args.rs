@@ -5,7 +5,7 @@
 
 use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_identifiers::{ProfileName, TenantId};
-use systemprompt_models::none_if_blank;
+use systemprompt_manifest::none_if_blank;
 
 use crate::shared::{parse_profile_name, parse_tenant_id};
 

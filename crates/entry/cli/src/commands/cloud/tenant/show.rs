@@ -5,7 +5,7 @@
 
 use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{CloudAppId, TenantId};
 use systemprompt_logging::CliService;
 
 use super::select::select_tenant;
@@ -45,7 +45,7 @@ pub fn show_tenant(
         id: tenant.id.clone(),
         name: tenant.name.clone(),
         tenant_type: format!("{:?}", tenant.tenant_type).to_lowercase(),
-        app_id: tenant.app_id.clone(),
+        app_id: tenant.app_id.clone().map(CloudAppId::new),
         hostname: tenant.hostname.clone(),
         region: tenant.region.clone(),
         has_database: tenant.has_database_url(),
@@ -57,7 +57,7 @@ pub fn show_tenant(
         CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
 
         if let Some(ref app_id) = tenant.app_id {
-            CliService::key_value("App ID", app_id);
+            CliService::key_value("App ID", app_id.as_str());
         }
 
         if let Some(ref hostname) = tenant.hostname {

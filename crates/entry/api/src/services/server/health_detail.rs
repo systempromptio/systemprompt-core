@@ -7,7 +7,7 @@ use std::path::Path;
 
 use axum::Json;
 use serde_json::json;
-use systemprompt_models::services::ServiceModule;
+use systemprompt_manifest::services::ServiceModule;
 use systemprompt_runtime::AppContext;
 
 use super::health::{HEALTH_CHECK_QUERY, get_process_memory, get_system_stats};

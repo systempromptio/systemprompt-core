@@ -17,7 +17,7 @@ use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWeb
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
-use systemprompt_models::AgentConfig;
+use systemprompt_manifest::AgentConfig;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};

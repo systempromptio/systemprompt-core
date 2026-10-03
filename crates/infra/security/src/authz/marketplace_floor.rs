@@ -18,7 +18,7 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind, ServicesConfig};
+use systemprompt_manifest::services::{MarketplaceConfig, MarketplaceMemberKind, ServicesConfig};
 
 use super::types::EntityKind;
 

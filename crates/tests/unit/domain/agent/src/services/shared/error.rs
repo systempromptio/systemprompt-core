@@ -13,10 +13,12 @@ fn parse_err() -> std::num::ParseIntError {
 }
 
 #[test]
-fn test_agent_service_error_internal() {
-    let error = AgentServiceError::Internal("Unexpected state".to_string());
-    assert!(error.to_string().contains("internal error"));
-    assert!(error.to_string().contains("Unexpected state"));
+fn test_agent_service_error_tool_failed_names_tool_and_cause() {
+    let error = AgentServiceError::ToolFailed {
+        tool_name: systemprompt_identifiers::McpToolName::new("search"),
+        message: "Unexpected state".to_string(),
+    };
+    assert_eq!(error.to_string(), "tool search failed: Unexpected state");
 }
 
 #[test]

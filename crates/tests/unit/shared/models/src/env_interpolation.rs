@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use systemprompt_models::env::{contains_placeholder, interpolate, read_env_optional};
+use systemprompt_manifest::env::{contains_placeholder, interpolate, read_env_optional};
 
 fn lookup_map<'a>(map: &'a HashMap<&'a str, &'a str>) -> impl Fn(&str) -> Option<String> + 'a {
     move |key| map.get(key).map(|v| v.to_string())

@@ -10,7 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub use systemprompt_identifiers::{
-    CommsMessageId, DeploymentOrganizationUuid, HookSessionId, LibraryArtifactId,
+    CommsMessageId, DeploymentOrganizationUuid, ElevatedJobId, HookSessionId, LibraryArtifactId,
     MarketplaceRuleId, McpServerId, McpSessionId, McpToolName, PluginId, RuleName, SkillId,
     SkillName,
 };

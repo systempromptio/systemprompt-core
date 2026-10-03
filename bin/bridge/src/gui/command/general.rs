@@ -8,6 +8,7 @@ use serde_json::{Value, json};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, server_json};
+use crate::ids::McpServerId;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::args::{
@@ -102,7 +103,7 @@ pub(super) fn gateway_dispatch(
                 .inspect_err(|e| tracing::warn!(error = ?e, "malformed mcp.auth.probe args"))
                 .ok()
                 .and_then(|a| a.server_id)
-                .filter(|s| !s.is_empty());
+                .and_then(|s| McpServerId::try_new(s).ok());
             send(
                 app,
                 UiEvent::McpAuthProbeRequested {

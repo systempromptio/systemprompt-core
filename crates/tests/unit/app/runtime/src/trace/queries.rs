@@ -12,7 +12,7 @@ use systemprompt_logging::LogLevel;
 use systemprompt_runtime::trace::{
     AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
 };
-use systemprompt_runtime::{AiTraceService, AuditPage, TraceQueryService};
+use systemprompt_runtime::{AiTraceService, AuditPage, TraceQueryService, TraceRepository};
 use systemprompt_test_fixtures::test_pg_pool;
 
 fn nonexistent_tag() -> String {
@@ -22,7 +22,7 @@ fn nonexistent_tag() -> String {
 #[tokio::test]
 async fn trace_service_get_methods_on_empty_trace_id() {
     let pool = std::sync::Arc::new(test_pg_pool().await);
-    let svc = TraceQueryService::new(pool);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let trace_id = TraceId::new(nonexistent_tag());
 
     assert!(svc.get_log_events(&trace_id).await.unwrap().is_empty());
@@ -78,7 +78,7 @@ async fn trace_service_get_methods_on_empty_trace_id() {
 #[tokio::test]
 async fn trace_service_list_traces_no_match_filters_yield_empty() {
     let pool = std::sync::Arc::new(test_pg_pool().await);
-    let svc = TraceQueryService::new(pool);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
 
     let f = TraceListFilter::new(5)
         .with_agent(nonexistent_tag())
@@ -97,7 +97,7 @@ async fn trace_service_list_traces_no_match_filters_yield_empty() {
 #[tokio::test]
 async fn trace_service_list_tool_executions_no_match_filters_yield_empty() {
     let pool = std::sync::Arc::new(test_pg_pool().await);
-    let svc = TraceQueryService::new(pool);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let f = ToolExecutionFilter::new(10)
         .with_name(nonexistent_tag())
         .with_server(nonexistent_tag())
@@ -109,7 +109,7 @@ async fn trace_service_list_tool_executions_no_match_filters_yield_empty() {
 #[tokio::test]
 async fn trace_service_search_finds_nothing_for_random_pattern() {
     let pool = std::sync::Arc::new(test_pg_pool().await);
-    let svc = TraceQueryService::new(pool);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let pattern = nonexistent_tag();
 
     assert!(
@@ -146,7 +146,7 @@ async fn trace_service_search_finds_nothing_for_random_pattern() {
 #[tokio::test]
 async fn trace_service_ai_request_lookups_on_random_ids() {
     let pool = std::sync::Arc::new(test_pg_pool().await);
-    let svc = TraceQueryService::new(pool);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let missing = nonexistent_tag();
 
     assert!(
@@ -215,7 +215,7 @@ async fn trace_service_ai_request_lookups_on_random_ids() {
 #[tokio::test]
 async fn trace_service_log_lookups_on_random_ids() {
     let pool = std::sync::Arc::new(test_pg_pool().await);
-    let svc = TraceQueryService::new(pool);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let missing = nonexistent_tag();
 
     assert!(
@@ -249,7 +249,7 @@ async fn trace_service_log_lookups_on_random_ids() {
 #[tokio::test]
 async fn trace_service_log_summaries_respect_future_since_bound() {
     let pool = std::sync::Arc::new(test_pg_pool().await);
-    let svc = TraceQueryService::new(pool);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let future = Utc::now() + ChronoDuration::days(1);
 
     assert!(
@@ -285,7 +285,7 @@ async fn trace_service_log_summaries_respect_future_since_bound() {
 #[tokio::test]
 async fn ai_trace_service_methods_with_random_ids() {
     let pool = std::sync::Arc::new(test_pg_pool().await);
-    let svc = AiTraceService::new(pool);
+    let svc = AiTraceService::new(TraceRepository::new(pool));
     let task_id =
         systemprompt_identifiers::TaskId::new(format!("task-{}", uuid::Uuid::new_v4().simple()));
     let ctx_id = systemprompt_identifiers::ContextId::generate();
@@ -394,7 +394,7 @@ async fn list_traces_derives_status_for_non_agent_traces() {
     insert_log(&pool, &log_err, "ERROR").await;
     insert_log(&pool, &log_info, "INFO").await;
 
-    let svc = TraceQueryService::new(std::sync::Arc::clone(&pool));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::clone(&pool)));
     let items = svc.list_traces(&TraceListFilter::new(1000)).await.unwrap();
 
     let by_id: std::collections::HashMap<String, String> = items

@@ -18,8 +18,9 @@ use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::{McpServerId, SessionToken};
 use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::McpOrchestrator;
-use systemprompt_models::{McpServerConfig, ServicesConfig};
+use systemprompt_models::McpServerConfig;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]

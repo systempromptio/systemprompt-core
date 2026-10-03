@@ -11,7 +11,7 @@
 
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
 use serde_json::Value as JsonValue;
-use systemprompt_models::wire::canonical::{CanonicalContent, ImageSource};
+use systemprompt_wire::canonical::{CanonicalContent, ImageSource};
 
 /// An MCP-shaped value (`content` / `structuredContent` / `isError` /
 /// `_meta`), if that is what the value is.

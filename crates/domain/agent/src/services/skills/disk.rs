@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::SkillId;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
+use systemprompt_manifest::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 
 pub(super) struct LoadedDiskSkill {
     pub(super) skill_id: SkillId,
@@ -32,10 +32,10 @@ pub(super) fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<
     let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
 
     if !config_path.exists() {
-        return Err(AgentServiceError::Internal(format!(
-            "Skill not found on disk: {id_str} ({SKILL_CONFIG_FILENAME} missing at {})",
-            config_path.display()
-        )));
+        return Err(AgentServiceError::SkillNotOnDisk {
+            skill_id: skill_id.clone(),
+            path: config_path,
+        });
     }
 
     let config_text = std::fs::read_to_string(&config_path).map_err(|e| {

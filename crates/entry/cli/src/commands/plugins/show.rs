@@ -47,7 +47,7 @@ pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
 
 pub fn build_detail_output(ext: &dyn Extension) -> ExtensionDetailOutput {
     ExtensionDetailOutput {
-        id: systemprompt_identifiers::PluginId::new(ext.id()),
+        id: systemprompt_identifiers::ExtensionId::new(ext.id()),
         name: ext.name().to_owned(),
         version: ext.version().to_owned(),
         priority: ext.priority(),
@@ -133,7 +133,7 @@ fn show_manifest(id: &str) -> Option<Result<CommandOutput>> {
 
     let name = ext.manifest.extension.name;
     let output = ExtensionDetailOutput {
-        id: systemprompt_identifiers::PluginId::new(name.clone()),
+        id: systemprompt_identifiers::ExtensionId::new(name.clone()),
         name: name.clone(),
         version: "manifest".to_owned(),
         priority: 100,

@@ -7,11 +7,12 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use systemprompt_identifiers::TeamsAppId;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, SecretName, SlackWorkspaceId, TeamsTenantId};
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     SlackAppConfig, SlackAuthzConfig, TeamsAppConfig, TeamsAuthzConfig,
 };
 use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
@@ -70,7 +71,7 @@ fn slack_app(workspace: &str, roles: &[&str], enabled: bool) -> SlackAppConfig {
 fn teams_app(tenant: &str, roles: &[&str], enabled: bool) -> TeamsAppConfig {
     TeamsAppConfig {
         tenant_id: TeamsTenantId::new(tenant),
-        app_id: "app-test".to_owned(),
+        app_id: TeamsAppId::new("app-test"),
         app_password_ref: SecretName::new("teams_app_password"),
         enabled,
         default_agent: Some(AgentName::try_new("test_agent").expect("valid AgentName")),
@@ -78,7 +79,7 @@ fn teams_app(tenant: &str, roles: &[&str], enabled: bool) -> TeamsAppConfig {
         authz: TeamsAuthzConfig {
             allowed_roles: roles.iter().map(|r| (*r).to_owned()).collect(),
         },
-        endpoints: systemprompt_models::services::teams::TeamsEndpoints::default(),
+        endpoints: systemprompt_manifest::services::teams::TeamsEndpoints::default(),
     }
 }
 

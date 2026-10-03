@@ -16,7 +16,7 @@ use systemprompt_ai::repository::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_manifest::services::QuotaFaultMode;
 
 use self::subject::{SubjectResolution, resolve_subject};
 use super::policy::QuotaWindow;

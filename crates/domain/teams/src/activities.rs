@@ -88,15 +88,17 @@ impl Activity {
     }
 
     pub fn normalize(self) -> TeamsResult<NormalizedInbound> {
-        let surface = self.surface().ok_or_else(|| {
-            TeamsError::MalformedActivity(format!("unhandled type '{}'", self.kind))
-        })?;
+        let surface = self
+            .surface()
+            .ok_or_else(|| TeamsError::UnhandledActivityType {
+                kind: self.kind.clone(),
+            })?;
 
         let tenant_id = self
             .conversation
             .tenant_id
             .or_else(|| self.channel_data.and_then(|c| c.tenant).map(|t| t.id))
-            .ok_or_else(|| TeamsError::MalformedActivity("missing tenant id".to_owned()))?;
+            .ok_or(TeamsError::MissingTenantId)?;
 
         let teams_user_id = match self.from.aad_object_id {
             Some(id) => id,

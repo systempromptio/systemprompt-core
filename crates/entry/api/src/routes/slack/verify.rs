@@ -11,11 +11,12 @@
 
 use axum::http::HeaderMap;
 use systemprompt_config::SecretsBootstrap;
+use systemprompt_identifiers::SlackWorkspaceId;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::services::SlackAppConfig;
+use systemprompt_manifest::services::SlackAppConfig;
 use systemprompt_slack::signature::verify_slack_signature;
 
-pub(super) fn resolve_app(workspace_id: &str) -> Option<SlackAppConfig> {
+pub(super) fn resolve_app(workspace_id: &SlackWorkspaceId) -> Option<SlackAppConfig> {
     let config = ConfigLoader::load()
         .inspect_err(
             |error| tracing::warn!(%error, "Slack app lookup: services config unavailable"),
@@ -24,7 +25,7 @@ pub(super) fn resolve_app(workspace_id: &str) -> Option<SlackAppConfig> {
     config
         .slack_apps
         .into_values()
-        .find(|app| app.enabled && app.workspace_id.as_str() == workspace_id)
+        .find(|app| app.enabled && app.workspace_id == *workspace_id)
 }
 
 fn signing_secret(app: &SlackAppConfig) -> Option<String> {

@@ -37,19 +37,6 @@ mod template_error_display_tests {
     }
 
     #[test]
-    fn compile_error_displays_name_and_message() {
-        let error = TemplateError::CompileError {
-            name: "invalid-syntax".to_string(),
-            message: "unexpected token".to_string(),
-        };
-
-        let display = error.to_string();
-        assert!(display.contains("failed to compile template"));
-        assert!(display.contains("invalid-syntax"));
-        assert!(display.contains("unexpected token"));
-    }
-
-    #[test]
     fn render_error_displays_name_and_message() {
         let display = render_error("render-fail", "missing variable").to_string();
         assert!(display.contains("failed to render template"));
@@ -109,17 +96,6 @@ mod template_error_construction_tests {
     }
 
     #[test]
-    fn compile_error_preserves_name() {
-        let error = TemplateError::CompileError {
-            name: "specific-template".to_string(),
-            message: "syntax error at line 5".to_string(),
-        };
-
-        let display = error.to_string();
-        assert!(display.contains("specific-template"));
-    }
-
-    #[test]
     fn render_error_preserves_name() {
         let display = render_error("render-template", "variable 'title' not found").to_string();
         assert!(display.contains("render-template"));
@@ -169,15 +145,6 @@ mod error_trait_tests {
         assert!(error.to_string().contains("partials/header.hbs"));
         let source = error.source().expect("io error kept as source");
         assert!(source.is::<std::io::Error>());
-    }
-
-    #[test]
-    fn compile_error_source_is_none() {
-        let error = TemplateError::CompileError {
-            name: "test".to_string(),
-            message: "underlying error".to_string(),
-        };
-        assert!(error.source().is_none());
     }
 
     #[test]

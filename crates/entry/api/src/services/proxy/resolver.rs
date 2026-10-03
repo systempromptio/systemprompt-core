@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use systemprompt_database::ServiceConfig;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_mcp::services::spawn_target::SpawnTarget;
-use systemprompt_models::services::ServiceStatus;
 use systemprompt_runtime::AppContext;
 
 use super::backend::ProxyError;

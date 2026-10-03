@@ -61,7 +61,7 @@ async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() 
     let tmp = tempfile::TempDir::new().unwrap();
     let p = tmp.path().to_string_lossy().to_string();
     let paths = systemprompt_config::paths::AppPaths::from_profile(
-        &systemprompt_models::profile::PathsConfig {
+        &systemprompt_manifest::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),
@@ -69,7 +69,7 @@ async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() 
             storage: Some(p),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths");
@@ -98,7 +98,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
     let tmp = tempfile::TempDir::new().unwrap();
     let p = tmp.path().to_string_lossy().to_string();
     let paths = systemprompt_config::paths::AppPaths::from_profile(
-        &systemprompt_models::profile::PathsConfig {
+        &systemprompt_manifest::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),
@@ -106,7 +106,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
             storage: Some(p),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths");

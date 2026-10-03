@@ -2,7 +2,7 @@
 //! delete, edit, create) through `cloud::execute` with scripted prompts.
 
 use std::path::{Path, PathBuf};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{CloudAppId, TenantId};
 
 use serde_json::json;
 use systemprompt_cli::ScriptedPrompter;
@@ -420,7 +420,7 @@ fn seed_masked_cloud_tenant(env: &Env) -> PathBuf {
     let tenant = StoredTenant::new_cloud(NewCloudTenantParams {
         id: TenantId::new(TENANT_ID),
         name: "Masked Prod".to_owned(),
-        app_id: Some("app-masked".to_owned()),
+        app_id: Some(CloudAppId::new("app-masked")),
         hostname: Some("masked.example.com".to_owned()),
         region: Some("iad".to_owned()),
         database_url: Some("postgres://u:***@ext.example.com:5432/db".to_owned()),

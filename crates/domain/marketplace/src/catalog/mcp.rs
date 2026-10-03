@@ -7,9 +7,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_identifiers::{McpServerId, McpToolName, ValidatedUrl};
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
 use systemprompt_models::mcp::Deployment;
-use systemprompt_models::services::ServicesConfig;
 
 use crate::error::MarketplaceError;
 

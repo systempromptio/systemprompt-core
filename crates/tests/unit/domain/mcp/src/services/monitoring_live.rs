@@ -4,7 +4,7 @@
 //! onto running / stopped / error.
 
 use std::path::PathBuf;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::monitoring::health::{HealthStatus, perform_health_check};

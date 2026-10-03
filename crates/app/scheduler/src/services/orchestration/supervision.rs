@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
-use systemprompt_models::services::ServiceModule;
+use systemprompt_manifest::services::ServiceModule;
 
 use crate::error::{SchedulerError, SchedulerResult};
 

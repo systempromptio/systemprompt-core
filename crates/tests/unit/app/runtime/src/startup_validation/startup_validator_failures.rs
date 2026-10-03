@@ -1,4 +1,4 @@
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::StartupValidator;
 
 use crate::boot::{BootOptions, boot};

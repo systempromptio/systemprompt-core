@@ -3,11 +3,11 @@
 
 use systemprompt_ai::{HeuristicScanner, NullScanner, SafetyScanner, Severity};
 use systemprompt_identifiers::ModelId;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalResponse, CanonicalUsage, Role,
     SystemBlock,
 };
-use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
+use systemprompt_wire::inspect::{SurfaceBudget, string_leaves};
 
 fn request(system: Option<&str>, texts: &[&str]) -> CanonicalRequest {
     CanonicalRequest {

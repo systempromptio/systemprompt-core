@@ -46,7 +46,7 @@ impl HookTokenValidator {
     pub fn validate_govern(
         &self,
         token: &str,
-        request_plugin_id: Option<&str>,
+        request_plugin_id: Option<&PluginId>,
     ) -> AuthResult<ValidatedHookClaims> {
         self.validate(
             token,
@@ -59,7 +59,7 @@ impl HookTokenValidator {
     pub fn validate_track(
         &self,
         token: &str,
-        request_plugin_id: Option<&str>,
+        request_plugin_id: Option<&PluginId>,
     ) -> AuthResult<ValidatedHookClaims> {
         self.validate(
             token,
@@ -74,7 +74,7 @@ impl HookTokenValidator {
         token: &str,
         required_scope: Permission,
         required_scope_name: &'static str,
-        request_plugin_id: Option<&str>,
+        request_plugin_id: Option<&PluginId>,
     ) -> AuthResult<ValidatedHookClaims> {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, &[JwtAudience::Hook]);
         let claims = decode_rs256_claims(token, &policy)?;
@@ -87,11 +87,11 @@ impl HookTokenValidator {
             .clone()
             .ok_or(AuthError::HookPluginIdMissing)?;
         if let Some(expected) = request_plugin_id
-            && expected != plugin_id.as_str()
+            && *expected != plugin_id
         {
             return Err(AuthError::HookPluginIdMismatch {
-                expected: expected.to_owned(),
-                actual: plugin_id.as_str().to_owned(),
+                expected: expected.clone(),
+                actual: plugin_id,
             });
         }
 

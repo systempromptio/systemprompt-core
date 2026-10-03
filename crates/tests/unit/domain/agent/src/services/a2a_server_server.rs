@@ -176,7 +176,7 @@ async fn the_debug_impl_redacts_every_handle_it_holds() {
         "Arc<RwLock<AgentConfig>>",
         "Arc<AgentOAuthState>",
         "Arc<AgentState>",
-        "<Arc<dyn AiProvider>>",
+        "<DynAiProvider>",
     ] {
         assert!(
             rendered.contains(placeholder),

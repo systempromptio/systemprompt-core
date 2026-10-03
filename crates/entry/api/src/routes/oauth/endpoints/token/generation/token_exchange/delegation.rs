@@ -7,7 +7,7 @@
 use std::str::FromStr;
 
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{Permission, parse_permissions};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;

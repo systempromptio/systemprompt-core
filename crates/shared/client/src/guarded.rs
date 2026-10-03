@@ -42,8 +42,12 @@ fn boxed(error: GuardedConnectError) -> ConnectError {
 /// Why a guarded client refused to open a connection.
 #[derive(Debug, Error)]
 pub enum GuardedConnectError {
-    #[error("cannot resolve {0}")]
-    Unresolvable(String),
+    #[error("cannot resolve {host}")]
+    Unresolvable {
+        host: String,
+        #[source]
+        source: Option<std::io::Error>,
+    },
     #[error("host {host} resolves to blocked address {addr}")]
     BlockedAddress {
         host: String,
@@ -165,13 +169,18 @@ impl Resolve for GuardedResolver {
         Box::pin(async move {
             let addrs: Vec<SocketAddr> = tokio::net::lookup_host((host.as_str(), 0))
                 .await
-                .map_err(|e| {
-                    tracing::warn!(host = %host, error = %e, "Outbound DNS resolution failed");
-                    boxed(GuardedConnectError::Unresolvable(host.clone()))
+                .map_err(|source| {
+                    boxed(GuardedConnectError::Unresolvable {
+                        host: host.clone(),
+                        source: Some(source),
+                    })
                 })?
                 .collect();
             if addrs.is_empty() {
-                return Err(boxed(GuardedConnectError::Unresolvable(host)));
+                return Err(boxed(GuardedConnectError::Unresolvable {
+                    host,
+                    source: None,
+                }));
             }
             if !exempt && let Some(blocked) = addrs.iter().find(|a| is_blocked_ip(a.ip())) {
                 tracing::warn!(

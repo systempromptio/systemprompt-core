@@ -7,7 +7,9 @@
 use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{AgentName, AiRequestId, ContextId, LogId, TaskId, TraceId};
 use systemprompt_logging::LogLevel;
-use systemprompt_runtime::{AiRequestFilter, AiTraceService, AuditPage, TraceQueryService};
+use systemprompt_runtime::{
+    AiRequestFilter, AiTraceService, AuditPage, TraceQueryService, TraceRepository,
+};
 use systemprompt_test_fixtures::test_pg_pool;
 
 struct AuditSeed {
@@ -264,7 +266,7 @@ async fn ai_trace_service_maps_seeded_task_and_message_rows() {
     seed.insert_request_message("user", &"x".repeat(600), 1)
         .await;
 
-    let svc = AiTraceService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = AiTraceService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 
     let partial = &seed.task_id[..seed.task_id.len() - 4];
     let resolved = svc.resolve_task_id(partial).await.unwrap();
@@ -337,7 +339,7 @@ async fn audit_and_request_queries_map_seeded_rows() {
     seed.insert_request_message("user", "audit me", 0).await;
     seed.insert_tool_call_with_mcp().await;
 
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 
     let by_request = svc
         .find_ai_request_for_audit(&seed.request_id)
@@ -502,7 +504,7 @@ async fn audit_and_request_queries_map_seeded_rows() {
 async fn pre_routing_rejections_are_listed_but_excluded_from_provider_and_model_stats() {
     let seed = AuditSeed::new().await;
     let rejected_id = seed.insert_rejected_request().await;
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 
     let listed = svc
         .list_ai_requests(&AiRequestFilter::new(50).with_user(seed.user_id.clone()))
@@ -550,7 +552,7 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
     seed.insert_log("INFO", "seeded second marker", Some("not-json"))
         .await;
 
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 
     let found = svc
         .find_log_by_id(&LogId::new(good_id.as_str()))
@@ -665,7 +667,7 @@ async fn request_list_pages_backwards_with_until_and_before_cursor() {
         .unwrap();
         ids.push(id);
     }
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
     let user = seed.user_id.clone();
 
     let first = svc

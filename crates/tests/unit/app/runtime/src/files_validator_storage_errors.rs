@@ -19,7 +19,7 @@ fn broken_storage_root_reports_storage_errors_with_suggestion() {
     let profile = systemprompt_config::ProfileBootstrap::get().expect("profile installed");
     let app_paths = AppPaths::from_profile(
         &profile.paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("app paths");

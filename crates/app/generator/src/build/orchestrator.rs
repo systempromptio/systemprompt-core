@@ -23,8 +23,17 @@ pub enum BuildError {
         source: std::io::Error,
     },
 
-    #[error("Validation failed: {0}")]
-    ValidationFailed(String),
+    #[error("Validation failed: dist directory not found at {}", path.display())]
+    MissingDist { path: PathBuf },
+
+    #[error("Validation failed: index.html not found at {}", path.display())]
+    MissingIndex { path: PathBuf },
+
+    #[error("Validation failed: {missing} URLs missing corresponding HTML files")]
+    MissingSitemapPages { missing: usize },
+
+    #[error("Validation failed: invalid sitemap URL format: {url}")]
+    InvalidSitemapUrl { url: String },
 
     #[error("Validation failed: cannot read sitemap: {0}")]
     SitemapRead(#[source] std::io::Error),
@@ -34,12 +43,6 @@ pub enum BuildError {
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-
-    #[error("Process execution error: {message}")]
-    ProcessError { message: String },
-
-    #[error("Configuration error: {message}")]
-    ConfigError { message: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

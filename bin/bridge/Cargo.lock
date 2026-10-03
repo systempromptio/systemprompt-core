@@ -4031,15 +4031,11 @@ name = "systemprompt-models"
 version = "0.62.0"
 dependencies = [
  "async-trait",
- "base64 0.23.0",
- "bytes",
  "chrono",
  "futures",
- "futures-util",
  "hex",
  "http",
  "indexmap",
- "ipnet",
  "regex",
  "rmcp",
  "schemars",
@@ -4056,7 +4052,6 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
- "zeroize",
 ]
 
 [[package]]

@@ -8,7 +8,8 @@
 use std::path::Path;
 
 use systemprompt_identifiers::LocaleCode;
-use systemprompt_models::{ParentRoute, WebConfig};
+use systemprompt_manifest::WebConfig;
+use systemprompt_models::ParentRoute;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_template_provider::{ComponentContext, PageContext};
 use systemprompt_templates::TemplateRegistry;

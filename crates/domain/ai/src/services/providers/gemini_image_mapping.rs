@@ -10,7 +10,7 @@ use crate::models::providers::gemini::{
     GeminiRequest, GeminiResponse, GeminiTool, GoogleSearch,
 };
 use std::collections::HashMap;
-use systemprompt_models::services::ModelDefinition;
+use systemprompt_manifest::services::ModelDefinition;
 
 pub(super) fn map_resolution_to_gemini_size(resolution: &ImageResolution) -> String {
     match resolution {

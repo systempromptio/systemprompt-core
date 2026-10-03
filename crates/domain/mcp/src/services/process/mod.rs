@@ -50,8 +50,12 @@ impl ProcessService {
         Ok(owned)
     }
 
+    pub async fn port_holders(port: u16) -> McpDomainResult<Vec<u32>> {
+        Ok(subprocess::pids_listening_on(port).await?)
+    }
+
     pub async fn port_has_listener(port: u16) -> McpDomainResult<bool> {
-        Ok(!subprocess::pids_listening_on(port).await?.is_empty())
+        Ok(!Self::port_holders(port).await?.is_empty())
     }
 
     pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {

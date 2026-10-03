@@ -94,7 +94,7 @@ fn a_per_user_override_still_narrows_a_host_that_declares_no_surfaces() {
     use std::collections::BTreeMap;
 
     use systemprompt_bridge::gateway::model_view::effective_surfaces;
-    use systemprompt_models::services::ApiSurface;
+    use systemprompt_models::providers::ApiSurface;
 
     let mut overrides: BTreeMap<String, Vec<String>> = BTreeMap::new();
     overrides.insert("opencode".to_owned(), vec!["anthropic".to_owned()]);

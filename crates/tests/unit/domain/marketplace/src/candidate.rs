@@ -1,13 +1,13 @@
 use std::collections::BTreeSet;
 
 use systemprompt_identifiers::MarketplaceId;
+use systemprompt_manifest::services::MarketplaceAccess;
 use systemprompt_marketplace::{
     MarketplaceCandidate, MarketplaceError, MarketplaceFilterError, MarketplaceMembership,
 };
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
-use systemprompt_models::services::MarketplaceAccess;
 
 use crate::plugin;
 use systemprompt_models::bridge::manifest::PluginEntry;
@@ -76,7 +76,7 @@ fn agent(id: &str) -> AgentEntry {
 fn hook(id: &str) -> HookEntry {
     use systemprompt_identifiers::HookId;
     use systemprompt_models::bridge::ids::Sha256Digest;
-    use systemprompt_models::services::hooks::HookEvent;
+    use systemprompt_models::hooks::HookEvent;
     HookEntry {
         id: HookId::new(id),
         name: id.to_owned(),
@@ -403,11 +403,7 @@ fn into_manifest_parts_carries_membership_into_filter_context() {
 
 #[test]
 fn filter_error_variants_debug() {
-    let variants = [
-        MarketplaceFilterError::Backend("x".into()),
-        MarketplaceFilterError::UnknownUser("u".into()),
-        MarketplaceFilterError::Policy("p".into()),
-    ];
+    let variants = [MarketplaceFilterError::Backend("x".into())];
     for v in &variants {
         let _ = format!("{v:?}");
     }
@@ -418,7 +414,6 @@ fn marketplace_error_variants_debug() {
     let variants: Vec<MarketplaceError> = vec![
         MarketplaceError::NotFound(MarketplaceId::new("missing")),
         MarketplaceError::NoDefault,
-        MarketplaceError::Validation("bad".into()),
         MarketplaceError::Catalog("fail".into()),
         MarketplaceError::Signing(systemprompt_security::ManifestSigningError::KeyMissing),
         MarketplaceError::Filter(MarketplaceFilterError::Backend("b".into())),

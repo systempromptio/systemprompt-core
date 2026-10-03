@@ -12,7 +12,7 @@ use systemprompt_api::routes::oauth::endpoints::token::TokenError;
 use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::id_jag_subject::validate_id_jag_subject;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ClientId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TYP;
 use systemprompt_test_fixtures::{
@@ -221,7 +221,7 @@ async fn a_self_issued_id_jag_naming_an_unknown_kid_is_refused() {
 #[tokio::test]
 async fn a_trusted_issuer_id_jag_whose_jwks_is_unreachable_is_refused() {
     let mut config = config();
-    config.trusted_issuers = vec![systemprompt_models::profile::TrustedIssuer {
+    config.trusted_issuers = vec![systemprompt_manifest::profile::TrustedIssuer {
         issuer: "https://idp.test".to_owned(),
         jwks_uri: "http://127.0.0.1:1/jwks".to_owned(),
         audience: config.jwt_issuer.clone(),

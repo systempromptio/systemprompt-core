@@ -7,7 +7,7 @@ use crate::error::ContentError;
 use crate::models::ContentMetadata;
 use crate::services::validation::validate_content_metadata;
 use std::path::{Path, PathBuf};
-use systemprompt_models::split_frontmatter;
+use systemprompt_manifest::split_frontmatter;
 use walkdir::WalkDir;
 
 pub(super) struct ParsedFrontmatter {

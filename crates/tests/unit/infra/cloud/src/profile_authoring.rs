@@ -4,10 +4,12 @@ use systemprompt_cloud::profile_authoring::{
     CloudProfileBuilder, LocalProfileBuilder, generate_display_name,
 };
 use systemprompt_identifiers::TenantId;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuthzMode, SecretsSource, SecretsValidationMode, TrustedIssuer,
 };
-use systemprompt_models::{CloudValidationMode, Environment, LogLevel, OutputFormat, ProfileType};
+use systemprompt_manifest::{
+    CloudValidationMode, Environment, LogLevel, OutputFormat, ProfileType,
+};
 
 #[test]
 fn test_generate_display_name_known_aliases() {
@@ -248,7 +250,7 @@ fn cloud_profile_paths_are_resolved_lexically() {
 
     assert_eq!(
         profile.path_resolution(),
-        systemprompt_models::paths::PathResolution::Lexical,
+        systemprompt_manifest::paths::PathResolution::Lexical,
         "container paths only resolve inside the deployed container"
     );
 }
@@ -259,6 +261,6 @@ fn local_profile_paths_are_canonicalized() {
 
     assert_eq!(
         profile.path_resolution(),
-        systemprompt_models::paths::PathResolution::Canonicalize
+        systemprompt_manifest::paths::PathResolution::Canonicalize
     );
 }

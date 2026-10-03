@@ -7,6 +7,7 @@
 mod credentials;
 mod plan;
 mod receipts;
+mod repository;
 mod sessions;
 
 pub use credentials::IssuedConsumerCredential;

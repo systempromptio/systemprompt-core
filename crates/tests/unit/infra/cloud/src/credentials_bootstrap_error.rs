@@ -34,7 +34,10 @@ fn file_not_found_display_includes_path() {
 #[test]
 fn invalid_credentials_display_includes_message() {
     let err = CredentialsBootstrapError::InvalidCredentials {
-        source: Box::new(CloudError::other("token field missing")),
+        source: Box::new(CloudError::HttpStatus {
+            status: 400,
+            body: "token field missing".to_string(),
+        }),
     };
     let s = err.to_string();
     assert!(s.contains("invalid"));
@@ -137,12 +140,18 @@ fn into_cloud_error_file_not_found_preserves_path() {
 #[test]
 fn into_cloud_error_invalid_credentials_preserves_message() {
     let cloud_err: CloudError = CredentialsBootstrapError::InvalidCredentials {
-        source: Box::new(CloudError::other("bad field")),
+        source: Box::new(CloudError::HttpStatus {
+            status: 400,
+            body: "bad field".to_string(),
+        }),
     }
     .into();
     match cloud_err {
         CloudError::InvalidCredentials { source } => {
-            assert_eq!(source.to_string(), "bad field");
+            assert_eq!(
+                source.to_string(),
+                "Request failed with status 400: bad field"
+            );
         },
         other => panic!("unexpected variant: {other:?}"),
     }
@@ -180,7 +189,10 @@ fn all_conversions_produce_non_empty_display() {
             path: "/p".to_string(),
         },
         CredentialsBootstrapError::InvalidCredentials {
-            source: Box::new(CloudError::other("m")),
+            source: Box::new(CloudError::HttpStatus {
+                status: 400,
+                body: "m".to_string(),
+            }),
         },
         CredentialsBootstrapError::ApiValidationFailed {
             message: "a".to_string(),

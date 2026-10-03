@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use systemprompt_loader::ServicesProvenance;
 use systemprompt_loader::bundle::{BundleCache, ServicesSourceBootstrap};
-use systemprompt_models::profile::FetchFailurePolicy;
+use systemprompt_manifest::profile::FetchFailurePolicy;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

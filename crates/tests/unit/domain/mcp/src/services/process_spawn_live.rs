@@ -118,7 +118,10 @@ fn build_server_succeeds_with_stub_cargo() {
 fn build_server_surfaces_stub_failure() {
     stub_cargo_on_path(1);
     let err = build_server(&internal_mcp_config("buildfail", 0)).expect_err("stub build fails");
-    assert!(err.to_string().contains("Build failed"));
+    assert!(
+        matches!(&err, systemprompt_mcp::McpDomainError::BuildFailed { service, .. } if service == "buildfail"),
+        "{err}"
+    );
 }
 
 #[tokio::test]

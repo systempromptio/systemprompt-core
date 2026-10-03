@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{SkillId, UserId};
-use systemprompt_models::{DiskSkillConfig, strip_frontmatter};
+use systemprompt_manifest::{DiskSkillConfig, strip_frontmatter};
 use systemprompt_traits::{
     ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill, SkillResolution,
     WithheldReason,

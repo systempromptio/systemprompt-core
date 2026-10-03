@@ -17,7 +17,7 @@
 //!   tenant-scoped sessions.
 //! - [`CloudPaths`] — XDG-aware discovery of credentials, sessions, tenants,
 //!   and project files.
-//! - [`profile_authoring`] — pure [`Profile`](systemprompt_models::Profile)
+//! - [`profile_authoring`] — pure [`Profile`](systemprompt_manifest::Profile)
 //!   construction for local and cloud deployment targets.
 //! - [`deploy`] — Dockerfile rendering ([`DockerfileBuilder`]) and validation
 //!   for the deployment image.

@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use clap::Parser;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     DisposableDb, fixture_app_context_with, init_services_bootstrap, install_test_signing_key,
 };

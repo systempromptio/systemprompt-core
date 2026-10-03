@@ -23,11 +23,12 @@ use systemprompt_agent::services::a2a_server::streaming::{
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, MessageId, SessionId, TraceId, UserId,
 };
-use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::{
+use systemprompt_manifest::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentOAuthConfig as AgentConfigOAuth,
-    AiProvider, CapabilitiesConfig,
+    CapabilitiesConfig,
 };
+use systemprompt_models::AiProvider;
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_test_mocks::MockAiProvider;
 use systemprompt_traits::{

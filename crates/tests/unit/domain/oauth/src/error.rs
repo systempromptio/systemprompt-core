@@ -249,7 +249,9 @@ fn client_authentication_failures_classify_as_invalid_client() {
 
 #[test]
 fn repository_failure_is_a_server_error_not_an_auth_failure() {
-    let err = OauthError::Repository(RepositoryError::internal("pool closed"));
+    let err = OauthError::Repository(RepositoryError::database(std::io::Error::other(
+        "pool closed",
+    )));
     assert_eq!(err.kind(), OauthErrorKind::ServerError);
 }
 

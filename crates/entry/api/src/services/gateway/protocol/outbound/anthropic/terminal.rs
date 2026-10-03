@@ -15,7 +15,7 @@ use futures_util::StreamExt;
 use futures_util::stream::BoxStream;
 // JSON: protocol boundary — the shapes inspected here are the Anthropic wire's.
 use serde_json::Value;
-use systemprompt_models::wire::error::WireStreamError;
+use systemprompt_wire::error::WireStreamError;
 
 const TOOL_USE: &str = "tool_use";
 
@@ -93,7 +93,7 @@ impl StreamState {
     fn push(&mut self, chunk: &[u8]) -> Vec<Bytes> {
         self.buf.extend_from_slice(chunk);
         let mut out = Vec::new();
-        while let Some(end) = systemprompt_models::wire::sse::frame_end(&self.buf) {
+        while let Some(end) = systemprompt_wire::sse::frame_end(&self.buf) {
             let frame: Vec<u8> = self.buf.drain(..end).collect();
             out.push(self.correct_frame(frame));
         }

@@ -239,7 +239,7 @@ pub fn seed_default_model(model: &str) -> Result<bool, MdmError> {
         managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
     let mut root = read_settings(&settings_path)?;
     if let Some(existing) = root.get("model").and_then(serde_json::Value::as_str) {
-        let base = systemprompt_models::services::providers::without_context_variant(model);
+        let base = systemprompt_models::providers::without_context_variant(model);
         if existing == model || existing != base {
             return Ok(false);
         }

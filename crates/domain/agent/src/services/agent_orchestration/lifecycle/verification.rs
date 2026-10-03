@@ -108,7 +108,7 @@ impl AgentLifecycle {
     }
 
     pub async fn log_startup_failure(&self, agent_name: &AgentName, port: u16) {
-        let log_path = match systemprompt_models::Config::get() {
+        let log_path = match systemprompt_manifest::Config::get() {
             Ok(config) => format!("{}/agent-{}.log", config.logs_path(), agent_name),
             Err(e) => {
                 tracing::error!(

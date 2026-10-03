@@ -3,7 +3,7 @@
 // never a per-request admission error.
 
 use systemprompt_api::services::gateway::audit::journal::GatewayJournal;
-use systemprompt_models::Secrets;
+use systemprompt_manifest::Secrets;
 
 fn secrets_with_key(key: &str) -> Secrets {
     Secrets::parse(&format!(

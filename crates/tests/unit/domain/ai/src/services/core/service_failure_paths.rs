@@ -8,7 +8,7 @@ use systemprompt_ai::models::ai::{AiMessage, AiRequest};
 use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderRegistry};
+use systemprompt_manifest::services::{AiConfig, AiProviderConfig, ProviderRegistry};
 
 use super::{
     ai_config, bootstrapped_pool, noop_session_provider, registry_with_endpoint, seeded_context,

@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::services::{ServiceModule, ServiceStatus};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 
 use super::state_types::ServiceType;
 
@@ -19,7 +19,7 @@ pub struct ServiceConfig {
 
 impl ServiceConfig {
     #[must_use]
-    pub fn list_from_manifest(services: &systemprompt_models::ServicesConfig) -> Vec<Self> {
+    pub fn list_from_manifest(services: &systemprompt_manifest::ServicesConfig) -> Vec<Self> {
         let agents = services.agents.iter().map(|(name, agent)| Self {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,

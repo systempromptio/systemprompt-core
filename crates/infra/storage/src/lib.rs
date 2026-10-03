@@ -25,7 +25,7 @@ pub mod probe;
 use std::path::Path;
 use std::sync::Arc;
 
-use systemprompt_models::profile::StorageBackend;
+use systemprompt_manifest::profile::StorageBackend;
 use systemprompt_traits::FileStorage;
 
 pub use local::LocalFileStorage;

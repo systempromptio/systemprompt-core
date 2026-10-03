@@ -27,7 +27,7 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_traits::FileStorage;
@@ -44,8 +44,8 @@ pub(super) struct CoreLayer {
 }
 
 async fn init_services(
-    secrets: &systemprompt_models::secrets::Secrets,
-) -> RuntimeResult<&'static systemprompt_models::services::ServicesConfig> {
+    secrets: &systemprompt_manifest::secrets::Secrets,
+) -> RuntimeResult<&'static systemprompt_manifest::services::ServicesConfig> {
     let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
         Box::pin(discover_vertex_models(providers))
     })
@@ -119,7 +119,7 @@ pub(super) async fn init_core(
         &profile.paths.services,
     ))?);
 
-    systemprompt_logging::init_logging(Arc::clone(&database));
+    systemprompt_logging::init_logging(&database);
 
     if config.database_write_url.is_some() {
         tracing::debug!(
@@ -138,9 +138,9 @@ pub(super) async fn init_core(
 }
 
 pub async fn discover_vertex_models(
-    providers: &mut systemprompt_models::services::ProviderRegistry,
-) -> systemprompt_models::services::DiscoveryReport {
-    use systemprompt_models::services::DiscoveryReport;
+    providers: &mut systemprompt_manifest::services::ProviderRegistry,
+) -> systemprompt_manifest::services::DiscoveryReport {
+    use systemprompt_manifest::services::DiscoveryReport;
 
     let Ok(secrets) = SecretsBootstrap::get() else {
         tracing::warn!("secret store unavailable; skipping Vertex model discovery");
@@ -156,7 +156,7 @@ pub async fn discover_vertex_models(
 }
 
 async fn init_file_storage(
-    storage: &systemprompt_models::profile::StorageConfig,
+    storage: &systemprompt_manifest::profile::StorageConfig,
     app_paths: &AppPaths,
     instance_id: &systemprompt_identifiers::InstanceId,
 ) -> RuntimeResult<Arc<dyn FileStorage>> {
@@ -200,7 +200,7 @@ fn chain_sources() -> RuntimeResult<systemprompt_security::authz::ChainSources> 
 }
 
 fn pool_config_from_profile(
-    profile_pool: Option<&systemprompt_models::profile::PoolConfig>,
+    profile_pool: Option<&systemprompt_manifest::profile::PoolConfig>,
 ) -> PoolConfig {
     use std::time::Duration;
 

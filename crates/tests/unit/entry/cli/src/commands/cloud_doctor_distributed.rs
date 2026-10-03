@@ -10,8 +10,8 @@ use systemprompt_cli::cloud::doctor::CheckStatus;
 use systemprompt_cli::cloud::doctor::distributed::{
     check_identity_fingerprints, check_instance_id, check_trusted_proxies,
 };
-use systemprompt_models::Profile;
-use systemprompt_models::profile::ProfileType;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::ProfileType;
 
 fn fixture_profile() -> Profile {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();

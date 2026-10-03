@@ -12,7 +12,7 @@ A profile is the single source of truth for one deployment. There are no environ
 
 ## 1. Choose a profile name and environment
 
-Each profile has a `name` and a `runtime.environment`. The environment is one of `development`, `test`, `staging`, `production` (`crates/shared/models/src/profile/runtime.rs:41`). Set it to `production` for production deployments; it gates development-only conveniences.
+Each profile has a `name` and a `runtime.environment`. The environment is one of `development`, `test`, `staging`, `production` (`crates/shared/manifest/src/profile/runtime.rs:41`). Set it to `production` for production deployments; it gates development-only conveniences.
 
 ```yaml
 name: production
@@ -43,7 +43,7 @@ server:
   max_concurrent_streams: 1024         # per-replica cap on A2A SSE streams
 ```
 
-`trusted_proxies` is required if a reverse proxy sets `X-Forwarded-For`, `X-Real-IP`, or `CF-Connecting-IP`. With an empty list the platform treats every connection as direct and ignores those headers (`crates/shared/models/src/profile/server.rs`). Behind a proxy, list the proxy's CIDR or client IPs are not attributed correctly.
+`trusted_proxies` is required if a reverse proxy sets `X-Forwarded-For`, `X-Real-IP`, or `CF-Connecting-IP`. With an empty list the platform treats every connection as direct and ignores those headers (`crates/shared/manifest/src/profile/server.rs`). Behind a proxy, list the proxy's CIDR or client IPs are not attributed correctly.
 
 ## 3. Set the database section
 
@@ -55,7 +55,7 @@ database:
   external_db_access: false
 ```
 
-The DB connection string is read from `database_url` in the secrets file (`crates/shared/models/src/secrets.rs:22`). Optional `database_write_url`, `external_database_url`, and `internal_database_url` secrets support split read/write or internal/external endpoints.
+The DB connection string is read from `database_url` in the secrets file (`crates/shared/manifest/src/secrets.rs:22`). Optional `database_write_url`, `external_database_url`, and `internal_database_url` secrets support split read/write or internal/external endpoints.
 
 ## 4. Set the paths section
 
@@ -71,7 +71,7 @@ paths:
   geoip_database: /var/lib/systemprompt/GeoLite2-City.mmdb  # optional
 ```
 
-`system`, `services`, and `bin` are required (`crates/shared/models/src/profile/paths.rs`). Omit `web_path` for a headless API-only deployment.
+`system`, `services`, and `bin` are required (`crates/shared/manifest/src/profile/paths.rs`). Omit `web_path` for a headless API-only deployment.
 
 ## 5. Wire secrets
 
@@ -86,7 +86,7 @@ secrets:
   validation: strict        # strict | warn (default) | skip
 ```
 
-With `source: file`, `secrets_path` is the path to the JSON document. With `source: env`, the same keys are read from the process environment (`crates/shared/models/src/profile/secrets.rs`).
+With `source: file`, `secrets_path` is the path to the JSON document. With `source: env`, the same keys are read from the process environment (`crates/shared/manifest/src/profile/secrets.rs`).
 
 The minimum secrets document:
 
@@ -101,13 +101,13 @@ The minimum secrets document:
 }
 ```
 
-`oauth_at_rest_pepper` must be at least 32 characters (`crates/shared/models/src/secrets.rs:13`). `manifest_signing_secret_seed` is a base64-encoded 32-byte Ed25519 seed; if absent and the secrets path is writable, `systemprompt admin bridge rotate-signing-key` generates one. `encryption_master_key` is 32 random bytes as 64 hex characters; it seals at-rest secrets and the gateway accounting journal. `systemprompt admin setup` and `systemprompt admin identity generate` mint it alongside the pepper and seed. Provider keys (`anthropic`, `openai`, `gemini`, `github`, `moonshot`, `qwen`) are optional; add only those you use. Any additional key/value pairs are accepted and exposed as custom secrets.
+`oauth_at_rest_pepper` must be at least 32 characters (`crates/shared/manifest/src/secrets.rs:13`). `manifest_signing_secret_seed` is a base64-encoded 32-byte Ed25519 seed; if absent and the secrets path is writable, `systemprompt admin bridge rotate-signing-key` generates one. `encryption_master_key` is 32 random bytes as 64 hex characters; it seals at-rest secrets and the gateway accounting journal. `systemprompt admin setup` and `systemprompt admin identity generate` mint it alongside the pepper and seed. Provider keys (`anthropic`, `openai`, `gemini`, `github`, `moonshot`, `qwen`) are optional; add only those you use. Any additional key/value pairs are accepted and exposed as custom secrets.
 
 Set `0600` permissions on a plain JSON secrets file and own it with the service account. Never commit it to git.
 
 ### `${VAR}` interpolation
 
-Any string value in `profile.yaml` may reference an environment variable as `${VAR}`; it is substituted at load time (`crates/shared/models/src/profile/mod.rs`). This keeps host-specific values out of the committed profile:
+Any string value in `profile.yaml` may reference an environment variable as `${VAR}`; it is substituted at load time (`crates/shared/manifest/src/profile/mod.rs`). This keeps host-specific values out of the committed profile:
 
 ```yaml
 server:
@@ -135,11 +135,11 @@ security:
       audience: api
 ```
 
-Generate the signing key with `systemprompt admin keys generate` (RSA-2048). `trusted_issuers` lets the platform accept subject tokens from external identity providers, verified against each issuer's published JWKS (`crates/shared/models/src/profile/security.rs`).
+Generate the signing key with `systemprompt admin keys generate` (RSA-2048). `trusted_issuers` lets the platform accept subject tokens from external identity providers, verified against each issuer's published JWKS (`crates/shared/manifest/src/profile/security.rs`).
 
 ## 7. Enable governance and the authorization hook
 
-Authorization is fail-closed. If the `governance` block is absent, the `authz` block is absent, or the config is unparseable, the platform installs a deny-all hook — misconfiguration never silently grants access (`crates/shared/models/src/profile/governance.rs`).
+Authorization is fail-closed. If the `governance` block is absent, the `authz` block is absent, or the config is unparseable, the platform installs a deny-all hook — misconfiguration never silently grants access (`crates/shared/manifest/src/profile/governance.rs`).
 
 For production, point the authz hook at your policy webhook:
 

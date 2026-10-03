@@ -9,6 +9,7 @@ use crate::error::Result;
 use crate::models::{UserDeviceCert, UserDeviceCertRow};
 use crate::repository::UserRepository;
 
+#[derive(Debug)]
 pub struct EnrollDeviceCertParams<'a> {
     pub id: &'a DeviceCertId,
     pub user_id: &'a UserId,

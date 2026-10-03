@@ -39,7 +39,7 @@ async fn bootstrap_is_idempotent_and_grants_the_admin_role() {
 
     // Passing the configured name explicitly takes the match branch rather
     // than the refusal branch.
-    let configured = systemprompt_models::Config::get()
+    let configured = systemprompt_manifest::Config::get()
         .unwrap()
         .system_admin_username
         .clone();
@@ -73,7 +73,7 @@ async fn inactive_existing_admin_is_refused_without_granting_a_role() {
     }
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let config = CliConfig::new().with_interactive(false);
-    let configured = systemprompt_models::Config::get()
+    let configured = systemprompt_manifest::Config::get()
         .expect("fixture config")
         .system_admin_username
         .clone();

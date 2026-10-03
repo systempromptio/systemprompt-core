@@ -23,36 +23,37 @@ use std::sync::Arc;
 use pg_query::NodeEnum;
 use pg_query::protobuf::ObjectType;
 use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 use tracing::info;
 
 use super::phase::execute_phase;
 use crate::services::{DatabaseProvider, SqlExecutor};
 
 struct Retirement {
-    extension: String,
+    extension: ExtensionId,
     statements: Vec<String>,
 }
 
-fn refused(extension: &str, message: &str) -> LoaderError {
+fn refused(extension: &ExtensionId, message: &str) -> LoaderError {
     LoaderError::SchemaInstallationFailed {
-        extension: extension.to_owned(),
+        extension: extension.clone(),
         message: format!("retirement: {message}"),
     }
 }
 
 fn unparseable(
-    extension: &str,
+    extension: &ExtensionId,
     context: &str,
     source: impl std::error::Error + Send + Sync + 'static,
 ) -> LoaderError {
     LoaderError::SchemaInstallationStepFailed {
-        extension: extension.to_owned(),
+        extension: extension.clone(),
         context: format!("retirement: {context}"),
         source: Box::new(source),
     }
 }
 
-fn check_statement(extension: &str, statement: &str) -> Result<(), LoaderError> {
+fn check_statement(extension: &ExtensionId, statement: &str) -> Result<(), LoaderError> {
     let parsed =
         pg_query::parse(statement).map_err(|e| unparseable(extension, "SQL parse failed", e))?;
     for raw in &parsed.protobuf.stmts {
@@ -95,7 +96,7 @@ fn check_statement(extension: &str, statement: &str) -> Result<(), LoaderError> 
 fn prepare(extensions: &[Arc<dyn Extension>]) -> Result<Vec<Retirement>, LoaderError> {
     let mut out = Vec::new();
     for ext in extensions {
-        let extension = ext.id().to_owned();
+        let extension = ExtensionId::new(ext.id());
         let mut statements = Vec::new();
         for retirement in ext.retirements() {
             let parsed = SqlExecutor::parse_sql_statements(&retirement.sql)

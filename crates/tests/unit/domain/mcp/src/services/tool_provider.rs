@@ -1,8 +1,8 @@
 //! Unit tests for [`McpToolProvider`] constructor and accessor.
 
+use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
-use systemprompt_models::services::ResilienceSettings;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
 #[tokio::test]

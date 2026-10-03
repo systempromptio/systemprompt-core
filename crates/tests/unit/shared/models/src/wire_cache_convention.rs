@@ -9,9 +9,9 @@
 
 use futures::StreamExt;
 use serde_json::json;
-use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalUsage, CanonicalUsageUpdate};
-use systemprompt_models::wire::error::WireStreamError;
-use systemprompt_models::wire::{anthropic, gemini, openai_chat, openai_responses};
+use systemprompt_wire::canonical::{CanonicalEvent, CanonicalUsage, CanonicalUsageUpdate};
+use systemprompt_wire::error::WireStreamError;
+use systemprompt_wire::{anthropic, gemini, openai_chat, openai_responses};
 
 const PROMPT: u32 = 1_000;
 const CACHED: u32 = 640;

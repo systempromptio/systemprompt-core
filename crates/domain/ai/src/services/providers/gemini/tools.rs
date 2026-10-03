@@ -13,10 +13,10 @@ use std::time::Instant;
 use rmcp::model::ContentBlock;
 use serde_json::Value;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalToolChoice, Role, SearchConfig,
 };
-use systemprompt_models::wire::gemini;
+use systemprompt_wire::gemini;
 
 use crate::error::Result;
 use crate::models::ai::AiResponse;

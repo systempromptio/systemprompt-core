@@ -184,7 +184,7 @@ mod markdown_tests {
     }
 
     fn extract_frontmatter(content: &str) -> Option<(serde_yaml::Value, String)> {
-        let frontmatter = systemprompt_models::split_frontmatter(content)?;
+        let frontmatter = systemprompt_manifest::split_frontmatter(content)?;
         let body = frontmatter.body.to_string();
 
         serde_yaml::from_str(frontmatter.yaml.trim())

@@ -15,8 +15,8 @@ use std::path::Path;
 
 use serde::Deserialize;
 use systemprompt_identifiers::MarketplaceRuleId;
-use systemprompt_models::services::frontmatter::split_frontmatter;
-use systemprompt_models::services::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig};
+use systemprompt_manifest::services::frontmatter::split_frontmatter;
+use systemprompt_manifest::services::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig};
 
 use crate::error::MarketplaceError;
 

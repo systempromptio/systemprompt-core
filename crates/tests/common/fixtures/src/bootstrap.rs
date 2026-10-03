@@ -12,8 +12,8 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{try_init_config, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
 use systemprompt_loader::{ConfigLoader, ServicesBootstrap};
-use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
-use systemprompt_models::Config;
+use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
+use systemprompt_manifest::Config;
 use tempfile::TempDir;
 
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";
@@ -267,7 +267,7 @@ fn init_bootstrap_inner_expecting(
 
     let app_paths = AppPaths::from_profile(
         &profile.paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("app paths");

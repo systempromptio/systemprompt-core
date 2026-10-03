@@ -11,7 +11,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, McpToolName, TaskId, TraceId};
 use systemprompt_models::text::truncate_with_ellipsis;
-use systemprompt_runtime::{AuditPage, TraceQueryService};
+use systemprompt_runtime::{AuditPage, TraceQueryService, TraceRepository};
 
 use super::types::MessageRow;
 use crate::CliConfig;
@@ -129,7 +129,7 @@ async fn execute_with_pool_inner(
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
 ) -> Result<()> {
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
     let row = service.find_ai_request_for_audit(&args.id).await?;
 

@@ -1,7 +1,7 @@
 //! Serializable view types for `cloud profile show`.
 //!
 //! [`FullConfig`] aggregates the per-section outputs; [`build_env_config`]
-//! projects the resolved [`systemprompt_models::Config`] into an
+//! projects the resolved [`systemprompt_manifest::Config`] into an
 //! [`EnvironmentConfig`] with secrets and credentials redacted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -9,9 +9,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use systemprompt_models::{
-    AgentConfig, AiConfig, ContentConfigRaw, Deployment, SkillsConfig, WebConfig,
-};
+use systemprompt_manifest::{AgentConfig, AiConfig, SkillsConfig, WebConfig};
+use systemprompt_models::{ContentConfigRaw, Deployment};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FullConfig {
@@ -159,7 +158,7 @@ pub struct SettingsOutput {
 }
 
 pub fn build_env_config(
-    config: &systemprompt_models::Config,
+    config: &systemprompt_manifest::Config,
     paths: Option<&systemprompt_config::paths::AppPaths>,
 ) -> EnvironmentConfig {
     EnvironmentConfig {

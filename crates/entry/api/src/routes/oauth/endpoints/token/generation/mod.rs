@@ -36,7 +36,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{
     AccessTokenId, ClientId, RefreshTokenId, SessionId, SessionSource, UserId,
 };
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};

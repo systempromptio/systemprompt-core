@@ -9,9 +9,8 @@
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use systemprompt_logging::CliService;
-use systemprompt_models::{
-    AgentConfig, AiConfig, ContentConfigRaw, Deployment, SkillsConfig, WebConfig,
-};
+use systemprompt_manifest::{AgentConfig, AiConfig, SkillsConfig, WebConfig};
+use systemprompt_models::{ContentConfigRaw, Deployment};
 
 use super::show_types::{EnvironmentConfig, FullConfig, SettingsOutput};
 

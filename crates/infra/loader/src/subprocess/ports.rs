@@ -3,6 +3,9 @@
 //! The lookup shells out (`lsof` on Unix, `netstat` on Windows) and therefore
 //! blocks; [`super::pids_listening_on`] runs it under `spawn_blocking`. Only
 //! listening sockets count: a client connection to the port is not a holder.
+//! Port 0 means "no port" — asking the OS for its holder would match every
+//! unbound socket — so it never reaches the lookup, and a reported pid 0 is
+//! dropped.
 //! The parsers are pure so their edge cases are testable without a socket.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -17,6 +20,7 @@ pub fn parse_lsof_pids(stdout: &str) -> Vec<u32> {
     let mut pids: Vec<u32> = stdout
         .lines()
         .filter_map(|line| line.trim().parse().ok())
+        .filter(|pid| *pid != 0)
         .collect();
     pids.sort_unstable();
     pids.dedup();
@@ -41,6 +45,7 @@ pub fn parse_netstat_listeners(stdout: &str, port: u16) -> Vec<u32> {
                 _ => None,
             }
         })
+        .filter(|pid| *pid != 0)
         .collect();
     pids.sort_unstable();
     pids.dedup();

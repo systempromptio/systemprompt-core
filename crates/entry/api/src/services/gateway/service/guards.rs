@@ -5,7 +5,7 @@
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_manifest::services::QuotaFaultMode;
 
 use super::super::policy::GatewayPolicySpec;
 use super::super::protocol::canonical::CanonicalRequest;

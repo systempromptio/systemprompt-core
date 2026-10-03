@@ -6,7 +6,7 @@
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::{Map, Value};
 use systemprompt_identifiers::ModelId;
-use systemprompt_models::wire::inspect::ForwardedSurface;
+use systemprompt_wire::inspect::ForwardedSurface;
 
 use super::super::super::canonical::{
     CanonicalRequest, CanonicalTool, CanonicalToolChoice, SystemBlock, ThinkingConfig,

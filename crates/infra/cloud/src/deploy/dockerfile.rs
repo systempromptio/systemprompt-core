@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
-use systemprompt_models::{CliPaths, ServicesConfig};
+use systemprompt_manifest::ServicesConfig;
+use systemprompt_models::CliPaths;
 
 use super::find_services_config;
 use crate::constants::{container, storage};
@@ -24,17 +25,13 @@ pub struct DockerfileBuilder<'a> {
 impl<'a> DockerfileBuilder<'a> {
     pub fn new(project_root: &'a Path) -> Self {
         let services_config = find_services_config(project_root)
-            .map_err(|e| {
+            .inspect_err(|e| {
                 tracing::debug!(error = %e, "No services config found for dockerfile generation");
-                e
             })
             .ok()
             .and_then(|path| {
                 ConfigLoader::load_from_path(&path)
-                    .map_err(|e| {
-                        tracing::warn!(error = %e, "Failed to load services config");
-                        e
-                    })
+                    .inspect_err(|e| tracing::warn!(error = %e, "Failed to load services config"))
                     .ok()
             });
         Self {

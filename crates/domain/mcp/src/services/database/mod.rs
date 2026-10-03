@@ -16,7 +16,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 
 // Why: `services.pid` is a signed column; a negative value is corrupt data
 // and reads as "no pid" rather than a wrapped process id.

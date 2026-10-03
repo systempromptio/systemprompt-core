@@ -16,7 +16,7 @@ use reqwest::StatusCode;
 use reqwest::header::{
     CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue,
 };
-use systemprompt_models::profile::{OtlpExportConfig, OtlpSignal};
+use systemprompt_manifest::profile::{OtlpExportConfig, OtlpSignal};
 
 pub const BATCHES_TOTAL: &str = "otlp_export_batches_total";
 const CONTENT_TYPE_PROTOBUF: &str = "application/x-protobuf";

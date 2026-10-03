@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use serde::Deserialize;
 use serde_json::{Value, json};
 use systemprompt_identifiers::SlackUserId;
 use systemprompt_models::net::validate_outbound_url;
@@ -26,6 +27,30 @@ pub struct SlackUserProfile {
     pub email: Option<String>,
     pub email_confirmed: bool,
     pub display_name: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UsersInfoResponse {
+    #[serde(default)]
+    user: Option<UsersInfoUser>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UsersInfoUser {
+    #[serde(default)]
+    is_email_confirmed: bool,
+    #[serde(default)]
+    profile: Option<UsersInfoProfile>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UsersInfoProfile {
+    #[serde(default)]
+    email: Option<String>,
+    #[serde(default)]
+    real_name: Option<String>,
+    #[serde(default)]
+    display_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -106,23 +131,16 @@ impl SlackClient {
             .query(&[("user", user_id.as_str())])
             .send()
             .await?;
-        let payload = Self::parse_ok(resp).await?;
-        let user = payload.get("user");
-        let profile = user.and_then(|u| u.get("profile"));
+        let payload: UsersInfoResponse = serde_json::from_value(Self::parse_ok(resp).await?)?;
+        let user = payload.user.unwrap_or_default();
+        let profile = user.profile.unwrap_or_default();
         Ok(SlackUserProfile {
-            email: profile
-                .and_then(|p| p.get("email"))
-                .and_then(Value::as_str)
-                .map(str::to_owned),
-            email_confirmed: user
-                .and_then(|u| u.get("is_email_confirmed"))
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
+            email: profile.email,
+            email_confirmed: user.is_email_confirmed,
             display_name: profile
-                .and_then(|p| p.get("real_name").or_else(|| p.get("display_name")))
-                .and_then(Value::as_str)
-                .filter(|name| !name.is_empty())
-                .map(str::to_owned),
+                .real_name
+                .or(profile.display_name)
+                .filter(|name| !name.is_empty()),
         })
     }
 

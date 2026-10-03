@@ -8,6 +8,7 @@
 use std::path::Path;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::{AssetDefinition, ExtensionRegistry};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::JobResult;
 
 use crate::error::{GeneratorResult as Result, PublishError};
@@ -34,7 +35,8 @@ pub async fn execute_copy_extension_assets(paths: &AppPaths) -> Result<JobResult
     let mut failed = 0u64;
 
     for (ext_id, asset) in assets {
-        match copy_asset(dist_dir, ext_id, &asset).await {
+        let ext_id = ExtensionId::new(ext_id);
+        match copy_asset(dist_dir, &ext_id, &asset).await {
             Ok(()) => copied += 1,
             Err(e) => {
                 if asset.is_required() {
@@ -65,7 +67,11 @@ pub async fn execute_copy_extension_assets(paths: &AppPaths) -> Result<JobResult
         .with_duration(duration_ms))
 }
 
-pub async fn copy_asset(dist_dir: &Path, ext_id: &str, asset: &AssetDefinition) -> Result<()> {
+pub async fn copy_asset(
+    dist_dir: &Path,
+    ext_id: &ExtensionId,
+    asset: &AssetDefinition,
+) -> Result<()> {
     let dest_path = dist_dir.join(asset.destination());
 
     if let Some(parent) = dest_path.parent() {

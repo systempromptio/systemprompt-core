@@ -16,7 +16,7 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::ProviderId;
-use systemprompt_models::services::{GatewayRoute, ProviderRegistry};
+use systemprompt_manifest::services::{GatewayRoute, ProviderRegistry};
 
 use super::secrets::SecretsData;
 

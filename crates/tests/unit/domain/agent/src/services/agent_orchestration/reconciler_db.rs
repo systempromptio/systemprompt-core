@@ -14,7 +14,7 @@ use systemprompt_agent::services::agent_orchestration::reconciler::{
     AgentReconciler, ConsistencyReport,
 };
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::agent_config;

@@ -18,6 +18,7 @@
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::ExtensionId;
 
 use systemprompt_database::{HOT_TABLES, audit_one};
 
@@ -106,7 +107,7 @@ fn every_hot_table_rewrite_declares_its_measured_cost() {
     for path in migration_files() {
         let sql = std::fs::read_to_string(&path).expect("migration readable");
         let name = label(&path);
-        let Some(cost) = audit_one("", &name, &sql, HOT_TABLES) else {
+        let Some(cost) = audit_one(&ExtensionId::new("workspace"), &name, &sql, HOT_TABLES) else {
             continue;
         };
         if let Some(reason) = cost.malformed {
@@ -179,7 +180,7 @@ fn the_detector_sees_each_expensive_form() {
         ),
     ];
     for (sql, form) in cases {
-        let cost = audit_one("ext", "001_x", sql, &hot).expect("flagged");
+        let cost = audit_one(&ExtensionId::new("ext"), "001_x", sql, &hot).expect("flagged");
         assert!(cost.is_undeclared(), "{sql}");
         assert_eq!(cost.statements[0].form, form, "{sql}");
         assert_eq!(cost.statements[0].table, "ai_requests", "{sql}");
@@ -196,7 +197,10 @@ fn the_detector_leaves_ordinary_migrations_alone() {
         "UPDATE some_small_table SET x = 1;",
         "CREATE TABLE t (id TEXT);",
     ] {
-        assert!(audit_one("ext", "001_x", sql, &hot).is_none(), "{sql}");
+        assert!(
+            audit_one(&ExtensionId::new("ext"), "001_x", sql, &hot).is_none(),
+            "{sql}"
+        );
     }
 }
 
@@ -204,7 +208,8 @@ fn the_detector_leaves_ordinary_migrations_alone() {
 fn a_declared_cost_satisfies_the_gate() {
     let sql =
         "-- @cost: rows=10 measured=1.5s triggers=suspended\nUPDATE ai_requests SET model = 'x';";
-    let cost = audit_one("ext", "001_x", sql, &["ai_requests"]).expect("flagged");
+    let cost =
+        audit_one(&ExtensionId::new("ext"), "001_x", sql, &["ai_requests"]).expect("flagged");
     assert!(!cost.is_undeclared());
     assert_eq!(cost.declared.expect("declared").rows, 10);
 }

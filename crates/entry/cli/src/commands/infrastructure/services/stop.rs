@@ -11,7 +11,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
-use systemprompt_models::services::ServiceModule;
+use systemprompt_manifest::services::ServiceModule;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ServiceManagementService;
 

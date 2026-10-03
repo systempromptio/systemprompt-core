@@ -28,7 +28,7 @@ impl SessionCreationService {
         let user_id = UserId::new(anonymous_user.id);
 
         let jwt_expiration_seconds =
-            systemprompt_models::Config::get()?.jwt_access_token_expiration;
+            systemprompt_manifest::Config::get()?.jwt_access_token_expiration;
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration_seconds);
 
         self.session_provider
@@ -43,7 +43,7 @@ impl SessionCreationService {
             })
             .await?;
 
-        let config = systemprompt_models::Config::get()?;
+        let config = systemprompt_manifest::Config::get()?;
         let signing = JwtSigningParams {
             issuer: &config.jwt_issuer,
         };

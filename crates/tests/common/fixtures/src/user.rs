@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, UserId};
-use systemprompt_models::services::SystemAdmin;
+use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_users::{UserRepository, UserService};
 
 pub const FIXTURE_USER_ID: &str = "test-user";

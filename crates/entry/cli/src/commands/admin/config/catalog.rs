@@ -18,7 +18,9 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 use systemprompt_config::{ModelSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::services::{ApiSurface, ProviderRegistry, WireProtocol};
+use systemprompt_manifest::services::ProviderRegistry;
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_wire::WireProtocol;
 
 use super::services_io::{
     booted_services, load_providers_file, merged_registry_after_edit, providers_relative, save_file,

@@ -4,8 +4,8 @@
 use std::fs;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::database::state::get_binary_mtime_for_service;
-use systemprompt_models::profile::PathsConfig;
 
 fn paths_with_bin(bin_dir: &str) -> AppPaths {
     let cfg = PathsConfig {
@@ -18,7 +18,7 @@ fn paths_with_bin(bin_dir: &str) -> AppPaths {
     };
     AppPaths::from_profile(
         &cfg,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths")

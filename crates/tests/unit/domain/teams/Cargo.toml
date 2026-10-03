@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-teams = { workspace = true }
-systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]

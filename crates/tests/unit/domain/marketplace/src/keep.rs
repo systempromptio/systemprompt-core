@@ -152,7 +152,7 @@ fn candidate_in(f: &Fixture, record_owner: bool, markets: &[&str]) -> Marketplac
     for id in &ids {
         membership.access.insert(
             id.clone(),
-            systemprompt_models::services::MarketplaceAccess::default(),
+            systemprompt_manifest::services::MarketplaceAccess::default(),
         );
     }
     membership.plugins.insert(

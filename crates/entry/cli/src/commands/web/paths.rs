@@ -8,8 +8,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::Profile;
-use systemprompt_models::validators::WebConfigRaw;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::validators::WebConfigRaw;
 
 const DEFAULT_TEMPLATES_PATH: &str = "web/templates";
 const DEFAULT_ASSETS_PATH: &str = "web/assets";

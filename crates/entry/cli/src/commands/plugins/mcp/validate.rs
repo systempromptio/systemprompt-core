@@ -15,10 +15,10 @@ use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_models::Deployment;
-use systemprompt_models::services::ServiceStatus;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
@@ -122,7 +122,7 @@ pub(super) async fn execute(
 
 async fn validate_single_service(
     service_name: &ServiceName,
-    services_config: &systemprompt_models::ServicesConfig,
+    services_config: &systemprompt_manifest::ServicesConfig,
     database: &DatabaseService,
     timeout_secs: u64,
 ) -> McpValidateOutput {
@@ -232,7 +232,7 @@ pub async fn run_connection_validation(
 
 pub fn prompt_server_selection(
     prompter: &dyn Prompter,
-    config: &systemprompt_models::ServicesConfig,
+    config: &systemprompt_manifest::ServicesConfig,
 ) -> Result<ServiceName> {
     let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
     servers.sort();

@@ -11,7 +11,7 @@ use systemprompt_generator::{
     DefaultSitemapProvider, PublishError, generate_sitemap, get_templates_path, load_web_config,
     prerender_content,
 };
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     TestBootstrap, closed_db_pool, ensure_test_bootstrap, test_db_pool,
 };
@@ -112,7 +112,7 @@ fn tempdir_paths(tmp: &tempfile::TempDir) -> AppPaths {
             storage: Some(p),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths")

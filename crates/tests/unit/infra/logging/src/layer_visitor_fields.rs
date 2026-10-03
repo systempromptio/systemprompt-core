@@ -58,7 +58,7 @@ async fn the_visitor_preserves_scalar_field_types_and_strips_ansi_from_messages(
     let trace_id = format!("visitor-scalars-{}", uuid::Uuid::new_v4().simple());
 
     {
-        let (layer, _writer) = DatabaseLayer::new(db.clone());
+        let (layer, _writer) = DatabaseLayer::new(&db);
         let subscriber = tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -130,7 +130,7 @@ async fn redaction_applies_to_debug_rendered_fields_and_never_to_scalars() {
     let trace_id = format!("visitor-redact-{}", uuid::Uuid::new_v4().simple());
 
     {
-        let (layer, _writer) = DatabaseLayer::new(db.clone());
+        let (layer, _writer) = DatabaseLayer::new(&db);
         let subscriber = tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -193,7 +193,7 @@ async fn span_attribution_fields_are_captured_when_recorded_via_debug() {
     let trace_id = format!("visitor-span-debug-{}", uuid::Uuid::new_v4().simple());
 
     {
-        let (layer, _writer) = DatabaseLayer::new(db.clone());
+        let (layer, _writer) = DatabaseLayer::new(&db);
         let subscriber = tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
         let _guard = tracing::subscriber::set_default(subscriber);
 

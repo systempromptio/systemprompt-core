@@ -98,7 +98,9 @@ pub(super) async fn parse_error_response(
             body: error_text.chars().take(500).collect(),
         },
         |parsed| CloudError::ApiError {
-            message: format!("{}: {}", parsed.error.code, parsed.error.message),
+            status: status.as_u16(),
+            code: parsed.error.code,
+            message: parsed.error.message,
         },
     )
 }

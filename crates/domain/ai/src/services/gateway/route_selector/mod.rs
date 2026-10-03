@@ -1,8 +1,8 @@
 //! Programmatic refinement of the gateway's declaratively-matched route.
 //!
 //! The profile's `gateway.routes` select a backend by model glob and optional
-//! [`RouteMatch`](systemprompt_models::services::RouteMatch) predicates. When a
-//! request needs classification those predicates cannot express — accurate
+//! [`RouteMatch`](systemprompt_manifest::services::RouteMatch) predicates. When
+//! a request needs classification those predicates cannot express — accurate
 //! token counting, a learned task classifier, heuristic shape detection — a
 //! [`RouteSelector`] contributed through the
 //! [`register_route_selector!`](crate::register_route_selector) macro and
@@ -22,8 +22,8 @@
 use std::sync::{Arc, OnceLock};
 
 use async_trait::async_trait;
-use systemprompt_models::services::GatewayRoute;
-use systemprompt_models::wire::canonical::CanonicalRequest;
+use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_wire::canonical::CanonicalRequest;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RouteSelectorError {

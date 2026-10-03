@@ -44,6 +44,7 @@ NAME_TABLE=(
     "approver_id:UserId"
     "owner_user_id:UserId"
     "jti:AccessTokenId"              # a JWT's jti is the access token's id
+    "ext_id:ExtensionId"
 )
 
 # Boundary values: `path|names|reason`. A listed name in the listed file is a
@@ -69,8 +70,9 @@ BOUNDARY=(
     "crates/shared/models/src/api/cloud/usage.rs|agent_name|cloud API response field deserialised verbatim"
     "crates/entry/api/src/services/gateway/captures.rs|tool_name|provider wire tool_use name captured verbatim for audit"
     "crates/infra/security/src/authz/audit/repository.rs|tool_name|governance_decisions.tool_name mixes tool names, entity ids and a merge label"
-    "crates/app/scheduler/src/jobs/otlp_export/records.rs|tool_name|governance_decisions.tool_name read back for export (same mixed column)"
+    "crates/app/scheduler/src/repository/otlp/records.rs|tool_name|governance_decisions.tool_name read back for export (same mixed column)"
     "crates/shared/identifiers/src/actor.rs|tool_name|Actor::from_tool_name parses an external tool-name string"
+    "crates/shared/models/src/origin/mod.rs|host_id|bridge host-id vocabulary baked into HMAC labels, mapped onto ClientKind"
     "crates/shared/models/src/modules/api_paths.rs|server_name agent_name|URL builders over path segments"
     "crates/shared/client/src/client/mod.rs|agent_name|HTTP client path argument for a remote agent card"
     "crates/shared/provider-contracts/src/content_data.rs|content_id|extension contract: content slug handed to third-party providers"
@@ -83,7 +85,6 @@ BOUNDARY=(
 # name is skipped by the scan until its sites convert; an entry that no longer
 # matches any line is stale and fails the gate, so the list only shrinks.
 PENDING=(
-    "extension_id|ExtensionId is new; extension metadata, migration status rows and installation args still take &str/String"
 )
 
 snake() {
@@ -105,12 +106,21 @@ DERIVED=$(
 
 TABLE_NAMES=$(for row in "${NAME_TABLE[@]}"; do printf '%s\n' "${row%%:*}"; done)
 
-PENDING_NAMES=$(for row in "${PENDING[@]}"; do printf '%s\n' "${row%%|*}"; done)
+PENDING_NAMES=$(for row in "${PENDING[@]}"; do printf '%s\n' "${row%%|*}"; done | rg -v '^$')
 
-NAMES=$(printf '%s\n%s\n' "$DERIVED" "$TABLE_NAMES" | rg -v '^$' | sort -u \
-    | rg -v -x -F -f <(printf '%s\n' "$PENDING_NAMES" | rg -v '^$'))
-NAME_COUNT=$(printf '%s\n' "$NAMES" | wc -l | tr -d ' ')
-ALT=$(printf '%s\n' "$NAMES" | paste -sd '|' -)
+NAMES=$(printf '%s\n%s\n' "$DERIVED" "$TABLE_NAMES" | rg -v '^$' | sort -u)
+# Why: given an empty `-f` pattern file, `rg -v` prints nothing on ripgrep 14
+# (Ubuntu noble) but every line on ripgrep 15, so the exclusion runs only when
+# a name is pending.
+if [ -n "$PENDING_NAMES" ]; then
+    NAMES=$(printf '%s\n' "$NAMES" | rg -v -x -F -f <(printf '%s\n' "$PENDING_NAMES"))
+fi
+NAME_COUNT=$(printf '%s\n' "$NAMES" | rg -c -v '^$')
+ALT=$(printf '%s\n' "$NAMES" | rg -v '^$' | paste -sd '|' -)
+if [ -z "$ALT" ] || [ "${NAME_COUNT:-0}" -eq 0 ]; then
+    echo "lint-raw-ids: no forbidden names derived from ${IDS_DIR}; refusing to scan with an empty name set" >&2
+    exit 2
+fi
 
 raw_pattern() {
     printf '%s' "\\b($1)\\s*:\\s*(?:Option<\\s*)?(?:&\\s*(?:'[a-z_]+\\s+)?(?:mut\\s+)?)?(?:uuid::)?(?:String|str|Uuid)\\s*(?:[,>)=;{]|\$)"
@@ -126,7 +136,7 @@ PATTERN=$(raw_pattern "$ALT")
 #   crates/domain/mcp/.../session_store.rs    MCP session records keyed by the
 #                                              transport's opaque `session_id`
 #                                              header string
-#   crates/shared/models/src/wire/**          provider wire shapes
+#   crates/shared/wire/src/**                  provider wire shapes
 #                                              (Anthropic SSE `message_id`,
 #                                              Gemini streaming) mirror the
 #                                              upstream JSON field by name
@@ -148,7 +158,7 @@ scan() {
         -g '!**/.sqlx/**' \
         -g '!crates/entry/api/src/routes/oauth/**' \
         -g '!crates/domain/mcp/src/middleware/session_handler/session_store.rs' \
-        -g '!crates/shared/models/src/wire/**' \
+        -g '!crates/shared/wire/src/**' \
         -g '!crates/domain/*/src/models/rows.rs' \
         -e "$1" \
         "${SEARCH_DIRS[@]}" 2>/dev/null || true

@@ -6,11 +6,11 @@
 use reqwest::{Client, Response};
 // JSON: protocol boundary — the rendered wire body is dynamic JSON.
 use serde_json::Value;
+use systemprompt_manifest::services::ProviderModel;
+use systemprompt_manifest::services::providers::upstream_model_in;
 use systemprompt_models::net::{AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT};
-use systemprompt_models::services::providers::upstream_model_in;
-use systemprompt_models::services::{ProviderModel, WireProtocol};
-use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse};
-use systemprompt_models::wire::{openai_chat, openai_responses};
+use systemprompt_wire::canonical::{CanonicalRequest, CanonicalResponse};
+use systemprompt_wire::{WireProtocol, openai_chat, openai_responses};
 
 use crate::error::Result;
 use crate::services::providers::http_client::build_client;

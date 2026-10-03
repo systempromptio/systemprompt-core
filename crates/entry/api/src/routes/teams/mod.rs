@@ -30,9 +30,9 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_identifiers::{TeamsConversationId, TeamsTenantId};
+use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::services::TeamsAppConfig;
+use systemprompt_manifest::services::TeamsAppConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::EntityRef;
 use systemprompt_teams::activities::Activity;
@@ -133,7 +133,7 @@ async fn handle_messages(
 struct TeamsReply {
     service_url: String,
     conversation_id: TeamsConversationId,
-    app_id: String,
+    app_id: TeamsAppId,
     app_password: String,
     token_url: String,
 }

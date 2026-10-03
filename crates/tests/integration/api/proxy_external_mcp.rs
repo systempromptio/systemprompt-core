@@ -20,8 +20,8 @@ use systemprompt_database::{
     CreateServiceInput, DbPool, ServiceModule, ServiceRepository, ServiceStatus,
 };
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::RequestContext;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;

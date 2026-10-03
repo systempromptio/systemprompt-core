@@ -125,23 +125,9 @@ fn test_auth_error_not_retryable() {
 }
 
 #[test]
-fn test_not_found_not_retryable() {
-    let error = ClientError::NotFound("Resource not found".to_string());
-    assert!(!error.is_retryable());
-}
-
-#[test]
 fn test_json_error_not_retryable() {
     let json_err = serde_json::from_str::<serde_json::Value>("invalid").unwrap_err();
     let error = ClientError::JsonError(json_err);
-    assert!(!error.is_retryable());
-}
-
-#[test]
-fn test_config_error_not_retryable() {
-    let error = ClientError::ConfigError {
-        message: "Missing config".to_string(),
-    };
     assert!(!error.is_retryable());
 }
 
@@ -160,23 +146,9 @@ fn test_auth_error_display() {
 }
 
 #[test]
-fn test_not_found_display() {
-    let error = ClientError::NotFound("User 123".to_string());
-    assert_eq!(error.to_string(), "Resource not found: User 123");
-}
-
-#[test]
 fn test_server_unavailable_display() {
     let error = ClientError::ServerUnavailable("Database down".to_string());
     assert_eq!(error.to_string(), "Server unavailable: Database down");
-}
-
-#[test]
-fn test_config_error_display() {
-    let error = ClientError::ConfigError {
-        message: "Invalid URL".to_string(),
-    };
-    assert_eq!(error.to_string(), "Invalid configuration: Invalid URL");
 }
 
 #[test]

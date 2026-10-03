@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use systemprompt_cloud::{ProfilePath, SessionKey};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ProfileLoader;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use super::types::SwitchOutput;
 use crate::paths::ResolvedPaths;

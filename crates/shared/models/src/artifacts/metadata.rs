@@ -61,7 +61,7 @@ pub struct ExecutionMetadata {
     pub skill_name: Option<SkillName>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execution_id: Option<String>,
+    pub execution_id: Option<McpExecutionId>,
 }
 
 #[derive(Debug)]
@@ -76,7 +76,7 @@ pub struct ExecutionMetadataBuilder {
     tool_name: Option<McpToolName>,
     skill_id: Option<SkillId>,
     skill_name: Option<SkillName>,
-    execution_id: Option<String>,
+    execution_id: Option<McpExecutionId>,
 }
 
 impl ExecutionMetadataBuilder {
@@ -107,8 +107,8 @@ impl ExecutionMetadataBuilder {
         self
     }
 
-    pub fn with_execution(mut self, id: impl Into<String>) -> Self {
-        self.execution_id = Some(id.into());
+    pub fn with_execution(mut self, id: McpExecutionId) -> Self {
+        self.execution_id = Some(id);
         self
     }
 
@@ -149,8 +149,8 @@ impl ExecutionMetadata {
         self
     }
 
-    pub fn with_execution(mut self, id: impl Into<String>) -> Self {
-        self.execution_id = Some(id.into());
+    pub fn with_execution(mut self, id: McpExecutionId) -> Self {
+        self.execution_id = Some(id);
         self
     }
 
@@ -166,14 +166,8 @@ impl ExecutionMetadata {
     }
 
     // JSON: A2A `Artifact.metadata` map.
-    pub fn to_object(&self) -> Option<serde_json::Map<String, JsonValue>> {
-        serde_json::to_value(self)
-            .map_err(|e| {
-                tracing::warn!(error = %e, "ExecutionMetadata serialization failed");
-                e
-            })
-            .ok()
-            .and_then(|v| v.as_object().cloned())
+    pub fn to_object(&self) -> Result<serde_json::Map<String, JsonValue>, serde_json::Error> {
+        serde_json::from_value(serde_json::to_value(self)?)
     }
 }
 
@@ -183,7 +177,7 @@ impl ExecutionMetadata {
 #[derive(Debug, Clone, Default)]
 pub struct ArtifactProvenance {
     request: Option<ExecutionMetadata>,
-    execution_id: Option<String>,
+    execution_id: Option<McpExecutionId>,
     skill: Option<(SkillId, SkillName)>,
 }
 
@@ -196,19 +190,19 @@ impl ArtifactProvenance {
         self.request = Some(metadata);
     }
 
-    pub fn set_execution_id(&mut self, id: impl Into<String>) {
-        self.execution_id = Some(id.into());
+    pub fn set_execution_id(&mut self, id: McpExecutionId) {
+        self.execution_id = Some(id);
     }
 
     pub fn set_skill(&mut self, id: SkillId, name: SkillName) {
         self.skill = Some((id, name));
     }
 
-    pub fn execution_id(&self) -> Option<&str> {
-        self.execution_id.as_deref().or_else(|| {
+    pub fn execution_id(&self) -> Option<&McpExecutionId> {
+        self.execution_id.as_ref().or_else(|| {
             self.request
                 .as_ref()
-                .and_then(|metadata| metadata.execution_id.as_deref())
+                .and_then(|metadata| metadata.execution_id.as_ref())
         })
     }
 

@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_traits::DynJwtValidationProvider;
 
 use crate::repository::A2ARepositories;

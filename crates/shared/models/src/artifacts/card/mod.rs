@@ -13,7 +13,7 @@ mod artifact;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use systemprompt_identifiers::{SkillId, SkillName};
+use systemprompt_identifiers::{McpExecutionId, SkillId, SkillName};
 
 pub use artifact::PresentationCardArtifact;
 
@@ -84,7 +84,7 @@ pub struct PresentationCardResponse {
     pub ctas: Vec<CardCta>,
     pub theme: CardTheme,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execution_id: Option<String>,
+    pub execution_id: Option<McpExecutionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_id: Option<SkillId>,
     #[serde(skip_serializing_if = "Option::is_none")]

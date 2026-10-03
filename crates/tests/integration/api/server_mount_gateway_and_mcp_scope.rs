@@ -10,7 +10,7 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use http::Method;
 use systemprompt_api::services::server::setup_api_server;
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };

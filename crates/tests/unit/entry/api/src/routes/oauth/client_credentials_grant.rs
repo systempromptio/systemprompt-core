@@ -11,7 +11,7 @@ use systemprompt_api::routes::oauth::endpoints::token::generation::ClientCredent
 use systemprompt_api::routes::oauth::endpoints::token::generation::client_credentials::{
     authorize_client_grant, resolve_audience, scope_permissions,
 };
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_test_fixtures::fixture_config;
 

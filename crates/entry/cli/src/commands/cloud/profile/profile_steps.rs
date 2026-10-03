@@ -12,12 +12,12 @@ use std::path::Path;
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType};
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use systemprompt_identifiers::ProfileName;
 
 
-use systemprompt_models::profile::TrustedIssuer;
+use systemprompt_manifest::profile::TrustedIssuer;
 
 use super::api_keys::ApiKeys;
 use super::templates::{

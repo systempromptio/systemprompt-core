@@ -89,13 +89,6 @@ mod scheduler_error_tests {
     }
 
     #[test]
-    fn config_error_contains_message() {
-        let error = SchedulerError::config_error("missing required field");
-        let message = error.to_string();
-        assert!(message.contains("missing required field"));
-    }
-
-    #[test]
     fn job_not_found_accepts_string() {
         let error = SchedulerError::job_not_found(JobName::new("dynamic_job"));
         assert!(error.to_string().contains("dynamic_job"));
@@ -116,12 +109,6 @@ mod scheduler_error_tests {
         let message = error.to_string();
         assert!(message.contains("job1"));
         assert!(message.contains("error msg"));
-    }
-
-    #[test]
-    fn config_error_accepts_string() {
-        let error = SchedulerError::config_error(String::from("config issue"));
-        assert!(error.to_string().contains("config issue"));
     }
 
     #[test]

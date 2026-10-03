@@ -11,7 +11,7 @@
 
 use std::fs;
 
-use systemprompt_models::services::{AgentConfig, ServicesConfig};
+use systemprompt_manifest::services::{AgentConfig, ServicesConfig};
 
 use super::{AgentConfigAuthoringService, ConfigAuthoringError};
 

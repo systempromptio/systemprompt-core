@@ -14,12 +14,13 @@ use std::path::Path;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_identifiers::Email;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
-    CliPaths, CloudConfig, CloudValidationMode, Environment, ExtensionsConfig, Profile,
+use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
+    CloudConfig, CloudValidationMode, Environment, ExtensionsConfig, Profile,
     ProfileDatabaseConfig, ProfileType, RateLimitsConfig, SiteConfig,
 };
+use systemprompt_models::CliPaths;
 
 use super::profile_sections as sections;
 use systemprompt_cloud::profile_authoring::generate_display_name;
@@ -59,8 +60,8 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
     let security = sections::security(&server.api_external_url);
 
     let profile = Profile {
-        storage: systemprompt_models::profile::StorageConfig::default(),
-        observability: systemprompt_models::profile::ObservabilityConfig::default(),
+        storage: systemprompt_manifest::profile::StorageConfig::default(),
+        observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
         name: env_name.to_owned(),
         display_name: generate_display_name(env_name),
         target: ProfileType::Local,
@@ -93,9 +94,9 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         }),
         extensions: ExtensionsConfig::default(),
         governance: Some(governance),
-        judge: systemprompt_models::profile::JudgeProfile::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
-        services: systemprompt_models::profile::ServicesProfileConfig {
+        judge: systemprompt_manifest::profile::JudgeProfile::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
+        services: systemprompt_manifest::profile::ServicesProfileConfig {
             port_offset,
             ..Default::default()
         },

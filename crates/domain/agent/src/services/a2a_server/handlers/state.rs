@@ -4,7 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use systemprompt_models::{AgentConfig, AiProvider};
+use systemprompt_manifest::AgentConfig;
+use systemprompt_models::ai::DynAiProvider;
 use tokio::sync::{RwLock, Semaphore};
 
 use crate::services::a2a_server::active_tasks::ActiveTasks;
@@ -16,7 +17,7 @@ pub struct AgentHandlerState {
     pub config: Arc<RwLock<AgentConfig>>,
     pub oauth_state: Arc<AgentOAuthState>,
     pub agent_state: Arc<AgentState>,
-    pub ai_service: Arc<dyn AiProvider>,
+    pub ai_service: DynAiProvider,
     pub stream_semaphore: Arc<Semaphore>,
     pub active_tasks: ActiveTasks,
 }
@@ -27,7 +28,7 @@ impl std::fmt::Debug for AgentHandlerState {
             .field("config", &"<Arc<RwLock<AgentConfig>>>")
             .field("oauth_state", &"<Arc<AgentOAuthState>>")
             .field("agent_state", &"<Arc<AgentState>>")
-            .field("ai_service", &"<Arc<dyn AiProvider>>")
+            .field("ai_service", &"<DynAiProvider>")
             .field(
                 "stream_semaphore",
                 &self.stream_semaphore.available_permits(),

@@ -6,7 +6,7 @@
 
 use systemprompt_identifiers::UserId;
 use systemprompt_logging::{LogAttributionUnset, install_log_attribution, platform_attribution};
-use systemprompt_models::services::SystemAdmin;
+use systemprompt_manifest::services::SystemAdmin;
 
 fn make_admin(id: &str) -> SystemAdmin {
     SystemAdmin::new(UserId::new(id), format!("user-{id}"))

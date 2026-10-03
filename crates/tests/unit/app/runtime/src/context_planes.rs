@@ -8,9 +8,9 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
@@ -95,7 +95,7 @@ async fn plane_debug_impls_flag_optional_members() {
         app_paths: Arc::new(
             AppPaths::from_profile(
                 &tmp_paths(),
-                systemprompt_models::PathResolution::Canonicalize,
+                systemprompt_manifest::PathResolution::Canonicalize,
                 None,
             )
             .expect("app paths"),
@@ -129,7 +129,7 @@ async fn plane_debug_impls_flag_optional_members() {
         event_router: systemprompt_events::EventRouter::local_only(),
         geoip_reader: None,
         file_storage: systemprompt_storage::build_file_storage(
-            systemprompt_models::profile::StorageBackend::Local,
+            systemprompt_manifest::profile::StorageBackend::Local,
             &std::env::temp_dir(),
         ),
         shutdown: Default::default(),

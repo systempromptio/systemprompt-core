@@ -59,7 +59,10 @@ impl StubProvider {
         match outcome {
             Outcome::Text(text) => Ok(Self::response(text)),
             Outcome::Empty => Ok(Self::response("")),
-            Outcome::Error => Err(AiError::Internal("stub failure".to_owned())),
+            Outcome::Error => Err(AiError::ProviderError {
+                provider: "stub".to_owned(),
+                message: "stub failure".to_owned(),
+            }),
         }
     }
 }

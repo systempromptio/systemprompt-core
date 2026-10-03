@@ -11,9 +11,9 @@ use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use systemprompt_models::{DiskSkillConfig, strip_frontmatter};
+use systemprompt_manifest::{DiskSkillConfig, strip_frontmatter};
 
-pub use systemprompt_models::services::{SkillDetail, SkillSummary};
+pub use systemprompt_manifest::services::{SkillDetail, SkillSummary};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillListOutput {

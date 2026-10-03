@@ -42,10 +42,9 @@ pub fn infer_type(
         return Ok(ArtifactType::Table);
     }
 
-    Err(ArtifactError::Transform(format!(
-        "Tool '{}' missing required x-artifact-type. Add x-artifact-type to tool output or schema.",
-        tool_name
-    )))
+    Err(ArtifactError::MissingArtifactType {
+        tool_name: tool_name.clone(),
+    })
 }
 
 fn parse_artifact_type(type_str: &str) -> ArtifactType {

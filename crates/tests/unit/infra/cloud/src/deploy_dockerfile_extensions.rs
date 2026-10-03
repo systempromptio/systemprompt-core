@@ -10,10 +10,10 @@ use systemprompt_cloud::deploy::{
     DockerfileBuilder, get_required_mcp_copy_lines, validate_dockerfile_has_mcp_binaries,
     validate_profile_dockerfile,
 };
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
-use systemprompt_models::services::ServicesConfig;
 use tempfile::TempDir;
 
 fn write_mcp_manifest(project_root: &Path, ext_name: &str, binary: &str) {

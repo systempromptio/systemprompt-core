@@ -1,7 +1,7 @@
 //! The runtime guard that keeps `reasoning_tokens` a breakdown of
 //! `output_tokens` for providers that were never probed.
 
-use systemprompt_models::wire::canonical::{CanonicalUsage, CanonicalUsageUpdate};
+use systemprompt_wire::canonical::{CanonicalUsage, CanonicalUsageUpdate};
 
 fn usage(input: u32, output: u32, reasoning: u32, total: u32) -> CanonicalUsage {
     CanonicalUsage {

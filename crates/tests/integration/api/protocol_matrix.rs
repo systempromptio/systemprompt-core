@@ -11,7 +11,7 @@ use systemprompt_api::services::gateway::protocol::{
     outbound_anthropic,
 };
 use systemprompt_identifiers::ModelId;
-use systemprompt_models::wire::error::WireStreamError;
+use systemprompt_wire::error::WireStreamError;
 
 // -----------------------------------------------------------------------------
 // Inbound parsers
@@ -116,8 +116,7 @@ fn anthropic_outbound_request_builder_carries_model_and_messages() {
 #[test]
 fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
     let req = fixture_request("gpt-4o", true);
-    let body =
-        systemprompt_models::wire::openai_chat::build_request_body(&req, "gpt-4o-upstream", None);
+    let body = systemprompt_wire::openai_chat::build_request_body(&req, "gpt-4o-upstream", None);
     assert_eq!(body["model"], "gpt-4o-upstream");
     assert_eq!(body["stream"], true);
     assert!(body["messages"].is_array());
@@ -126,11 +125,8 @@ fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
 #[test]
 fn openai_responses_outbound_request_builder_uses_responses_shape() {
     let req = fixture_request("gpt-5", false);
-    let body = systemprompt_models::wire::openai_responses::build_request_body(
-        &req,
-        "gpt-5-upstream",
-        None,
-    );
+    let body =
+        systemprompt_wire::openai_responses::build_request_body(&req, "gpt-5-upstream", None);
     assert_eq!(body["model"], "gpt-5-upstream");
     assert!(body.get("input").is_some() || body.get("messages").is_some());
 }
@@ -185,8 +181,8 @@ fn openai_chat_response_parser_extracts_choice_content() {
         }],
         "usage": {"prompt_tokens": 5, "completion_tokens": 7}
     });
-    let canon = systemprompt_models::wire::openai_chat::parse_response(&resp, "fallback")
-        .expect("fixture parses");
+    let canon =
+        systemprompt_wire::openai_chat::parse_response(&resp, "fallback").expect("fixture parses");
     assert_eq!(canon.id, "chatcmpl_1");
     assert!(
         canon
@@ -209,9 +205,8 @@ fn openai_responses_object_parser_extracts_output_text() {
         }],
         "usage": {"input_tokens": 4, "output_tokens": 3}
     });
-    let canon =
-        systemprompt_models::wire::openai_responses::parse_response_object(&resp, "fallback")
-            .expect("fixture parses");
+    let canon = systemprompt_wire::openai_responses::parse_response_object(&resp, "fallback")
+        .expect("fixture parses");
     assert_eq!(canon.id, "resp_1");
     assert!(
         canon
@@ -308,7 +303,7 @@ async fn openai_chat_streaming_decoder_emits_text_deltas() {
         "data: {\"id\":\"c_1\",\"choices\":[{\"index\":0,\"finish_reason\":\"stop\"}]}\n\n",
         "data: [DONE]\n\n",
     ];
-    let stream = systemprompt_models::wire::openai_chat::sse_to_canonical_events(
+    let stream = systemprompt_wire::openai_chat::sse_to_canonical_events(
         byte_stream(chunks),
         "gpt-4o".to_owned(),
     );
@@ -331,7 +326,7 @@ async fn openai_responses_streaming_decoder_recognises_response_created() {
          output_tokens\":5}}}\n\n",
         "data: [DONE]\n\n",
     ];
-    let stream = systemprompt_models::wire::openai_responses::sse_to_canonical_events(
+    let stream = systemprompt_wire::openai_responses::sse_to_canonical_events(
         byte_stream(chunks),
         "gpt-5".to_owned(),
     );

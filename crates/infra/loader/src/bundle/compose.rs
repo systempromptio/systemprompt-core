@@ -18,7 +18,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_MANIFEST_FILE, MARKETPLACE_BUNDLE_DIRS, ServicesBundleManifest,
 };
 

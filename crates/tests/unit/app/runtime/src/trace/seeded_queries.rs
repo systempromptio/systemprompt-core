@@ -10,7 +10,7 @@
 use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{ContextId, McpServerId, TaskId, TraceId};
 use systemprompt_runtime::trace::{ToolExecutionFilter, TraceListFilter};
-use systemprompt_runtime::{AiTraceService, TraceQueryService};
+use systemprompt_runtime::{AiTraceService, TraceQueryService, TraceRepository};
 use systemprompt_test_fixtures::test_pg_pool;
 
 struct Seed {
@@ -237,7 +237,7 @@ async fn step_queries_map_seeded_mcp_and_step_rows() {
     seed.insert_step("other", "failed", serde_json::json!({"type": "other"}))
         .await;
 
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
     let trace_id = TraceId::new(seed.trace_id.as_str());
 
     let mcp_summary = svc.get_mcp_execution_summary(&trace_id).await.unwrap();
@@ -293,7 +293,7 @@ async fn mcp_trace_queries_map_seeded_rows() {
     seed.insert_artifact().await;
     seed.insert_tool_log().await;
 
-    let svc = AiTraceService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = AiTraceService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
     let task_id = TaskId::new(seed.task_id.clone());
     let ctx_id = ContextId::try_new(seed.context_id.clone()).expect("valid ContextId");
 
@@ -337,7 +337,7 @@ async fn filtered_lists_surface_seeded_rows() {
     seed.insert_mcp("success", None, 21).await;
     seed.insert_tool_log().await;
 
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 
     let f = ToolExecutionFilter::new(10)
         .with_name(seed.tool_name.clone())

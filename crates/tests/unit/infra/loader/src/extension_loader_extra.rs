@@ -109,7 +109,7 @@ fn get_production_mcp_binary_names_excludes_dev_only() {
     write_mcp_manifest(&ext_dir.join("prod-ext"), "prod-ext", "prod-bin");
     write_mcp_dev_manifest(&ext_dir.join("dev-ext"), "dev-ext", "dev-bin");
 
-    let mut services_config = systemprompt_models::services::ServicesConfig::default();
+    let mut services_config = systemprompt_manifest::services::ServicesConfig::default();
     services_config.mcp_servers.insert(
         "dev-ext-server".to_owned(),
         systemprompt_models::mcp::Deployment {
@@ -158,7 +158,7 @@ fn get_production_mcp_binary_names_all_production() {
     write_mcp_manifest(&ext_dir.join("ext-a"), "ext-a", "bin-a");
     write_mcp_manifest(&ext_dir.join("ext-b"), "ext-b", "bin-b");
 
-    let services_config = systemprompt_models::services::ServicesConfig::default();
+    let services_config = systemprompt_manifest::services::ServicesConfig::default();
 
     let names = ExtensionLoader::get_production_mcp_binary_names(temp.path(), &services_config);
     assert_eq!(names.len(), 2);
@@ -169,7 +169,7 @@ fn get_production_mcp_binary_names_all_production() {
 #[test]
 fn get_production_mcp_binary_names_empty_when_no_extensions() {
     let temp = TempDir::new().expect("tempdir");
-    let services_config = systemprompt_models::services::ServicesConfig::default();
+    let services_config = systemprompt_manifest::services::ServicesConfig::default();
     let names = ExtensionLoader::get_production_mcp_binary_names(temp.path(), &services_config);
     assert!(names.is_empty());
 }

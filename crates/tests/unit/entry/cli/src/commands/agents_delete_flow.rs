@@ -12,7 +12,7 @@ use systemprompt_cli::admin::agents::delete::delete_single_agent;
 use systemprompt_cli::admin::agents::process_stop::stop_verified_port_holder;
 use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_loader::subprocess::{self, ChildKind};
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
 use systemprompt_scheduler::port_holders;

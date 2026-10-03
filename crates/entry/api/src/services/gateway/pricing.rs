@@ -22,7 +22,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::services::{GatewayConfig, ModelPricing, ProviderRegistry};
+use systemprompt_manifest::services::{GatewayConfig, ModelPricing, ProviderRegistry};
 
 #[derive(Debug, thiserror::Error)]
 #[error("No configured pricing for provider {provider} and models {models:?}")]

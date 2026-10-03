@@ -3,13 +3,14 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::PluginId;
 
 use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::keys::{self, KeysCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_security::HookTokenValidator;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles,
@@ -196,10 +197,10 @@ fn plugin_token_requires_admin_and_persists_its_backing_session() {
             .clone(),
     );
     let govern = validator
-        .validate_govern(&token, Some(PLUGIN))
+        .validate_govern(&token, Some(&PluginId::new(PLUGIN)))
         .expect("issued token has a valid signature, issuer, audience, govern scope, and plugin");
     let track = validator
-        .validate_track(&token, Some(PLUGIN))
+        .validate_track(&token, Some(&PluginId::new(PLUGIN)))
         .expect("issued token has a valid signature, issuer, audience, track scope, and plugin");
     assert_eq!(claims["plugin_id"], PLUGIN);
     assert_eq!(claims["aud"], serde_json::json!(["hook", "plugin"]));

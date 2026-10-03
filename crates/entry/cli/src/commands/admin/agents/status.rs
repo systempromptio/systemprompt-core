@@ -47,7 +47,7 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
 
     let all_statuses = orchestrator.list_all().await?;
 
-    let agents_to_check: Vec<(&String, &systemprompt_models::AgentConfig)> = match &args.name {
+    let agents_to_check: Vec<(&String, &systemprompt_manifest::AgentConfig)> = match &args.name {
         Some(name) => {
             let agent = services_config
                 .agents

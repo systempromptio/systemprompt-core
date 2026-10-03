@@ -12,7 +12,7 @@ use systemprompt_files::{
     FileRepository, FileUploadError, FileUploadRequest, FileUploadService, FilesConfig,
 };
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::profile::StorageBackend;
+use systemprompt_manifest::profile::StorageBackend;
 use systemprompt_storage::build_file_storage;
 use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::FileStorage;

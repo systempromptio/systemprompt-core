@@ -6,7 +6,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::{SkillId, SkillName};
+use systemprompt_identifiers::{McpExecutionId, SkillId, SkillName};
 
 use super::{CardCta, CardSection, CardTheme};
 use crate::artifacts::metadata::ArtifactProvenance;
@@ -28,7 +28,7 @@ pub struct PresentationCardArtifact {
     #[serde(default)]
     pub theme: CardTheme,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execution_id: Option<String>,
+    pub execution_id: Option<McpExecutionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_id: Option<SkillId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -96,10 +96,9 @@ impl PresentationCardArtifact {
         self
     }
 
-    pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
-        let id_str = id.into();
-        self.execution_id = Some(id_str.clone());
-        self.metadata.set_execution_id(id_str);
+    pub fn with_execution_id(mut self, id: McpExecutionId) -> Self {
+        self.execution_id = Some(id.clone());
+        self.metadata.set_execution_id(id);
         self
     }
 

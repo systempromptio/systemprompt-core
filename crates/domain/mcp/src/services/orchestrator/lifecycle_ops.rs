@@ -61,11 +61,8 @@ impl McpOrchestrator {
                         .database()
                         .get_service_by_name(&name)
                         .await?
-                        .ok_or_else(|| {
-                            McpDomainError::Internal(format!(
-                                "service {} started but has no registry row",
-                                server.name
-                            ))
+                        .ok_or_else(|| McpDomainError::ServiceRowMissing {
+                            service: server.name.clone(),
                         })?;
                     self.event_bus()
                         .publish(McpEvent::ServiceStarted {

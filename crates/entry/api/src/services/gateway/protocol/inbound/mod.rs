@@ -15,8 +15,8 @@ pub mod openai_responses;
 
 use bytes::Bytes;
 use http::StatusCode;
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::wire::origin::InboundWireProtocol;
+use systemprompt_models::origin::InboundWireProtocol;
+use systemprompt_wire::WireProtocol;
 
 use super::canonical::CanonicalRequest;
 use super::canonical_response::{CanonicalEvent, CanonicalResponse};

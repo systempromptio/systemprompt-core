@@ -46,6 +46,7 @@ use pg_query::NodeEnum;
 use pg_query::protobuf::AlterTableType;
 use systemprompt_extension::Extension;
 use systemprompt_extension::cost::{self, CostDirective};
+use systemprompt_identifiers::ExtensionId;
 
 pub const HOT_TABLES: &[&str] = &[
     "ai_requests",
@@ -72,7 +73,7 @@ pub struct ExpensiveStatement {
 /// `malformed` is set when the body carries a `@cost` line that does not parse.
 #[derive(Debug, Clone)]
 pub struct MigrationCost {
-    pub extension: String,
+    pub extension: ExtensionId,
     pub migration: String,
     pub statements: Vec<ExpensiveStatement>,
     pub declared: Option<CostDirective>,
@@ -104,7 +105,7 @@ impl MigrationCost {
 pub fn audit_migration_cost(extensions: &[Arc<dyn Extension>], hot: &[&str]) -> Vec<MigrationCost> {
     let mut out = Vec::new();
     for ext in extensions {
-        let extension = ext.id().to_owned();
+        let extension = ExtensionId::new(ext.id());
         for migration in ext.migrations().into_iter().filter(|m| !m.tombstone) {
             let label = format!("{:03}_{}", migration.version, migration.name);
             if let Some(cost) = audit_one(&extension, &label, migration.sql, hot) {
@@ -117,7 +118,7 @@ pub fn audit_migration_cost(extensions: &[Arc<dyn Extension>], hot: &[&str]) -> 
 
 #[must_use]
 pub fn audit_one(
-    extension: &str,
+    extension: &ExtensionId,
     migration: &str,
     sql: &str,
     hot: &[&str],
@@ -131,7 +132,7 @@ pub fn audit_one(
         return None;
     }
     Some(MigrationCost {
-        extension: extension.to_owned(),
+        extension: extension.clone(),
         migration: migration.to_owned(),
         statements,
         declared,

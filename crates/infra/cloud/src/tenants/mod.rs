@@ -9,7 +9,7 @@
 mod tenant_store;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{CloudAppId, TenantId};
 use validator::Validate;
 
 use crate::api_client::CloudTenantInfo;
@@ -20,7 +20,7 @@ pub use tenant_store::TenantStore;
 pub struct NewCloudTenantParams {
     pub id: TenantId,
     pub name: String,
-    pub app_id: Option<String>,
+    pub app_id: Option<CloudAppId>,
     pub hostname: Option<String>,
     pub region: Option<String>,
     pub database_url: Option<String>,
@@ -44,7 +44,7 @@ pub struct StoredTenant {
     pub name: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub app_id: Option<String>,
+    pub app_id: Option<CloudAppId>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,

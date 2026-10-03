@@ -36,10 +36,12 @@ mod additional_variants {
 
     #[test]
     fn distributed_lock_message() {
-        let err = SchedulerError::DistributedLock(RepositoryError::internal("connection refused"));
+        let err = SchedulerError::DistributedLock(RepositoryError::database(
+            std::io::Error::other("connection refused"),
+        ));
         assert_eq!(
             err.to_string(),
-            "Distributed lock error: internal repository error: connection refused"
+            "Distributed lock error: database error: connection refused"
         );
     }
 
@@ -94,7 +96,9 @@ mod additional_variants {
             (SchedulerError::from(missing::<u8>()), "MissingContext"),
             (SchedulerError::panic("boom"), "Panic"),
             (
-                SchedulerError::DistributedLock(RepositoryError::internal("lock err")),
+                SchedulerError::DistributedLock(RepositoryError::database(std::io::Error::other(
+                    "lock err",
+                ))),
                 "DistributedLock",
             ),
             (SchedulerError::AlreadyRunning, "AlreadyRunning"),
@@ -129,7 +133,7 @@ mod error_source_chain {
     #[test]
     fn typed_cause_variants_expose_their_source() {
         assert!(
-            SchedulerError::DistributedLock(RepositoryError::internal("x"))
+            SchedulerError::DistributedLock(RepositoryError::database(std::io::Error::other("x")))
                 .source()
                 .is_some()
         );
@@ -158,7 +162,14 @@ mod error_source_chain {
                 .is_none()
         );
         assert!(SchedulerError::invalid_schedule("s").source().is_none());
-        assert!(SchedulerError::config_error("c").source().is_none());
+        assert!(
+            SchedulerError::PortOccupied {
+                port: 1,
+                holders: vec![],
+            }
+            .source()
+            .is_none()
+        );
     }
 }
 
@@ -201,13 +212,12 @@ mod error_constructor_round_trips {
     }
 
     #[test]
-    fn config_error_constructor_matches_struct_variant() {
-        let via_ctor = SchedulerError::config_error("bad").to_string();
-        let via_struct = SchedulerError::ConfigError {
-            message: "bad".to_string(),
-        }
-        .to_string();
-        assert_eq!(via_ctor, via_struct);
+    fn port_occupied_names_the_holder() {
+        let held = SchedulerError::PortOccupied {
+            port: 8080,
+            holders: vec![42, 43],
+        };
+        assert_eq!(held.to_string(), "Port 8080 still held by PID(s) [42, 43]");
     }
 
     #[test]

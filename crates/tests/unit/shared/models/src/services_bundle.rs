@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     BUNDLE_ALLOWED_DIRS, BUNDLE_FORMAT_VERSION, BUNDLE_MANIFEST_FILE, BUNDLE_MEDIA_TYPE,
     BundleOwnership, BundleSignature, BundleSourceInfo, BundleSourceState, FileEntry,
     MARKETPLACE_BUNDLE_DIRS, ServicesBundleManifest, ServicesBundleState, SignedBundleManifest,

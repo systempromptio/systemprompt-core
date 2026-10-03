@@ -112,11 +112,8 @@ async fn publish_start_success(
     let service_info = database
         .get_service_by_name(&server.service_name())
         .await?
-        .ok_or_else(|| {
-            McpDomainError::Internal(format!(
-                "service {} started but has no registry row",
-                server.name
-            ))
+        .ok_or_else(|| McpDomainError::ServiceRowMissing {
+            service: server.name.clone(),
         })?;
     let pid = stored_pid(service_info.pid);
     event_bus

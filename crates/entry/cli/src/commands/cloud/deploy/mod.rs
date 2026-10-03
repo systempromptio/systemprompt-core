@@ -47,7 +47,7 @@ pub(super) async fn execute(
 
     let (profile, profile_path) = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
 
-    if profile.target != systemprompt_models::ProfileType::Cloud {
+    if profile.target != systemprompt_manifest::ProfileType::Cloud {
         bail!(
             "Cannot deploy a local profile. Create a cloud profile with: systemprompt cloud \
              profile create <name>"
@@ -108,7 +108,7 @@ pub struct DeployTarget {
     pub creds: systemprompt_cloud::CloudCredentials,
 }
 
-pub fn resolve_deploy_target(profile: &systemprompt_models::Profile) -> Result<DeployTarget> {
+pub fn resolve_deploy_target(profile: &systemprompt_manifest::Profile) -> Result<DeployTarget> {
     let cloud_config = profile
         .cloud
         .as_ref()

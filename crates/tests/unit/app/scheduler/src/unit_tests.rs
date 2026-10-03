@@ -11,7 +11,7 @@
 
 use chrono::{TimeZone, Utc};
 use systemprompt_identifiers::{JobName, ScheduledJobId, ServiceName};
-use systemprompt_models::services::{ServiceModule, ServiceStatus};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{
     DbServiceRecord, DesiredStatus, JobStatus, ReconciliationResult, RuntimeStatus, ScheduledJob,
@@ -77,12 +77,12 @@ fn test_scheduler_error_job_execution_failed() {
 }
 
 #[test]
-fn test_scheduler_error_config_error() {
-    let error = SchedulerError::config_error("missing required field");
-    assert_eq!(
-        error.to_string(),
-        "Configuration error: missing required field"
-    );
+fn test_scheduler_error_port_occupied() {
+    let error = SchedulerError::PortOccupied {
+        port: 9000,
+        holders: vec![7],
+    };
+    assert_eq!(error.to_string(), "Port 9000 still held by PID(s) [7]");
 }
 
 #[test]
@@ -1332,8 +1332,10 @@ fn test_scheduler_error_display_all_variants() {
             "Job execution failed: job - Invalid input: error",
         ),
         (
-            SchedulerError::config_error("bad config"),
-            "Configuration error: bad config",
+            SchedulerError::UnknownRetentionTable {
+                table: "nope".to_owned(),
+            },
+            "No retention path for table nope",
         ),
         (SchedulerError::AlreadyRunning, "Scheduler already running"),
         (SchedulerError::NotInitialized, "Scheduler not initialized"),

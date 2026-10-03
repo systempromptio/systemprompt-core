@@ -11,12 +11,13 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginComponentRef, PluginDetailOutput};
+use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
-    #[arg(help = "Plugin ID (directory name)")]
-    pub id: String,
+    #[arg(help = "Plugin ID (directory name)", value_parser = crate::shared::parse_plugin_id)]
+    pub id: PluginId,
 }
 
 pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
@@ -25,7 +26,7 @@ pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOut
 }
 
 pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<CommandOutput> {
-    let plugin_dir = plugins_path.join(&args.id);
+    let plugin_dir = plugins_path.join(args.id.as_str());
 
     if !plugin_dir.exists() {
         return Err(anyhow!("Plugin '{}' not found", args.id));
@@ -40,7 +41,7 @@ pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<Command
     let plugin = &plugin_file.plugin;
 
     let output = PluginDetailOutput {
-        id: systemprompt_identifiers::PluginId::new(plugin.id.clone()),
+        id: PluginId::new(plugin.id.clone()),
         name: plugin.name.clone(),
         description: plugin.description.clone(),
         version: plugin.version.clone(),
@@ -78,10 +79,10 @@ fn get_plugins_path() -> Result<std::path::PathBuf> {
     ))
 }
 
-fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_models::PluginConfigFile> {
+fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_manifest::PluginConfigFile> {
     let content = std::fs::read_to_string(config_path)
         .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let plugin_file: systemprompt_models::PluginConfigFile = serde_yaml::from_str(&content)
+    let plugin_file: systemprompt_manifest::PluginConfigFile = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse {}", config_path.display()))?;
     Ok(plugin_file)
 }

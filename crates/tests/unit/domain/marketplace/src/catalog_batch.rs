@@ -225,9 +225,9 @@ async fn the_overlay_withholds_revoked_keys_for_that_consumer_only() {
 #[tokio::test]
 async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored() {
     use systemprompt_identifiers::UserId;
+    use systemprompt_manifest::services::ServicesConfig;
     use systemprompt_marketplace::CatalogContent;
     use systemprompt_marketplace::managed::ManagedRepository;
-    use systemprompt_models::services::ServicesConfig;
     use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
     use uuid::Uuid;
 

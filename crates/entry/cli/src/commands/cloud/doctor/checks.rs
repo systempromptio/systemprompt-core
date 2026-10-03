@@ -15,8 +15,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::Profile;
-use systemprompt_models::services::ProviderRegistry;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::ProviderRegistry;
 
 use super::{CheckResult, CheckStatus};
 

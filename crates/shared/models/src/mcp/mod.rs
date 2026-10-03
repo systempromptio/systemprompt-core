@@ -1,9 +1,8 @@
 //! MCP protocol metadata helpers.
 //!
 //! Non-wire MCP support types: server capabilities and UI/CSP config,
-//! deployment descriptors, the registry and tool/deployment provider
-//! traits (with `dyn`-compatible aliases), server lifecycle state, and
-//! tool-result metadata extensions.
+//! deployment descriptors, the registry trait,
+//! server lifecycle state, and tool-result metadata extensions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,8 +36,6 @@ pub use deployment::{
 };
 pub use execution_source::{Correlation, ExecutionSource};
 pub use registry::RegistryConfig;
-pub use registry_trait::{
-    DynMcpDeploymentProvider, DynMcpRegistry, McpDeploymentProvider, McpRegistry, McpServerState,
-};
+pub use registry_trait::{McpRegistry, McpServerState};
 pub use server::{McpAuthState, McpServerConfig};
 pub use tool_result_metadata::McpToolResultMetadata;

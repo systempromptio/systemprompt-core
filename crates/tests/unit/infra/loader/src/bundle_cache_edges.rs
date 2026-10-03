@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 
 use systemprompt_loader::bundle::BundleCache;
-use systemprompt_models::services::bundle::{BundleSourceState, ServicesBundleState};
+use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 
 fn state(hash: &str) -> ServicesBundleState {
     ServicesBundleState {

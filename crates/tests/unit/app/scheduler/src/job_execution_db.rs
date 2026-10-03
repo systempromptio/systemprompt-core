@@ -20,7 +20,7 @@ macro_rules! db_service {
             JobExecutionService::new(
                 app_ctx,
                 ExtensionRegistry::new(),
-                systemprompt_models::SchedulerConfig::with_system_admin(),
+                systemprompt_manifest::SchedulerConfig::with_system_admin(),
             ),
             pool,
         )
@@ -271,7 +271,7 @@ mod dead_pool_recording {
         let service = JobExecutionService::new(
             app_ctx,
             ExtensionRegistry::new(),
-            systemprompt_models::SchedulerConfig::with_system_admin(),
+            systemprompt_manifest::SchedulerConfig::with_system_admin(),
         );
 
         // The job body and every recording query hit the closed pool; the run

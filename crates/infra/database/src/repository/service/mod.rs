@@ -17,4 +17,4 @@ mod repo;
 
 pub use model::{CreateServiceInput, ServiceConfig, UpsertServiceProcessInput};
 pub use repo::ServiceRepository;
-pub use systemprompt_models::services::{ServiceModule, ServiceStatus};
+pub use systemprompt_manifest::services::{ServiceModule, ServiceStatus};

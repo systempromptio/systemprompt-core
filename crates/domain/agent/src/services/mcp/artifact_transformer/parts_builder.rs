@@ -13,8 +13,18 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
         return Ok(vec![Part::Data(DataPart { data: obj.clone() })]);
     }
 
-    Err(ArtifactError::Transform(format!(
-        "Artifact must be an object. Received: {}",
-        serde_json::to_string_pretty(artifact).unwrap_or_else(|_| "invalid JSON".to_owned())
-    )))
+    Err(ArtifactError::ArtifactNotObject {
+        found: json_kind(artifact),
+    })
+}
+
+const fn json_kind(value: &JsonValue) -> &'static str {
+    match value {
+        JsonValue::Null => "null",
+        JsonValue::Bool(_) => "a boolean",
+        JsonValue::Number(_) => "a number",
+        JsonValue::String(_) => "a string",
+        JsonValue::Array(_) => "an array",
+        JsonValue::Object(_) => "an object",
+    }
 }

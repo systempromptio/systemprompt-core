@@ -36,6 +36,7 @@ reqwest = { workspace = true }
 
 # systemprompt.io integration
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-extension = { workspace = true }
 

@@ -13,7 +13,8 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{CategoryId, SourceId};
-use systemprompt_models::{ContentRouting, split_frontmatter};
+use systemprompt_manifest::split_frontmatter;
+use systemprompt_models::ContentRouting;
 use walkdir::WalkDir;
 
 use crate::ContentError;

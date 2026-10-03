@@ -1,22 +1,30 @@
 //! Persistence layer for the scheduler crate.
 //!
 //! [`SchedulerRepository`] is the composite façade combining the per-domain
-//! repositories ([`JobRepository`], [`AnalyticsRepository`]); it is the type
-//! consumed by [`crate::services::SchedulerService`] and by the API
-//! lifecycle bootstrap path.
+//! repositories ([`JobRepository`], [`AnalyticsRepository`]) and the
+//! cross-replica job advisory lock; it is the type consumed by
+//! [`crate::services::SchedulerService`] and by the API lifecycle bootstrap
+//! path.
 //!
 //! [`SecurityRepository`] / [`IpSessionRecord`] are exposed for direct use by
-//! the `crate::jobs::malicious_ip_blacklist` job.
+//! the `crate::jobs::malicious_ip_blacklist` job; the retention statements
+//! back `database_cleanup` and [`otlp`] backs the OTLP exporter.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod analytics;
+mod job_lock;
 mod jobs;
+pub mod otlp;
+mod retention;
 mod security;
 
 pub use analytics::AnalyticsRepository;
+pub(crate) use job_lock::JobLockGuard;
+use job_lock::JobLockRepository;
 pub use jobs::JobRepository;
+pub(crate) use retention::{BATCH_ROWS as RETENTION_BATCH_ROWS, RetentionRepository};
 pub use security::{IpSessionRecord, SecurityRepository};
 
 use systemprompt_database::DbPool;
@@ -29,6 +37,7 @@ use crate::models::{JobRunRecord, ScheduledJob};
 pub struct SchedulerRepository {
     jobs: JobRepository,
     analytics: AnalyticsRepository,
+    locks: JobLockRepository,
 }
 
 impl SchedulerRepository {
@@ -36,7 +45,15 @@ impl SchedulerRepository {
         Self {
             jobs: JobRepository::new(db),
             analytics: AnalyticsRepository::new(db),
+            locks: JobLockRepository::new(db),
         }
+    }
+
+    pub(crate) async fn try_acquire_job_lock(
+        &self,
+        job_name: &JobName,
+    ) -> SchedulerResult<Option<JobLockGuard>> {
+        self.locks.try_acquire(job_name).await
     }
 
     pub async fn upsert_job(

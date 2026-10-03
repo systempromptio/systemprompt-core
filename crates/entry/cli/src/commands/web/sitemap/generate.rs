@@ -14,7 +14,7 @@ use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 use systemprompt_models::content_config::ContentConfigRaw;
 
 use super::super::types::SitemapGenerateOutput;

@@ -12,7 +12,8 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
 use systemprompt_logging::CliService;
-use systemprompt_models::{AiConfig, Config, ContentConfigRaw, SkillsConfig};
+use systemprompt_manifest::{AiConfig, Config, SkillsConfig};
+use systemprompt_models::ContentConfigRaw;
 
 use super::ShowFilter;
 use super::show_display::print_formatted_config;
@@ -82,7 +83,7 @@ fn current_app_paths() -> Option<AppPaths> {
 fn build_config_for_filter(
     filter: ShowFilter,
     config: Option<&Config>,
-    services_config: Option<&systemprompt_models::ServicesConfig>,
+    services_config: Option<&systemprompt_manifest::ServicesConfig>,
     paths: Option<&AppPaths>,
 ) -> FullConfig {
     match filter {
@@ -129,7 +130,7 @@ fn build_config_for_filter(
 
 fn build_full_config(
     config: Option<&Config>,
-    services_config: Option<&systemprompt_models::ServicesConfig>,
+    services_config: Option<&systemprompt_manifest::ServicesConfig>,
     paths: Option<&AppPaths>,
 ) -> FullConfig {
     let mut full = FullConfig::empty();
@@ -161,7 +162,9 @@ fn build_full_config(
     full
 }
 
-fn build_settings_output(services_config: &systemprompt_models::ServicesConfig) -> SettingsOutput {
+fn build_settings_output(
+    services_config: &systemprompt_manifest::ServicesConfig,
+) -> SettingsOutput {
     SettingsOutput {
         agent_port_range: services_config.settings.agent_port_range,
         mcp_port_range: services_config.settings.mcp_port_range,

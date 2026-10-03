@@ -14,8 +14,9 @@ use crate::services::shared::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
+use systemprompt_models::ai::DynAiProvider;
 use systemprompt_models::{
-    AiMessage, AiProvider, CallToolResult, ContextId, McpTool, RequestContext, TaskId, ToolCall,
+    AiMessage, CallToolResult, ContextId, McpTool, RequestContext, TaskId, ToolCall,
 };
 use tokio::sync::mpsc;
 
@@ -26,7 +27,7 @@ use crate::services::SkillService;
 
 #[derive(Clone)]
 pub struct ExecutionContext {
-    pub ai_service: Arc<dyn AiProvider>,
+    pub ai_service: DynAiProvider,
     pub skill_service: Arc<SkillService>,
     pub agent_runtime: AgentRuntimeInfo,
     pub agent_name: AgentName,
@@ -40,7 +41,7 @@ pub struct ExecutionContext {
 impl std::fmt::Debug for ExecutionContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ExecutionContext")
-            .field("ai_service", &"<Arc<dyn AiProvider>>")
+            .field("ai_service", &"<DynAiProvider>")
             .field("skill_service", &"<Arc<SkillService>>")
             .field("agent_runtime", &self.agent_runtime)
             .field("agent_name", &self.agent_name)

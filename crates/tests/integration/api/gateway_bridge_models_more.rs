@@ -28,12 +28,12 @@ use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, TenantId, TraceId, UserId,
 };
 use systemprompt_models::api::ErrorCode;
-use systemprompt_models::services::ApiSurface;
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 use systemprompt_security::policy::types::AccessScope;

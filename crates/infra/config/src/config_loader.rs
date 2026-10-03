@@ -11,9 +11,9 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::InstanceId;
-use systemprompt_models::Config;
-use systemprompt_models::config::validate_postgres_url;
-use systemprompt_models::profile::Profile;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::config::validate_postgres_url;
+use systemprompt_manifest::profile::Profile;
 
 use crate::bootstrap::{ProfileBootstrap, SecretsBootstrap};
 use crate::error::{ConfigError, ConfigResult};
@@ -113,10 +113,10 @@ pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<InstanceId> {
     if let Some(id) = &profile.server.instance_id {
         return Ok(id.clone());
     }
-    match systemprompt_models::config::stable_instance_id(|name| std::env::var(name).ok()) {
+    match systemprompt_manifest::config::stable_instance_id(|name| std::env::var(name).ok()) {
         Some(id) => Ok(InstanceId::new(id)),
         None if profile.target.is_cloud() => Err(ConfigError::InstanceIdUnresolved),
-        None => Ok(systemprompt_models::config::random_instance_id()),
+        None => Ok(systemprompt_manifest::config::random_instance_id()),
     }
 }
 

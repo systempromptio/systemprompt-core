@@ -11,8 +11,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::AgentName;
+pub use systemprompt_manifest::services::{AgentSummary, McpServerSummary};
 use systemprompt_models::a2a::Task;
-pub use systemprompt_models::services::{AgentSummary, McpServerSummary};
 
 use crate::commands::plugins::mcp::types::McpToolEntry;
 

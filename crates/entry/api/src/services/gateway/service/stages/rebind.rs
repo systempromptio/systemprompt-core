@@ -5,7 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::services::providers::WireProtocol;
+use systemprompt_wire::WireProtocol;
 
 use super::outbound::{CtxParts, outbound_ctx, send_attempt};
 use super::{ScannedDispatch, automatic_prompt_caching};

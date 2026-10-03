@@ -36,7 +36,7 @@ use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
     UserId,
 };
-use systemprompt_models::wire::origin::{ClientEvidence, RequestOrigin};
+use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 use systemprompt_security::policy::types::AccessScope;
 
 /// Method, path, and start instant captured by the gateway access-log
@@ -77,7 +77,7 @@ pub struct GatewayRequestContext {
 pub struct GatewayAudit {
     settlement: journal::Settlement,
     journal_lease: std::sync::OnceLock<std::fs::File>,
-    pricing_snapshot: Mutex<Option<systemprompt_models::services::ModelPricing>>,
+    pricing_snapshot: Mutex<Option<systemprompt_manifest::services::ModelPricing>>,
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
     client_evidence: Arc<AiRequestClientEvidenceRepository>,

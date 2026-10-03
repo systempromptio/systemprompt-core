@@ -5,7 +5,7 @@
 
 use crate::error::McpDomainResult;
 use axum::Router;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use tower_http::cors::CorsLayer;
 
 pub fn create_base_router() -> Router {

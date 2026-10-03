@@ -14,6 +14,7 @@ use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpToolProvider;
+use systemprompt_models::ai::DynAiProvider;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UsersAiSessionProvider;
@@ -69,7 +70,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         .with_context_materializer(ctx.context_materializer()),
     );
 
-    let provider: Arc<dyn systemprompt_models::AiProvider> = Arc::<AiService>::clone(&ai_service);
+    let provider: DynAiProvider = Arc::<AiService>::clone(&ai_service);
     let served = run_standalone(agent_state, provider, &args.agent_name, args.port)
         .await
         .context("Failed to run agent server");

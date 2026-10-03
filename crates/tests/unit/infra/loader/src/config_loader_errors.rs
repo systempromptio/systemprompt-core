@@ -332,8 +332,8 @@ skills:
     let skill = config.skills.skills.get("my_skill").expect("skill present");
     let instr = skill.instructions.as_ref().expect("instructions set");
     let text = match instr {
-        systemprompt_models::services::IncludableString::Inline(s) => s.as_str(),
-        systemprompt_models::services::IncludableString::Include { path } => {
+        systemprompt_manifest::services::IncludableString::Inline(s) => s.as_str(),
+        systemprompt_manifest::services::IncludableString::Include { path } => {
             panic!("expected Inline after resolution, got Include({path})")
         },
     };

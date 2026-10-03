@@ -29,6 +29,12 @@
 #      `systemprompt-models` behind its optional `web` feature (the
 #      `IntoResponse` impls for the API envelopes). Neither opens a socket;
 #      replacing them is a router-abstraction redesign, not a dependency trim.
+#   5. The shared model crates keep their order. `systemprompt-wire` (provider
+#      wire codecs) depends on no workspace crate but
+#      `systemprompt-identifiers`; `systemprompt-models` (runtime models)
+#      depends on neither `systemprompt-wire` nor `systemprompt-manifest`
+#      (services manifest and profile), so the bridge, which links only
+#      `systemprompt-models`, never pulls the codecs or the manifest in.
 #
 # Layer membership is read from each crate's position on disk (crates/<layer>/),
 # so a crate moved between layers is re-classified automatically. Only normal
@@ -133,6 +139,15 @@ for name in sorted(local):
         elif dep == "tokio" and ({"net", "full"} & set(d["features"])):
             capability.append(f"  {name} -> tokio[net]: shared crates open no sockets (inherited from the workspace tokio features)")
 
+SHARED_ONLY = {"systemprompt-wire": {"systemprompt-identifiers"}}
+SHARED_NEVER = {"systemprompt-models": {"systemprompt-wire", "systemprompt-manifest"}}
+for name, allowed in SHARED_ONLY.items():
+    for dep in sorted(deps.get(name, set()) - allowed):
+        violations.append(f"  {name} -> {dep}: may depend only on {sorted(allowed)} among workspace crates")
+for name, banned in SHARED_NEVER.items():
+    for dep in sorted(deps.get(name, set()) & banned):
+        violations.append(f"  {name} -> {dep}: the runtime models crate must not depend on {dep}")
+
 if violations:
     print("Dependencies pointing upward through the layer stack:")
     print("\n".join(violations))
@@ -148,7 +163,7 @@ if violations or cycles or capability:
     print(f"lint-layers: FAIL — {len(violations)} layer violation(s), {len(cycles)} cycle(s), {len(capability)} shared-layer capability dep(s)")
     sys.exit(1)
 
-print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles, domain isolation holds, shared layer is I/O-free")
+print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles, domain isolation holds, shared model crates ordered, shared layer is I/O-free")
 '
 
 if rg --line-number --ignore-case --multiline \

@@ -271,15 +271,13 @@ async fn error_response_with_unreadable_body_still_reports_the_status() {
         .await
         .expect_err("500 with a truncated body is an error");
     match err {
-        systemprompt_client::ClientError::ApiError {
-            status, message, ..
-        } => {
+        systemprompt_client::ClientError::UnreadableErrorBody { status, source } => {
             assert_eq!(status, 500);
             assert!(
-                message.contains("body unreadable"),
-                "message should flag the unreadable body, got: {message}"
+                source.is_body() || source.is_decode(),
+                "the cause must be the body read failure, got: {source:?}"
             );
         },
-        other => panic!("expected ApiError, got {other:?}"),
+        other => panic!("expected UnreadableErrorBody, got {other:?}"),
     }
 }

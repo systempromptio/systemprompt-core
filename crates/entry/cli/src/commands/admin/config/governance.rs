@@ -10,7 +10,7 @@
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 

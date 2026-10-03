@@ -6,7 +6,7 @@
 use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
 use systemprompt_loader::subprocess::StopOutcome;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 use tracing::Instrument;
 
 use crate::McpServerConfig;

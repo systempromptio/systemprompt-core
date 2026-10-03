@@ -2,8 +2,8 @@
 //! refusals, and the per-signal URL the exporter posts to.
 
 use serde_yaml::Value;
-use systemprompt_models::Profile;
-use systemprompt_models::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
 
 use crate::profile_services_sources::local_profile;
 

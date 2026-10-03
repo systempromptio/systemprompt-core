@@ -13,8 +13,8 @@ use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchang
     jwks_host_allowlist, validate_subject_token,
 };
 use systemprompt_identifiers::UserId;
-use systemprompt_models::Config;
-use systemprompt_models::profile::TrustedIssuer;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, mint_admin_jwt};
 
 const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";

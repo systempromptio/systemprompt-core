@@ -7,8 +7,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::bridge::ids::Sha256Digest;
-use crate::services::hooks::{HookCategory, HookEvent};
-use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
+use crate::hooks::{HookCategory, HookEvent};
+use crate::plugin::{PluginComponentRef, PluginHooksRef};
 use systemprompt_identifiers::{
     AgentId, AgentName, HookId, LibraryArtifactId, MarketplaceRuleId, ModelId, PluginId,
     ProviderId, RuleName, SkillId, SkillName,

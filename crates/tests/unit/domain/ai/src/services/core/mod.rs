@@ -16,8 +16,8 @@ use std::sync::Arc;
 use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_manifest::services::{AiConfig, AiProviderConfig, ProviderRegistry};
 use systemprompt_models::RequestContext;
-use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderRegistry};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, ensure_test_secrets_bootstrap, seed_user_row, seed_user_session,
     test_db_pool, unique_user_id,

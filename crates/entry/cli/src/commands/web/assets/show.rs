@@ -68,7 +68,7 @@ pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOut
 
 pub fn find_config_references(
     asset_path: &str,
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
 ) -> Vec<String> {
     let mut references = Vec::new();
 

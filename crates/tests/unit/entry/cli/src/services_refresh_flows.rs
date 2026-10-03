@@ -15,7 +15,7 @@ use systemprompt_cli::core::services::refresh::{RefreshArgs, execute};
 use systemprompt_cli::env_overrides::EnvOverrides;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_models::services::bundle::{BundleSourceState, ServicesBundleState};
+use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};

@@ -192,7 +192,7 @@ fn storage_config() -> (tempfile::TempDir, StorageConfig) {
 
 fn file_storage(dir: &tempfile::TempDir) -> Arc<dyn systemprompt_traits::FileStorage> {
     systemprompt_storage::build_file_storage(
-        systemprompt_models::profile::StorageBackend::Local,
+        systemprompt_manifest::profile::StorageBackend::Local,
         dir.path(),
     )
 }
@@ -276,7 +276,7 @@ async fn generate_image_persists_file_and_audit_row() {
     assert!(response.cost_estimate.expect("cost estimate") > 0.0);
 
     let fetched = service
-        .find_generated_image(response.id.as_str())
+        .find_generated_image(&FileId::new(response.id.as_str()))
         .await
         .expect("fetch ok")
         .expect("present");
@@ -399,7 +399,7 @@ async fn list_and_delete_user_images_round_trip() {
     assert_eq!(listed.len(), 2);
 
     service
-        .delete_image(first.id.as_str())
+        .delete_image(&FileId::new(first.id.as_str()))
         .await
         .expect("delete");
 
@@ -410,7 +410,7 @@ async fn list_and_delete_user_images_round_trip() {
     assert_eq!(after.len(), 1);
     assert!(
         service
-            .find_generated_image(first.id.as_str())
+            .find_generated_image(&FileId::new(first.id.as_str()))
             .await
             .expect("fetch deleted")
             .is_none()
@@ -583,7 +583,7 @@ async fn a_failing_lookup_is_reported_rather_than_read_as_absent() {
     let (_dir, service) = build_failing_service(&pool);
 
     let err = service
-        .find_generated_image("no-such-uuid")
+        .find_generated_image(&FileId::new("no-such-uuid"))
         .await
         .expect_err("a failing store must not be indistinguishable from an empty one");
     assert!(matches!(
@@ -618,7 +618,7 @@ async fn deleting_an_image_the_store_cannot_look_up_is_an_error() {
     let (_dir, service) = build_failing_service(&pool);
 
     let err = service
-        .delete_image("no-such-uuid")
+        .delete_image(&FileId::new("no-such-uuid"))
         .await
         .expect_err("a failing lookup must abort the delete");
     assert!(matches!(
@@ -640,7 +640,7 @@ async fn deleting_an_absent_image_through_a_working_store_is_a_no_op() {
     );
 
     service
-        .delete_image("uuid-that-was-never-stored")
+        .delete_image(&FileId::new("uuid-that-was-never-stored"))
         .await
         .expect("deleting an id the store does not hold must succeed quietly");
 }

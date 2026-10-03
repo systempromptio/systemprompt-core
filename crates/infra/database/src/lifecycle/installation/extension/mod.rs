@@ -32,6 +32,7 @@ mod routine_prepass;
 mod validation;
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info, warn};
 
 use self::cost_warning::warn_unmeasured_migrations;
@@ -53,7 +54,7 @@ use crate::services::DatabaseProvider;
 pub async fn install_extension_schemas_full(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,
-    disabled_extensions: &[String],
+    disabled_extensions: &[ExtensionId],
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
     let schema_extensions = registry.enabled_schema_extensions(disabled_extensions)?;
@@ -92,7 +93,7 @@ pub async fn install_extension_schemas_full(
     }
     for ledger in &report.residue.orphan_migration_ledgers {
         warn!(
-            extension = ledger.extension_id,
+            extension = %ledger.extension_id,
             rows = ledger.rows,
             "extension_migrations ledger for an extension that no longer exists"
         );
@@ -104,7 +105,7 @@ async fn fresh_extension_ids(
     migration_service: &MigrationService<'_>,
     schema_extensions: &[std::sync::Arc<dyn Extension>],
     prepared: &[PreparedSchema],
-) -> Result<std::collections::HashSet<String>, LoaderError> {
+) -> Result<std::collections::HashSet<ExtensionId>, LoaderError> {
     let mut fresh = std::collections::HashSet::new();
     for (ext, p) in schema_extensions.iter().zip(prepared) {
         if ext.has_migrations()
@@ -208,7 +209,7 @@ async fn run_install(
         .iter()
         .flat_map(|p| p.owned_tables.clone())
         .collect();
-    let ids: Vec<String> = prepared.iter().map(|p| p.extension_id.clone()).collect();
+    let ids: Vec<ExtensionId> = prepared.iter().map(|p| p.extension_id.clone()).collect();
     report.residue = audit_schema_residue(db, &owned, &ids).await?;
 
     Ok(report)

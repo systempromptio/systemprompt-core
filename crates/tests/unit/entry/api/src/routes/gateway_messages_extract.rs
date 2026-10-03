@@ -34,7 +34,7 @@ use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, ModelId, SessionId,
 };
 
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 
@@ -433,7 +433,7 @@ fn a_conversation_header_that_is_not_utf8_is_a_400() {
 
 #[tokio::test]
 async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
-    let oversized = vec![b'x'; systemprompt_models::wire::BUFFERED_BODY_LIMIT_BYTES + 1];
+    let oversized = vec![b'x'; systemprompt_models::net::BUFFERED_BODY_LIMIT_BYTES + 1];
     let request = Request::builder()
         .method("POST")
         .uri("/v1/messages")

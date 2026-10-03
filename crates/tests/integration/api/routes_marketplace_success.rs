@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use axum::Router;
 use systemprompt_api::routes::marketplace;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with, refresh_services_config, test_db_pool,
 };

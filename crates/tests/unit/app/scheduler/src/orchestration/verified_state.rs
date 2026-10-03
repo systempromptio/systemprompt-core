@@ -1,7 +1,7 @@
 //! Tests for VerifiedServiceState
 
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::{RuntimeStatus, ServiceType};
+use systemprompt_manifest::{RuntimeStatus, ServiceType};
 use systemprompt_scheduler::{DesiredStatus, ServiceAction, VerifiedServiceState};
 
 fn build_state(desired: DesiredStatus, runtime: RuntimeStatus) -> VerifiedServiceState {

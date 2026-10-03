@@ -129,7 +129,7 @@ extensions:
     let profile = ProfileBootstrap::get().expect("profile initialised");
     let app_paths = AppPaths::from_profile(
         &profile.paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("app paths");

@@ -12,7 +12,7 @@
 //! errors (`std::io::Error`, `serde_yaml::Error`,
 //! `systemprompt_config::ProfileBootstrapError`,
 //! `systemprompt_models::errors::ServicesValidationError`,
-//! `systemprompt_models::profile::ProfileError`) via `#[from]`.
+//! `systemprompt_manifest::profile::ProfileError`) via `#[from]`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -140,7 +140,7 @@ pub enum ProfileLoadError {
     },
 
     #[error(transparent)]
-    Profile(#[from] systemprompt_models::profile::ProfileError),
+    Profile(#[from] systemprompt_manifest::profile::ProfileError),
 }
 
 pub type ConfigLoadResult<T> = Result<T, ConfigLoadError>;

@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use webauthn_rs::prelude::*;
 
 #[derive(Debug, Clone)]

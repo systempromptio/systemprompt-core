@@ -9,9 +9,9 @@ use crate::{create_test_user, setup_test_db};
 use http::HeaderMap;
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_identifiers::SessionId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_oauth::services::{BridgeAccessRequest, issue_bridge_access};
 
 fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::UserService {
@@ -65,7 +65,7 @@ fn test_config() -> Config {
         signing_key_path: PathBuf::new(),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,

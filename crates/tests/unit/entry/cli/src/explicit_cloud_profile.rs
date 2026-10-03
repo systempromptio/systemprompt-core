@@ -18,9 +18,9 @@ use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
 };
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::{CloudConfig, ProfileType};
 use systemprompt_models::auth::UserType;
-use systemprompt_models::profile::{CloudConfig, ProfileType};
 use tempfile::TempDir;
 
 fn session(profile_name: &str) -> CliSession {

@@ -36,6 +36,13 @@ async fn cleanup_port_processes_is_a_no_op_for_a_port_with_no_holder() {
 }
 
 #[tokio::test]
+async fn cleanup_port_processes_never_looks_up_port_zero() {
+    cleanup_port_processes(0, &ServiceName::new("port-zero"))
+        .await
+        .expect("port 0 has no holder to clean");
+}
+
+#[tokio::test]
 async fn validation_reports_tools_request_failed_when_the_server_rejects_tools_list() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))

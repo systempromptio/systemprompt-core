@@ -6,7 +6,8 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_models::{Config, WebConfig, WebConfigError};
+use systemprompt_manifest::{Config, WebConfig};
+use systemprompt_models::WebConfigError;
 use tokio::fs;
 
 use crate::error::GeneratorResult;

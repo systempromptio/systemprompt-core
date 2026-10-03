@@ -143,9 +143,10 @@ pub async fn wait_for_port_release(port: u16) -> McpDomainResult<()> {
         }
     }
 
-    Err(McpDomainError::Internal(format!(
-        "Port {port} did not become available after {max_attempts} attempts"
-    )))
+    Err(McpDomainError::PortNotReleased {
+        port,
+        attempts: max_attempts,
+    })
 }
 
 pub async fn wait_for_port_release_with_retry(
@@ -179,7 +180,8 @@ pub async fn wait_for_port_release_with_retry(
         }
     }
 
-    Err(McpDomainError::Internal(format!(
-        "Port {port} could not be acquired after {max_cleanup_attempts} cleanup attempts"
-    )))
+    Err(McpDomainError::PortNotReleased {
+        port,
+        attempts: max_cleanup_attempts,
+    })
 }

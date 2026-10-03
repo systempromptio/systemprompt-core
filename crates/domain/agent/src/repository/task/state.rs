@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use systemprompt_models::errors::ParseEnumError;
 
 use sqlx::PgPool;
 use systemprompt_identifiers::TaskId;
@@ -77,7 +78,7 @@ async fn lock_task_state(
     let current_state: TaskState = current
         .status
         .parse()
-        .map_err(|e: String| RepositoryError::decode("stored task state", e))?;
+        .map_err(|e: ParseEnumError| RepositoryError::decode("stored task state", e))?;
 
     Ok((current_state, current.version))
 }
@@ -151,7 +152,7 @@ pub async fn apply_notification_status(
     state: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let parsed: TaskState = state.parse().map_err(|_unknown: String| {
+    let parsed: TaskState = state.parse().map_err(|_unknown: ParseEnumError| {
         RepositoryError::invalid_argument("state", format!("unknown task state {state:?}"))
     })?;
     update_task_state(pool, task_id, parsed, timestamp).await

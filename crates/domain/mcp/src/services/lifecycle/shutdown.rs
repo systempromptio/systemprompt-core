@@ -10,7 +10,7 @@ use crate::services::database::stored_pid;
 use crate::services::process::ProcessService;
 use crate::services::spawn_target::SpawnTarget;
 use systemprompt_loader::subprocess::StopOutcome;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 
 pub async fn stop_server(
     lifecycle: &LifecycleService,

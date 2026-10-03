@@ -1,12 +1,13 @@
 //! Tests for extension error types.
 
 use systemprompt_extension::error::{ExtensionConfigError, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 
 #[test]
 fn test_loader_error_missing_dependency_display() {
     let err = LoaderError::MissingDependency {
-        extension: "blog".to_string(),
-        dependency: "auth".to_string(),
+        extension: ExtensionId::new("blog"),
+        dependency: ExtensionId::new("auth"),
     };
     let msg = err.to_string();
     assert!(msg.contains("blog"));
@@ -17,7 +18,7 @@ fn test_loader_error_missing_dependency_display() {
 
 #[test]
 fn test_loader_error_duplicate_extension_display() {
-    let err = LoaderError::DuplicateExtension("auth".to_string());
+    let err = LoaderError::DuplicateExtension(ExtensionId::new("auth"));
     let msg = err.to_string();
     assert!(msg.contains("auth"));
     assert!(msg.contains("already registered"));
@@ -27,7 +28,7 @@ fn test_loader_error_duplicate_extension_display() {
 #[test]
 fn test_loader_error_initialization_failed_display() {
     let err = LoaderError::InitializationFailed {
-        extension: "payment".to_string(),
+        extension: ExtensionId::new("payment"),
         message: "database connection failed".to_string(),
     };
     let msg = err.to_string();
@@ -39,7 +40,7 @@ fn test_loader_error_initialization_failed_display() {
 #[test]
 fn test_loader_error_schema_installation_failed_display() {
     let err = LoaderError::SchemaInstallationFailed {
-        extension: "users".to_string(),
+        extension: ExtensionId::new("users"),
         message: "table already exists".to_string(),
     };
     let msg = err.to_string();
@@ -51,7 +52,7 @@ fn test_loader_error_schema_installation_failed_display() {
 #[test]
 fn test_loader_error_config_validation_failed_display() {
     let err = LoaderError::ConfigValidationFailed {
-        extension: "smtp".to_string(),
+        extension: ExtensionId::new("smtp"),
         message: "missing required field: host".to_string(),
     };
     let msg = err.to_string();
@@ -63,7 +64,7 @@ fn test_loader_error_config_validation_failed_display() {
 #[test]
 fn test_loader_error_reserved_path_collision_display() {
     let err = LoaderError::ReservedPathCollision {
-        extension: "bad-ext".to_string(),
+        extension: ExtensionId::new("bad-ext"),
         path: "/api/v1/users".to_string(),
     };
     let msg = err.to_string();
@@ -75,7 +76,7 @@ fn test_loader_error_reserved_path_collision_display() {
 #[test]
 fn test_loader_error_invalid_base_path_display() {
     let err = LoaderError::InvalidBasePath {
-        extension: "my-ext".to_string(),
+        extension: ExtensionId::new("my-ext"),
         path: "/invalid/path".to_string(),
     };
     let msg = err.to_string();
@@ -137,57 +138,57 @@ fn test_config_error_schema_validation_display() {
 fn test_loader_error_variant_matching() {
     let errors = vec![
         LoaderError::MissingDependency {
-            extension: "a".to_string(),
-            dependency: "b".to_string(),
+            extension: ExtensionId::new("a"),
+            dependency: ExtensionId::new("b"),
         },
-        LoaderError::DuplicateExtension("c".to_string()),
+        LoaderError::DuplicateExtension(ExtensionId::new("c")),
         LoaderError::InitializationFailed {
-            extension: "d".to_string(),
+            extension: ExtensionId::new("d"),
             message: "failed".to_string(),
         },
         LoaderError::SchemaInstallationFailed {
-            extension: "e".to_string(),
+            extension: ExtensionId::new("e"),
             message: "failed".to_string(),
         },
         LoaderError::ConfigValidationFailed {
-            extension: "f".to_string(),
+            extension: ExtensionId::new("f"),
             message: "failed".to_string(),
         },
         LoaderError::ReservedPathCollision {
-            extension: "g".to_string(),
+            extension: ExtensionId::new("g"),
             path: "/api/v1/users".to_string(),
         },
         LoaderError::InvalidBasePath {
-            extension: "h".to_string(),
+            extension: ExtensionId::new("h"),
             path: "/bad".to_string(),
         },
         LoaderError::DependencyCycle {
             chain: "x -> y -> x".to_string(),
         },
         LoaderError::MigrationFailed {
-            extension: "i".to_string(),
+            extension: ExtensionId::new("i"),
             message: "migration failed".to_string(),
         },
         LoaderError::MigrationStepFailed {
-            extension: "i".to_string(),
+            extension: ExtensionId::new("i"),
             context: "Failed to record migration".to_string(),
             source: "connection reset".into(),
         },
         LoaderError::MigrationSlotReused {
-            extension: "j".to_string(),
+            extension: ExtensionId::new("j"),
             version: 34,
             stored_name: "knowledge_bank".to_string(),
             current_name: "skill_invocation_view".to_string(),
         },
         LoaderError::MigrationReferencesDeclarativeObject {
-            extension: "k".to_string(),
+            extension: ExtensionId::new("k"),
             migration: "012_view_dependency.sql".to_string(),
             kind: "view".to_string(),
             object: "current_items".to_string(),
             how: "FROM reference".to_string(),
         },
         LoaderError::MigrationTogglesTriggerByName {
-            extension: "l".to_string(),
+            extension: ExtensionId::new("l"),
             migration: "020_toggle.sql".to_string(),
             table: "events".to_string(),
             trigger: "events_audit".to_string(),
@@ -199,7 +200,7 @@ fn test_loader_error_variant_matching() {
             relation: "retired_table".to_string(),
         },
         LoaderError::MigrationChecksumDrift {
-            extension: "m".to_string(),
+            extension: ExtensionId::new("m"),
             version: 7,
             name: "007_edited".to_string(),
             stored_checksum: "aaaa".to_string(),
@@ -213,29 +214,29 @@ fn test_loader_error_variant_matching() {
                 extension,
                 dependency,
             } => {
-                assert!(!extension.is_empty());
-                assert!(!dependency.is_empty());
+                assert!(!extension.as_str().is_empty());
+                assert!(!dependency.as_str().is_empty());
             },
             LoaderError::DuplicateExtension(id) | LoaderError::RequiredExtensionDisabled(id) => {
-                assert!(!id.is_empty());
+                assert!(!id.as_str().is_empty());
             },
             LoaderError::DisabledDependency {
                 extension,
                 dependency,
             } => {
-                assert!(!extension.is_empty());
-                assert!(!dependency.is_empty());
+                assert!(!extension.as_str().is_empty());
+                assert!(!dependency.as_str().is_empty());
             },
             LoaderError::InitializationFailed { extension, message } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!message.is_empty());
             },
             LoaderError::SchemaInstallationFailed { extension, message } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!message.is_empty());
             },
             LoaderError::MigrationFailed { extension, message } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!message.is_empty());
             },
             LoaderError::SchemaInstallationStepFailed {
@@ -244,7 +245,7 @@ fn test_loader_error_variant_matching() {
             | LoaderError::MigrationStepFailed {
                 extension, context, ..
             } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!context.is_empty());
             },
             LoaderError::MigrationReferencesDeclarativeObject {
@@ -254,29 +255,29 @@ fn test_loader_error_variant_matching() {
                 object,
                 how,
             } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!migration.is_empty());
                 assert!(!kind.is_empty());
                 assert!(!object.is_empty());
                 assert!(!how.is_empty());
             },
             LoaderError::ConfigValidationFailed { extension, message } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!message.is_empty());
             },
             LoaderError::ReservedPathCollision { extension, path } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!path.is_empty());
             },
             LoaderError::InvalidBasePath { extension, path } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!path.is_empty());
             },
             LoaderError::DependencyCycle { chain } => {
                 assert!(!chain.is_empty());
             },
             LoaderError::CrossExtensionAlterUndeclared { extension, table } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!table.is_empty());
             },
             LoaderError::DuplicateTableOwner {
@@ -285,15 +286,15 @@ fn test_loader_error_variant_matching() {
                 extension_b,
             } => {
                 assert!(!table.is_empty());
-                assert!(!extension_a.is_empty());
-                assert!(!extension_b.is_empty());
+                assert!(!extension_a.as_str().is_empty());
+                assert!(!extension_b.as_str().is_empty());
             },
             LoaderError::CrossExtensionTableNotOwned { extension, table } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!table.is_empty());
             },
             LoaderError::SeedInsertNotIdempotent { extension, seed } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!seed.is_empty());
             },
             LoaderError::InvalidSeedStatement {
@@ -301,7 +302,7 @@ fn test_loader_error_variant_matching() {
                 seed,
                 statement,
             } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!seed.is_empty());
                 assert!(!statement.is_empty());
             },
@@ -311,12 +312,12 @@ fn test_loader_error_variant_matching() {
                 context,
                 ..
             } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!seed.is_empty());
                 assert!(!context.is_empty());
             },
             LoaderError::MigrationNotReversible { extension, .. } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
             },
             LoaderError::MigrationSlotReused {
                 extension,
@@ -324,7 +325,7 @@ fn test_loader_error_variant_matching() {
                 current_name,
                 ..
             } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 // Both names carry the whole point of the error: a slot is
                 // reused, so the message has to say which migration already
                 // holds it and which one is trying to. One name alone leaves
@@ -339,7 +340,7 @@ fn test_loader_error_variant_matching() {
                 table,
                 trigger,
             } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert!(!migration.is_empty());
                 assert!(!table.is_empty());
                 assert!(!trigger.is_empty());
@@ -361,7 +362,7 @@ fn test_loader_error_variant_matching() {
                 current_checksum,
                 ..
             } => {
-                assert!(!extension.is_empty());
+                assert!(!extension.as_str().is_empty());
                 assert_ne!(stored_checksum, current_checksum);
             },
         }

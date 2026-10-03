@@ -19,7 +19,7 @@ use futures::stream::Stream;
 use systemprompt_database::resilience::{
     Admission, ResilienceConfig, ResilienceError, ResilienceGuard, guarded_stream,
 };
-use systemprompt_models::services::ResilienceSettings;
+use systemprompt_manifest::services::ResilienceSettings;
 
 use crate::error::{AiError, Result};
 use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};

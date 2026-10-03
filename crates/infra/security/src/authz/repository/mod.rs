@@ -15,6 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod entities;
+pub(crate) mod ingestion;
 mod rules;
 
 pub use rules::ChainFingerprint;

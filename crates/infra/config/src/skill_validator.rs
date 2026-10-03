@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
+use systemprompt_manifest::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
 use systemprompt_traits::validation_report::{ValidationIssue, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 

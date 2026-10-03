@@ -15,7 +15,7 @@ use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, OrchestrationResult};
 use crate::services::registry::AgentRegistry;
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::services::{AgentConfig, ServiceStatus};
+use systemprompt_manifest::services::{AgentConfig, ServiceStatus};
 use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]

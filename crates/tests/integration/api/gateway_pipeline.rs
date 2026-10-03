@@ -26,17 +26,18 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, SecretName, TraceId,
 };
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
-    WireProtocol,
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
 };
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential};
+use systemprompt_wire::WireProtocol;
 use tracing_subscriber::prelude::*;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 use systemprompt_security::policy::types::AccessScope;

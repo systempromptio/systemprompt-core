@@ -29,7 +29,7 @@ impl AuthorizationService {
             return Err(StatusCode::UNAUTHORIZED);
         };
         let config =
-            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let Ok(claims) =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
@@ -61,7 +61,7 @@ impl AuthorizationService {
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let config =
-            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let claims =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
@@ -85,7 +85,7 @@ impl AuthorizationService {
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let config =
-            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let claims =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
@@ -95,9 +95,8 @@ impl AuthorizationService {
             .iter()
             .filter_map(|s| {
                 JwtAudience::from_str(s)
-                    .map_err(|e| {
+                    .inspect_err(|e| {
                         tracing::warn!(audience = %s, error = %e, "Invalid audience in configuration");
-                        e
                     })
                     .ok()
             })

@@ -16,7 +16,7 @@ use rand::distr::Alphanumeric;
 use rand::{RngExt, rng};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_loader::ProfileLoader;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProfileResolutionError {

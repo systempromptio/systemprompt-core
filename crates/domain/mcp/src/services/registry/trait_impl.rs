@@ -3,12 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::future::ready;
+
 use async_trait::async_trait;
 
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
+use systemprompt_manifest::services::McpDeploymentProvider;
 use systemprompt_models::errors::{McpRegistryError, McpRegistryResult};
-use systemprompt_models::mcp::{McpDeploymentProvider, McpRegistry, McpServerState};
+use systemprompt_models::mcp::{McpRegistry, McpServerState};
 use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig};
 
 use super::RegistryService;
@@ -39,39 +42,47 @@ fn typed_server_ids(names: impl Iterator<Item = String>) -> McpRegistryResult<Ve
         .collect()
 }
 
-#[async_trait]
+fn load_services() -> McpRegistryResult<ServicesConfig> {
+    systemprompt_loader::ConfigLoader::load()
+        .map_err(|e| McpRegistryError::Configuration(Box::new(e)))
+}
+
 impl McpRegistry for RegistryService {
-    async fn list_servers(&self) -> McpRegistryResult<Vec<McpServerId>> {
-        use systemprompt_loader::ConfigLoader;
-        let config =
-            ConfigLoader::load().map_err(|e| McpRegistryError::Configuration(Box::new(e)))?;
-        typed_server_ids(config.mcp_servers.keys().cloned())
+    fn list_servers(&self) -> impl Future<Output = McpRegistryResult<Vec<McpServerId>>> + Send {
+        ready(load_services().and_then(|config| typed_server_ids(config.mcp_servers.into_keys())))
     }
 
-    async fn find_server(&self, name: &McpServerId) -> McpRegistryResult<Option<McpServerState>> {
-        let server_config = Self::find_server(self, name.as_str())?;
-        Ok(server_config.map(|config| McpServerState {
-            name: name.clone(),
-            host: config.host,
-            port: config.port,
-        }))
+    fn find_server(
+        &self,
+        name: &McpServerId,
+    ) -> impl Future<Output = McpRegistryResult<Option<McpServerState>>> + Send {
+        ready(
+            Self::find_server(self, name.as_str())
+                .map_err(McpRegistryError::from)
+                .map(|server_config| {
+                    server_config.map(|config| McpServerState {
+                        name: name.clone(),
+                        host: config.host,
+                        port: config.port,
+                    })
+                }),
+        )
     }
 
-    async fn server_exists(&self, name: &McpServerId) -> McpRegistryResult<bool> {
-        use systemprompt_loader::ConfigLoader;
-        let config =
-            ConfigLoader::load().map_err(|e| McpRegistryError::Configuration(Box::new(e)))?;
-        Ok(config.mcp_servers.contains_key(name.as_str()))
+    fn server_exists(
+        &self,
+        name: &McpServerId,
+    ) -> impl Future<Output = McpRegistryResult<bool>> + Send {
+        ready(load_services().map(|config| config.mcp_servers.contains_key(name.as_str())))
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct McpDeploymentProviderImpl;
 
-#[async_trait]
 impl McpDeploymentProvider for McpDeploymentProviderImpl {
-    async fn load_config(&self) -> McpRegistryResult<ServicesConfig> {
-        DeploymentService::load_config().map_err(McpRegistryError::from)
+    fn load_config(&self) -> impl Future<Output = McpRegistryResult<ServicesConfig>> + Send {
+        ready(DeploymentService::load_config().map_err(McpRegistryError::from))
     }
 
     fn protocol_version(&self) -> &'static str {

@@ -5,7 +5,7 @@
 
 use systemprompt_cloud::CliSession;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionToken, TraceId};
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 use systemprompt_models::execution::context::RequestContext;
 
 #[derive(Debug)]

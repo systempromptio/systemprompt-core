@@ -392,7 +392,7 @@ fn an_unusable_logs_directory_is_reported_rather_than_ignored() {
 fn lexical_paths(root: &Path) -> systemprompt_config::paths::AppPaths {
     let root = root.to_string_lossy().into_owned();
     systemprompt_config::paths::AppPaths::from_profile(
-        &systemprompt_models::profile::PathsConfig {
+        &systemprompt_manifest::profile::PathsConfig {
             system: root.clone(),
             services: root.clone(),
             bin: root.clone(),
@@ -400,7 +400,7 @@ fn lexical_paths(root: &Path) -> systemprompt_config::paths::AppPaths {
             storage: Some(root),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Lexical,
+        systemprompt_manifest::PathResolution::Lexical,
         None,
     )
     .expect("paths")

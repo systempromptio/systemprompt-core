@@ -5,7 +5,7 @@
 use std::fs;
 
 use systemprompt_loader::bundle::BundleCache;
-use systemprompt_models::services::bundle::BUNDLE_MANIFEST_FILE;
+use systemprompt_manifest::services::bundle::BUNDLE_MANIFEST_FILE;
 
 use crate::bundle_support::{base_tree, pack};
 

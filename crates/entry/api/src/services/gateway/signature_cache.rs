@@ -34,8 +34,8 @@ use std::time::{Duration, Instant};
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_identifiers::{GatewayConversationId, UserId};
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
+use systemprompt_wire::WireProtocol;
+use systemprompt_wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
 
 pub const TTL: Duration = Duration::from_hours(1);
 const HYDRATION_TOTAL: &str = "gateway_signature_hydration_total";

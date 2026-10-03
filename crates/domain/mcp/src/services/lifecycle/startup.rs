@@ -74,9 +74,10 @@ pub async fn wait_for_startup(
         }
 
         if !ProcessService::is_running(expected_pid).await {
-            return Err(crate::error::McpDomainError::Internal(format!(
-                "Process {expected_pid} died during startup"
-            )));
+            return Err(crate::error::McpDomainError::ProcessDiedDuringStartup {
+                pid: expected_pid,
+                service: config.name.clone(),
+            });
         }
 
         if !NetworkService::is_port_responsive(config.spawn_port()?).await {
@@ -90,16 +91,16 @@ pub async fn wait_for_startup(
         }
     }
 
-    let error_msg = format!(
-        "Service {} failed health validation after {} attempts",
-        config.name, max_attempts
-    );
+    let error = crate::error::McpDomainError::HealthValidationFailed {
+        service: config.name.clone(),
+        attempts: max_attempts,
+    };
 
     if let Some(tx) = events {
-        tx.mcp_failed(&config.name, &error_msg);
+        tx.mcp_failed(&config.name, error.to_string());
     }
 
-    Err(crate::error::McpDomainError::Internal(error_msg))
+    Err(error)
 }
 
 pub fn calculate_delay(attempt: u32, base_delay: Duration) -> Duration {

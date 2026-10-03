@@ -13,7 +13,7 @@ pub use finish::finish_register;
 pub use start::start_register;
 
 use axum::http::StatusCode;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 
 use crate::routes::oauth::OAuthHttpError;
 

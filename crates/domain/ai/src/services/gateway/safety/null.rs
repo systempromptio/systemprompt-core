@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse};
+use systemprompt_wire::canonical::{CanonicalRequest, CanonicalResponse};
 
 use super::{Finding, SafetyScanner, ScanError};
 

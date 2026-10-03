@@ -9,7 +9,7 @@
 
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClassificationInput, ClassificationRejection, ClientAttestation, ClientKind,
     InboundWireProtocol, NativeMarker, OriginParseError, RequestOrigin, StainlessHeaders, classify,
     native_marker, ua_product,

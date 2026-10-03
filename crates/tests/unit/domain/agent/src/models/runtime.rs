@@ -6,7 +6,7 @@
 
 use systemprompt_agent::models::runtime::AgentRuntimeInfo;
 use systemprompt_models::ai::ToolModelOverrides;
-use systemprompt_models::services::PluginComponentRef;
+use systemprompt_models::plugin::PluginComponentRef;
 
 fn pcr<I: IntoIterator<Item = &'static str>>(items: I) -> PluginComponentRef {
     PluginComponentRef {

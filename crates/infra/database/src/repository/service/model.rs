@@ -10,7 +10,7 @@
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_models::services::{ServiceModule, ServiceStatus};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 
 use crate::error::RepositoryError;
 

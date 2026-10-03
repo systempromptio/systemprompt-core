@@ -8,7 +8,7 @@ use axum::http::HeaderValue;
 use axum::middleware::Next;
 use axum::response::Response;
 use systemprompt_extension::FrameOptionsOverride;
-use systemprompt_models::profile::SecurityHeadersConfig;
+use systemprompt_manifest::profile::SecurityHeadersConfig;
 
 pub async fn inject_security_headers(
     config: SecurityHeadersConfig,

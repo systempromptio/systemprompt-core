@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_logging::LogLevel;
-use systemprompt_runtime::TraceQueryService;
+use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};
@@ -65,7 +65,7 @@ async fn execute_with_pool_inner(
 ) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
     let entries = service
         .list_logs_filtered(since_timestamp, args.level, args.limit)
         .await?;

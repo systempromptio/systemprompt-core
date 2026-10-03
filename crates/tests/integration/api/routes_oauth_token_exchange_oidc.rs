@@ -21,9 +21,9 @@ use axum::middleware::{self, Next};
 use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::profile::TrustedIssuer;
 use systemprompt_oauth::OAuthState;
 use systemprompt_security::keys::authority::{active_kid, encoding_key};
 use systemprompt_test_fixtures::{

@@ -82,12 +82,6 @@ fn test_file_upload_error_display_database() {
 }
 
 #[test]
-fn test_file_upload_error_display_config() {
-    let err = FileUploadError::Config("missing path".to_string());
-    assert_eq!(format!("{}", err), "Configuration error: missing path");
-}
-
-#[test]
 fn test_file_upload_error_display_base64_too_large() {
     let err = FileUploadError::Base64TooLarge {
         encoded_size: 100_000_000,

@@ -8,14 +8,15 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
+use systemprompt_identifiers::TeamsAppId;
+use systemprompt_manifest::services::TeamsAppConfig;
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
-use systemprompt_models::services::TeamsAppConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_teams::auth::ActivityTokenVerifier;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct VerifierKey {
-    app_id: String,
+    app_id: TeamsAppId,
     openid_config_url: String,
 }
 

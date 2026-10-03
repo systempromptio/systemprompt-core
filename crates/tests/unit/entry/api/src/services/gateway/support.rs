@@ -3,8 +3,8 @@
 //! read off the endpoint and the key is sent verbatim.
 
 use systemprompt_ai::UpstreamCall;
-use systemprompt_models::services::Hosting;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
+use systemprompt_wire::Hosting;
 
 pub(super) fn api_key_call(endpoint: &str, key: &str) -> UpstreamCall {
     UpstreamCall::new(

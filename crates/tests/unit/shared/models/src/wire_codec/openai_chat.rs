@@ -1,12 +1,11 @@
 //! `OpenAI` Chat Completions wire-codec tests.
 
 use serde_json::{Value, json};
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CacheControl, CanonicalContent, CanonicalMessage, CanonicalToolChoice, ReasoningEffort,
     ResponseFormat, Role, SystemBlock,
 };
-use systemprompt_models::wire::openai_chat;
+use systemprompt_wire::{ModelLimits, openai_chat};
 
 use super::{base_request, image_url, plain_tool};
 
@@ -376,7 +375,7 @@ fn openai_chat_round_trips_thinking_through_reasoning_content() {
 #[tokio::test]
 async fn openai_chat_stream_does_not_overwrite_tool_calls_with_the_done_sentinel() {
     use futures::StreamExt;
-    use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason};
+    use systemprompt_wire::canonical::{CanonicalEvent, CanonicalStopReason};
 
     let sse = concat!(
         "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\
@@ -411,7 +410,7 @@ async fn openai_chat_stream_does_not_overwrite_tool_calls_with_the_done_sentinel
 // upstream depends on to have its tool call executed.
 #[test]
 fn openai_chat_buffered_tool_calls_finish_reason_maps_to_tool_use() {
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let value: Value = json!({
         "id": "chatcmpl_1",
@@ -448,7 +447,7 @@ fn openai_chat_buffered_tool_calls_finish_reason_maps_to_tool_use() {
 // drop is invisible -- it reads as the model declining to use tools.
 #[test]
 fn openai_chat_buffered_reports_tool_use_even_though_the_upstream_says_stop() {
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let value: Value = json!({
         "id": "chatcmpl_1",
@@ -485,7 +484,7 @@ fn openai_chat_buffered_reports_tool_use_even_though_the_upstream_says_stop() {
 // turn was truncated.
 #[test]
 fn openai_chat_buffered_keeps_length_over_a_truncated_tool_call() {
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let value: Value = json!({
         "id": "chatcmpl_1",
@@ -515,7 +514,7 @@ fn openai_chat_buffered_keeps_length_over_a_truncated_tool_call() {
 #[tokio::test]
 async fn openai_chat_stream_reports_tool_use_even_though_the_upstream_says_stop() {
     use futures::StreamExt;
-    use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason};
+    use systemprompt_wire::canonical::{CanonicalEvent, CanonicalStopReason};
 
     let sse = concat!(
         "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\
@@ -548,7 +547,7 @@ async fn openai_chat_stream_reports_tool_use_even_though_the_upstream_says_stop(
 #[tokio::test]
 async fn openai_chat_stream_keeps_length_over_a_truncated_tool_call() {
     use futures::StreamExt;
-    use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason};
+    use systemprompt_wire::canonical::{CanonicalEvent, CanonicalStopReason};
 
     let sse = concat!(
         "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\
@@ -584,7 +583,7 @@ async fn openai_chat_stream_keeps_length_over_a_truncated_tool_call() {
 #[tokio::test]
 async fn openai_chat_stream_carries_reasoning_content_deltas() {
     use futures::StreamExt;
-    use systemprompt_models::wire::canonical::CanonicalEvent;
+    use systemprompt_wire::canonical::CanonicalEvent;
 
     let sse = concat!(
         "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\
@@ -683,7 +682,7 @@ fn openai_chat_parse_defaults_reasoning_to_zero_when_absent() {
 #[tokio::test]
 async fn openai_chat_stream_reports_reasoning_tokens_in_the_usage_delta() {
     use futures::StreamExt;
-    use systemprompt_models::wire::canonical::CanonicalEvent;
+    use systemprompt_wire::canonical::CanonicalEvent;
 
     let sse = concat!(
         "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[],\"usage\":{\"prompt_tokens\":9,\

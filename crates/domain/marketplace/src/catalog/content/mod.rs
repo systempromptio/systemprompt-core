@@ -14,10 +14,10 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::SkillId;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
-use systemprompt_models::services::ServicesConfig;
 
 use crate::bundle::BundleContent;
 use crate::catalog::fingerprint::{canonical_json, hash_dir_metadata};

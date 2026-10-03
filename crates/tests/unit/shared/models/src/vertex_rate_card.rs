@@ -1,5 +1,5 @@
 use chrono::NaiveDate;
-use systemprompt_models::services::{DocumentedLaunchStage, VertexRateCard};
+use systemprompt_manifest::services::{DocumentedLaunchStage, VertexRateCard};
 
 fn card() -> VertexRateCard {
     VertexRateCard::embedded().expect("the embedded Vertex rate card must parse")

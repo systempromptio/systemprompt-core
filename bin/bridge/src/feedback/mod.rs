@@ -121,7 +121,7 @@ pub type Result<T> = std::result::Result<T, FeedbackError>;
 // its own; `EvaluatorClient::accepts_host_name` is the one place both are
 // listed, so no second alias table can drift from it.
 pub fn client_kind(host: &str) -> Option<systemprompt_models::feedback::EvaluatorClient> {
-    systemprompt_models::wire::origin::ClientKind::ALL
+    systemprompt_models::origin::ClientKind::ALL
         .into_iter()
         .filter_map(|kind| systemprompt_models::feedback::EvaluatorClient::try_from(kind).ok())
         .find(|client| client.accepts_host_name(host))

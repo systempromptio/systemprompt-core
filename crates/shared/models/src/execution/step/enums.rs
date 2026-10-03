@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::errors::ParseEnumError;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StepId(pub String);
 
@@ -60,7 +62,7 @@ impl std::fmt::Display for StepStatus {
 }
 
 impl std::str::FromStr for StepStatus {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
@@ -68,7 +70,7 @@ impl std::str::FromStr for StepStatus {
             "in_progress" | "running" | "active" => Ok(Self::InProgress),
             "completed" | "done" | "success" => Ok(Self::Completed),
             "failed" | "error" => Ok(Self::Failed),
-            _ => Err(format!("Invalid step status: {s}")),
+            _ => Err(ParseEnumError::new("step status", s)),
         }
     }
 }
@@ -97,7 +99,7 @@ impl std::fmt::Display for StepType {
 }
 
 impl std::str::FromStr for StepType {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
@@ -106,7 +108,7 @@ impl std::str::FromStr for StepType {
             "skill_usage" => Ok(Self::SkillUsage),
             "tool_execution" | "toolexecution" => Ok(Self::ToolExecution),
             "completion" => Ok(Self::Completion),
-            _ => Err(format!("Invalid step type: {s}")),
+            _ => Err(ParseEnumError::new("step type", s)),
         }
     }
 }

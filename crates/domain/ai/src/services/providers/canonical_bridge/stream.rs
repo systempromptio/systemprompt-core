@@ -3,9 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::wire::canonical::{
-    CanonicalEvent, CanonicalStopReason, CanonicalUsageUpdate,
-};
+use systemprompt_wire::canonical::{CanonicalEvent, CanonicalStopReason, CanonicalUsageUpdate};
 
 use crate::models::ai::StreamChunk;
 

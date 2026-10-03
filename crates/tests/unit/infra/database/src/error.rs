@@ -88,17 +88,10 @@ fn test_invalid_argument_from_owned_string() {
 }
 
 #[test]
-fn test_internal_from_str() {
-    let error = RepositoryError::internal("unexpected state");
-    assert!(matches!(error, RepositoryError::Internal(_)));
-    assert!(error.to_string().contains("unexpected state"));
-}
-
-#[test]
-fn test_internal_from_owned_string() {
-    let error = RepositoryError::internal(String::from("connection pool exhausted"));
-    assert!(matches!(error, RepositoryError::Internal(_)));
-    assert!(error.to_string().contains("connection pool exhausted"));
+fn test_transaction_consumed_is_not_a_backend_failure() {
+    let error = RepositoryError::TransactionConsumed;
+    assert!(error.sqlstate().is_none());
+    assert!(!error.is_conflict());
 }
 
 #[test]
@@ -120,8 +113,8 @@ fn test_is_not_found_returns_false_for_invalid_argument() {
 }
 
 #[test]
-fn test_is_not_found_returns_false_for_internal() {
-    let error = RepositoryError::internal("oops");
+fn test_is_not_found_returns_false_for_transaction_consumed() {
+    let error = RepositoryError::TransactionConsumed;
     assert!(!error.is_not_found());
 }
 
@@ -138,8 +131,8 @@ fn test_is_constraint_returns_false_for_invalid_argument() {
 }
 
 #[test]
-fn test_is_constraint_returns_false_for_internal() {
-    let error = RepositoryError::internal("error");
+fn test_is_constraint_returns_false_for_transaction_consumed() {
+    let error = RepositoryError::TransactionConsumed;
     assert!(!error.is_constraint());
 }
 
@@ -172,13 +165,11 @@ fn test_invalid_argument_display() {
 }
 
 #[test]
-fn test_internal_display() {
-    let error = RepositoryError::internal("system failure");
-    let display = error.to_string();
-    assert!(
-        display.contains("Internal") || display.contains("internal"),
-        "Expected display to contain 'internal', got: {}",
-        display
+fn test_transaction_consumed_display() {
+    let error = RepositoryError::TransactionConsumed;
+    assert_eq!(
+        error.to_string(),
+        "transaction already committed or rolled back"
     );
 }
 

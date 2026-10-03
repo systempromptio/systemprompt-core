@@ -18,12 +18,11 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use systemprompt_models::bridge::manifest::{SignedManifest, SignedManifestEnvelope};
-use uuid::Uuid;
 
 use super::elevated_protocol::CompletedStep;
 use super::mdm::MdmError;
 use super::mdm::tool_catalog::ToolCatalog;
-use crate::ids::HostToken;
+use crate::ids::{ElevatedJobId, HostToken};
 
 pub use self::request::facts_from_entries;
 
@@ -45,7 +44,7 @@ pub const RESULT_TIMEOUT_SECS: u64 = 60;
 #[serde(deny_unknown_fields)]
 pub struct PolicyWriteRequest {
     pub version: u32,
-    pub job_id: Uuid,
+    pub job_id: ElevatedJobId,
     pub requester_sid: String,
     pub gateway: String,
     pub envelope: SignedManifestEnvelope,
@@ -94,12 +93,12 @@ impl Layout {
     }
 
     #[must_use]
-    pub fn request_path(&self, job_id: Uuid) -> PathBuf {
+    pub fn request_path(&self, job_id: &ElevatedJobId) -> PathBuf {
         self.inbox.join(format!("request-{job_id}.json"))
     }
 
     #[must_use]
-    pub fn result_path(&self, job_id: Uuid) -> PathBuf {
+    pub fn result_path(&self, job_id: &ElevatedJobId) -> PathBuf {
         self.outbox.join(format!("result-{job_id}.json"))
     }
 }
@@ -233,7 +232,7 @@ pub fn build_request(
 ) -> PolicyWriteRequest {
     PolicyWriteRequest {
         version: REQUEST_VERSION,
-        job_id: Uuid::new_v4(),
+        job_id: ElevatedJobId::generate(),
         requester_sid,
         gateway: fragment.gateway.as_str().to_owned(),
         envelope: fragment.envelope.clone(),

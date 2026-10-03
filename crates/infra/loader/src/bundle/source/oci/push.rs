@@ -12,7 +12,7 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::services::bundle::BUNDLE_MEDIA_TYPE;
+use systemprompt_manifest::services::bundle::BUNDLE_MEDIA_TYPE;
 
 use super::RegistryClient;
 use super::pull::{OCI_MANIFEST_MEDIA_TYPE, OciDescriptor, OciManifest};

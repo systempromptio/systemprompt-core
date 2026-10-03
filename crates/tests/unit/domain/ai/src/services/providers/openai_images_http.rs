@@ -5,8 +5,8 @@ use systemprompt_ai::models::image_generation::{
 };
 use systemprompt_ai::services::providers::image_provider_trait::ImageProvider;
 use systemprompt_ai::services::providers::openai_images::OpenAiImageProvider;
-use systemprompt_models::services::WireProtocol;
 use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

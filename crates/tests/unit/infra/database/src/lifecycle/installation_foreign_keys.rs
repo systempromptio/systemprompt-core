@@ -396,7 +396,9 @@ mod probe_failing {
             params: &[&dyn ToDbValue],
         ) -> DatabaseResult<Option<JsonRow>> {
             if query.select_query().contains("pg_constraint") {
-                return Err(RepositoryError::internal("catalog unavailable"));
+                return Err(RepositoryError::database(std::io::Error::other(
+                    "catalog unavailable",
+                )));
             }
             self.inner.fetch_optional(query, params).await
         }

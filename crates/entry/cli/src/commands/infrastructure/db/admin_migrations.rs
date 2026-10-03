@@ -8,9 +8,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use systemprompt_database::MigrationService;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
@@ -72,13 +73,13 @@ async fn execute_migrations_status(
         let status: systemprompt_database::MigrationStatus = migration_service
             .get_migration_status(ext.as_ref())
             .await
-            .map_err(|e| anyhow!("Failed to get migration status: {}", e))?;
+            .context("Failed to get migration status")?;
 
         total_pending += status.pending_count;
         total_applied += status.total_applied;
 
         extensions.push(ExtensionMigrationStatus {
-            extension_id: status.extension_id,
+            extension_id: ExtensionId::new(status.extension_id),
             is_required: ext.is_required(),
             total_defined: status.total_defined,
             total_applied: status.total_applied,
@@ -134,18 +135,18 @@ async fn execute_migrations_status(
 async fn execute_migrations_history(
     db: &dyn systemprompt_database::services::DatabaseProvider,
     registry: &ExtensionRegistry,
-    extension_id: &str,
+    extension_id: &ExtensionId,
     config: &CliConfig,
 ) -> Result<()> {
     let ext = registry
-        .get(extension_id)
+        .get(extension_id.as_str())
         .ok_or_else(|| anyhow!("Extension '{}' not found", extension_id))?;
 
     let migration_service = MigrationService::new(db);
     let applied: Vec<systemprompt_database::AppliedMigration> = migration_service
         .get_applied_migrations(extension_id)
         .await
-        .map_err(|e| anyhow!("Failed to get migration history: {}", e))?;
+        .context("Failed to get migration history")?;
 
     let migrations: Vec<AppliedMigrationInfo> = applied
         .into_iter()
@@ -158,7 +159,7 @@ async fn execute_migrations_history(
         .collect();
 
     let output = MigrationHistoryOutput {
-        extension_id: extension_id.to_owned(),
+        extension_id: extension_id.clone(),
         migrations,
     };
 

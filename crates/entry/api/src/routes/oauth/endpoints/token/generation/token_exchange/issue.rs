@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::ClientId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 

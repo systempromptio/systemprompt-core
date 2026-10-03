@@ -7,7 +7,7 @@ use systemprompt_identifiers::{
     Actor, ActorKind, AgentId, AiRequestId, ContextId, GatewayConversationId, McpExecutionId,
     ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::origin::RequestOrigin;
 use systemprompt_test_fixtures::{fixture_user_id, usage};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";

@@ -3,30 +3,30 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sqlx::PgPool;
-use std::sync::Arc;
 use systemprompt_identifiers::{AiRequestId, ContextId, McpExecutionId, TaskId};
 
+use super::TraceError;
 use super::models::{
     AiRequestInfo, ConversationMessage, ExecutionStep, McpToolExecution, TaskArtifact, TaskInfo,
     ToolLogEntry,
 };
-use super::{TraceError, ai_trace_queries};
+use super::repository::TraceRepository;
 
 pub(super) type Result<T> = std::result::Result<T, TraceError>;
 
 #[derive(Debug, Clone)]
 pub struct AiTraceService {
-    pool: Arc<PgPool>,
+    repository: TraceRepository,
 }
 
 impl AiTraceService {
-    pub const fn new(pool: Arc<PgPool>) -> Self {
-        Self { pool }
+    pub const fn new(repository: TraceRepository) -> Self {
+        Self { repository }
     }
 
     pub async fn resolve_task_id(&self, partial_id: &str) -> Result<TaskId> {
-        ai_trace_queries::resolve_task_id(&self.pool, partial_id)
+        self.repository
+            .resolve_task_id(partial_id)
             .await?
             .map(TaskId::new)
             .ok_or_else(|| TraceError::TaskNotFound {
@@ -35,34 +35,36 @@ impl AiTraceService {
     }
 
     pub async fn get_task_info(&self, task_id: &TaskId) -> Result<TaskInfo> {
-        ai_trace_queries::fetch_task_info(&self.pool, task_id).await
+        self.repository.fetch_task_info(task_id).await
     }
 
     pub async fn get_user_input(&self, task_id: &TaskId) -> Result<Option<String>> {
-        ai_trace_queries::fetch_user_input(&self.pool, task_id).await
+        self.repository.fetch_user_input(task_id).await
     }
 
     pub async fn get_agent_response(&self, task_id: &TaskId) -> Result<Option<String>> {
-        ai_trace_queries::fetch_agent_response(&self.pool, task_id).await
+        self.repository.fetch_agent_response(task_id).await
     }
 
     pub async fn get_execution_steps(&self, task_id: &TaskId) -> Result<Vec<ExecutionStep>> {
-        ai_trace_queries::fetch_execution_steps(&self.pool, task_id).await
+        self.repository.fetch_execution_steps(task_id).await
     }
 
     pub async fn get_ai_requests(&self, task_id: &TaskId) -> Result<Vec<AiRequestInfo>> {
-        ai_trace_queries::fetch_ai_requests(&self.pool, task_id).await
+        self.repository.fetch_ai_requests(task_id).await
     }
 
     pub async fn get_system_prompt(&self, request_id: &AiRequestId) -> Result<Option<String>> {
-        ai_trace_queries::fetch_system_prompt(&self.pool, request_id).await
+        self.repository.fetch_system_prompt(request_id).await
     }
 
     pub async fn get_conversation_messages(
         &self,
         request_id: &AiRequestId,
     ) -> Result<Vec<ConversationMessage>> {
-        ai_trace_queries::fetch_conversation_messages(&self.pool, request_id).await
+        self.repository
+            .fetch_conversation_messages(request_id)
+            .await
     }
 
     pub async fn get_mcp_executions(
@@ -70,21 +72,27 @@ impl AiTraceService {
         task_id: &TaskId,
         context_id: &ContextId,
     ) -> Result<Vec<McpToolExecution>> {
-        ai_trace_queries::fetch_mcp_executions(&self.pool, task_id, context_id).await
+        self.repository
+            .fetch_mcp_executions(task_id, context_id)
+            .await
     }
 
     pub async fn get_mcp_linked_ai_requests(
         &self,
         mcp_execution_id: &McpExecutionId,
     ) -> Result<Vec<AiRequestInfo>> {
-        ai_trace_queries::fetch_mcp_linked_ai_requests(&self.pool, mcp_execution_id).await
+        self.repository
+            .fetch_mcp_linked_ai_requests(mcp_execution_id)
+            .await
     }
 
     pub async fn get_ai_request_message_previews(
         &self,
         request_id: &AiRequestId,
     ) -> Result<Vec<ConversationMessage>> {
-        ai_trace_queries::fetch_ai_request_message_previews(&self.pool, request_id).await
+        self.repository
+            .fetch_ai_request_message_previews(request_id)
+            .await
     }
 
     pub async fn get_tool_logs(
@@ -92,7 +100,7 @@ impl AiTraceService {
         task_id: &TaskId,
         context_id: &ContextId,
     ) -> Result<Vec<ToolLogEntry>> {
-        ai_trace_queries::fetch_tool_logs(&self.pool, task_id, context_id).await
+        self.repository.fetch_tool_logs(task_id, context_id).await
     }
 
     pub async fn get_task_artifacts(
@@ -100,6 +108,8 @@ impl AiTraceService {
         task_id: &TaskId,
         context_id: &ContextId,
     ) -> Result<Vec<TaskArtifact>> {
-        ai_trace_queries::fetch_task_artifacts(&self.pool, task_id, context_id).await
+        self.repository
+            .fetch_task_artifacts(task_id, context_id)
+            .await
     }
 }

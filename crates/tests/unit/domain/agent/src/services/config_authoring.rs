@@ -8,9 +8,9 @@ use systemprompt_agent::services::config_authoring::{
     AgentConfigAuthoringService, AgentCreateRequest, AgentEditRequest, ConfigAuthoringError,
 };
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::AgentConfig;
+use systemprompt_manifest::AgentConfig;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::services::ServicesConfig;
 
 fn create_request(name: &str, port: u16) -> AgentCreateRequest {
     AgentCreateRequest {

@@ -12,7 +12,7 @@ use systemprompt_ai::repository::{
     AiThoughtSignatureRepository,
 };
 use systemprompt_database::DbPool;
-use systemprompt_models::profile::AuditConfig;
+use systemprompt_manifest::profile::AuditConfig;
 use systemprompt_traits::{BackgroundTasks, DynContextMaterializer};
 
 use crate::services::gateway::audit::journal::{GatewayJournal, Settlement};

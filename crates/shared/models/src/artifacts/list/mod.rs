@@ -15,7 +15,7 @@ use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::{SkillId, SkillName, SourceId};
+use systemprompt_identifiers::{McpExecutionId, SkillId, SkillName, SourceId};
 
 fn default_artifact_type() -> String {
     "list".to_owned()
@@ -125,7 +125,7 @@ impl ListArtifact {
         self
     }
 
-    pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
+    pub fn with_execution_id(mut self, id: McpExecutionId) -> Self {
         self.metadata.set_execution_id(id);
         self
     }

@@ -1,9 +1,9 @@
 //! Unit tests for the MCP service status model and its roll-up
 
 use systemprompt_identifiers::McpServerId;
+use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
 use systemprompt_models::mcp::McpServerType;
-use systemprompt_models::services::ServiceStatus;
 
 #[tokio::test]
 async fn test_get_all_service_status_empty() {

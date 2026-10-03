@@ -7,8 +7,9 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use systemprompt_logging::CliService;
-use systemprompt_models::validators::{ValidationConfigProvider, WebConfigRaw, WebMetadataRaw};
-use systemprompt_models::{Config, ContentConfigRaw};
+use systemprompt_manifest::Config;
+use systemprompt_manifest::validators::{ValidationConfigProvider, WebConfigRaw, WebMetadataRaw};
+use systemprompt_models::ContentConfigRaw;
 use systemprompt_traits::ConfigProvider;
 
 #[derive(Debug, thiserror::Error)]

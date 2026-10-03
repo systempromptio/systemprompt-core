@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde_yaml::Value;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use crate::commands::admin::config::config_section::read_yaml_file;
 

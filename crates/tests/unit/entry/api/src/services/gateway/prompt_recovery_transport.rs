@@ -8,7 +8,7 @@ use systemprompt_api::services::gateway::protocol::outbound::openai_chat::OpenAi
 use systemprompt_api::services::gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
 use systemprompt_identifiers::{ProviderId, RouteId};
-use systemprompt_models::services::GatewayRoute;
+use systemprompt_manifest::services::GatewayRoute;
 use systemprompt_security::authz::types::Decision;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};

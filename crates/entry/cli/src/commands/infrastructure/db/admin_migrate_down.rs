@@ -8,8 +8,9 @@ use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
@@ -19,7 +20,7 @@ use super::types::DbMigrateDownOutput;
 
 pub(super) async fn execute_migrate_down(
     config: &CliConfig,
-    extension: &str,
+    extension: &ExtensionId,
     count: u32,
 ) -> Result<()> {
     let sys_config = Config::get()?;
@@ -47,7 +48,7 @@ pub(super) async fn execute_migrate_down(
 pub(super) async fn execute_migrate_down_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
-    extension: &str,
+    extension: &ExtensionId,
     count: u32,
 ) -> Result<()> {
     let database = db_ctx.db_pool();
@@ -65,21 +66,21 @@ async fn run_down(
     registry: &ExtensionRegistry,
     write_provider: &dyn DatabaseProvider,
     config: &CliConfig,
-    extension_id: &str,
+    extension_id: &ExtensionId,
     count: u32,
 ) -> Result<()> {
     let ext = registry
-        .get(extension_id)
+        .get(extension_id.as_str())
         .ok_or_else(|| anyhow!("Extension '{}' not found", extension_id))?;
 
     let migration_service = MigrationService::new(write_provider);
     let result = migration_service
         .run_down_migrations(ext.as_ref(), count)
         .await
-        .map_err(|e| anyhow!("Down migration failed: {}", e))?;
+        .context("Down migration failed")?;
 
     let output = DbMigrateDownOutput {
-        extension: extension_id.to_owned(),
+        extension: extension_id.clone(),
         migrations_reverted: result.migrations_run,
         message: format!(
             "Reverted {} migration(s) for '{}'",

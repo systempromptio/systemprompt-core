@@ -8,8 +8,9 @@ use systemprompt_cli::plugins::mcp::validate::{
     success_output,
 };
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
-use systemprompt_models::{Deployment, ServicesConfig};
+use systemprompt_models::Deployment;
 
 fn deployment(port: u16) -> Deployment {
     serde_yaml::from_str(&format!(

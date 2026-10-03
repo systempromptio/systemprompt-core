@@ -5,8 +5,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::PluginId;
+use systemprompt_manifest::services::plugin::PluginAuthor;
 use systemprompt_models::bridge::plugin_bundle::PluginManifest;
-use systemprompt_models::services::plugin::PluginAuthor;
 
 use super::super::anthropic::MarketplacePluginEntry;
 use super::super::marketplace::DEFAULT_VERSION;
@@ -15,7 +16,7 @@ use super::super::warning::ImportWarning;
 use super::FALLBACK_CATEGORY;
 
 pub(super) fn resolve_category(
-    id: &str,
+    id: &PluginId,
     sidecar: &PluginSidecar,
     entry: &MarketplacePluginEntry,
     warnings: &mut Vec<ImportWarning>,
@@ -28,7 +29,7 @@ pub(super) fn resolve_category(
         .filter(|c| !c.trim().is_empty())
         .unwrap_or_else(|| {
             warnings.push(ImportWarning::MissingCategory {
-                plugin: id.to_owned(),
+                plugin: id.as_str().to_owned(),
                 applied: FALLBACK_CATEGORY.to_owned(),
             });
             FALLBACK_CATEGORY.to_owned()

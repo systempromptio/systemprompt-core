@@ -96,7 +96,6 @@ impl UserProvider for UserService {
     }
 }
 
-#[async_trait]
 impl RoleProvider for UserService {
     async fn get_roles(&self, user_id: &UserId) -> AuthResult<Vec<String>> {
         match Self::find_by_id(self, user_id).await {

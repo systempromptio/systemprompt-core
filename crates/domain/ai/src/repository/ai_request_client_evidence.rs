@@ -7,9 +7,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::wire::origin::{
-    ClientAttestation, ClientEvidence, ClientKind, NativeMarker,
-};
+use systemprompt_models::origin::{ClientAttestation, ClientEvidence, ClientKind, NativeMarker};
 use systemprompt_traits::RepositoryError;
 
 #[must_use]
@@ -112,7 +110,7 @@ impl TryFrom<EvidenceRow> for ClientEvidence {
     type Error = RepositoryError;
 
     fn try_from(row: EvidenceRow) -> Result<Self, Self::Error> {
-        let invalid = |e: systemprompt_models::wire::origin::OriginParseError| {
+        let invalid = |e: systemprompt_models::origin::OriginParseError| {
             RepositoryError::decode("ai_request_client_evidence", e)
         };
         Ok(Self {

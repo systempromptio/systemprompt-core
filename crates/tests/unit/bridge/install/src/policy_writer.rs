@@ -366,10 +366,10 @@ fn the_task_runs_the_admin_owned_copy_as_system_with_no_triggers() {
     );
     assert_eq!(layout.inbox, layout.root.join("inbox"));
     assert_eq!(layout.outbox, layout.root.join("outbox"));
-    let id = uuid::Uuid::nil();
+    let id = systemprompt_identifiers::ElevatedJobId::from_uuid(uuid::Uuid::nil());
     assert_eq!(
         layout
-            .request_path(id)
+            .request_path(&id)
             .file_name()
             .unwrap()
             .to_str()
@@ -378,7 +378,7 @@ fn the_task_runs_the_admin_owned_copy_as_system_with_no_triggers() {
     );
     assert_eq!(
         layout
-            .result_path(id)
+            .result_path(&id)
             .file_name()
             .unwrap()
             .to_str()

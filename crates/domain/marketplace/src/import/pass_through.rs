@@ -12,9 +12,8 @@
 
 use std::path::Path;
 
-use systemprompt_models::services::{
-    ExternalPluginEntry, ExternalPluginSkills, ExternalPluginSource,
-};
+use systemprompt_manifest::services::{ExternalPluginEntry, ExternalPluginSource};
+use systemprompt_models::bridge::manifest::ExternalPluginSkills;
 
 use crate::error::MarketplaceError;
 

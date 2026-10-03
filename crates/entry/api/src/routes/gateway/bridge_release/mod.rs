@@ -26,8 +26,8 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use systemprompt_loader::ServicesBootstrap;
+use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
-use systemprompt_models::services::BridgeReleasesSpec;
 
 mod error;
 mod feed;

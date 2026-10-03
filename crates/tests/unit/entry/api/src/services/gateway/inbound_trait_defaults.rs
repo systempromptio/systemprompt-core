@@ -15,7 +15,7 @@ use systemprompt_api::services::gateway::protocol::canonical_response::{
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use systemprompt_api::services::gateway::protocol::inbound::{InboundAdapter, InboundParseError};
-use systemprompt_models::wire::origin::InboundWireProtocol;
+use systemprompt_models::origin::InboundWireProtocol;
 
 fn snapshot() -> CanonicalResponse {
     CanonicalResponse {

@@ -10,7 +10,7 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 
 use super::state::AgentHandlerState;
 use crate::error::AgentResult;

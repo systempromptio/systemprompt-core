@@ -9,7 +9,7 @@ use systemprompt_ai::services::providers::{
     StructuredGenerationParams, ToolGenerationParams,
 };
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 
 fn provider(endpoint: String) -> OpenAiProvider {
     OpenAiProvider::with_target(mock_http::api_key_target(

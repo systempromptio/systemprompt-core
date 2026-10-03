@@ -9,7 +9,7 @@ use std::sync::atomic::Ordering;
 use systemprompt_identifiers::JobName;
 
 use systemprompt_database::DbPool;
-use systemprompt_models::services::scheduler::JobScope;
+use systemprompt_manifest::services::scheduler::JobScope;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{
     JobConfig, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,

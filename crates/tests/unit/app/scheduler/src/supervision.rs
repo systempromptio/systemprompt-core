@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{self, ChildKind};
-use systemprompt_models::services::ServiceModule;
+use systemprompt_manifest::services::ServiceModule;
 use systemprompt_scheduler::{
     ApiListenerStop, SchedulerError, child_kind, port_holders, stop_api_listeners,
     stop_owned_port_holders, wait_for_port_free,

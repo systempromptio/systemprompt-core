@@ -10,7 +10,7 @@
 
 use systemprompt_database::{DbPool, ServiceRepository, UpsertServiceProcessInput};
 use systemprompt_identifiers::{AgentName, InstanceId, ServiceName};
-use systemprompt_models::services::{ServiceModule, ServiceStatus};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]

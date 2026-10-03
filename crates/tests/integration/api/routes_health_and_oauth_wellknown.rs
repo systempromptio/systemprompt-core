@@ -5,8 +5,8 @@ use axum::Router;
 use axum::routing::get;
 use std::sync::Once;
 use systemprompt_api::routes::oauth::wellknown_routes;
-use systemprompt_models::Config;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use tower::ServiceExt;
@@ -57,7 +57,7 @@ fn test_config() -> Config {
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: vec![],
         trusted_proxies: vec![],
         is_cloud: false,

@@ -1,18 +1,18 @@
 //! Canonical request construction from agent generation parameters.
 //!
 //! Applies provider-specific sampling and reasoning settings. Vendor wire
-//! serialization is implemented by `systemprompt_models::wire`.
+//! serialization is implemented by `systemprompt_wire`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
 use systemprompt_identifiers::ModelId;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
     ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, SystemBlock, ThinkingConfig,
 };
-use systemprompt_models::wire::inspect::ForwardedSurface;
+use systemprompt_wire::inspect::ForwardedSurface;
 
 use crate::models::ai::{
     AiContentPart, AiMessage, MessageRole, ResponseFormat as AgentResponseFormat, SamplingParams,

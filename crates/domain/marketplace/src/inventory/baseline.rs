@@ -4,10 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::captures::IncomingRevision;
 use super::catalog::invalid;
 use super::configured_files::configured_files;
-use super::{BaselineScope, InventoryEntry, InventoryService};
+use super::{BaselineScope, IncomingRevision, InventoryEntry, InventoryService};
 use crate::managed::{
     AssetDigest, NewResource, NewRevision, ResourceKind, Result, RevisionFiles, SnapshotProvenance,
     SourceSpec,

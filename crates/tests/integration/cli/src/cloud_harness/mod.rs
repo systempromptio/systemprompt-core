@@ -12,6 +12,7 @@
 //! give each test a clean slate.
 
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::CloudAppId;
 
 use chrono::Utc;
 use serde_json::json;
@@ -134,7 +135,7 @@ pub(super) fn seed_tenants(root: &Path) {
     let cloud = StoredTenant::new_cloud(NewCloudTenantParams {
         id: TenantId::new(TENANT_ID),
         name: "Harness Prod".to_owned(),
-        app_id: Some("app-harness".to_owned()),
+        app_id: Some(CloudAppId::new("app-harness")),
         hostname: Some("harness.example.com".to_owned()),
         region: Some("iad".to_owned()),
         database_url: Some("postgres://ext/db".to_owned()),

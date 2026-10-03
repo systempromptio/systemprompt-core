@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use rmcp::model::ContentBlock;
 use serde_json::json;
 use std::sync::Mutex;
-use systemprompt_ai::error::{AiError, Result};
+use systemprompt_ai::error::{AiError, ProviderCapability, Result};
 use systemprompt_ai::models::ai::{
     AiMessage, AiResponse, MessageRole, ResponseFormat, SamplingParams,
 };
@@ -172,7 +172,13 @@ async fn default_capability_flags_and_unsupported_operations() {
     let stream = provider
         .generate_stream(GenerationParams::new(&msgs, "m", 64))
         .await;
-    assert!(matches!(stream, Err(AiError::Internal(msg)) if msg.contains("minimal")));
+    assert!(matches!(
+        stream,
+        Err(AiError::CapabilityUnsupported {
+            ref provider,
+            capability: ProviderCapability::Streaming,
+        }) if provider == "minimal"
+    ));
 
     let tool_stream = provider
         .generate_with_tools_stream(ToolGenerationParams::new(
@@ -180,12 +186,24 @@ async fn default_capability_flags_and_unsupported_operations() {
             Vec::new(),
         ))
         .await;
-    assert!(matches!(tool_stream, Err(AiError::Internal(_))));
+    assert!(matches!(
+        tool_stream,
+        Err(AiError::CapabilityUnsupported {
+            capability: ProviderCapability::ToolStreaming,
+            ..
+        })
+    ));
 
     let search = provider
         .generate_with_google_search(SearchGenerationParams::new(GenerationParams::new(
             &msgs, "m", 64,
         )))
         .await;
-    assert!(matches!(search, Err(AiError::Internal(msg)) if msg.contains("Google Search")));
+    assert!(matches!(
+        search,
+        Err(AiError::CapabilityUnsupported {
+            capability: ProviderCapability::GoogleSearch,
+            ..
+        })
+    ));
 }

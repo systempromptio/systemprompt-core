@@ -20,7 +20,7 @@ pub struct BannedIp {
     pub is_permanent: bool,
     pub source_fingerprint: Option<String>,
     pub ban_source: Option<String>,
-    pub associated_session_ids: Option<Vec<String>>,
+    pub associated_session_ids: Option<Vec<SessionId>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -40,6 +40,7 @@ impl BanDuration {
     }
 }
 
+#[derive(Debug)]
 pub struct BanIpParams<'a> {
     pub ip_address: &'a str,
     pub reason: &'a str,
@@ -70,6 +71,7 @@ impl<'a> BanIpParams<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct BanIpWithMetadataParams<'a> {
     pub ip_address: &'a str,
     pub reason: &'a str,

@@ -22,7 +22,7 @@ impl JwtTokenValidator {
     }
 
     pub fn from_config() -> Result<Self, AuthRequestError> {
-        let config = systemprompt_models::Config::get().map_err(|error| {
+        let config = systemprompt_manifest::Config::get().map_err(|error| {
             tracing::error!(%error, "JWT validator could not read the configuration");
             AuthRequestError::AuthenticationFailed {
                 message: "token validator is not configured".to_owned(),

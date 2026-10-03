@@ -27,7 +27,7 @@ use std::path::Path;
 use std::pin::Pin;
 use std::sync::OnceLock;
 
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     DiscoveryReport, GatewayConfig, ProviderRegistry, ServicesConfig,
 };
 

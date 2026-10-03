@@ -31,6 +31,7 @@ mod fetch {
     //! The network `fetch` path against a loopback token endpoint, exercised
     //! through `TokenProvider::with_token_url` (the `test` seam).
 
+    use systemprompt_identifiers::TeamsAppId;
     use systemprompt_teams::token::TokenProvider;
     use wiremock::matchers::{body_string_contains, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -50,7 +51,7 @@ mod fetch {
     fn provider(server: &MockServer) -> TokenProvider {
         TokenProvider::with_token_url(
             reqwest::Client::new(),
-            "app-1",
+            TeamsAppId::new("app-1"),
             "secret",
             format!("{}/token", server.uri()),
         )
@@ -99,8 +100,8 @@ mod fetch {
             .await
             .expect_err("a 401 from the token endpoint surfaces");
         assert!(
-            matches!(err, systemprompt_teams::TeamsError::Outbound(_)),
-            "expected Outbound, got {err:?}"
+            matches!(err, systemprompt_teams::TeamsError::TokenEndpoint { .. }),
+            "expected TokenEndpoint, got {err:?}"
         );
     }
 
@@ -108,7 +109,7 @@ mod fetch {
     async fn rejects_a_blocked_token_url_before_any_request() {
         let provider = TokenProvider::with_token_url(
             reqwest::Client::new(),
-            "app-1",
+            TeamsAppId::new("app-1"),
             "secret",
             "http://169.254.169.254/token",
         );

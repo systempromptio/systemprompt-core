@@ -26,7 +26,9 @@ fn session_needs_reconnect_display() {
 
 #[test]
 fn database_variant_display() {
-    let inner = McpDomainError::Internal("db fail".to_owned());
+    let inner = McpDomainError::ServiceRowMissing {
+        service: "db fail".to_owned(),
+    };
     let e = DatabaseSessionHandlerError::Database(inner);
     let s = e.to_string();
     assert!(
@@ -38,7 +40,9 @@ fn database_variant_display() {
 #[test]
 fn database_variant_source_is_some() {
     use std::error::Error;
-    let inner = McpDomainError::Internal("src".to_owned());
+    let inner = McpDomainError::ServiceRowMissing {
+        service: "src".to_owned(),
+    };
     let e = DatabaseSessionHandlerError::Database(inner);
     let src = e.source().expect("database variant has a source");
     assert!(src.to_string().contains("src"));
@@ -81,7 +85,9 @@ fn debug_format_all_variants() {
             "SessionNeedsReconnect",
         ),
         (
-            DatabaseSessionHandlerError::Database(McpDomainError::Internal("d".to_owned())),
+            DatabaseSessionHandlerError::Database(McpDomainError::ServiceRowMissing {
+                service: "d".to_owned(),
+            }),
             "Database",
         ),
     ];

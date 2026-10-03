@@ -10,7 +10,7 @@ use crate::models::RequestStatus;
 use crate::models::ai::{AiMessage, AiRequest, AiResponse, GenerateResponseParams};
 use crate::models::tools::McpTool;
 use crate::services::providers::{GenerationParams, ToolGenerationParams};
-use systemprompt_models::wire::canonical::CanonicalUsage;
+use systemprompt_wire::canonical::CanonicalUsage;
 
 use super::super::request_storage::StoreParams;
 use super::service::AiService;

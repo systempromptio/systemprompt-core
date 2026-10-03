@@ -240,7 +240,9 @@ plugin:
 "#;
 
 fn plugin_show(root: &Path, id: &str) -> anyhow::Result<systemprompt_cli::shared::CommandOutput> {
-    let args = systemprompt_cli::core::plugins::show::ShowArgs { id: id.to_owned() };
+    let args = systemprompt_cli::core::plugins::show::ShowArgs {
+        id: systemprompt_identifiers::PluginId::try_new(id)?,
+    };
     systemprompt_cli::core::plugins::show::execute_with_path(&args, root)
 }
 

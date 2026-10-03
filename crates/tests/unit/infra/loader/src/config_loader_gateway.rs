@@ -6,7 +6,7 @@ use systemprompt_loader::ConfigLoadError;
 use systemprompt_loader::config_loader::gateway::{
     backfill_route_ids, resolve_override_prompt_includes,
 };
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     GatewayConfigSpec, GatewayRoute, OverrideRuleAction, SystemPromptRule,
 };
 

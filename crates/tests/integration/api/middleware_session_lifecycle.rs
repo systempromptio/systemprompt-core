@@ -31,7 +31,7 @@ async fn ok_handler() -> &'static str {
 
 async fn router() -> Result<(DbPool, Router)> {
     let b = ensure_test_bootstrap();
-    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
     let (db, ctx) = setup_ctx().await?;
     install_test_signing_key();
     let mw = SessionMiddleware::new(&ctx);
@@ -214,7 +214,7 @@ async fn principal_handler(
 #[tokio::test]
 async fn a_degraded_request_runs_as_a_fresh_anonymous_principal() -> Result<()> {
     let b = ensure_test_bootstrap();
-    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
     let (db, ctx) = setup_ctx().await?;
     let mw = SessionMiddleware::new(&ctx);
     let app = Router::new()

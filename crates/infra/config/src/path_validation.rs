@@ -11,7 +11,7 @@
 
 use std::path::Path;
 
-use systemprompt_models::profile::Profile;
+use systemprompt_manifest::profile::Profile;
 use systemprompt_traits::validation_report::{
     ValidationIssue, ValidationReport, ValidationWarning,
 };

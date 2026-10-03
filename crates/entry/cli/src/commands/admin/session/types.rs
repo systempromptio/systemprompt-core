@@ -40,7 +40,7 @@ pub struct SessionShowOutput {
     pub routing: Option<RoutingInfo>,
 }
 
-pub use systemprompt_models::profile::ProfileInfo;
+pub use systemprompt_manifest::profile::ProfileInfo;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProfileListOutput {

@@ -13,7 +13,7 @@
 //! publisher rather than stopping at the first — a publisher we are not
 //! entitled to answers 403, and that must not cost us the publishers we are
 //! entitled to — formatted in exactly the shape
-//! [`DiscoveryReport::failed_publishers`](systemprompt_models::services::DiscoveryReport)
+//! [`DiscoveryReport::failed_publishers`](systemprompt_manifest::services::DiscoveryReport)
 //! carries.
 //!
 //! What comes back is Google's *global* catalog, not "what this project may

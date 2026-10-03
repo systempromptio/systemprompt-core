@@ -39,9 +39,9 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use base64::Engine;
+use systemprompt_manifest::profile::{ProfileError, resolve_with_home};
+use systemprompt_manifest::secrets::Secrets;
 use systemprompt_models::errors::SecretsError;
-use systemprompt_models::profile::{ProfileError, resolve_with_home};
-use systemprompt_models::secrets::Secrets;
 
 use super::key_material::KeyMaterialError;
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
@@ -53,7 +53,7 @@ pub use io::load_secrets_from_path;
 pub use logging::build_loaded_secrets_message;
 pub use provider::{SecretsDocument, SecretsProvider};
 pub use resolve::{ResolvedSource, resolve_source};
-pub use vault::{VaultError, VaultKvProvider};
+pub use vault::{VaultAttemptFailure, VaultError, VaultKvProvider};
 
 static SECRETS: OnceLock<Secrets> = OnceLock::new();
 
@@ -228,9 +228,11 @@ impl SecretsBootstrap {
             .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
         let profile_path = ProfileBootstrap::get_path()
             .map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
-        let profile_dir = Path::new(profile_path)
-            .parent()
-            .ok_or_else(|| ConfigError::other("Invalid profile path - no parent directory"))?;
+        let profile_dir = Path::new(profile_path).parent().ok_or_else(|| {
+            ConfigError::ProfilePathWithoutParent {
+                path: PathBuf::from(profile_path),
+            }
+        })?;
         let secrets_path = secrets_config
             .secrets_path()
             .map_err(SecretsBootstrapError::SecretsConfigInvalid)?;

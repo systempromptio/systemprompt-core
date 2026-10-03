@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_models::services::ServiceModule;
+use systemprompt_manifest::services::ServiceModule;
 
 use super::model::{ServiceConfig, ServiceRow, into_configs};
 use super::repo::ServiceRepository;

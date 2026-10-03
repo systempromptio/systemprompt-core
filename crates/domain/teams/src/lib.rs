@@ -18,7 +18,7 @@
 //! - [`extension::TeamsExtension`] — `Extension` registration entry-point
 //!   (schemas, migrations, and the `teams` config prefix).
 //! - [`TeamsAppConfig`] — the per-app YAML model (`services/teams/*.yaml`),
-//!   re-exported from `systemprompt_models::services`.
+//!   re-exported from `systemprompt_manifest::services`.
 //! - [`auth::ActivityTokenVerifier`] — inbound activity-token validation.
 //! - [`token::TokenProvider`] — outbound client-credentials token acquisition.
 //! - [`activities`] — typed inbound activities and their normalization.
@@ -48,4 +48,4 @@ pub mod token;
 
 pub use error::{TeamsError, TeamsResult};
 pub use extension::TeamsExtension;
-pub use systemprompt_models::services::{TeamsAppConfig, TeamsAuthzConfig};
+pub use systemprompt_manifest::services::{TeamsAppConfig, TeamsAuthzConfig};

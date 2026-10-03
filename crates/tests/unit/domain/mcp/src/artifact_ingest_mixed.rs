@@ -12,7 +12,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::mcp::ExecutionSource;
-use systemprompt_models::wire::canonical::{CanonicalContent, ImageSource};
+use systemprompt_wire::canonical::{CanonicalContent, ImageSource};
 
 fn context(session: &str) -> RequestContext {
     RequestContext::new(

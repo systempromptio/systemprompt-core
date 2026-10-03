@@ -8,6 +8,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
+use systemprompt_models::api::ApiError;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_runtime::AppContext;
 
@@ -19,39 +20,26 @@ async fn authorize_broadcast(
     repos: &systemprompt_agent::repository::A2ARepositories,
     req_ctx: &systemprompt_models::RequestContext,
     request: &WebhookRequest,
-) -> Result<(), Response> {
+) -> Result<(), ApiHttpError> {
     let authenticated_user_id = &req_ctx.auth.actor.user_id;
 
-    if authenticated_user_id.as_str() != request.user_id {
-        tracing::error!(jwt_user_id = %authenticated_user_id, payload_user_id = %request.user_id, context_id = %request.context_id, "User mismatch");
-
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(json!({
-                "error": "User ID mismatch",
-                "message": "Authenticated user does not match the request user_id"
-            })),
-        )
-            .into_response());
+    if *authenticated_user_id != request.user_id {
+        return Err(ApiHttpError::forbidden(
+            "Authenticated user does not match the request user_id",
+        ));
     }
 
-    let context_repo = &repos.contexts;
-    if let Err(e) = context_repo
+    match repos
+        .contexts
         .validate_context_ownership(&request.context_id, authenticated_user_id)
         .await
     {
-        tracing::error!(error = %e, context_id = %request.context_id, user_id = %authenticated_user_id, "Context ownership validation failed");
-
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(json!({
-                "error": "Context ownership validation failed",
-                "message": format!("User does not own context: {e}")
-            })),
-        )
-            .into_response());
+        Ok(()) => Ok(()),
+        Err(e) if e.is_not_found() => Err(ApiHttpError::from(
+            ApiError::forbidden("User does not own the context").with_source(e),
+        )),
+        Err(e) => Err(ApiHttpError::from(e)),
     }
-    Ok(())
 }
 
 pub async fn broadcast_context_event(
@@ -61,11 +49,7 @@ pub async fn broadcast_context_event(
 ) -> Result<Response, ApiHttpError> {
     let start_time = std::time::Instant::now();
 
-    if let Err(response) =
-        authorize_broadcast(app_context.a2a_repositories(), &req_ctx, &request).await
-    {
-        return Ok(response);
-    }
+    authorize_broadcast(app_context.a2a_repositories(), &req_ctx, &request).await?;
 
     tracing::debug!(event_type = %request.event_type, entity_id = %request.entity_id, context_id = %request.context_id, user_id = %request.user_id, "Webhook received");
 

@@ -431,7 +431,7 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
     assert!(status.is_some());
     assert_eq!(
         status.unwrap().status,
-        systemprompt_models::services::ServiceStatus::Running
+        systemprompt_manifest::services::ServiceStatus::Running
     );
 
     let running = repos.agent_services.list_running_agents().await?;

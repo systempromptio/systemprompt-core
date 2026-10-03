@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_logging::LogLevel;
-use systemprompt_runtime::TraceQueryService;
+use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
 use super::duration::parse_since;
 use crate::CliConfig;
@@ -72,7 +72,7 @@ async fn execute_with_pool_inner(
     config: &CliConfig,
 ) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
     let (level_counts, top_modules, time_range, total_row_count) = tokio::try_join!(
         service.count_logs_by_level(since_timestamp),

@@ -8,7 +8,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::{InstanceId, ServiceName};
 
-use systemprompt_models::ServiceType;
+use systemprompt_manifest::ServiceType;
 use systemprompt_scheduler::{
     DesiredStatus, ReconciliationResult, SchedulerError, ServiceAction, ServiceConfig,
     ServiceReconciler, ServiceStateVerifier,
@@ -335,7 +335,7 @@ mod state_verifier_db {
             .expect("get_running_services must succeed");
 
         for state in &running {
-            use systemprompt_models::RuntimeStatus;
+            use systemprompt_manifest::RuntimeStatus;
             assert_eq!(
                 state.runtime_status,
                 RuntimeStatus::Running,
@@ -362,7 +362,7 @@ mod state_verifier_db {
             .expect("get_crashed_services must succeed");
 
         for state in &crashed {
-            use systemprompt_models::RuntimeStatus;
+            use systemprompt_manifest::RuntimeStatus;
             assert_eq!(
                 state.runtime_status,
                 RuntimeStatus::Crashed,

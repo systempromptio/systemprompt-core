@@ -7,7 +7,7 @@
 use systemprompt_api::services::server::lifecycle::reconciliation::service_row_is_stale;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::ChildKind;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 
 const KIND: ChildKind = ChildKind::Mcp;
 const NAME: &str = "some-service";

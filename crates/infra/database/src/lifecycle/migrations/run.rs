@@ -6,7 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{Extension, LoaderError, Migration};
-use systemprompt_identifiers::ToDbValue;
+use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use systemprompt_traits::BoxedSource;
 use tracing::info;
 
@@ -21,7 +21,7 @@ impl MigrationService<'_> {
         extension: &dyn Extension,
         migration: &Migration,
     ) -> Result<(), LoaderError> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
 
         check_cross_extension_alters(extension, migration)?;
 
@@ -44,7 +44,7 @@ impl MigrationService<'_> {
         } else {
             let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
                 LoaderError::MigrationStepFailed {
-                    extension: ext_id.to_owned(),
+                    extension: ext_id.clone(),
                     context: format!(
                         "Failed to parse migration {} ({})",
                         migration.version, migration.name
@@ -70,7 +70,7 @@ impl MigrationService<'_> {
 
     async fn run_without_transaction(
         &self,
-        ext_id: &str,
+        ext_id: &ExtensionId,
         migration: &Migration,
         record_params: &[&dyn ToDbValue],
     ) -> Result<(), LoaderError> {
@@ -79,7 +79,7 @@ impl MigrationService<'_> {
         // no-op here, leaving this path the only unbounded one.
         self.apply_timeouts(ext_id, migration).await?;
         let failed = |context: String, source: BoxedSource| LoaderError::MigrationStepFailed {
-            extension: ext_id.to_owned(),
+            extension: ext_id.clone(),
             context,
             source,
         };
@@ -116,14 +116,18 @@ impl MigrationService<'_> {
             .execute(&RECORD_MIGRATION_SQL, record_params)
             .await
             .map_err(|e| LoaderError::MigrationStepFailed {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 context: "Failed to record migration".to_owned(),
                 source: Box::new(e),
             })?;
         Ok(())
     }
 
-    async fn apply_timeouts(&self, ext_id: &str, migration: &Migration) -> Result<(), LoaderError> {
+    async fn apply_timeouts(
+        &self,
+        ext_id: &ExtensionId,
+        migration: &Migration,
+    ) -> Result<(), LoaderError> {
         let timeout = budget::statement_timeout(migration);
         self.set_timeouts(ext_id, &budget::timeout_statements(timeout, false))
             .await
@@ -132,7 +136,7 @@ impl MigrationService<'_> {
     // Why: the connection outlives this migration, so a bound left on it
     // would apply to whatever ran next — including the application's own
     // queries if the pool hands the connection back.
-    async fn clear_timeouts(&self, ext_id: &str) -> Result<(), LoaderError> {
+    async fn clear_timeouts(&self, ext_id: &ExtensionId) -> Result<(), LoaderError> {
         self.set_timeouts(
             ext_id,
             &[
@@ -143,13 +147,17 @@ impl MigrationService<'_> {
         .await
     }
 
-    async fn set_timeouts(&self, ext_id: &str, statements: &[String]) -> Result<(), LoaderError> {
+    async fn set_timeouts(
+        &self,
+        ext_id: &ExtensionId,
+        statements: &[String],
+    ) -> Result<(), LoaderError> {
         for statement in statements {
             self.db
                 .execute(&statement.as_str(), &[])
                 .await
                 .map_err(|e| LoaderError::MigrationStepFailed {
-                    extension: ext_id.to_owned(),
+                    extension: ext_id.clone(),
                     context: format!("Failed to run `{statement}`"),
                     source: Box::new(e),
                 })?;

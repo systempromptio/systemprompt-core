@@ -14,7 +14,7 @@
 
 use std::collections::BTreeSet;
 
-use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind, ServicesConfig};
+use systemprompt_manifest::services::{MarketplaceConfig, MarketplaceMemberKind, ServicesConfig};
 
 #[must_use]
 pub fn enabled_marketplaces(services: &ServicesConfig) -> Vec<&MarketplaceConfig> {

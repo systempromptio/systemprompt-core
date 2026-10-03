@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::Client;
+use systemprompt_manifest::services::ProviderModel;
+use systemprompt_manifest::services::providers::upstream_model_in;
 use systemprompt_models::net::{AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT};
-use systemprompt_models::services::ProviderModel;
-use systemprompt_models::services::providers::upstream_model_in;
 
 use crate::services::providers::http_client::build_client;
 use crate::services::upstream::UpstreamTarget;

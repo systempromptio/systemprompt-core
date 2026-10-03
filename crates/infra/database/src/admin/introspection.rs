@@ -197,9 +197,8 @@ impl DatabaseAdminService {
             .fetch_one(&*self.pool)
             .await?;
 
-        let size = u64::try_from(size).map_err(|_e| {
-            RepositoryError::internal(format!("pg_database_size returned negative value: {size}"))
-        })?;
+        let size = u64::try_from(size)
+            .map_err(|e| RepositoryError::decode("pg_database_size(current_database())", e))?;
 
         let tables = self.list_tables().await?;
 

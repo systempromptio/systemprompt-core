@@ -14,9 +14,9 @@ use super::types::{McpStatusEntry, McpStatusOutput, McpStatusSummary};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
-use systemprompt_models::ServicesConfig;
 use systemprompt_models::mcp::McpServerType;
 
 #[derive(Debug, Clone, Args)]

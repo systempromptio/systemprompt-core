@@ -18,17 +18,21 @@ pub use cache::{
 };
 
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode, Uri};
+use axum::http::{HeaderMap, Uri};
 use axum::response::IntoResponse;
 use std::sync::Arc;
+use systemprompt_traits::RepositoryError;
 
 use super::config::StaticContentMatcher;
 use cache::serve_cached_file;
 use responses::{not_found_response, not_prerendered_response};
 use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::{LocaleCode, SourceId};
+use systemprompt_models::api::ApiError;
 use systemprompt_models::{RouteClassifier, RouteType};
 use systemprompt_runtime::AppContext;
+
+use crate::error::ApiHttpError;
 
 #[derive(Clone, Debug)]
 pub struct StaticContentState {
@@ -103,12 +107,12 @@ async fn serve_static_asset(
     dist_dir: &std::path::Path,
     headers: &HeaderMap,
 ) -> axum::response::Response {
-    let Ok(files_config) = FilesConfig::get() else {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "FilesConfig not initialized",
-        )
-            .into_response();
+    let files_config = match FilesConfig::get() {
+        Ok(config) => config,
+        Err(e) => {
+            return ApiHttpError::from(ApiError::internal("FilesConfig not initialized", e))
+                .into_response();
+        },
     };
 
     let files_prefix = format!("{}/", files_config.url_prefix());
@@ -126,7 +130,7 @@ async fn serve_static_asset(
         return serve_cached_file(&asset_path, headers, mime_type, cache_control).await;
     }
 
-    (StatusCode::NOT_FOUND, "Asset not found").into_response()
+    ApiHttpError::not_found("Asset not found").into_response()
 }
 
 async fn serve_metadata_file(
@@ -137,7 +141,7 @@ async fn serve_metadata_file(
     let trimmed_path = path.trim_start_matches('/');
     let file_path = dist_dir.join(trimmed_path);
     if !file_path.exists() {
-        return (StatusCode::NOT_FOUND, "File not found").into_response();
+        return ApiHttpError::not_found("File not found").into_response();
     }
 
     let mime_type = if path == "/feed.xml" {
@@ -193,9 +197,6 @@ async fn serve_content_page(
     {
         Ok(Some(_)) => not_prerendered_response(req.path, req.slug),
         Ok(None) => not_found_response(req.dist_dir, req.headers).await,
-        Err(e) => {
-            tracing::error!(error = %e, "Database error checking content");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
-        },
+        Err(e) => ApiHttpError::from(RepositoryError::from(e)).into_response(),
     }
 }

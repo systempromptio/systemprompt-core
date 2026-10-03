@@ -16,7 +16,7 @@ mod stream;
 
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::profile::ServicesSource;
+use systemprompt_manifest::profile::ServicesSource;
 
 use super::error::{BundleError, BundleResult};
 

@@ -27,7 +27,7 @@ pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandOutput {
             ext.schemas()
                 .iter()
                 .map(|schema| SchemaWithExtension {
-                    extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
+                    extension_id: systemprompt_identifiers::ExtensionId::new(ext.id()),
                     extension_name: ext.name().to_owned(),
                     table: schema.table.clone(),
                     source: "inline".to_owned(),

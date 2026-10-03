@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::{MarketplaceConfig, SlackAppConfig};
+use systemprompt_manifest::services::{MarketplaceConfig, SlackAppConfig};
 use systemprompt_security::authz::{
     AccessControlConfig, AccessControlIngestionService, IngestOptions, RegisteredEntities,
 };

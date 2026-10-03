@@ -14,10 +14,11 @@ use axum::http::{Request, StatusCode};
 use axum::middleware::from_fn;
 use axum::routing::get;
 use systemprompt_api::services::middleware::{inject_security_headers, inject_trace_header};
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_models::{Config, RequestContext};
+use systemprompt_models::RequestContext;
 use tower::ServiceExt;
 
 static CONFIG_INSTALL: Once = Once::new();
@@ -64,7 +65,7 @@ pub(crate) fn test_config() -> Config {
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: vec![],
         trusted_proxies: vec![],
         is_cloud: false,
@@ -119,7 +120,7 @@ async fn security_headers_skip_csp_when_none() {
 }
 
 fn security_app_with_frame_override(
-    frame_options: systemprompt_models::profile::FrameOptions,
+    frame_options: systemprompt_manifest::profile::FrameOptions,
     cfg: SecurityHeadersConfig,
 ) -> Router {
     Router::new()
@@ -136,7 +137,7 @@ fn security_app_with_frame_override(
 #[tokio::test]
 async fn frame_override_allow_all_removes_xfo_and_sets_frame_ancestors() {
     let app = security_app_with_frame_override(
-        systemprompt_models::profile::FrameOptions::AllowAll,
+        systemprompt_manifest::profile::FrameOptions::AllowAll,
         SecurityHeadersConfig::default(),
     );
     let resp = app
@@ -155,7 +156,7 @@ async fn frame_override_allow_all_removes_xfo_and_sets_frame_ancestors() {
 #[tokio::test]
 async fn frame_override_same_origin_sets_xfo_and_frame_ancestors() {
     let app = security_app_with_frame_override(
-        systemprompt_models::profile::FrameOptions::SameOrigin,
+        systemprompt_manifest::profile::FrameOptions::SameOrigin,
         SecurityHeadersConfig::default(),
     );
     let resp = app
@@ -178,8 +179,10 @@ async fn frame_override_same_origin_sets_xfo_and_frame_ancestors() {
 async fn frame_override_replaces_global_csp() {
     let mut cfg = SecurityHeadersConfig::default();
     cfg.content_security_policy = Some("default-src 'self'".into());
-    let app =
-        security_app_with_frame_override(systemprompt_models::profile::FrameOptions::AllowAll, cfg);
+    let app = security_app_with_frame_override(
+        systemprompt_manifest::profile::FrameOptions::AllowAll,
+        cfg,
+    );
     let resp = app
         .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
         .await

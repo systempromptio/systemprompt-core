@@ -16,10 +16,10 @@ use bytes::Bytes;
 // JSON: provider wire payloads contain arbitrary client-defined tool arguments
 // and metadata.
 use serde_json::{Map, Value};
-use systemprompt_models::wire::canonical::CanonicalRequest;
-use systemprompt_models::wire::inspect;
 use systemprompt_security::policy::GovernedInput;
 use systemprompt_security::policy::secrets::{REDACTION_MARKER, SecretFinding, redact_spans};
+use systemprompt_wire::canonical::CanonicalRequest;
+use systemprompt_wire::inspect;
 
 use super::canonical::replace_canonical;
 use super::{governed_input, inspection_budget};

@@ -6,7 +6,7 @@
 //! ([`GenerationParams`], [`ToolGenerationParams`], [`SchemaGenerationParams`],
 //! [`StructuredGenerationParams`], [`SearchGenerationParams`],
 //! [`ToolResultsParams`]) keep large call signatures readable.
-//! [`systemprompt_models::services::ai::ModelPricing`] is re-exported here as
+//! [`systemprompt_manifest::services::ai::ModelPricing`] is re-exported here as
 //! the single pricing type for usage accounting.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -23,8 +23,8 @@ use futures::stream::Stream;
 use rmcp::model::ContentBlock;
 use std::pin::Pin;
 
-use systemprompt_models::services::ProviderModel;
-pub use systemprompt_models::services::ai::ModelPricing;
+use systemprompt_manifest::services::ProviderModel;
+pub use systemprompt_manifest::services::ai::ModelPricing;
 
 #[must_use]
 pub fn catalog_supports_model(models: &[ProviderModel], model: &str) -> bool {
@@ -261,20 +261,20 @@ pub trait ProviderClient: Send + Sync {
         &self,
         _params: GenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(crate::error::AiError::Internal(format!(
-            "Streaming not supported by provider {}",
-            self.name()
-        )))
+        Err(crate::error::AiError::CapabilityUnsupported {
+            provider: self.name().to_owned(),
+            capability: crate::error::ProviderCapability::Streaming,
+        })
     }
 
     async fn generate_with_tools_stream(
         &self,
         _params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(crate::error::AiError::Internal(format!(
-            "Tool streaming not supported by provider {}",
-            self.name()
-        )))
+        Err(crate::error::AiError::CapabilityUnsupported {
+            provider: self.name().to_owned(),
+            capability: crate::error::ProviderCapability::ToolStreaming,
+        })
     }
 
     fn supports_streaming(&self) -> bool {
@@ -289,9 +289,9 @@ pub trait ProviderClient: Send + Sync {
         &self,
         _params: SearchGenerationParams<'_>,
     ) -> Result<SearchGroundedResponse> {
-        Err(crate::error::AiError::Internal(format!(
-            "Google Search not supported by provider {}",
-            self.name()
-        )))
+        Err(crate::error::AiError::CapabilityUnsupported {
+            provider: self.name().to_owned(),
+            capability: crate::error::ProviderCapability::GoogleSearch,
+        })
     }
 }

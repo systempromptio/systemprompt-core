@@ -15,7 +15,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{
     AccessTokenId, AuthorizationCode, ClientId, RefreshTokenId, SessionSource,
 };
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::parse_permissions;
 
 use crate::routes::oauth::extractors::OAuthRepo;

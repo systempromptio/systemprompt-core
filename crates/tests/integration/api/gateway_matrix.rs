@@ -24,8 +24,9 @@ use bytes::Bytes;
 use serde_json::{Value, json};
 use systemprompt_api::services::gateway::protocol::InboundAdapter;
 use systemprompt_api::services::gateway::service::GatewayService;
-use systemprompt_models::services::{ApiSurface, WireProtocol};
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::seed_admin_credential;
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -69,7 +70,7 @@ impl OutWire {
             // Why: the codec's streaming path carries `?alt=sse`, and wiremock's
             // `path` matcher compares the path alone -- passing the query with
             // it never matches and the cell fails as a connection error.
-            Self::Gemini => systemprompt_models::wire::gemini::upstream_path(MODEL, stream)
+            Self::Gemini => systemprompt_wire::gemini::upstream_path(MODEL, stream)
                 .split('?')
                 .next()
                 .unwrap_or_default()

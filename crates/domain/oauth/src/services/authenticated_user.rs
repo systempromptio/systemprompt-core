@@ -33,14 +33,13 @@ pub async fn load_authenticated_user(
         .iter()
         .filter_map(|role| {
             Permission::from_str(role)
-                .map_err(|e| {
+                .inspect_err(|e| {
                     tracing::warn!(
                         user_id = %user.id,
                         role = %role,
                         error = %e,
                         "Invalid role in user record"
                     );
-                    e
                 })
                 .ok()
         })

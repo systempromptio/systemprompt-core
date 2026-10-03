@@ -13,7 +13,7 @@ use std::str::FromStr;
 use chrono::{TimeZone, Utc};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use systemprompt_identifiers::{AccessTokenId, ClientId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::Permission;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::EnterprisePrincipal;

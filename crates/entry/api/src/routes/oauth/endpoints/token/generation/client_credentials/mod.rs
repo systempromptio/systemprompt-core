@@ -11,7 +11,7 @@
 use systemprompt_identifiers::{
     AccessTokenId, ClientId, PluginId, SessionId, SessionSource, UserId,
 };
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
 use systemprompt_models::errors::ParseEnumError;
 use systemprompt_oauth::OAuthState;

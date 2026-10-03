@@ -25,7 +25,7 @@ pub enum RoutingDecision {
 
 pub fn decide_routing(
     target: Result<super::routing::ExecutionTarget>,
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     class: RoutingClass,
     impact: DataImpact,
 ) -> Result<RoutingDecision> {
@@ -69,7 +69,7 @@ pub fn decide_routing(
 }
 
 pub fn allow_local_execution(
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     class: RoutingClass,
     reason: &str,
 ) -> Result<()> {

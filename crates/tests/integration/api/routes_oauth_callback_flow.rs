@@ -20,7 +20,7 @@ use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{
     Actor, AgentName, AuthorizationCode, ClientId, ContextId, SessionId, TraceId, UserId,
 };
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{

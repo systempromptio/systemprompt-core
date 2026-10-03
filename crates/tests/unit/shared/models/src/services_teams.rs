@@ -1,4 +1,4 @@
-use systemprompt_models::services::{TeamsAppConfig, TeamsEndpoints};
+use systemprompt_manifest::services::{TeamsAppConfig, TeamsEndpoints};
 
 #[test]
 fn teams_app_config_without_endpoints_deserialises_to_public_cloud_defaults() {

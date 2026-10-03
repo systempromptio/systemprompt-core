@@ -19,7 +19,7 @@ use crate::models::ai::{AiRequest, AiResponse};
 use crate::services::core::request_storage::{RequestStorage, StoreParams};
 use crate::services::providers::ModelPricing;
 use systemprompt_models::ai::StreamChunk;
-use systemprompt_models::wire::canonical::{CanonicalUsage, CanonicalUsageUpdate};
+use systemprompt_wire::canonical::{CanonicalUsage, CanonicalUsageUpdate};
 
 pub(super) struct StreamStorageParams {
     pub inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,

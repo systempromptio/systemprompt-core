@@ -26,7 +26,7 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use super::context::CliSessionContext;
 use crate::cli_settings::{OutputFormat, VerbosityLevel};

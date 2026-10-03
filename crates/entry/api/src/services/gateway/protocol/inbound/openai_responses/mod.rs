@@ -10,7 +10,7 @@
 use bytes::Bytes;
 use http::StatusCode;
 use serde_json::Value;
-use systemprompt_models::wire::origin::InboundWireProtocol;
+use systemprompt_models::origin::InboundWireProtocol;
 
 use super::super::canonical::CanonicalRequest;
 use super::super::canonical_response::{CanonicalEvent, CanonicalResponse};

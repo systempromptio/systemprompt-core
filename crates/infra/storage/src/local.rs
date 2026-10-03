@@ -94,11 +94,32 @@ fn mime_for(path: &Path) -> &'static str {
     }
 }
 
-fn not_found(id: &StoredFileId, err: &std::io::Error) -> FileStorageError {
+#[derive(Debug)]
+struct StoredFileIoError {
+    id: StoredFileId,
+    source: std::io::Error,
+}
+
+impl std::fmt::Display for StoredFileIoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "stored file {}", self.id)
+    }
+}
+
+impl std::error::Error for StoredFileIoError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+fn not_found(id: &StoredFileId, err: std::io::Error) -> FileStorageError {
     if err.kind() == std::io::ErrorKind::NotFound {
         FileStorageError::NotFound(id.as_str().to_owned())
     } else {
-        FileStorageError::Backend(format!("{}: {err}", id.as_str()).into())
+        FileStorageError::Backend(Box::new(StoredFileIoError {
+            id: id.clone(),
+            source: err,
+        }))
     }
 }
 
@@ -133,21 +154,21 @@ impl FileStorage for LocalFileStorage {
 
     async fn retrieve(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
         let full = self.resolve(id)?;
-        fs::read(&full).await.map_err(|err| not_found(id, &err))
+        fs::read(&full).await.map_err(|err| not_found(id, err))
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
         let full = self.resolve(id)?;
         fs::remove_file(&full)
             .await
-            .map_err(|err| not_found(id, &err))
+            .map_err(|err| not_found(id, err))
     }
 
     async fn metadata(&self, id: &StoredFileId) -> FileStorageResult<StoredFileMetadata> {
         let full = self.resolve(id)?;
         let meta = fs::metadata(&full)
             .await
-            .map_err(|err| not_found(id, &err))?;
+            .map_err(|err| not_found(id, err))?;
         let created_at = meta.created().or_else(|_| meta.modified()).map_or_else(
             |_| chrono::Utc::now(),
             chrono::DateTime::<chrono::Utc>::from,

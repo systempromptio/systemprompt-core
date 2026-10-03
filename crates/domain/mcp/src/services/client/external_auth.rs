@@ -14,8 +14,9 @@
 use std::collections::HashMap;
 
 use http::{HeaderName, HeaderValue};
+use systemprompt_manifest::Config;
+use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ExternalAuth;
-use systemprompt_models::{Config, RequestContext};
 
 use super::validation::rewrite_url_for_internal_use;
 use crate::error::{McpDomainError, McpDomainResult};

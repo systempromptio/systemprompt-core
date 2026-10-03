@@ -7,7 +7,7 @@
 
 use std::time::Instant;
 
-use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalResponse};
+use systemprompt_wire::canonical::{CanonicalContent, CanonicalResponse};
 
 use crate::models::ai::{AiResponse, SearchGroundedResponse, WebSource};
 use crate::models::tools::ToolCall;

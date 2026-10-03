@@ -1,5 +1,7 @@
-use systemprompt_config::{SecretsBootstrapError, SecretsProvider, VaultError, VaultKvProvider};
-use systemprompt_models::profile::VaultSecretsConfig;
+use systemprompt_config::{
+    SecretsBootstrapError, SecretsProvider, VaultAttemptFailure, VaultError, VaultKvProvider,
+};
+use systemprompt_manifest::profile::VaultSecretsConfig;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -98,8 +100,8 @@ async fn a_zero_retry_configuration_still_makes_one_attempt() {
         err,
         VaultError::Exhausted {
             attempts: 1,
-            ref message
-        } if message == "HTTP 500"
+            last: VaultAttemptFailure::Status(500)
+        }
     ));
 }
 
@@ -130,8 +132,8 @@ async fn a_read_that_outlives_the_timeout_is_retried_rather_than_hanging() {
         err,
         VaultError::Exhausted {
             attempts: 2,
-            ref message
-        } if message == "request timed out"
+            last: VaultAttemptFailure::Timeout
+        }
     ));
 }
 

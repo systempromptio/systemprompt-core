@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceRuleAccess,
-    MarketplaceVisibility, PluginAuthor, PluginComponentRef, ServicesConfig,
+    MarketplaceVisibility, PluginAuthor, ServicesConfig,
 };
+use systemprompt_models::plugin::PluginComponentRef;
 
 fn author() -> PluginAuthor {
     PluginAuthor {
@@ -67,7 +68,7 @@ fn services_config_validates_marketplace_with_known_plugin() {
     let plugin_id = "demo-plugin".to_string();
     services.plugins.insert(
         plugin_id.clone(),
-        systemprompt_models::services::PluginConfig {
+        systemprompt_manifest::services::PluginConfig {
             id: systemprompt_identifiers::PluginId::new(&plugin_id),
             name: "Demo".to_string(),
             description: "demo".to_string(),
@@ -210,7 +211,7 @@ marketplace:
   plugins:
     include: [enterprise-demo]
 "#;
-    let parsed: systemprompt_models::services::MarketplaceConfigFile =
+    let parsed: systemprompt_manifest::services::MarketplaceConfigFile =
         serde_yaml::from_str(yaml).expect("should parse");
     assert_eq!(parsed.marketplace.id.as_str(), "enterprise-demo");
     assert_eq!(parsed.marketplace.plugins.include, vec!["enterprise-demo"]);
@@ -249,7 +250,7 @@ marketplace:
       skills: ["./"]
       version: 0.1.21
 "#;
-    let parsed: systemprompt_models::services::MarketplaceConfigFile =
+    let parsed: systemprompt_manifest::services::MarketplaceConfigFile =
         serde_yaml::from_str(yaml).expect("should parse");
     let m = parsed.marketplace;
     m.validate("astound-europe-dev").expect("valid");
@@ -260,8 +261,8 @@ marketplace:
         Some("b2c-agent-plugins@1.10.0")
     );
 
-    let reparsed: systemprompt_models::services::MarketplaceConfigFile = serde_yaml::from_str(
-        &serde_yaml::to_string(&systemprompt_models::services::MarketplaceConfigFile {
+    let reparsed: systemprompt_manifest::services::MarketplaceConfigFile = serde_yaml::from_str(
+        &serde_yaml::to_string(&systemprompt_manifest::services::MarketplaceConfigFile {
             marketplace: m.clone(),
         })
         .unwrap(),
@@ -281,7 +282,7 @@ name: playwright-cli
 source: { source: github, repo: microsoft/playwright-cli, sha: 74354ecc7a43da16d91a9bc54fa8db8283a3fcf5 }
 category: testing
 "#;
-    let err = serde_yaml::from_str::<systemprompt_models::services::ExternalPluginEntry>(yaml)
+    let err = serde_yaml::from_str::<systemprompt_manifest::services::ExternalPluginEntry>(yaml)
         .expect_err("deny_unknown_fields");
     assert!(err.to_string().contains("category"), "{err}");
 }
@@ -308,7 +309,7 @@ marketplace:
     - mcp-a
     - mcp-b
 "#;
-    let parsed: Result<systemprompt_models::services::MarketplaceConfigFile, _> =
+    let parsed: Result<systemprompt_manifest::services::MarketplaceConfigFile, _> =
         serde_yaml::from_str(yaml);
     assert!(
         parsed.is_err(),
@@ -335,7 +336,7 @@ marketplace:
     include: [mcp-a, mcp-b]
     exclude: []
 "#;
-    let parsed: systemprompt_models::services::MarketplaceConfigFile =
+    let parsed: systemprompt_manifest::services::MarketplaceConfigFile =
         serde_yaml::from_str(yaml).expect("object form should parse");
     assert_eq!(
         parsed.marketplace.mcp_servers.include,

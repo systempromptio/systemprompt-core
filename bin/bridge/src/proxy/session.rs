@@ -8,8 +8,8 @@ use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
+use systemprompt_identifiers::gateway_hash::conversation_prefix_hash;
 use systemprompt_identifiers::{GatewayConversationId, SessionId};
-use systemprompt_models::gateway_hash::conversation_prefix_hash;
 
 const CONTEXT_CACHE_CAP: usize = 1024;
 

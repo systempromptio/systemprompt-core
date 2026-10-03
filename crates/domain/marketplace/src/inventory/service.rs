@@ -7,7 +7,7 @@ use super::{InventoryStatus, scan_configured_inventory};
 use crate::managed::{ManagedError, ManagedRepository, Result};
 use std::path::Path;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_manifest::services::ServicesConfig;
 
 #[derive(Debug, Clone)]
 pub struct InventoryService {

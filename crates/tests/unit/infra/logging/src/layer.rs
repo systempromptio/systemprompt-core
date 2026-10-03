@@ -151,7 +151,7 @@ mod database_layer {
         let trace_id = format!("layer-trace-{}", uuid::Uuid::new_v4().simple());
 
         {
-            let (layer, _writer) = DatabaseLayer::new(db.clone());
+            let (layer, _writer) = DatabaseLayer::new(&db);
             let subscriber =
                 tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
             let _guard = tracing::subscriber::set_default(subscriber);
@@ -221,7 +221,7 @@ mod database_layer {
 
         let trace_id = format!("shutdown-trace-{}", uuid::Uuid::new_v4().simple());
 
-        let (layer, writer) = DatabaseLayer::new(db.clone());
+        let (layer, writer) = DatabaseLayer::new(&db);
         {
             let subscriber =
                 tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
@@ -263,7 +263,7 @@ mod database_layer {
 
         // Constructing a layer installs the process-global background sender
         // used by `enqueue_background`.
-        let (_layer, _writer) = DatabaseLayer::new(db.clone());
+        let (_layer, _writer) = DatabaseLayer::new(&db);
 
         let trace_id = format!("enqueue-trace-{}", uuid::Uuid::new_v4().simple());
         let actor = LogActor::new(
@@ -309,7 +309,7 @@ mod database_layer {
 
         {
             let proxy = ProxyDatabaseLayer::new();
-            let _writer = proxy.attach(db.clone());
+            let _writer = proxy.attach(&db);
             let subscriber =
                 tracing_subscriber::registry().with(proxy.with_filter(LevelFilter::TRACE));
             let _guard = tracing::subscriber::set_default(subscriber);
@@ -425,7 +425,7 @@ mod database_layer {
         let trace_id = format!("bulk-trace-{}", uuid::Uuid::new_v4().simple());
 
         {
-            let (layer, _writer) = DatabaseLayer::new(db.clone());
+            let (layer, _writer) = DatabaseLayer::new(&db);
             assert!(format!("{layer:?}").contains("dropped"));
             let subscriber =
                 tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));

@@ -8,7 +8,7 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::process::ProcessService;
 use crate::services::spawn_target::SpawnTarget;
-use systemprompt_models::services::ServiceStatus;
+use systemprompt_manifest::services::ServiceStatus;
 
 pub async fn restart_server(
     lifecycle: &LifecycleService,
@@ -35,11 +35,8 @@ async fn verify_clean_state(
     tracing::debug!(service = %config.name, "Verifying clean state");
 
     let port = config.spawn_port()?;
-    if ProcessService::port_has_listener(port).await? {
-        return Err(crate::error::McpDomainError::PortUnavailable {
-            port,
-            message: format!("still held after stopping {}", config.name),
-        });
+    if let Some(&pid) = ProcessService::port_holders(port).await?.first() {
+        return Err(crate::error::McpDomainError::PortStillOccupied { port, pid });
     }
 
     if let Some(service) = lifecycle

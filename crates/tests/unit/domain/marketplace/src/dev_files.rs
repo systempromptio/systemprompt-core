@@ -4,6 +4,7 @@
 use std::fs;
 use std::path::Path;
 
+use systemprompt_identifiers::SkillId;
 use systemprompt_marketplace::managed::capture_skills;
 use systemprompt_marketplace::{DevFileFilter, ImportOptions, import_anthropic_tree};
 use tempfile::TempDir;
@@ -154,7 +155,7 @@ fn managed_capture_skips_dev_files_and_honours_the_ignore_file() {
         write(root.path(), &format!("skills/alpha/{rel}"), "x\n");
     }
     write(root.path(), ".systempromptignore", "*.snap\n");
-    let captured = capture_skills(root.path(), &["alpha".into()]).unwrap();
+    let captured = capture_skills(root.path(), &[SkillId::new("alpha")]).unwrap();
     let mut paths: Vec<&str> = captured.skills()["alpha"]
         .0
         .keys()

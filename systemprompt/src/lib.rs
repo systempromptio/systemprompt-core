@@ -8,7 +8,7 @@
 //!
 //! | Feature | Pulls in | Use case |
 //! |---------|----------|----------|
-//! | `core` *(default)* | `traits`, `models`, `identifiers`, `extension`, `template-provider` | Author extensions, share types, no I/O. |
+//! | `core` *(default)* | `traits`, `models`, `wire`, `manifest`, `identifiers`, `extension`, `template-provider` | Author extensions, share types, no I/O. |
 //! | `database` | `systemprompt-database`, `sqlx` | SQLx-backed `DbPool` and repository helpers. |
 //! | `config` | `systemprompt-config` | Profile, secrets, and credential bootstrap loaders. |
 //! | `mcp` | `rmcp` | Implement Model Context Protocol servers with `rmcp`. The `systemprompt::mcp` module (`systemprompt-mcp`) is gated on `full`, not on this flag. |
@@ -52,6 +52,18 @@ pub mod traits {
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod models {
     pub use systemprompt_models::*;
+}
+
+#[cfg(feature = "core")]
+#[cfg_attr(docsrs, doc(cfg(feature = "core")))]
+pub mod wire {
+    pub use systemprompt_wire::*;
+}
+
+#[cfg(feature = "core")]
+#[cfg_attr(docsrs, doc(cfg(feature = "core")))]
+pub mod manifest {
+    pub use systemprompt_manifest::*;
 }
 
 #[cfg(feature = "core")]
@@ -259,7 +271,7 @@ pub mod profile {
     #[cfg(feature = "loader")]
     pub use systemprompt_loader::ServicesBootstrap;
 
-    pub use systemprompt_models::profile::{
+    pub use systemprompt_manifest::profile::{
         CloudConfig, CloudValidationMode, Profile, ProfileStyle,
     };
 }
