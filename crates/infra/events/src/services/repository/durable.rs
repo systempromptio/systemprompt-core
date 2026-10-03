@@ -111,9 +111,9 @@ impl DurableOutboxRepository {
         .map(|_| ())
     }
 
-    pub(crate) async fn mark_all_processed<'a>(
+    pub(crate) async fn mark_all_processed(
         conn: &mut PgConnection,
-        ids: impl Iterator<Item = &'a EventOutboxId>,
+        ids: impl Iterator<Item = &EventOutboxId>,
     ) -> Result<(), sqlx::Error> {
         let ids: Vec<String> = ids.map(ToString::to_string).collect();
         sqlx::query!(
