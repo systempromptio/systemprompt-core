@@ -1,5 +1,5 @@
-use systemprompt_api::routes::oauth::endpoints::token::TokenError;
-use systemprompt_api::routes::oauth::endpoints::token::validation::extract_required_field;
+use systemprompt_oauth_issuance::IssuanceError;
+use systemprompt_oauth_issuance::validation::extract_required_field;
 
 #[test]
 fn test_extract_required_field_with_some_value_returns_ok() {
@@ -16,7 +16,7 @@ fn test_extract_required_field_with_none_returns_invalid_request() {
     let err = result.unwrap_err();
     assert!(matches!(
         err,
-        TokenError::InvalidRequest {
+        IssuanceError::InvalidRequest {
             field: _,
             message: _,
         }
@@ -29,7 +29,7 @@ fn test_extract_required_field_captures_field_name_in_error() {
 
     let err = result.unwrap_err();
     match err {
-        TokenError::InvalidRequest { field, message } => {
+        IssuanceError::InvalidRequest { field, message } => {
             assert_eq!(field, "code_verifier");
             assert_eq!(message, "is required");
         },

@@ -17,6 +17,7 @@ systemprompt-analytics = { workspace = true }
 systemprompt-extension = { workspace = true }
 inventory = { workspace = true }
 systemprompt-oauth = { workspace = true }
+systemprompt-oauth-issuance = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
@@ -52,7 +53,6 @@ reqwest = { workspace = true }
 futures-util = { workspace = true }
 tower = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
-rsa = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-loader = { workspace = true }

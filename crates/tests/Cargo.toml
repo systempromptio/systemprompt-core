@@ -61,6 +61,7 @@ members = [
     "unit/domain/teams",
     # Unit tests - app layer
     "unit/app/generator",
+    "unit/app/oauth-issuance",
     "unit/app/runtime",
     "unit/app/scheduler",
     # Unit tests - entry layer
@@ -269,6 +270,7 @@ systemprompt-teams = { path = "../domain/teams" }
 systemprompt-runtime = { path = "../app/runtime" }
 systemprompt-scheduler = { path = "../app/scheduler" }
 systemprompt-generator = { path = "../app/generator" }
+systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-api = { path = "../entry/api" }
 systemprompt-cli = { path = "../entry/cli" }
 systemprompt-bridge = { path = "../../bin/bridge" }

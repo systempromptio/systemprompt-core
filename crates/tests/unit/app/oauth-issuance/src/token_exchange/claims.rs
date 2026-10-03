@@ -6,12 +6,12 @@
 //! that bounds JWKS fetches is derived from the same config, so it is pinned
 //! here too.
 
-use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::claims::resolve_audience;
-use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::subject::jwks_host_allowlist;
-use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::validate_resource;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::JwtAudience;
+use systemprompt_oauth_issuance::token_exchange::claims::resolve_audience;
+use systemprompt_oauth_issuance::token_exchange::subject::jwks_host_allowlist;
+use systemprompt_oauth_issuance::token_exchange::validate_resource;
 use systemprompt_test_fixtures::fixture_config;
 
 fn config_with_audiences(allowed: &[&str]) -> Config {

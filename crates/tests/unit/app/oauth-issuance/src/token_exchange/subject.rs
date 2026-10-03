@@ -8,13 +8,13 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use systemprompt_api::routes::oauth::endpoints::token::TokenError;
-use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::subject::{
-    jwks_host_allowlist, validate_subject_token,
-};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
+use systemprompt_oauth_issuance::IssuanceError;
+use systemprompt_oauth_issuance::token_exchange::subject::{
+    jwks_host_allowlist, validate_subject_token,
+};
 use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, mint_admin_jwt};
 
 const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
@@ -35,7 +35,7 @@ fn unsigned_jwt(header: &str, payload: &str) -> String {
     )
 }
 
-fn err(result: Result<impl Sized, TokenError>) -> String {
+fn err(result: Result<impl Sized, IssuanceError>) -> String {
     result
         .map(|_| ())
         .expect_err("expected rejection")

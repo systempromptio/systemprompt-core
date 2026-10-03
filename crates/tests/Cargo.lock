@@ -6869,7 +6869,6 @@ dependencies = [
  "http",
  "inventory",
  "ipnet",
- "jsonwebtoken",
  "metrics",
  "metrics-exporter-prometheus",
  "nix",
@@ -6900,6 +6899,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
+ "systemprompt-oauth-issuance",
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
@@ -7000,7 +7000,6 @@ dependencies = [
  "opentelemetry-proto",
  "prost 0.14.4",
  "reqwest",
- "rsa",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -7019,6 +7018,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
+ "systemprompt-oauth-issuance",
  "systemprompt-runtime",
  "systemprompt-security",
  "systemprompt-test-fixtures",
@@ -8677,6 +8677,50 @@ dependencies = [
  "systemprompt-users",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "systemprompt-oauth-issuance"
+version = "0.62.0"
+dependencies = [
+ "base64 0.23.0",
+ "chrono",
+ "http",
+ "jsonwebtoken",
+ "serde",
+ "serde_json",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-oauth",
+ "systemprompt-security",
+ "systemprompt-traits",
+ "thiserror 2.0.19",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-oauth-issuance-tests"
+version = "0.0.11"
+dependencies = [
+ "base64 0.23.0",
+ "chrono",
+ "jsonwebtoken",
+ "rsa",
+ "serde_json",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-oauth",
+ "systemprompt-oauth-issuance",
+ "systemprompt-test-fixtures",
+ "tokio",
+ "uuid",
+ "wiremock",
 ]
 
 [[package]]

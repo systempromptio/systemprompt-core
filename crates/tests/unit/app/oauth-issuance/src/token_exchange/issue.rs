@@ -10,16 +10,15 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use systemprompt_api::routes::oauth::endpoints::token::TokenError;
-use systemprompt_api::routes::oauth::endpoints::token::generation::TokenExchangeRequest;
-use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::issue::issue_id_jag;
-use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::oidc::validate_oidc_subject;
-use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::{
-    ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE,
-};
 use systemprompt_identifiers::ClientId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
+use systemprompt_oauth_issuance::token_exchange::issue::issue_id_jag;
+use systemprompt_oauth_issuance::token_exchange::oidc::validate_oidc_subject;
+use systemprompt_oauth_issuance::token_exchange::{
+    ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE,
+};
+use systemprompt_oauth_issuance::{IssuanceError, TokenExchangeRequest};
 use systemprompt_test_fixtures::fixture_config;
 
 const IDP: &str = "https://idp.test";
@@ -53,7 +52,7 @@ fn config_with(issuer: TrustedIssuer) -> Config {
     config
 }
 
-fn err(result: Result<impl Sized, TokenError>) -> String {
+fn err(result: Result<impl Sized, IssuanceError>) -> String {
     result
         .map(|_| ())
         .expect_err("expected rejection")

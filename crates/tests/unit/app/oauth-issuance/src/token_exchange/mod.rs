@@ -6,13 +6,17 @@
 //! scope intersection, `act` chain construction, and the unsafe issuer
 //! peek used to route a subject token to the right verification path.
 
+mod claims;
+mod federated;
+mod id_jag_subject;
+mod issue;
+mod subject;
+
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use systemprompt_api::routes::oauth::endpoints::token::generation::{
-    build_act_chain, intersect_scopes, peek_issuer,
-};
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::auth::{ActClaim, Permission};
+use systemprompt_oauth_issuance::{build_act_chain, intersect_scopes, peek_issuer};
 
 fn jwt_from_payload(payload: &str) -> String {
     let header = URL_SAFE_NO_PAD.encode(b"{\"alg\":\"RS256\",\"kid\":\"k1\"}");

@@ -8,13 +8,13 @@
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
-use systemprompt_api::routes::oauth::endpoints::token::TokenError;
-use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::id_jag_subject::validate_id_jag_subject;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ClientId;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TYP;
+use systemprompt_oauth_issuance::IssuanceError;
+use systemprompt_oauth_issuance::token_exchange::id_jag_subject::validate_id_jag_subject;
 use systemprompt_test_fixtures::{
     fixture_config, install_test_signing_key, test_database_url, test_db_pool,
 };
@@ -58,7 +58,11 @@ fn claims(config: &Config, jti: &str, scope: &str) -> serde_json::Value {
     })
 }
 
-async fn validate(token: &str, pool: &DbPool, config: &Config) -> Result<Vec<String>, TokenError> {
+async fn validate(
+    token: &str,
+    pool: &DbPool,
+    config: &Config,
+) -> Result<Vec<String>, IssuanceError> {
     let repo = OAuthRepository::new(pool);
     validate_id_jag_subject(token, &ClientId::new(CLIENT), &repo, config)
         .await
