@@ -10,11 +10,11 @@ This is a library, not a framework. You compile it into your binary and extend i
 
 ## Crate Architecture
 
-33-member Rust workspace, published to crates.io as `systemprompt` with feature flags:
+35-member Rust workspace, published to crates.io as `systemprompt` with feature flags:
 
 ```
-Shared (7)     identifiers, provider-contracts, traits, extension,
-               models, client, template-provider
+Shared (9)     identifiers, provider-contracts, traits, extension,
+               models, wire, manifest, client, template-provider
 
 Infra (8)      database, logging, config, events, security, cloud, loader, storage
 

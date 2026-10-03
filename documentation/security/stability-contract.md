@@ -35,7 +35,7 @@ Additions are allowed without notice; removal or rename is a breaking change.
 
 ### 1.3 Configuration Schema
 
-The `Config` struct (`crates/shared/models/src/config/mod.rs`) and the YAML profile schema:
+The `Config` struct (`crates/shared/manifest/src/config/mod.rs`) and the YAML profile schema:
 
 - Top-level keys and their semantics
 - Required vs. optional fields

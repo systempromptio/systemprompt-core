@@ -17,7 +17,7 @@ use systemprompt::prelude::*;
 
 | Feature | Includes |
 |---------|----------|
-| `core` *(default)* | traits, models, identifiers, extension |
+| `core` *(default)* | traits, models, wire, manifest, identifiers, extension |
 | `database` | PostgreSQL abstraction (`DbPool`) |
 | `api` | HTTP server and `AppContext` (requires `core` + `database`) |
 | `cli` | CLI entry point |

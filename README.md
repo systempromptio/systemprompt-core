@@ -62,7 +62,7 @@ systemprompt = { version = "0.62", features = ["full"] }
 
 | Feature | Includes |
 |---|---|
-| `core` (default) | Shared traits, models, identifiers and extension contracts. |
+| `core` (default) | Shared traits, models, wire codecs, services manifest, identifiers and extension contracts. |
 | `database` | PostgreSQL integration. |
 | `api` | HTTP server and application context. |
 | `cli` | Command-line entry point. |

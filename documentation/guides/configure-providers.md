@@ -13,7 +13,7 @@ How to route AI inference through the gateway: define a provider catalog and rou
 The gateway resolves an inbound request to one upstream in a fixed sequence (`crates/entry/api/src/services/gateway/service/mod.rs:49-160`):
 
 1. A client `POST`s to `/v1/messages` (Anthropic wire format) or `/v1/responses` (OpenAI Responses wire format).
-2. The gateway reads the requested `model` from the body and finds the first route whose `model_pattern` matches (`crates/shared/models/src/services/gateway/config/runtime.rs`).
+2. The gateway reads the requested `model` from the body and finds the first route whose `model_pattern` matches (`crates/shared/manifest/src/services/gateway/config/runtime.rs`).
 3. It loads the route's API key from the secrets document by the `api_key_secret` name, and resolves the upstream adapter from the route's `provider` tag.
 4. It applies gateway policy (allowed-model list) and per-user quota, then sends the request to the route's `endpoint`.
 5. The upstream response is translated back into the inbound wire format and returned to the client.
@@ -23,7 +23,7 @@ The base path is `/v1` by default (`inference_path_prefix`, `gateway.rs:103-105`
 ## 1. Enable the gateway
 
 The provider catalog and the gateway are services-tree files, shipped with the deployment
-rather than written per environment (`crates/shared/models/src/services/{providers,gateway}/`).
+rather than written per environment (`crates/shared/manifest/src/services/{providers,gateway}/`).
 The gateway is disabled by default. Declare the catalog in `services/ai/providers.yaml`:
 
 ```yaml
@@ -69,7 +69,7 @@ same catalog boots every environment.
 
 ## 2. Define routes
 
-Each route maps a model name pattern to one upstream (`crates/shared/models/src/services/gateway/route.rs`):
+Each route maps a model name pattern to one upstream (`crates/shared/manifest/src/services/gateway/route.rs`):
 
 | Field | Required | Meaning |
 |-------|----------|---------|
@@ -88,7 +88,7 @@ The first matching route wins, so order specific patterns before general ones. T
 
 ### Endpoint validation (SSRF guard)
 
-Every provider `endpoint` is checked against the shared outbound-URL guard at load time (`ProviderRegistry::validate`, `crates/shared/models/src/services/providers/mod.rs`). An endpoint pointing at the loopback address, a link-local metadata address (`169.254.169.254`), or a private network range is rejected, so an operator-configured endpoint cannot turn the inference proxy into a server-side request forgery primitive. A self-hosted provider on a private network is therefore reachable only through an endpoint the guard accepts (a routable address or an approved egress proxy).
+Every provider `endpoint` is checked against the shared outbound-URL guard at load time (`ProviderRegistry::validate`, `crates/shared/manifest/src/services/providers/mod.rs`). An endpoint pointing at the loopback address, a link-local metadata address (`169.254.169.254`), or a private network range is rejected, so an operator-configured endpoint cannot turn the inference proxy into a server-side request forgery primitive. A self-hosted provider on a private network is therefore reachable only through an endpoint the guard accepts (a routable address or an approved egress proxy).
 
 ## 3. Provider adapters and wire compatibility
 

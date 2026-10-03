@@ -10,12 +10,12 @@ Five layers under `crates/`; dependencies flow downward only, no cycles:
 entry (api, cli) → app (runtime, scheduler, generator) → domain → infra → shared
 ```
 
-- **shared** — models, traits, identifiers (typed IDs), extension framework, provider-contracts, client, template-provider
+- **shared** — models (runtime models), wire (provider wire codecs; depends only on identifiers), manifest (services manifest, profile, config, validators), traits, identifiers (typed IDs), extension framework, provider-contracts, client, template-provider. `models` depends on neither `wire` nor `manifest`, and `bin/bridge` links only `models` and `identifiers` (enforced by `just lint-layers`)
 - **infra** — database (SQLx), events, security (JWT/authz), config, logging, loader, cloud, storage
 - **domain** — users, oauth, files, analytics, content, ai, mcp, agent, templates, marketplace, slack, teams. Domain crates are **peers**: no domain→domain deps (see Rust Standards)
 - **app** — runtime (`AppContext`), scheduler, generator
 - **entry** — api (HTTP server), cli
-- `systemprompt/` — facade crate re-exporting everything behind feature flags: `core` (default), `full`, and granular `database`, `config`, `mcp`, `api`, `cloud`, `cli`, `runtime`, `analytics`, `logging`, `loader`, `events`, `storage`, `client`, `security`; `slack` and `teams` are opt-in and outside `full` (`systemprompt/Cargo.toml` is the list)
+- `systemprompt/` — facade crate re-exporting everything behind feature flags: `core` (default; carries `models`, `wire` and `manifest`), `full`, and granular `database`, `config`, `mcp`, `api`, `cloud`, `cli`, `runtime`, `analytics`, `logging`, `loader`, `events`, `storage`, `client`, `security`; `slack` and `teams` are opt-in and outside `full` (`systemprompt/Cargo.toml` is the list)
 - `crates/tests/` — separate test workspace, excluded from the main workspace
 
 ## Documentation Layout

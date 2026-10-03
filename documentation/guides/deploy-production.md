@@ -48,7 +48,7 @@ A production deployment consists of:
 
 ## 2. Configuration and secrets
 
-Configuration is loaded from a profile directory. The `Config` shape is defined in `crates/shared/models/src/config/mod.rs`; the profile structs in `crates/shared/models/src/profile/`. Bootstrap order:
+Configuration is loaded from a profile directory. The `Config` shape is defined in `crates/shared/manifest/src/config/mod.rs`; the profile structs in `crates/shared/manifest/src/profile/`. Bootstrap order:
 
 1. `ProfileBootstrap` — load and interpolate the YAML profile.
 2. `SecretsBootstrap` — load secrets from the profile-referenced JSON file or from environment variables into process memory (`crates/infra/config/src/bootstrap/secrets/`).
@@ -64,7 +64,7 @@ The binary does not perform symmetric at-rest encryption of the secrets file. Th
 - **Kubernetes Secret with envelope encryption** — acceptable when the cluster has `--encryption-provider-config` with a KMS provider. Plain Kubernetes Secrets without a KMS envelope are not acceptable for PHI workloads.
 - **Environment variable** (no envelope) — non-regulated deployments only; not for PHI.
 
-Plain JSON secrets files carry `0600` permissions, owned by the dedicated service account. Never commit secrets to git. Secret types are in `crates/shared/models/src/secrets.rs`.
+Plain JSON secrets files carry `0600` permissions, owned by the dedicated service account. Never commit secrets to git. Secret types are in `crates/shared/manifest/src/secrets.rs`.
 
 ## 3. High availability
 
