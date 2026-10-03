@@ -7,13 +7,13 @@ Core platform engine for systemprompt.io — a multi-tenant AI agent platform wi
 Five layers under `crates/`; dependencies flow downward only, no cycles:
 
 ```
-entry (api, cli) → app (runtime, scheduler, generator, oauth-issuance) → domain → infra → shared
+entry (api, cli) → app (runtime, scheduler, generator, oauth-issuance, gateway) → domain → infra → shared
 ```
 
 - **shared** — models (runtime models), wire (provider wire codecs; depends only on identifiers), manifest (services manifest, profile, config, validators), traits, identifiers (typed IDs), extension framework, provider-contracts, client, template-provider. `models` depends on neither `wire` nor `manifest`, and `bin/bridge` links only `models` and `identifiers` (enforced by `just lint-layers`)
 - **infra** — database (SQLx), events, security (JWT/authz), config, logging, loader, cloud, storage
 - **domain** — users, oauth, files, analytics, content, ai, mcp, agent, templates, marketplace, slack, teams. Domain crates are **peers**: no domain→domain deps (see Rust Standards)
-- **app** — runtime (`AppContext`), scheduler, generator, oauth-issuance (`/oauth/token` grant workflow; the API keeps the thin handler)
+- **app** — runtime (`AppContext`), scheduler, generator, oauth-issuance (`/oauth/token` grant workflow; the API keeps the thin handler), gateway (the AI gateway: protocol translation, gateway policies, quotas, safety, audit journal; the API keeps the thin handlers)
 - **entry** — api (HTTP server), cli
 - `systemprompt/` — facade crate re-exporting everything behind feature flags: `core` (default; carries `models`, `wire` and `manifest`), `full`, and granular `database`, `config`, `mcp`, `api`, `cloud`, `cli`, `runtime`, `analytics`, `logging`, `loader`, `events`, `storage`, `client`, `security`; `slack` and `teams` are opt-in and outside `full` (`systemprompt/Cargo.toml` is the list)
 - `crates/tests/` — separate test workspace, excluded from the main workspace

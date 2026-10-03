@@ -19,7 +19,7 @@ Dependencies flow in one direction only — downward. A crate may depend on crat
                     │
 ┌───────────────────▼───────────────────────────┐
 │  APP      runtime, scheduler, generator,       │  cross-domain orchestration
-│           oauth-issuance                       │
+│           oauth-issuance, gateway              │
 └───────────────────┬───────────────────────────┘
                     │
 ┌───────────────────▼───────────────────────────┐
@@ -55,7 +55,7 @@ Domain crates do not depend on other domain crates. A capability one domain need
 - A trait defined in `shared/traits` (or `shared/provider-contracts`), implemented by the providing domain and consumed as `Arc<dyn Trait>` by the dependent one.
 - An event published through `infra/events` and observed by a subscriber.
 
-Cross-domain orchestration that would otherwise create a domain-to-domain edge is lifted up a layer. The runtime, scheduler and generator compose domain services through their dependencies and extension contracts. The wiring of all domains together happens in `entry/api`.
+Cross-domain orchestration that would otherwise create a domain-to-domain edge is lifted up a layer. The runtime, scheduler, generator and gateway compose domain services through their dependencies and extension contracts. The wiring of all domains together happens in `entry/api`.
 
 Analytics follows the same ownership rule for database access. Users owns session
 persistence, logging owns analytics-event persistence, and content provides

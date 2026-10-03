@@ -9,7 +9,9 @@ group_prefixes() {
     shared)      echo "/tests/unit/shared/" ;;
     infra)       echo "/tests/unit/infra/" ;;
     domain)      echo "/tests/unit/domain/" ;;
-    app-runtime)   echo "/tests/unit/app/runtime/" ;;
+    # The gateway crate sits beside the runtime it is composed into; its unit
+    # tests ride this shard rather than adding a CI matrix entry.
+    app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/" ;;
     app-scheduler) echo "/tests/unit/app/scheduler/" ;;
     app-generator) echo "/tests/unit/app/generator/" ;;
     app-oauth-issuance) echo "/tests/unit/app/oauth-issuance/" ;;
