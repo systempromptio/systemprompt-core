@@ -292,12 +292,12 @@ fn a_client_session_in_metadata_selects_the_hook_sessions_context() {
 }
 
 #[test]
-fn a_header_supplied_conversation_id_pins_the_context_even_with_a_client_session() {
+fn a_header_supplied_thread_preserves_the_native_sessions_context() {
     let mut partial = test_partial();
     let supplied = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned())
         .expect("test conversation id must be valid");
 
-    let (_, context, client_session) = derive_conversation(
+    let (conversation, context, client_session) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
         Some(supplied.clone()),
         &canonical_from_claude_code(vec![user_message("hello")]),
@@ -305,17 +305,22 @@ fn a_header_supplied_conversation_id_pins_the_context_even_with_a_client_session
     )
     .expect("an explicit conversation id is always usable");
 
-    assert!(
-        client_session.is_some(),
-        "the session is still parsed and recorded"
-    );
-    assert_eq!(
-        context,
-        ContextId::derived_from_gateway_conversation(
-            &systemprompt_identifiers::UserId::new("owner-a"),
-            &supplied
-        )
-    );
+    assert_eq!(conversation, supplied);
+    let session = client_session.expect("the native session must be recorded");
+    assert_eq!(context, ContextId::derived_from_client_session(&session));
+    assert_eq!(partial.context_id, Some(context.clone()));
+
+    let other_thread = GatewayConversationId::try_new("ctx_00000000feedbeef".to_owned())
+        .expect("test conversation id must be valid");
+    let (other_conversation, other_context, _) = derive_conversation(
+        &systemprompt_identifiers::UserId::new("owner-a"),
+        Some(other_thread),
+        &canonical_from_claude_code(vec![user_message("compacted history")]),
+        &mut test_partial(),
+    )
+    .expect("another thread must resolve");
+    assert_ne!(conversation, other_conversation);
+    assert_eq!(context, other_context);
 }
 
 #[test]

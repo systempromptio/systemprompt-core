@@ -133,6 +133,34 @@ fn render_event_message_start_uses_event_model_when_set() {
 }
 
 #[test]
+fn render_event_message_start_preserves_cache_usage() {
+    let event = CanonicalEvent::MessageStart {
+        id: "cached-message".into(),
+        model: "claude-event".into(),
+        usage: CanonicalUsage {
+            input_tokens: 11,
+            output_tokens: 2,
+            cache_read_tokens: 37,
+            cache_creation_tokens: 19,
+            ..CanonicalUsage::default()
+        },
+    };
+    let frame = AnthropicMessagesInbound
+        .render_event(&event, "fallback")
+        .expect("frame");
+    let parsed = parse_sse_data(&frame);
+    assert_eq!(
+        parsed[0]["message"]["usage"],
+        json!({
+            "input_tokens": 11,
+            "output_tokens": 2,
+            "cache_read_input_tokens": 37,
+            "cache_creation_input_tokens": 19,
+        })
+    );
+}
+
+#[test]
 fn render_event_covers_all_variants() {
     let inbound = AnthropicMessagesInbound;
     let events = vec![

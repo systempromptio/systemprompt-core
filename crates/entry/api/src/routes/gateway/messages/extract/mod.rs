@@ -201,18 +201,15 @@ fn resolve_route<'a>(
     Ok(route)
 }
 
-// Why: the gateway conversation id stays the per-thread prefix hash (it keys
-// thought-signature hydration, and subagents inside one run have different
-// prefixes), but the *context* a request lands in follows the caller's own
-// session when it names one, so every thread of one Claude Code run shares
-// the context its hook events already write to. An explicit header pins both.
+// Why: the bridge supplies a thread hash even when the harness supplies its
+// native session. Thread identity keys thought signatures; native session
+// identity keeps compaction and helper requests in the same conversation.
 pub fn derive_conversation(
     user_id: &UserId,
     header_gateway_conversation: Option<GatewayConversationId>,
     gateway_request: &CanonicalRequest,
     partial: &mut RejectionPartial,
 ) -> Result<(GatewayConversationId, ContextId, Option<ClientSessionId>), RejectionError> {
-    let header_supplied = header_gateway_conversation.is_some();
     let gateway_conversation_id = match header_gateway_conversation {
         Some(c) => c,
         None => gateway_request
@@ -227,8 +224,8 @@ pub fn derive_conversation(
     let client_session_id = gateway_request
         .client_session_id()
         .map_err(|error| RejectionError::invalid(StatusCode::BAD_REQUEST, error))?;
-    let context_id = match (&client_session_id, header_supplied) {
-        (Some(session), false) => ContextId::derived_from_client_session(session),
+    let context_id = match &client_session_id {
+        Some(session) => ContextId::derived_from_client_session(session),
         _ => ContextId::derived_from_gateway_conversation(user_id, &gateway_conversation_id),
     };
     partial.context_id = Some(context_id.clone());
