@@ -1,5 +1,5 @@
+use systemprompt_identifiers::gateway_hash::conversation_prefix_hash;
 use systemprompt_identifiers::{ContextId, GatewayConversationId};
-use systemprompt_models::gateway_hash::conversation_prefix_hash;
 
 use crate::support::minimal_request;
 

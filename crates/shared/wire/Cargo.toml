@@ -1,0 +1,36 @@
+[package]
+name = "systemprompt-wire"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Canonical AI wire types and per-protocol codecs for systemprompt.io AI governance infrastructure. Anthropic, OpenAI Chat, OpenAI Responses and Gemini request, response and SSE shapes shared by the gateway and the agent provider clients."
+readme = "README.md"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+schemars = { workspace = true }
+
+# SSE byte buffering + stream adaptation
+bytes = { workspace = true }
+futures-util = { workspace = true }
+
+systemprompt-identifiers = { workspace = true }

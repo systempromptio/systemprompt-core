@@ -25,7 +25,6 @@
 //! - [`events`] — analytics, A2A and system event envelopes.
 //! - [`execution`] — request context and execution-step bookkeeping.
 //! - [`extension`] — extension framework manifest types.
-//! - [`gateway_hash`] — deterministic gateway conversation-id derivation.
 //! - [`macros`] — builder-setter macros used by the crate's builder types.
 //! - [`managed`] — verified managed-resource revision bundles.
 //! - [`mcp`] — MCP protocol metadata helpers.
@@ -33,10 +32,12 @@
 //! - [`modules`] — module manifest tree resolution.
 //! - [`net`] — timeout constants and the outbound-URL (SSRF) validator.
 //! - [`oauth`] — OAuth client / server config shapes.
+//! - [`origin`] — client attribution of an AI request (client kind, attestation
+//!   tier, evidence).
 //! - [`paths`] — path-resolution contract and well-known directory constants.
 //! - [`profile`] — on-disk profile and bootstrap configuration.
+//! - [`providers`] — the client-facing API surface of an upstream provider.
 //! - [`routing`] — request routing classification.
-//! - [`schema`] — JSON-Schema capability matrices and sanitisation.
 //! - [`scope`] — per-request scoping identity for scoped DB transactions.
 //! - [`secrets`] — secrets document model.
 //! - [`services`] — services manifest (agents, plugins, hooks, MCP, …).
@@ -44,8 +45,6 @@
 //! - [`text`], [`time_format`] — display formatting helpers.
 //! - [`users`] — public user / session summaries.
 //! - [`validators`] — startup configuration validation passes.
-//! - [`wire`] — canonical AI wire types and per-protocol codecs (gateway +
-//!   agent clients).
 //!
 //! No module here spawns processes or opens sockets: process spawning lives
 //! in `systemprompt-loader`, outbound HTTP in `systemprompt-client`, and path
@@ -83,17 +82,17 @@ pub mod events;
 pub mod execution;
 pub mod extension;
 pub mod feedback;
-pub mod gateway_hash;
 pub mod managed;
 pub mod mcp;
 pub mod mime;
 pub mod modules;
 pub mod net;
 pub mod oauth;
+pub mod origin;
 pub mod paths;
 pub mod profile;
+pub mod providers;
 pub mod routing;
-pub mod schema;
 pub mod scope;
 pub mod secrets;
 pub mod services;
@@ -102,7 +101,6 @@ pub mod text;
 pub mod time_format;
 pub mod users;
 pub mod validators;
-pub mod wire;
 
 pub use a2a::{
     AgentCapabilities, AgentCard, AgentExtension, AgentProvider, Artifact as A2aArtifact,

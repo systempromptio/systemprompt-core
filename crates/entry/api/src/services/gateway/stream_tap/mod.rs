@@ -18,7 +18,7 @@ use futures_util::stream::{BoxStream, Stream};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::QuotaFaultMode;
-use systemprompt_models::wire::error::WireStreamError;
+use systemprompt_wire::error::WireStreamError;
 
 use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
 use self::finalize::finalize;
@@ -26,7 +26,7 @@ use super::audit::GatewayAudit;
 use super::policy::GatewayPolicySpec;
 use super::protocol::canonical_response::CanonicalEvent;
 use super::protocol::inbound::InboundAdapter;
-use systemprompt_models::wire::anthropic::SseFrameDecoder as SseDecoder;
+use systemprompt_wire::anthropic::SseFrameDecoder as SseDecoder;
 
 pub(super) use self::finalize::log_terminal;
 pub use self::finalize::{ClientConnection, FailCause, FinalizeDecision, classify};

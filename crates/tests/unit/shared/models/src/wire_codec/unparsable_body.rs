@@ -9,7 +9,7 @@
 //! so the parser is the only thing standing between it and a silent blank.
 
 use serde_json::{Value, json};
-use systemprompt_models::wire::{anthropic, gemini, openai_chat, openai_responses};
+use systemprompt_wire::{anthropic, gemini, openai_chat, openai_responses};
 
 fn usage_present() -> Value {
     json!({"input_tokens": 3, "output_tokens": 4})

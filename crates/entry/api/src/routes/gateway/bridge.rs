@@ -13,7 +13,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::bridge::profile as bridge_profile;
-use systemprompt_models::services::ApiSurface;
+use systemprompt_models::providers::ApiSurface;
 
 use systemprompt_security::manifest_signing;
 use uuid::Uuid;

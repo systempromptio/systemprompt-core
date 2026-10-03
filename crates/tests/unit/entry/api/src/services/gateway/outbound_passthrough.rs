@@ -269,7 +269,7 @@ async fn absent_client_version_falls_back_to_the_pinned_default() {
             .headers
             .get("anthropic-version")
             .expect("a version is always sent"),
-        systemprompt_models::wire::anthropic::ANTHROPIC_VERSION
+        systemprompt_wire::anthropic::ANTHROPIC_VERSION
     );
 }
 

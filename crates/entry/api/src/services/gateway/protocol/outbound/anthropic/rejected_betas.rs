@@ -13,7 +13,7 @@
 
 use std::collections::BTreeSet;
 
-use systemprompt_models::wire::anthropic::ANTHROPIC_BETA_HEADER;
+use systemprompt_wire::anthropic::ANTHROPIC_BETA_HEADER;
 
 use super::learned::Learned;
 

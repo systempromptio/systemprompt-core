@@ -8,8 +8,8 @@
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use systemprompt_models::wire::anthropic;
-use systemprompt_models::wire::canonical::CanonicalTool;
+use systemprompt_wire::anthropic;
+use systemprompt_wire::canonical::CanonicalTool;
 
 use crate::error::{AiError, Result};
 use crate::models::ai::StreamChunk;

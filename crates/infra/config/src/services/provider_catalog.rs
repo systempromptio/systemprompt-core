@@ -13,10 +13,10 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::services::ai::{ModelCapabilities, ModelLimits, ModelPricing};
-use systemprompt_models::services::{
-    ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
-};
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::services::ai::{ModelCapabilities, ModelPricing};
+use systemprompt_models::services::{ProviderEntry, ProviderModel, ProviderRegistry};
+use systemprompt_wire::{ModelLimits, WireProtocol};
 
 use crate::error::{ConfigError, ConfigResult};
 

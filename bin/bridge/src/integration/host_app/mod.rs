@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_models::services::ApiSurface;
+use systemprompt_models::providers::ApiSurface;
 
 mod error;
 mod probe;

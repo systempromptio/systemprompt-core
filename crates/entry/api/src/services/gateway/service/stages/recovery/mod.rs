@@ -24,14 +24,15 @@ use http::HeaderValue;
 // uninspectable body from an empty one.
 use serde_json::Value;
 use systemprompt_identifiers::PolicyId;
-use systemprompt_models::wire::canonical::CanonicalRequest;
-use systemprompt_models::wire::inspect::{self, ForwardedSurface, SurfaceBudget};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::secrets::SecretFinding;
 use systemprompt_security::policy::{
     ChainEntryOutcome, ChainEntryResult, Evaluation, GovernanceEngine, GovernedInput,
     PolicyContext, SECRET_SCAN_ID,
 };
+use systemprompt_wire::canonical::CanonicalRequest;
+use systemprompt_wire::inspect;
+use systemprompt_wire::inspect::{ForwardedSurface, SurfaceBudget};
 
 pub use self::repair::repair_prompt;
 use crate::services::gateway::protocol::outbound::PreparedBody;

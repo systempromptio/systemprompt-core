@@ -12,7 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::model::ModelPricing;
-use crate::wire::canonical::CanonicalUsage;
+use systemprompt_wire::canonical::CanonicalUsage;
 
 impl ModelPricing {
     #[must_use]

@@ -1,8 +1,6 @@
 use systemprompt_ai::repository::{AiRequestClientEvidenceRepository, AiRequestRepository};
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::wire::origin::{
-    ClientAttestation, ClientEvidence, ClientKind, NativeMarker,
-};
+use systemprompt_models::origin::{ClientAttestation, ClientEvidence, ClientKind, NativeMarker};
 
 use super::{bootstrapped_pool, completed_record, user};
 

@@ -11,8 +11,8 @@
 use bytes::Bytes;
 use http::StatusCode;
 use serde_json::Value;
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::wire::origin::InboundWireProtocol;
+use systemprompt_models::origin::InboundWireProtocol;
+use systemprompt_wire::WireProtocol;
 
 use super::super::canonical::CanonicalRequest;
 use super::super::canonical_response::{CanonicalEvent, CanonicalResponse};

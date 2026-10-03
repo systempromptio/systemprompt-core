@@ -9,8 +9,9 @@
 //! asymmetry explicit rather than leaving it to be rediscovered.
 
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::services::{ApiSurface, ProviderEntry, ProviderModel, WireProtocol};
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::services::{ProviderEntry, ProviderModel};
+use systemprompt_wire::{ModelLimits, WireProtocol};
 
 const CATALOG_ID: &str = "vertex-gemini-2.5-pro";
 const ALIAS: &str = "gemini-pro-latest";

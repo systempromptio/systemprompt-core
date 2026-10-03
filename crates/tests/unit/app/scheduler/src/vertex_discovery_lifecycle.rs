@@ -1,9 +1,9 @@
 use chrono::{Days, NaiveDate};
 use systemprompt_identifiers::{ProviderId, SecretName};
-use systemprompt_models::services::{
-    ApiSurface, ProviderEntry, ProviderRegistry, VertexRateCard, WireProtocol,
-};
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::services::{ProviderEntry, ProviderRegistry, VertexRateCard};
 use systemprompt_scheduler::jobs::vertex_discovery::{LIFECYCLE_NOTICE_DAYS, lifecycle_notices};
+use systemprompt_wire::WireProtocol;
 
 fn registry_with(model: systemprompt_models::services::VertexRateCardEntry) -> ProviderRegistry {
     let provider = ProviderEntry {

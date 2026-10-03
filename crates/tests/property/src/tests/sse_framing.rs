@@ -1,7 +1,7 @@
 use proptest::prelude::*;
 use serde_json::Value;
-use systemprompt_models::wire::anthropic::AnthropicStreamState;
-use systemprompt_models::wire::sse::frame_end;
+use systemprompt_wire::anthropic::AnthropicStreamState;
+use systemprompt_wire::sse::frame_end;
 
 // Why: the framing rule the gateway depends on but never stated as a property.
 // Upstream bytes arrive in whatever chunks the network produced, and the

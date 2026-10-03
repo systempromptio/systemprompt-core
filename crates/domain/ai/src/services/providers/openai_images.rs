@@ -21,7 +21,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
 use systemprompt_models::net::IMAGE_GEN_OPENAI_TIMEOUT;
-use systemprompt_models::services::{ModelDefinition, WireProtocol};
+use systemprompt_models::services::ModelDefinition;
+use systemprompt_wire::WireProtocol;
 
 use crate::services::upstream::UpstreamTarget;
 

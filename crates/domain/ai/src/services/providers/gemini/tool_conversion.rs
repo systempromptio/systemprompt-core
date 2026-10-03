@@ -12,7 +12,7 @@
 use std::collections::HashSet;
 
 use systemprompt_identifiers::AiToolCallId;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalTool, ThinkingConfig,
 };
 

@@ -22,8 +22,8 @@ use std::sync::Arc;
 use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
+use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 use systemprompt_models::services::gateway::{GatewayConfig, GatewayRoute};
-use systemprompt_models::wire::origin::{ClientEvidence, RequestOrigin};
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};

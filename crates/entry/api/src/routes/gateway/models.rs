@@ -11,7 +11,8 @@ use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::bridge::profile::is_model_servable;
-use systemprompt_models::services::{ApiSurface, GatewayConfig, ProviderRegistry};
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::services::{GatewayConfig, ProviderRegistry};
 
 use crate::error::ApiHttpError;
 

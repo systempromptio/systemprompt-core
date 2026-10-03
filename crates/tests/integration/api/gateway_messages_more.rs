@@ -39,7 +39,7 @@ use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::common::setup_ctx;
 
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 

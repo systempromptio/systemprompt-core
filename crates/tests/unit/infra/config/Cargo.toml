@@ -24,4 +24,5 @@ wiremock = { workspace = true }
 base64 = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-identifiers = { workspace = true }

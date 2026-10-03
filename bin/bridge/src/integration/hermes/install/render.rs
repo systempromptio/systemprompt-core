@@ -45,7 +45,7 @@ pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> Result<String, HostAppE
     let default = inputs
         .default_model
         .as_deref()
-        .map(systemprompt_models::services::providers::without_context_variant)
+        .map(systemprompt_models::providers::without_context_variant)
         .and_then(|d| inputs.models.iter().find(|m| m.as_str() == d))
         .or_else(|| inputs.models.first());
     if let Some(model) = default {

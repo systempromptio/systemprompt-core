@@ -5,14 +5,14 @@
 //! mints an OAuth bearer with `{project}` filled from its key. The path is the
 //! shared dialect's (`?alt=sse` for the streaming method). Request-body
 //! rendering and reply parsing live in the shared
-//! `systemprompt_models::wire::gemini` codec.
+//! `systemprompt_wire::gemini` codec.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::{Client, Response};
 use serde_json::Value;
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 
 use super::constants::timeout;
 use super::provider::GeminiProvider;

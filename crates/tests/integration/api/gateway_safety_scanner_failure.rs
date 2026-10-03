@@ -11,8 +11,9 @@ use systemprompt_api::services::gateway::protocol::canonical_response::Canonical
 use systemprompt_api::services::gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::services::{ApiSurface, WireProtocol};
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::seed_admin_credential;
+use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
 
 use super::common::setup_ctx;

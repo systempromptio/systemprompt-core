@@ -1,0 +1,235 @@
+//! `OpenAI` Chat Completions SSE-to-[`CanonicalEvent`] translation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use bytes::Bytes;
+use futures_util::stream::{self, BoxStream, Stream, StreamExt};
+// JSON: protocol boundary — OpenAI Chat Completions wire format is dynamic
+// JSON.
+use serde_json::Value;
+use systemprompt_identifiers::MessageId;
+
+use super::stream_delta::{
+    OpenAiChatStreamState, close_reasoning, process_reasoning_delta, process_text_delta,
+    process_tool_calls,
+};
+use crate::canonical::{CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate};
+use crate::error::WireStreamError;
+
+enum Frame {
+    Chunk(Result<Bytes, WireStreamError>),
+    Eof,
+}
+
+pub fn sse_to_canonical_events<S, E>(
+    stream: S,
+    fallback_model: String,
+) -> BoxStream<'static, Result<CanonicalEvent, WireStreamError>>
+where
+    S: Stream<Item = Result<Bytes, E>> + Send + 'static,
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+    let initial = OpenAiChatStreamState {
+        buf: Vec::new(),
+        model: fallback_model,
+        message_id: None,
+        started: false,
+        text_block: None,
+        next_index: 0,
+        tool_calls: Vec::new(),
+        reasoning_block: None,
+        saw_tool_call: false,
+        stopped: false,
+        pending_finish: None,
+    };
+
+    let s = stream
+        .map(|chunk| match chunk {
+            Ok(bytes) => Frame::Chunk(Ok(bytes)),
+            Err(e) => Frame::Chunk(Err(WireStreamError::transport(e))),
+        })
+        .chain(stream::once(futures_util::future::ready(Frame::Eof)))
+        .scan(initial, |state, item| {
+            let res = match item {
+                Frame::Chunk(Ok(bytes)) => drain_buffer(state, &bytes),
+                Frame::Chunk(Err(e)) => vec![Err(e)],
+                Frame::Eof => flush(state),
+            };
+            futures_util::future::ready(Some(res))
+        })
+        .flat_map(stream::iter);
+    s.boxed()
+}
+
+fn drain_buffer(
+    state: &mut OpenAiChatStreamState,
+    bytes: &Bytes,
+) -> Vec<Result<CanonicalEvent, WireStreamError>> {
+    state.buf.extend_from_slice(bytes);
+    let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
+    while let Some(end) = crate::sse::frame_end(&state.buf) {
+        let frame: Vec<u8> = state.buf.drain(..end).collect();
+        let frame_str = String::from_utf8_lossy(&frame);
+        for line in frame_str.lines() {
+            let Some(data) = line.strip_prefix("data: ") else {
+                continue;
+            };
+            if data.trim() == "[DONE]" {
+                // Why: Some OpenAI-compatible proxies send `[DONE]` without a finish reason.
+                flush_into(state, &mut events, Some("stop"));
+                continue;
+            }
+            let Ok(value) = serde_json::from_str::<Value>(data) else {
+                continue;
+            };
+            handle_chunk(state, &value, &mut events);
+        }
+    }
+    events
+}
+
+fn flush(state: &mut OpenAiChatStreamState) -> Vec<Result<CanonicalEvent, WireStreamError>> {
+    let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
+    flush_into(state, &mut events, None);
+    events
+}
+
+fn flush_into(
+    state: &mut OpenAiChatStreamState,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
+    default_reason: Option<&str>,
+) {
+    if state.stopped {
+        return;
+    }
+    let Some(finish) = state
+        .pending_finish
+        .take()
+        .or_else(|| default_reason.map(str::to_owned))
+    else {
+        return;
+    };
+    emit_message_stop(state, &finish, events);
+}
+
+fn handle_chunk(
+    state: &mut OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming chunk; upstream JSON is the contract.
+    value: &Value,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
+) {
+    if let Some(message) = crate::sse::upstream_error_message(value) {
+        events.push(Ok(CanonicalEvent::Error(message)));
+        // Why: OpenAI-compatible streams can send `[DONE]` after an error frame.
+        state.stopped = true;
+        return;
+    }
+    if !state.started {
+        emit_message_start(state, value, events);
+    }
+    if let Some(usage) = value.get("usage") {
+        events.push(Ok(CanonicalEvent::UsageDelta(usage_from_value(usage))));
+    }
+    let Some(choice) = value
+        .get("choices")
+        .and_then(Value::as_array)
+        .and_then(|a| a.first())
+    else {
+        return;
+    };
+    let delta = choice.get("delta").unwrap_or(&Value::Null);
+    process_reasoning_delta(state, delta, events);
+    process_text_delta(state, delta, events);
+    process_tool_calls(state, delta, events);
+    // Why: Chat Completions sends its usage chunk after the chunk carrying
+    // `finish_reason`.
+    if let Some(finish) = choice.get("finish_reason").and_then(Value::as_str)
+        && !state.stopped
+        && state.pending_finish.is_none()
+    {
+        state.pending_finish = Some(finish.to_owned());
+    }
+}
+
+fn emit_message_start(
+    state: &mut OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming chunk; upstream JSON is the contract.
+    value: &Value,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
+) {
+    let id = value
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("msg_openai")
+        .to_owned();
+    let model = value
+        .get("model")
+        .and_then(Value::as_str)
+        .unwrap_or(&state.model)
+        .to_owned();
+    state.message_id = Some(MessageId::new(&id));
+    events.push(Ok(CanonicalEvent::MessageStart {
+        id,
+        model: model.clone(),
+        usage: CanonicalUsage::default(),
+    }));
+    state.model = model;
+    state.started = true;
+}
+
+fn emit_message_stop(
+    state: &mut OpenAiChatStreamState,
+    finish: &str,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
+) {
+    state.stopped = true;
+    close_reasoning(state, events);
+    if let Some(index) = state.text_block.take() {
+        events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
+    }
+    for tc in state.tool_calls.drain(..) {
+        events.push(Ok(CanonicalEvent::ContentBlockStop { index: tc.index }));
+    }
+    let reason = CanonicalStopReason::from_openai(finish).with_tool_use(state.saw_tool_call);
+    // Why: `content_filter` with nothing streamed is the provider cutting the
+    // turn off; relayed as a clean stop the client sees an empty answer.
+    if reason.empty_terminal_is_error() && state.next_index == 0 {
+        events.push(Ok(CanonicalEvent::Error(format!(
+            "upstream finished with {finish}"
+        ))));
+        return;
+    }
+    events.push(Ok(CanonicalEvent::MessageStop {
+        id: state
+            .message_id
+            .as_ref()
+            .map_or_else(String::new, |id| id.as_str().to_owned()),
+        stop_reason: Some(reason),
+        raw_finish_reason: Some(finish.to_owned()),
+    }));
+}
+
+// JSON: OpenAI Chat Completions streaming chunk; upstream JSON is the contract.
+fn usage_from_value(usage: &Value) -> CanonicalUsageUpdate {
+    let field = |name: &str| usage.get(name).and_then(Value::as_u64).map(|v| v as u32);
+    let cached = usage
+        .get("prompt_tokens_details")
+        .and_then(|d| d.get("cached_tokens"))
+        .and_then(Value::as_u64)
+        .map(|v| v as u32);
+    // Why: Chat Completions includes `cached_tokens` in `prompt_tokens`.
+    CanonicalUsageUpdate {
+        input_tokens: field("prompt_tokens").map(|input| input.saturating_sub(cached.unwrap_or(0))),
+        output_tokens: field("completion_tokens"),
+        cache_read_tokens: cached,
+        cache_creation_tokens: None,
+        total_tokens: field("total_tokens"),
+        // Why: OpenAI includes reasoning tokens in `completion_tokens`.
+        reasoning_tokens: usage
+            .get("completion_tokens_details")
+            .and_then(|d| d.get("reasoning_tokens"))
+            .and_then(Value::as_u64)
+            .map(|v| v as u32),
+    }
+}

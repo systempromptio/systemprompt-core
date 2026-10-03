@@ -12,6 +12,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use systemprompt_wire::ModelLimits;
+
 use super::config::ResilienceSettings;
 
 const fn default_true() -> bool {
@@ -60,18 +62,6 @@ pub struct ModelCapabilities {
 
     #[serde(default)]
     pub prompt_caching: bool,
-}
-
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct ModelLimits {
-    #[serde(default)]
-    pub context_window: u32,
-
-    #[serde(default)]
-    pub max_output_tokens: u32,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_thinking_budget: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]

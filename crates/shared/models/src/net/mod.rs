@@ -2,7 +2,8 @@
 //!
 //! Centralised [`Duration`] values for HTTP client configuration, TCP
 //! readiness probes, and long-poll image generation, so every caller
-//! uses the same tuned timeouts, plus [`validate_outbound_url`] — the
+//! uses the same tuned timeouts, the [`BUFFERED_BODY_LIMIT_BYTES`] cap on a
+//! buffered proxy request body, plus [`validate_outbound_url`] — the
 //! single parse-time SSRF guard applied to every outbound destination.
 //!
 //! Parse-time validation is a pre-filter, not the enforcement point: a
@@ -32,6 +33,8 @@ pub enum OutboundUrlError {
     #[error("host {0} is in a blocked private range")]
     BlockedHost(String),
 }
+
+pub const BUFFERED_BODY_LIMIT_BYTES: usize = 8 * 1024 * 1024;
 
 pub const HTTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 

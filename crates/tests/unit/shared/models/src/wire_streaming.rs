@@ -1,8 +1,8 @@
 use futures::StreamExt;
 use serde_json::{Value, json};
-use systemprompt_models::wire::anthropic::AnthropicStreamState;
-use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason, ContentBlockKind};
-use systemprompt_models::wire::{anthropic, gemini, openai_chat, openai_responses};
+use systemprompt_wire::anthropic::AnthropicStreamState;
+use systemprompt_wire::canonical::{CanonicalEvent, CanonicalStopReason, ContentBlockKind};
+use systemprompt_wire::{anthropic, gemini, openai_chat, openai_responses};
 
 fn one_frame(sse: String) -> impl futures::Stream<Item = Result<bytes::Bytes, std::io::Error>> {
     futures::stream::once(async move { Ok::<_, std::io::Error>(bytes::Bytes::from(sse)) })
@@ -337,7 +337,7 @@ mod anthropic_events_from_sse {
 
 mod anthropic_parse_response {
     use super::*;
-    use systemprompt_models::wire::canonical::CanonicalContent;
+    use systemprompt_wire::canonical::CanonicalContent;
 
     #[test]
     fn empty_object_uses_fallback_model() {
@@ -463,7 +463,7 @@ mod anthropic_parse_response {
         match resp.content.first() {
             Some(CanonicalContent::Image {
                 source:
-                    systemprompt_models::wire::canonical::ImageSource::Base64 {
+                    systemprompt_wire::canonical::ImageSource::Base64 {
                         media_type, data, ..
                     },
                 ..

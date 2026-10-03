@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_models::services::ApiSurface;
+use systemprompt_models::providers::ApiSurface;
 
 use crate::gateway::types::ProviderHealth;
 

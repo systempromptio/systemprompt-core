@@ -14,7 +14,7 @@ use systemprompt_ai::services::providers::{
     GenerationParams, ProviderClient, ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_identifiers::{AiToolCallId, McpServerId};
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 
 fn provider(endpoint: String) -> GeminiProvider {
     GeminiProvider::with_target(mock_http::api_key_target(

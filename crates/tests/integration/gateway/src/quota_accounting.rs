@@ -18,7 +18,7 @@ use systemprompt_models::services::QuotaFaultMode;
 use systemprompt_security::policy::types::AccessScope;
 
 use crate::support::{minimal_request, seed_user, setup_db};
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 

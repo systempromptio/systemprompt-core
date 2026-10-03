@@ -22,7 +22,7 @@ use std::fmt;
 
 use super::error::CredentialError;
 
-pub use systemprompt_models::services::providers::{PROJECT_PLACEHOLDER, REGION_PLACEHOLDER};
+pub use systemprompt_wire::hosting::{PROJECT_PLACEHOLDER, REGION_PLACEHOLDER};
 
 /// How an upstream expects the credential to be presented: as
 /// `Authorization: Bearer <token>` (a minted, expiring OAuth token) or in the

@@ -17,7 +17,7 @@ use bytes::Bytes;
 // JSON: protocol boundary — OpenAI Chat Completions wire format is dynamic
 // JSON.
 use serde_json::{Map, Value, json};
-use systemprompt_models::services::ai::ModelLimits;
+use systemprompt_wire::ModelLimits;
 
 use super::super::OutboundCtx;
 
@@ -57,7 +57,7 @@ fn apply_output_limit(
             continue;
         };
         let requested = u32::try_from(requested).unwrap_or(u32::MAX);
-        let allowed = systemprompt_models::wire::openai_chat::passthrough_output_tokens(
+        let allowed = systemprompt_wire::openai_chat::passthrough_output_tokens(
             requested,
             upstream_model,
             limits,

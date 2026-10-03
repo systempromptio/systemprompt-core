@@ -21,7 +21,7 @@ mod null;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse};
+use systemprompt_wire::canonical::{CanonicalRequest, CanonicalResponse};
 
 use super::spec::SafetyConfig;
 

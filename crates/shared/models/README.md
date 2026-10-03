@@ -5,7 +5,7 @@
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 [![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Defines shared configuration, request and response models, wire codecs, protocol types and supporting error types.
+Defines shared configuration, request and response models, protocol types and supporting error types.
 
 The shared layer sits at the bottom of the workspace and depends on no other systemprompt layer. `infra`, `domain`, `app`, and `entry` all consume it. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -35,24 +35,23 @@ systemprompt-models = "0.62"
 | `events` | Analytics, A2A, context, and system event envelopes. |
 | `execution` | `RequestContext`, `ExecutionStep`, planned-tool bookkeeping. |
 | `extension` | Extension manifest and discovery types. |
-| `gateway_hash` | Stable hashing helpers for gateway-derived identifiers. |
 | `macros` | Crate-internal repository helper macros. |
 | `mcp` | MCP server/registry config, deployment, auth state, provider traits. |
 | `modules` | API path constants, CLI paths, service category resolution. |
 | `net` | Network-layer value objects (ports, hosts). |
 | `oauth` | OAuth client and server configuration shapes. |
+| `origin` | Client attribution of an AI request: client kind, attestation tier, evidence. |
 | `paths` | Well-known directory layout helpers (`AppPaths`, `StoragePaths`, …). |
 | `profile` | On-disk profile, security, server, cloud, database, paths configuration. |
+| `providers` | `ApiSurface`, the client-facing API family a provider is advertised under. |
 | `repository` | `ServiceLifecycle` trait, `ServiceRecord`, `WhereClause` query builder. |
 | `routing` | Request routing classification (`RouteClassifier`, `ApiCategory`). |
-| `schema` | JSON-Schema capability matrices and sanitisation for the wire codecs. |
 | `secrets` | Secrets document model and parsing. |
 | `services` | Services manifest: agents, plugins, hooks, MCP, skills, scheduler, marketplace. |
 | `subprocess` | Environment-marker contract between the supervisor and its detached children. |
 | `text`, `time_format` | Small text and timestamp formatting helpers. |
 | `users` | Public user and session summaries. |
 | `validators` | Startup configuration validation passes. |
-| `wire` | Canonical AI wire types and per-protocol codecs shared by gateway and providers. |
 
 ## Error Model
 
@@ -114,7 +113,7 @@ let (clause, params) = WhereClause::default()
 - `chrono`, `uuid`, `indexmap`: common types
 - `schemars`, `regex`: schema generation and pattern validation
 - `zeroize`: wipe credential material on drop
-- `http`, `url`, `bytes`, `futures`, `futures-util`: HTTP types, SSRF URL validation, and wire/stream codecs
+- `http`, `url`, `futures`: HTTP types, SSRF URL validation, and streams
 - `tracing`: structured logging
 - `rmcp`: MCP protocol types
 - `sqlx`: optional, with the `sqlx` feature

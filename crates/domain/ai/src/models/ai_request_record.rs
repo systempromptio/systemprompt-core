@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::wire::canonical::CanonicalUsage;
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::origin::RequestOrigin;
+use systemprompt_wire::canonical::CanonicalUsage;
 
 use super::request_kind::{RequestKind, RequestStatus};
 

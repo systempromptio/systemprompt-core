@@ -1,6 +1,6 @@
 // DB-backed tests for AiRequestRepository: insert, status updates, usage
 // aggregates, and per-turn message / tool-call writes.
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::origin::RequestOrigin;
 
 use systemprompt_ai::models::{AiRequestRecord, RequestStatus};
 use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};

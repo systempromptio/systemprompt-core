@@ -23,29 +23,24 @@
 mod discovery_report;
 mod error;
 mod headers;
-mod hosting;
-mod protocol;
 mod rate_card;
-mod surface;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 
-use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, ModelPricing};
-use crate::wire::anthropic::AnthropicBeta;
+use crate::providers::{ApiSurface, without_context_variant};
+use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelPricing};
+use systemprompt_wire::anthropic::AnthropicBeta;
+use systemprompt_wire::hosting::names_a_project_literally;
+use systemprompt_wire::{Hosting, ModelLimits, WireProtocol};
 
 pub use discovery_report::DiscoveryReport;
 pub use error::{ProviderRegistryError, ProviderRegistryResult, VertexRateCardDefect};
-pub use hosting::{
-    Hosting, PROJECT_PLACEHOLDER, REGION_PLACEHOLDER, is_vertex_host, names_a_project_literally,
-};
-pub use protocol::WireProtocol;
 pub use rate_card::{
     DocumentedLaunchStage, RETIREMENT_NOTICE_DAYS, VertexRateCard, VertexRateCardEntry,
 };
-pub use surface::ApiSurface;
 
 const DEFAULT_CATALOG_YAML: &str = include_str!("default_catalog.yaml");
 
@@ -96,17 +91,13 @@ impl ProviderModel {
     }
 }
 
-// Why: Claude Code budgets a gateway model at 200k unless the user picks its
-// `[1m]` variant (`claude-sonnet-5[1m]`). The suffix is a client-side context
-// marker, not a vendor id: it resolves to the base catalog entry and never
-// reaches the upstream.
-const CONTEXT_VARIANT_SUFFIX: &str = "[1m]";
-
 #[must_use]
-pub fn without_context_variant(requested: &str) -> &str {
-    requested
-        .strip_suffix(CONTEXT_VARIANT_SUFFIX)
-        .unwrap_or(requested)
+pub const fn surface_for(protocol: WireProtocol) -> ApiSurface {
+    match protocol {
+        WireProtocol::Anthropic => ApiSurface::Anthropic,
+        WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => ApiSurface::OpenAi,
+        WireProtocol::Gemini => ApiSurface::Gemini,
+    }
 }
 
 #[must_use]

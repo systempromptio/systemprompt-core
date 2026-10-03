@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 use hyper::HeaderMap;
 use systemprompt_identifiers::{GatewayConversationId, SessionId, headers as sp_headers};
-use systemprompt_models::wire::origin::{ClientAttestation, ClientKind};
+use systemprompt_models::origin::{ClientAttestation, ClientKind};
 
 use super::{ForwardError, ForwardResult, HeaderBuildError};
 use crate::proxy::credential::LoopbackCredential;

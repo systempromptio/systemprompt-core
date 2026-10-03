@@ -10,8 +10,8 @@
 use bytes::Bytes;
 use http::StatusCode;
 use serde_json::Value;
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::wire::origin::InboundWireProtocol;
+use systemprompt_models::origin::InboundWireProtocol;
+use systemprompt_wire::WireProtocol;
 
 use super::super::canonical::CanonicalRequest;
 use super::super::canonical_response::{CanonicalEvent, CanonicalResponse};
@@ -20,7 +20,7 @@ use super::{InboundAdapter, InboundParseError};
 pub mod parse;
 pub mod render;
 
-pub use systemprompt_models::wire::anthropic::content_to_anthropic_block;
+pub use systemprompt_wire::anthropic::content_to_anthropic_block;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnthropicMessagesInbound;

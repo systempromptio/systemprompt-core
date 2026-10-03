@@ -13,9 +13,9 @@ use systemprompt_ai::SafetyConfig;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::GatewayConfig;
-use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{ChainEntryResult, GovernanceEngine, SECRET_SCAN_ID};
+use systemprompt_wire::ModelLimits;
 
 pub(in crate::services::gateway::service) use self::governance::record_quota_warning;
 use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
@@ -131,8 +131,7 @@ fn automatic_prompt_caching(
     upstream_model: &str,
 ) -> bool {
     enabled
-        && upstream.provider.wire
-            == systemprompt_models::services::providers::WireProtocol::Anthropic
+        && upstream.provider.wire == systemprompt_wire::WireProtocol::Anthropic
         && upstream
             .provider
             .find_model(upstream_model)

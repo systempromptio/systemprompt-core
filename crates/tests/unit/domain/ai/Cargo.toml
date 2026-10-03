@@ -17,6 +17,7 @@ systemprompt-ai = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-identifiers = { workspace = true }

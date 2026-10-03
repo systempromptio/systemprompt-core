@@ -5,7 +5,7 @@
 
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
 use serde_json::Value;
-use systemprompt_models::wire::anthropic::cache_control_from_anthropic;
+use systemprompt_wire::anthropic::cache_control_from_anthropic;
 
 use crate::services::gateway::protocol::canonical::{
     CacheControl, CanonicalContent, CanonicalMessage, ImageSource, Role, SystemBlock,

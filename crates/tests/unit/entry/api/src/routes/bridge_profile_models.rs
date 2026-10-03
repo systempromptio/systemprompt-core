@@ -8,6 +8,7 @@
 //! advisory `x-inference-protocol` header.
 
 use std::collections::HashMap;
+use systemprompt_models::services::providers::surface_for;
 
 use axum::http::HeaderMap;
 use systemprompt_api::error::ApiHttpError;
@@ -19,10 +20,11 @@ use systemprompt_models::api::ErrorCode;
 use systemprompt_models::bridge::profile::{
     BridgeProfileParams, BridgeProfileResponse, build as profile_build,
 };
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
-    WireProtocol,
+    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
 };
+use systemprompt_wire::WireProtocol;
 
 fn build_profile(registry: &ProviderRegistry) -> BridgeProfileResponse {
     profile_build(
@@ -65,7 +67,7 @@ fn provider_with_secret(
     secret: &str,
     models: Vec<ProviderModel>,
 ) -> ProviderEntry {
-    provider_with_surface(name, wire, wire.surface(), secret, models)
+    provider_with_surface(name, wire, surface_for(wire), secret, models)
 }
 
 fn provider_with_surface(

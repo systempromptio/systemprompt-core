@@ -10,7 +10,7 @@ mod ai_requests;
 mod ai_safety_findings;
 mod ownership;
 mod thought_signatures_db;
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::origin::RequestOrigin;
 
 use systemprompt_ai::models::AiRequestRecord;
 use systemprompt_database::DbPool;

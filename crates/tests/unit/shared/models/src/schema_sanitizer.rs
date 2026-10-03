@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use systemprompt_models::schema::{
+use systemprompt_wire::schema::{
     ProviderCapabilities, SchemaComposition, SchemaFeatures, SchemaSanitizer,
 };
 

@@ -10,8 +10,8 @@ use std::time::Instant;
 
 use serde_json::Value;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::wire::canonical::ResponseFormat;
-use systemprompt_models::wire::gemini;
+use systemprompt_wire::canonical::ResponseFormat;
+use systemprompt_wire::gemini;
 
 use crate::error::Result;
 use crate::models::ai::AiResponse;

@@ -5,7 +5,7 @@
 
 use systemprompt_identifiers::RouteId;
 
-use crate::gateway_hash::fnv1a_segments;
+use systemprompt_identifiers::gateway_hash::fnv1a_segments;
 
 #[must_use]
 pub fn slugify_pattern(pattern: &str) -> String {

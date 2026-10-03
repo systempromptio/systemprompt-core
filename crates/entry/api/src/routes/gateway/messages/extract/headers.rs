@@ -10,7 +10,7 @@ use bytes::Bytes;
 use std::sync::Arc;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_identifiers::{GatewayConversationId, SessionId};
-use systemprompt_models::wire::anthropic as wire_anthropic;
+use systemprompt_wire::anthropic as wire_anthropic;
 
 use super::RejectionPartial;
 use crate::routes::gateway::messages::error::RejectionError;
@@ -75,7 +75,7 @@ pub async fn read_gateway_body(
 ) -> Result<(Bytes, CanonicalRequest), RejectionError> {
     let body_bytes = axum::body::to_bytes(
         request.into_body(),
-        systemprompt_models::wire::BUFFERED_BODY_LIMIT_BYTES,
+        systemprompt_models::net::BUFFERED_BODY_LIMIT_BYTES,
     )
     .await
     .map_err(|e| {

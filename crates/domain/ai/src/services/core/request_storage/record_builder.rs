@@ -9,7 +9,7 @@ use crate::models::{
 };
 use systemprompt_identifiers::{ActorKind, AiToolCallId, McpToolName};
 use systemprompt_models::RequestContext;
-use systemprompt_models::wire::canonical::CanonicalUsage;
+use systemprompt_wire::canonical::CanonicalUsage;
 
 pub(super) struct MessageData {
     pub role: String,

@@ -11,7 +11,7 @@ use systemprompt_ai::repository::{
     UpsertPayloadParams,
 };
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::wire::origin::ClientEvidence;
+use systemprompt_models::origin::ClientEvidence;
 
 use super::extract::RejectionPartial;
 

@@ -11,8 +11,7 @@
 
 use async_trait::async_trait;
 use serde_json::Value;
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::wire::anthropic;
+use systemprompt_wire::{WireProtocol, anthropic};
 
 use super::{OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, PreparedBody};
 

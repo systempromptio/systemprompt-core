@@ -8,9 +8,8 @@
 use std::time::Instant;
 
 use serde_json::Value;
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::wire::canonical::SearchConfig;
-use systemprompt_models::wire::openai_responses;
+use systemprompt_wire::canonical::SearchConfig;
+use systemprompt_wire::{WireProtocol, openai_responses};
 
 use crate::error::Result;
 use crate::models::ai::{AiMessage, SamplingParams, SearchGroundedResponse};

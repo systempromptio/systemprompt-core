@@ -7,10 +7,11 @@
 //! from the service account in the secret.
 
 use systemprompt_identifiers::{ProviderId, SecretName};
-use systemprompt_models::services::providers::{
-    PROJECT_PLACEHOLDER, ProviderRegistryError, names_a_project_literally,
-};
-use systemprompt_models::services::{ApiSurface, ProviderEntry, ProviderRegistry, WireProtocol};
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::services::providers::ProviderRegistryError;
+use systemprompt_models::services::{ProviderEntry, ProviderRegistry};
+use systemprompt_wire::WireProtocol;
+use systemprompt_wire::hosting::{PROJECT_PLACEHOLDER, names_a_project_literally};
 
 fn vertex(endpoint: &str) -> ProviderEntry {
     ProviderEntry {

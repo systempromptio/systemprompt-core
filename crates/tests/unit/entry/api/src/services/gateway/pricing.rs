@@ -1,10 +1,11 @@
 use systemprompt_api::services::gateway::pricing::resolve;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel,
-    ProviderRegistry, WireProtocol,
+    GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
 };
 use systemprompt_test_fixtures::usage;
+use systemprompt_wire::WireProtocol;
 
 fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> GatewayRoute {
     GatewayRoute {
@@ -285,7 +286,7 @@ fn a_reasoning_only_gemini_turn_is_billed_for_its_thinking() {
             "totalTokenCount": 227
         }
     });
-    let parsed = systemprompt_models::wire::gemini::parse_response(&value, "gemini-2.5-flash")
+    let parsed = systemprompt_wire::gemini::parse_response(&value, "gemini-2.5-flash")
         .expect("fixture parses")
         .usage;
     let p = ModelPricing {
@@ -313,7 +314,7 @@ fn reasoning_tokens_are_never_added_to_cost_a_second_time() {
             "completion_tokens_details": {"reasoning_tokens": 100}
         }
     });
-    let parsed = systemprompt_models::wire::openai_chat::parse_response(&value, "o4-mini")
+    let parsed = systemprompt_wire::openai_chat::parse_response(&value, "o4-mini")
         .expect("fixture parses")
         .usage;
     let p = ModelPricing {
@@ -339,7 +340,7 @@ fn a_cached_openai_turn_bills_the_cached_slice_once_at_the_cache_rate() {
             "prompt_tokens_details": {"cached_tokens": 800}
         }
     });
-    let parsed = systemprompt_models::wire::openai_chat::parse_response(&value, "gpt-4.1-mini")
+    let parsed = systemprompt_wire::openai_chat::parse_response(&value, "gpt-4.1-mini")
         .expect("fixture parses")
         .usage;
     assert_eq!(

@@ -11,7 +11,7 @@ use std::time::Instant;
 
 use serde_json::Value;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse, ResponseFormat};
+use systemprompt_wire::canonical::{CanonicalRequest, CanonicalResponse, ResponseFormat};
 
 use crate::error::Result;
 use crate::models::ai::AiResponse;

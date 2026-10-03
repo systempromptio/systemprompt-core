@@ -3,7 +3,7 @@
 use crate::services::providers::mock_http;
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 
 use systemprompt_ai::services::config::ConfigValidator;
 use systemprompt_ai::services::providers::ProviderClient;

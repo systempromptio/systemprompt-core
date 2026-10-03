@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use systemprompt_models::services::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
-    ModelLimits, ModelPricing, SamplingConfig,
+    ModelPricing, SamplingConfig,
 };
+use systemprompt_wire::ModelLimits;
 
 mod ai_config_defaults {
     use super::*;

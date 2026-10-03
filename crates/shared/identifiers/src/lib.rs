@@ -43,6 +43,9 @@
 //! "Absent" is `Option<Id>`, never a sentinel value such as `"unset"`,
 //! `"unknown"` or the empty string.
 //!
+//! [`gateway_hash`] is the deterministic prefix hash that mints a
+//! [`GatewayConversationId`] identically on both sides of the bridge boundary.
+//!
 //! # Feature flags
 //!
 //! | Feature | Effect |
@@ -103,6 +106,7 @@ mod user;
 mod webhook;
 
 pub mod error;
+pub mod gateway_hash;
 pub mod headers;
 pub mod macros;
 

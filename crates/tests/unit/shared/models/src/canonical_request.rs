@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_identifiers::ModelId;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalStopReason, ImageDetail,
     ImageSource, ReasoningEffort, Role, SystemBlock,
 };
@@ -143,7 +143,7 @@ mod stop_reason_mapping {
 }
 
 mod flatten_parts {
-    use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
+    use systemprompt_wire::inspect::{SurfaceBudget, string_leaves};
 
     use super::*;
 

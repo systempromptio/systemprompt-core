@@ -15,7 +15,7 @@ use systemprompt_ai::services::providers::canonical_bridge::{
     to_ai_response, to_code_execution, to_search_grounded, tool_calls, tools_to_canonical,
 };
 use systemprompt_identifiers::{AiRequestId, McpServerId};
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
     CanonicalUsageUpdate, CodeExecutionOutput, GroundedSource, Grounding, ImageSource,
     ResponseFormat,
@@ -59,7 +59,7 @@ fn openai_o_series_requests_medium_reasoning() {
         let req = CanonicalBuild::new(BridgeProvider::OpenAi, &messages, model, 256).into_request();
         assert!(matches!(
             req.reasoning_effort,
-            Some(systemprompt_models::wire::canonical::ReasoningEffort::Medium)
+            Some(systemprompt_wire::canonical::ReasoningEffort::Medium)
         ));
     }
 }

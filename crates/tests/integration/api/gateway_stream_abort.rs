@@ -15,8 +15,9 @@ use axum::body::to_bytes;
 use bytes::Bytes;
 use systemprompt_api::services::gateway::protocol::InboundAdapter;
 use systemprompt_api::services::gateway::service::GatewayService;
-use systemprompt_models::services::{ApiSurface, WireProtocol};
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::seed_admin_credential;
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

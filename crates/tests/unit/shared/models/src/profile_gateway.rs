@@ -3,13 +3,15 @@ use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::default_resource_audiences;
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
+    GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
     ModelGovernance, ModelPricing, OverrideRuleAction, ProviderEntry, ProviderModel,
     ProviderRegistry, QuotaFaultMode, ResponseFormatKind, RouteMatch, RouteRequirements,
-    SystemPromptRule, WireProtocol, slugify_pattern, synthesize_route_id,
+    SystemPromptRule, slugify_pattern, synthesize_route_id,
 };
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::WireProtocol;
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
     ResponseFormat, Role, SystemBlock, ThinkingConfig,
 };

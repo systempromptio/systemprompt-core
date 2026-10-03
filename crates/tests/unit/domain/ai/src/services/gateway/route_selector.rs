@@ -6,7 +6,7 @@ use systemprompt_ai::{
 };
 use systemprompt_identifiers::{ModelId, ProviderId};
 use systemprompt_models::services::GatewayRoute;
-use systemprompt_models::wire::canonical::CanonicalRequest;
+use systemprompt_wire::canonical::CanonicalRequest;
 
 fn route(pattern: &str, provider: &str) -> GatewayRoute {
     let mut r = GatewayRoute {

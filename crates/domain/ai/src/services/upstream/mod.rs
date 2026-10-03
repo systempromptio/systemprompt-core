@@ -23,5 +23,5 @@ mod target;
 
 pub use call::UpstreamCall;
 pub use error::UpstreamTargetError;
-pub use systemprompt_models::wire::upstream::UpstreamDialect;
+pub use systemprompt_wire::upstream::UpstreamDialect;
 pub use target::UpstreamTarget;

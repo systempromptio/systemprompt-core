@@ -25,6 +25,7 @@ systemprompt-api = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }

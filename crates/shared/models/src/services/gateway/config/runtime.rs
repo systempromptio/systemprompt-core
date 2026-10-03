@@ -15,7 +15,7 @@ use crate::services::gateway::config::{
 use crate::services::gateway::override_rule::SystemPromptRule;
 use crate::services::gateway::route::GatewayRoute;
 use crate::services::providers::ProviderRegistry;
-use crate::wire::canonical::CanonicalRequest;
+use systemprompt_wire::canonical::CanonicalRequest;
 
 /// Runtime gateway configuration: the post-resolution shape every non-loader
 /// caller sees.

@@ -41,7 +41,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ModelId, ProviderId};
 
 use super::{ProviderModel, ProviderRegistryError, ProviderRegistryResult, VertexRateCardDefect};
-use crate::services::ai::{ModelCapabilities, ModelLimits, ModelPricing};
+use crate::services::ai::{ModelCapabilities, ModelPricing};
+use systemprompt_wire::ModelLimits;
 
 const VERTEX_RATE_CARD_YAML: &str = include_str!("vertex_rate_card.yaml");
 

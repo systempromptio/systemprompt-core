@@ -53,6 +53,7 @@ systemprompt-security = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-generator = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }

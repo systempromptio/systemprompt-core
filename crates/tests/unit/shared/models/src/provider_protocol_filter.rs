@@ -6,9 +6,10 @@
 //! only through routes and must never appear in an advertised catalog.
 
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::services::{
-    ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
-};
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::services::providers::surface_for;
+use systemprompt_models::services::{ProviderEntry, ProviderModel, ProviderRegistry};
+use systemprompt_wire::WireProtocol;
 
 const ALL_SURFACES: &[ApiSurface] = &[
     ApiSurface::Anthropic,
@@ -91,10 +92,13 @@ fn surface_from_tag_rejects_unknown() {
 
 #[test]
 fn both_openai_wires_map_to_one_surface() {
-    assert_eq!(WireProtocol::OpenAiChat.surface(), ApiSurface::OpenAi);
-    assert_eq!(WireProtocol::OpenAiResponses.surface(), ApiSurface::OpenAi);
-    assert_eq!(WireProtocol::Anthropic.surface(), ApiSurface::Anthropic);
-    assert_eq!(WireProtocol::Gemini.surface(), ApiSurface::Gemini);
+    assert_eq!(surface_for(WireProtocol::OpenAiChat), ApiSurface::OpenAi);
+    assert_eq!(
+        surface_for(WireProtocol::OpenAiResponses),
+        ApiSurface::OpenAi
+    );
+    assert_eq!(surface_for(WireProtocol::Anthropic), ApiSurface::Anthropic);
+    assert_eq!(surface_for(WireProtocol::Gemini), ApiSurface::Gemini);
 }
 
 #[test]

@@ -8,7 +8,7 @@ use systemprompt_ai::services::providers::openai::OpenAiProvider;
 use systemprompt_ai::services::providers::provider_trait::{
     GenerationParams, ProviderClient, SearchGenerationParams,
 };
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

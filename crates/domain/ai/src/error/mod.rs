@@ -22,8 +22,8 @@ use std::time::Duration;
 use thiserror::Error;
 
 use systemprompt_identifiers::{McpServerId, McpToolName};
-use systemprompt_models::wire::error::WireStreamError;
 use systemprompt_traits::{AiProviderError, FileStorageError, RepositoryError};
+use systemprompt_wire::error::WireStreamError;
 
 use crate::services::config::AiConfigError;
 use crate::services::storage::StorageConfigError;
@@ -166,7 +166,7 @@ pub enum AiError {
     Secrets(#[from] systemprompt_config::SecretsBootstrapError),
 
     #[error(transparent)]
-    WireParse(#[from] systemprompt_models::wire::error::WireParseError),
+    WireParse(#[from] systemprompt_wire::error::WireParseError),
 
     #[error(transparent)]
     Config(#[from] AiConfigError),

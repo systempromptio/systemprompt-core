@@ -8,7 +8,7 @@
 //! failing shape is added to the corpus, and the sanitizer has to make it pass.
 
 use serde_json::{Value, json};
-use systemprompt_models::schema::{
+use systemprompt_wire::schema::{
     ProviderCapabilities, SchemaSanitizer, gemini_declaration_violations,
 };
 

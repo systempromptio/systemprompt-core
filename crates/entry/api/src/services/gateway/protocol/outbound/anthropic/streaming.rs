@@ -8,8 +8,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use futures_util::StreamExt;
-use systemprompt_models::wire::anthropic;
-use systemprompt_models::wire::error::WireStreamError;
+use systemprompt_wire::anthropic;
+use systemprompt_wire::error::WireStreamError;
 
 use super::super::super::canonical_response::CanonicalEvent;
 

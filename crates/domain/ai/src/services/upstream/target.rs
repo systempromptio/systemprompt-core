@@ -6,10 +6,11 @@
 use std::collections::BTreeSet;
 
 use systemprompt_identifiers::ProviderId;
-use systemprompt_models::services::{Hosting, ProviderEntry, WireProtocol};
-use systemprompt_models::wire::anthropic::AnthropicBeta;
-use systemprompt_models::wire::upstream::UpstreamDialect;
+use systemprompt_models::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialKind, ProviderCredential, fill_endpoint};
+use systemprompt_wire::anthropic::AnthropicBeta;
+use systemprompt_wire::upstream::UpstreamDialect;
+use systemprompt_wire::{Hosting, WireProtocol};
 
 use super::call::UpstreamCall;
 use super::error::UpstreamTargetError;

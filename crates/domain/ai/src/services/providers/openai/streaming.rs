@@ -8,9 +8,8 @@
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::wire::canonical::CanonicalTool;
-use systemprompt_models::wire::{openai_chat, openai_responses};
+use systemprompt_wire::canonical::CanonicalTool;
+use systemprompt_wire::{WireProtocol, openai_chat, openai_responses};
 
 use crate::error::Result;
 use crate::models::ai::StreamChunk;

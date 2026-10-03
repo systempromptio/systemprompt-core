@@ -8,7 +8,7 @@
 use std::pin::Pin;
 
 use futures::stream::{Stream, StreamExt};
-use systemprompt_models::wire::gemini;
+use systemprompt_wire::gemini;
 
 use crate::error::Result;
 use crate::models::ai::StreamChunk;

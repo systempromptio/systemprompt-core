@@ -19,6 +19,7 @@ inventory = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 axum = { workspace = true }
 http = { workspace = true }

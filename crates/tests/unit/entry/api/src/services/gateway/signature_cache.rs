@@ -17,8 +17,8 @@ use systemprompt_api::services::gateway::protocol::canonical_response::{
     CanonicalResponse, CanonicalStopReason, CanonicalUsage,
 };
 use systemprompt_api::services::gateway::signature_cache::ThoughtSignatureCache;
-use systemprompt_models::services::WireProtocol;
 use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_wire::WireProtocol;
 
 const TTL: Duration = Duration::from_secs(60);
 

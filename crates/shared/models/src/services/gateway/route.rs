@@ -24,7 +24,9 @@ use super::error::{GatewayProfileError, GatewayResult};
 use super::route_id::{match_pattern, synthesize_route_id};
 use crate::services::ai::ModelPricing;
 use crate::services::providers::{ProviderEntry, ProviderRegistry};
-use crate::wire::canonical::{CanonicalContent, CanonicalRequest, ReasoningEffort, ResponseFormat};
+use systemprompt_wire::canonical::{
+    CanonicalContent, CanonicalRequest, ReasoningEffort, ResponseFormat,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -57,7 +59,7 @@ impl GatewayRoute {
     pub fn matches(&self, model: &str) -> bool {
         match_pattern(
             &self.model_pattern,
-            crate::services::providers::without_context_variant(model),
+            crate::providers::without_context_variant(model),
         )
     }
 
@@ -72,7 +74,7 @@ impl GatewayRoute {
     pub fn effective_upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
         self.upstream_model
             .as_deref()
-            .unwrap_or_else(|| crate::services::providers::without_context_variant(requested))
+            .unwrap_or_else(|| crate::providers::without_context_variant(requested))
     }
 
     pub fn ensure_id(&mut self) -> bool {

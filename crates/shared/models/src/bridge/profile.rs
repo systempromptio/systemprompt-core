@@ -26,7 +26,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::services::{ApiSurface, GatewayConfig, ProviderRegistry};
+use crate::providers::ApiSurface;
+use crate::services::{GatewayConfig, ProviderRegistry};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BridgeProfileResponse {

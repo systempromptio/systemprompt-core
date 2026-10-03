@@ -3,7 +3,7 @@
 //! [`OpenAiChatOutbound`] orchestrates transport — auth headers, HTTP status
 //! handling, stream-vs-buffered dispatch — and delegates every wire concern
 //! (request build, response parse, SSE-to-event mapping) to the shared
-//! [`systemprompt_models::wire::openai_chat`] codec. Also serves
+//! [`systemprompt_wire::openai_chat`] codec. Also serves
 //! OpenAI-compatible providers exposing the same surface.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -11,8 +11,7 @@
 
 use async_trait::async_trait;
 use serde_json::Value;
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::wire::openai_chat as codec;
+use systemprompt_wire::{WireProtocol, openai_chat as codec};
 
 use super::{OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, PreparedBody};
 

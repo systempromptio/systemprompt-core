@@ -6,8 +6,8 @@
 // JSON: protocol boundary — parse shape is owned by the models::wire Anthropic
 // codec.
 use serde_json::Value;
-use systemprompt_models::wire::anthropic;
-use systemprompt_models::wire::error::WireParseError;
+use systemprompt_wire::anthropic;
+use systemprompt_wire::error::WireParseError;
 
 use super::super::super::canonical_response::CanonicalResponse;
 

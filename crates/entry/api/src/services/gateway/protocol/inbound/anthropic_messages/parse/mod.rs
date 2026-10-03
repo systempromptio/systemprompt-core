@@ -13,7 +13,7 @@ mod tools;
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
 use serde_json::Value;
 use systemprompt_identifiers::ModelId;
-use systemprompt_models::wire::inspect::ForwardedSurface;
+use systemprompt_wire::inspect::ForwardedSurface;
 
 use super::super::super::canonical::CanonicalRequest;
 use super::super::InboundParseError;
@@ -85,7 +85,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         model: ModelId::new(model),
         cache_control: value
             .get("cache_control")
-            .and_then(systemprompt_models::wire::anthropic::cache_control_from_anthropic),
+            .and_then(systemprompt_wire::anthropic::cache_control_from_anthropic),
         system,
         messages,
         max_tokens,

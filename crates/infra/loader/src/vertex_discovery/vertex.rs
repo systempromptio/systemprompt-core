@@ -13,11 +13,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_models::services::providers::is_vertex_host;
 use systemprompt_models::services::{ProviderEntry, VertexRateCard};
 use systemprompt_security::credential::{
     AuthHeader, CredentialKind, CredentialScope, ProviderCredential,
 };
+use systemprompt_wire::hosting::is_vertex_host;
 
 use super::client;
 use super::source::{CatalogListing, CatalogSource, DiscoveryError};

@@ -6,7 +6,7 @@
 //! the CSV branch all run against rows rather than against an empty window.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::origin::RequestOrigin;
 
 use std::sync::Arc;
 

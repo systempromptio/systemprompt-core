@@ -12,8 +12,8 @@
 
 use bytes::Bytes;
 use futures::StreamExt;
-use systemprompt_models::wire::canonical::CanonicalEvent;
-use systemprompt_models::wire::{gemini, openai_chat};
+use systemprompt_wire::canonical::CanonicalEvent;
+use systemprompt_wire::{gemini, openai_chat};
 
 fn one_frame(sse: String) -> impl futures::Stream<Item = Result<Bytes, std::io::Error>> {
     futures::stream::once(async move { Ok::<_, std::io::Error>(Bytes::from(sse)) })

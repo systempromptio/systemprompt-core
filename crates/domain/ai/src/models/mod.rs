@@ -33,7 +33,7 @@ pub(crate) mod rows;
 
 pub use ai_request_record::{AiRequestRecord, AiRequestRecordBuilder, CacheInfo, TokenInfo};
 pub use request_kind::{RequestKind, RequestStatus};
-pub use systemprompt_models::wire::origin::{
+pub use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, NativeMarker, RequestOrigin,
 };
 

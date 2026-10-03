@@ -9,7 +9,7 @@
 #   crates/infra/database/src/admin/**        the admin SQL console rows
 #   crates/infra/database/src/services/postgres/**   runtime query results
 #   field names input_schema | output_schema | structured_content (MCP schema)
-# `crates/shared/models/src/wire/**` (provider wire shapes) is deliberately
+# `crates/shared/wire/src/**` (provider wire shapes) is deliberately
 # NOT carved out: each Value there names the upstream spec it mirrors.
 #
 # Only files that import `serde_json::Value` (or alias it as `JsonValue`) are

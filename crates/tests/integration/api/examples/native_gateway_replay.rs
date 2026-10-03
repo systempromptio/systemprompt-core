@@ -18,17 +18,17 @@ use systemprompt_api::services::gateway::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, ProviderId, SecretName, TraceId};
+use systemprompt_models::origin::{ClientAttestation, ClientEvidence, ClientKind, RequestOrigin};
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel,
-    ProviderRegistry, QuotaFaultMode, WireProtocol,
-};
-use systemprompt_models::wire::origin::{
-    ClientAttestation, ClientEvidence, ClientKind, RequestOrigin,
+    GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
+    QuotaFaultMode,
 };
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
 };
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

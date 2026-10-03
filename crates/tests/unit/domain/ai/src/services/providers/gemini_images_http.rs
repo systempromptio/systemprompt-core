@@ -5,8 +5,9 @@ use systemprompt_ai::models::image_generation::{
 };
 use systemprompt_ai::services::providers::gemini_images::GeminiImageProvider;
 use systemprompt_ai::services::providers::image_provider_trait::ImageProvider;
-use systemprompt_models::services::{ModelCapabilities, ModelDefinition, WireProtocol};
+use systemprompt_models::services::{ModelCapabilities, ModelDefinition};
 use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

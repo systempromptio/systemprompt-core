@@ -94,7 +94,7 @@ async fn inlined_image_reaches_the_gemini_wire_as_inline_data() {
         .await
         .expect("inline succeeds");
 
-    let body: Value = systemprompt_models::wire::gemini::build_request_body(&request, None);
+    let body: Value = systemprompt_wire::gemini::build_request_body(&request, None);
     let part = &body["contents"][0]["parts"][1];
 
     assert_eq!(part["inlineData"]["mimeType"], "image/png");
@@ -225,8 +225,7 @@ async fn wires_that_carry_urls_natively_are_left_alone() {
     // all here would be the regression.
     let request = url_image_request("https://example.com/pic.png");
 
-    let anthropic =
-        systemprompt_models::wire::anthropic::build_request_body(&request, "claude-x", None);
+    let anthropic = systemprompt_wire::anthropic::build_request_body(&request, "claude-x", None);
     let rendered = serde_json::to_string(&anthropic).expect("serialises");
 
     assert!(

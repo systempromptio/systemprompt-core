@@ -7,12 +7,10 @@ use std::collections::BTreeSet;
 
 // JSON: protocol boundary — the envelope edits apply to a dynamic wire body.
 use serde_json::{Map, Value};
-use systemprompt_models::services::{Hosting, WireProtocol};
-use systemprompt_models::wire::anthropic::{
-    ANTHROPIC_BETA_HEADER, AnthropicBeta, BetaHeader, BetaPolicy,
-};
-use systemprompt_models::wire::upstream::UpstreamDialect;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
+use systemprompt_wire::anthropic::{ANTHROPIC_BETA_HEADER, AnthropicBeta, BetaHeader, BetaPolicy};
+use systemprompt_wire::upstream::UpstreamDialect;
+use systemprompt_wire::{Hosting, WireProtocol};
 
 /// The filled endpoint, the minted auth header and the hosting of one upstream,
 /// valid for the request it was minted for.

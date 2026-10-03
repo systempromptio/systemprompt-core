@@ -42,7 +42,7 @@ pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
-use systemprompt_models::wire::BUFFERED_BODY_LIMIT_BYTES as BUFFERED_BODY_LIMIT;
+use systemprompt_models::net::BUFFERED_BODY_LIMIT_BYTES as BUFFERED_BODY_LIMIT;
 
 pub(crate) struct ForwardDeps<'a> {
     pub client: reqwest::Client,

@@ -23,7 +23,7 @@ use std::sync::{Arc, OnceLock};
 
 use async_trait::async_trait;
 use systemprompt_models::services::GatewayRoute;
-use systemprompt_models::wire::canonical::CanonicalRequest;
+use systemprompt_wire::canonical::CanonicalRequest;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RouteSelectorError {

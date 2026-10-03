@@ -10,8 +10,8 @@
 
 use bytes::Bytes;
 use futures::StreamExt;
-use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason};
-use systemprompt_models::wire::openai_chat;
+use systemprompt_wire::canonical::{CanonicalEvent, CanonicalStopReason};
+use systemprompt_wire::openai_chat;
 
 fn one_frame(sse: String) -> impl futures::Stream<Item = Result<Bytes, std::io::Error>> {
     futures::stream::once(async move { Ok::<_, std::io::Error>(Bytes::from(sse)) })

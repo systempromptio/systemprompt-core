@@ -19,11 +19,11 @@ use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_test_fixtures as fixtures;
 
 use crate::support::{minimal_request, seed_user, setup_db};
-use systemprompt_models::wire::error::WireStreamError;
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 use systemprompt_security::policy::types::AccessScope;
+use systemprompt_wire::error::WireStreamError;
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
     systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(

@@ -7,9 +7,8 @@
 // codec.
 use bytes::Bytes;
 use serde_json::{Map, Value};
-use systemprompt_models::services::WireProtocol;
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::anthropic::{self, BetaHeader};
+use systemprompt_wire::anthropic::BetaHeader;
+use systemprompt_wire::{ModelLimits, WireProtocol, anthropic};
 
 use super::super::super::canonical::CanonicalRequest;
 use super::super::OutboundCtx;
@@ -94,10 +93,8 @@ fn clamp_max_tokens(obj: &mut Map<String, Value>, limits: Option<ModelLimits>) {
         return;
     };
     let requested = u32::try_from(requested).unwrap_or(u32::MAX);
-    let clamped = systemprompt_models::wire::clamp_output_tokens(
-        requested,
-        limits.map(|l| l.max_output_tokens),
-    );
+    let clamped =
+        systemprompt_wire::clamp_output_tokens(requested, limits.map(|l| l.max_output_tokens));
     if clamped != requested {
         obj.insert("max_tokens".to_owned(), Value::from(clamped));
     }
