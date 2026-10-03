@@ -4494,7 +4494,6 @@ dependencies = [
  "futures-util",
  "hex",
  "http",
- "inventory",
  "ipnet",
  "metrics",
  "metrics-exporter-prometheus",
