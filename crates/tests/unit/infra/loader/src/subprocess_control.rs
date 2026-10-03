@@ -88,6 +88,30 @@ async fn an_exited_unreaped_child_reads_as_exited_without_waiting_out_the_grace(
 }
 
 #[tokio::test]
+async fn a_zombie_another_process_has_not_reaped_reads_as_exited() {
+    let mut parent = shell("true >/dev/null 2>&1 & echo $!; exec sleep 30");
+    let zombie: u32 = first_line(&mut parent).parse().expect("orphaned child pid");
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while !subprocess::is_zombie(zombie) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the unreaped child never became a zombie"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+
+    assert!(!subprocess::is_running(zombie).await);
+    let outcome = subprocess::terminate_gracefully(zombie, GENEROUS_GRACE).await;
+
+    parent.kill().expect("stop the non-reaping parent");
+    parent.wait().expect("reap the non-reaping parent");
+    assert!(
+        matches!(outcome, Ok(Termination::AlreadyExited)),
+        "{outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn a_group_leader_is_stopped_with_its_group() {
     let mut command = Command::new("sh");
     command

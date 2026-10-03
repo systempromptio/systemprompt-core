@@ -78,13 +78,25 @@ pub fn is_zombie(pid: u32) -> bool {
         )
     };
     if written != want {
-        return false;
+        // Why: Darwin answers ESRCH for a zombie, whose task is already torn
+        // down while its pid stays allocated until the parent reaps it; only
+        // `kill(pid, 0)` still sees such a pid.
+        return written == 0
+            && io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+            && pid_allocated(pid);
     }
 
     // SAFETY: the call above returned a full-size write, so every field is
     // initialised.
     let info = unsafe { info.assume_init() };
     info.pbsi_status == libc::SZOMB
+}
+
+fn pid_allocated(pid: libc::pid_t) -> bool {
+    match nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None) {
+        Ok(()) | Err(nix::errno::Errno::EPERM) => true,
+        Err(_) => false,
+    }
 }
 
 #[expect(
