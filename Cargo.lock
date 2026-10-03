@@ -4849,7 +4849,6 @@ dependencies = [
  "systemprompt-wire",
  "thiserror 2.0.19",
  "tokio",
- "tokio-util",
  "tracing",
  "url",
  "uuid",

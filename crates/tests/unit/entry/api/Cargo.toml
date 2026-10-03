@@ -27,6 +27,7 @@ systemprompt-identifiers = { workspace = true }
 axum = { workspace = true }
 http = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true }
 bytes = { workspace = true }
 hex = { workspace = true }
 ipnet = "2.12"
