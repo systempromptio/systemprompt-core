@@ -9,7 +9,6 @@
 
 pub mod config;
 pub mod core;
-pub mod gateway;
 pub mod providers;
 pub mod schema;
 pub mod storage;

@@ -29,7 +29,7 @@ Top-level modules. docs.rs carries the file-level detail.
 src/
 ├── lib.rs        # Re-exports: HealthChecker, ContextMiddleware
 ├── routes/       # Per-domain HTTP routers, one module per surface (see Route surface)
-└── services/     # Server lifecycle, middleware pipeline, gateway, proxy, static content (see Service surface)
+└── services/     # Server lifecycle, middleware pipeline, proxy, static content (see Service surface)
 ```
 
 | Module | Purpose |
@@ -37,7 +37,6 @@ src/
 | `routes` | One router module per surface (agent, gateway, oauth, mcp, proxy, messaging, and the rest), composed into a single tree by `services/server/routes/`. |
 | `services/server` | `ApiServer` builder, route/extension/protocol/static mounting under `routes/`, readiness, lifecycle (agent reconciliation + scheduler), and the `run_server` entry point. |
 | `services/middleware` | Request pipeline: JWT, session, context extraction, analytics, CORS, IP ban, rate limiting, throttling, bot detection, content negotiation, security headers, trailing-slash normalization. |
-| `services/gateway` | `ClaudeGatewayService`: quota, audit, safety, pricing, protocol, stream tap, OTel capture. |
 | `services/proxy` | `ProxyEngine`: client pool, backend transform, resolver, MCP session handling for upstream A2A and MCP targets. |
 | `services/static_content` | SPA serving, homepage, static-file cache and response building, fallback routing. |
 
@@ -50,7 +49,7 @@ src/
 | `analytics` | Event ingestion, batch processing, and SSE streaming. |
 | `content` | Blog, content queries, and link redirect tracking. |
 | `engagement` | Engagement metrics fan-out from analytics events. |
-| `gateway` | Claude API gateway: bridge auth/data/heartbeat/manifest/profile-usage/whoami, message dispatch, OTLP ingest. |
+| `gateway` | HTTP surface of the AI gateway: bridge auth/data/heartbeat/manifest/profile-usage/whoami, message dispatch into `systemprompt-gateway`, OTLP ingest. |
 | `marketplace` | Marketplace catalog and asset endpoints. |
 | `mcp` | MCP server registry. |
 | `messaging` | Platform-agnostic inbound dispatch shared by chat platforms: identity, per-user A2A token minting, blocking `message/send` through the proxy, reply extraction. |
@@ -67,7 +66,6 @@ src/
 
 | Module | Description |
 |--------|-------------|
-| `gateway` | Claude gateway service — quota, audit, safety, pricing, stream tap, OTel capture. |
 | `health` | Process monitoring and HTTP health checks. |
 | `middleware` | Request pipeline: JWT, session, context, analytics, CORS, IP ban, rate limiting, throttling, security headers, content negotiation, trailing-slash normalization. |
 | `proxy` | HTTP client pool and request transformation for upstream MCP and A2A targets. |
@@ -121,7 +119,8 @@ The API server is configured through `systemprompt-runtime::Config` and the acti
 - `systemprompt-analytics` — session and event tracking
 - `systemprompt-scheduler` — background job execution
 - `systemprompt-marketplace` — marketplace catalog
-- `systemprompt-ai` — Claude gateway integrations
+- `systemprompt-gateway` — AI gateway services: protocol translation, policies, quotas, safety, audit
+- `systemprompt-ai` — AI request repositories and providers
 - `systemprompt-database` — connection pooling
 - `systemprompt-security` — token extraction and validation
 - `systemprompt-users` — user services and IP banning

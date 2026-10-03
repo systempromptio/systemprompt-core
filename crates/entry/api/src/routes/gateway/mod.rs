@@ -2,7 +2,7 @@
 //!
 //! [`gateway_router`] assembles the bridge-facing surface: the `/messages`,
 //! `/responses`, and `/chat/completions` proxy endpoints (each bound to an
-//! [`InboundAdapter`](crate::services::gateway::protocol::InboundAdapter)), the
+//! [`InboundAdapter`](systemprompt_gateway::protocol::InboundAdapter)), the
 //! `/auth/bridge/*` credential-exchange routes ([`auth`]), the `/bridge/*`
 //! manifest and heartbeat routes, the credential-gated `/otel` ingest
 //! ([`otel`]), and `/models`. The router requires the session and user
@@ -63,7 +63,7 @@ use crate::services::middleware::{
     JtiRevocationChecker, JwtContextExtractor, RateLimitState, RouterExt,
 };
 
-pub(crate) use self::access_log::{GatewayLogIdentity, TerminalOutcome, log_gateway_terminal};
+pub(crate) use self::access_log::GatewayLogIdentity;
 
 fn build_jwt_extractor(ctx: &AppContext) -> anyhow::Result<Arc<JwtContextExtractor>> {
     let sessions = ctx
@@ -84,13 +84,13 @@ fn build_jwt_extractor(ctx: &AppContext) -> anyhow::Result<Arc<JwtContextExtract
 
 pub fn gateway_repositories(
     ctx: &AppContext,
-) -> anyhow::Result<crate::services::gateway::GatewayRepositories> {
-    let journal = crate::services::gateway::audit::journal::GatewayJournal::open(
+) -> anyhow::Result<systemprompt_gateway::GatewayRepositories> {
+    let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         ctx.app_paths().storage().data(),
         systemprompt_config::SecretsBootstrap::get()?,
     )?;
     let payload_cap_bytes = systemprompt_config::ProfileBootstrap::get()?.payload_cap_bytes();
-    Ok(crate::services::gateway::GatewayRepositories::new(
+    Ok(systemprompt_gateway::GatewayRepositories::new(
         ctx.db_pool(),
         journal,
         ctx.context_materializer(),

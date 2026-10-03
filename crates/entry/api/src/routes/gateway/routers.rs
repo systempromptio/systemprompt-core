@@ -10,11 +10,11 @@ use axum::routing::{get, post};
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 
-use crate::services::gateway::protocol::inbound::InboundAdapter;
-use crate::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use crate::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
-use crate::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use crate::services::middleware::JwtContextExtractor;
+use systemprompt_gateway::protocol::inbound::InboundAdapter;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
+use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 
 use super::{
     auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
@@ -49,7 +49,7 @@ pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtrac
 pub(super) fn inference_routes(
     ctx: &AppContext,
     jwt_extractor: &Arc<JwtContextExtractor>,
-    repos: &Arc<crate::services::gateway::GatewayRepositories>,
+    repos: &Arc<systemprompt_gateway::GatewayRepositories>,
 ) -> Router {
     let ctx_messages = ctx.clone();
     let ctx_responses = ctx.clone();

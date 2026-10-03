@@ -14,8 +14,8 @@ use systemprompt_wire::anthropic as wire_anthropic;
 
 use super::RejectionPartial;
 use crate::routes::gateway::messages::error::RejectionError;
-use crate::services::gateway::protocol::canonical::CanonicalRequest;
-use crate::services::gateway::protocol::inbound::InboundAdapter;
+use systemprompt_gateway::protocol::canonical::CanonicalRequest;
+use systemprompt_gateway::protocol::inbound::InboundAdapter;
 
 pub fn require_session_id(headers: &HeaderMap) -> Result<SessionId, RejectionError> {
     require_typed_header(headers, SESSION_ID, SessionId::new)

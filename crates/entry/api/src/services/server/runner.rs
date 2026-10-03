@@ -164,11 +164,11 @@ async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<tokio::task::
 
 async fn start_accounting_recovery(ctx: &AppContext) -> Result<tokio::task::JoinHandle<()>> {
     let settlement = crate::routes::gateway::gateway_repositories(ctx)?.settlement();
-    let settled = crate::services::gateway::audit::journal::recover(&settlement).await?;
+    let settled = systemprompt_gateway::audit::journal::recover(&settlement).await?;
     if settled > 0 {
         tracing::info!(settled, "Gateway accounting receipts recovered at startup");
     }
-    Ok(crate::services::gateway::audit::journal::spawn_recovery(
+    Ok(systemprompt_gateway::audit::journal::spawn_recovery(
         settlement,
     ))
 }

@@ -9,9 +9,9 @@ use axum::body::Body;
 use axum::http::StatusCode;
 use axum::response::Response;
 
-use crate::services::gateway::audit::GatewayRequestContext;
-use crate::services::gateway::protocol::inbound::InboundAdapter;
-use crate::services::gateway::service::{DispatchInputs, GatewayService};
+use systemprompt_gateway::audit::GatewayRequestContext;
+use systemprompt_gateway::protocol::inbound::InboundAdapter;
+use systemprompt_gateway::service::{DispatchInputs, GatewayService};
 
 use super::RequestContext;
 pub use super::error::RejectionError;

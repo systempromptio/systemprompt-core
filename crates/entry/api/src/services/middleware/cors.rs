@@ -70,9 +70,7 @@ impl CorsMiddleware {
             ])
             .expose_headers([
                 http::header::WWW_AUTHENTICATE,
-                http::HeaderName::from_static(
-                    crate::services::gateway::service::RECOVERY_COUNT_HEADER,
-                ),
+                http::HeaderName::from_static(systemprompt_gateway::service::RECOVERY_COUNT_HEADER),
             ]))
     }
 }
