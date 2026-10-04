@@ -1148,10 +1148,9 @@
       "section": "Capabilities",
       "group": "Workspace",
       "min_version": "1.21459.0",
-      "disposition": "default",
-      "reason": "Load MCP schemas on demand; native search requests use a compatible Anthropic route.",
-      "description": "Load MCP tool schemas on demand (tool search) instead of inlining every schema into context. Defaults to `false`.",
-      "default": true
+      "disposition": "operator-configurable",
+      "reason": "Enable through the signed fleet policy only after native-tool routing is supported.",
+      "description": "Load MCP tool schemas on demand (tool search) instead of inlining every schema into context. Defaults to `false`."
     },
     {
       "key": "skipWebFetchPreflight",
@@ -1888,10 +1887,9 @@
       "section": "Appearance",
       "group": "Token limits",
       "min_version": "1.24012.0",
-      "disposition": "default",
-      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
-      "description": "Overrides the provider label shown in the sidebar footer, user-menu header, and connection-error banner.",
-      "default": "Astound Digital"
+      "disposition": "operator-configurable",
+      "reason": "Use the deployment name from the signed fleet policy; do not hard-code client branding in core.",
+      "description": "Overrides the provider label shown in the sidebar footer, user-menu header, and connection-error banner."
     },
     {
       "key": "deploymentDisplaySubtitle",
