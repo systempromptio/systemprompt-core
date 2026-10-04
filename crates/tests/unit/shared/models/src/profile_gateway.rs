@@ -1141,6 +1141,51 @@ fn validate_accepts_a_glob_route_whose_reachable_models_are_all_priced() {
 }
 
 #[test]
+fn validate_accepts_a_primary_route_reaching_a_priced_upstream_alias() {
+    let mut model = priced_model("native-claude-sonnet-5", token_rates(7.0, 9.0));
+    model.upstream_model = Some("claude-sonnet-5".to_owned());
+    model.hidden = true;
+    let registry = priced_registry(vec![model]);
+    enabled_gateway(vec![route("claude-*")])
+        .validate(&registry)
+        .expect("an explicitly routed provider can serve its priced upstream alias");
+}
+
+#[test]
+fn validate_rejects_an_unpriced_primary_upstream_alias() {
+    let mut model = priced_model("native-claude-sonnet-5", ModelPricing::default());
+    model.upstream_model = Some("claude-sonnet-5".to_owned());
+    let registry = priced_registry(vec![model]);
+    assert!(matches!(
+        enabled_gateway(vec![route("claude-*")]).validate(&registry),
+        Err(GatewayProfileError::RouteModelUnpriced { .. })
+    ));
+}
+
+#[test]
+fn validate_checks_governance_on_primary_upstream_aliases() {
+    let mut model = priced_model("native-claude-sonnet-5", token_rates(7.0, 9.0));
+    model.upstream_model = Some("claude-sonnet-5".to_owned());
+    let registry = priced_registry(vec![model]);
+    let mut selected = route("claude-*");
+    selected.requires = Some(requires_no_retain());
+    assert!(matches!(
+        enabled_gateway(vec![selected]).validate(&registry),
+        Err(GatewayProfileError::RouteGovernanceUnsatisfied { .. })
+    ));
+}
+
+#[test]
+fn validate_accepts_a_route_reaching_a_declared_catalog_alias() {
+    let mut model = priced_model("claude-sonnet-5", token_rates(7.0, 9.0));
+    model.aliases.push(ModelId::new("public-sonnet"));
+    let registry = priced_registry(vec![model]);
+    enabled_gateway(vec![route("public-sonnet")])
+        .validate(&registry)
+        .expect("declared aliases resolve to the same priced model");
+}
+
+#[test]
 fn validate_rejects_a_glob_route_that_reaches_no_model() {
     let registry = priced_registry(vec![priced_model("gpt-oss-120b", token_rates(0.35, 0.75))]);
     let err = enabled_gateway(vec![route("claude-*")])

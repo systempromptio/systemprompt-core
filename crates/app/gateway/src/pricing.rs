@@ -15,6 +15,9 @@
 //! Missing pricing is an explicit error. Callers must not record an unknown
 //! provider charge as a measured zero.
 //!
+//! Resolved dispatches use their selected route and provider directly, so
+//! conditional routing cannot bill another provider's catalog or override.
+//!
 //! The arithmetic itself is not here: `ModelPricing::cost_microdollars` in the
 //! shared models crate is the one cost function, shared with the internal
 //! agent path so both bill a `CanonicalUsage` identically.
@@ -22,13 +25,39 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_manifest::services::{GatewayConfig, ModelPricing, ProviderRegistry};
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderRegistry,
+};
 
 #[derive(Debug, thiserror::Error)]
 #[error("No configured pricing for provider {provider} and models {models:?}")]
 pub struct MissingPricing {
     pub provider: String,
     pub models: Vec<String>,
+}
+
+pub fn resolve_upstream(
+    route: &GatewayRoute,
+    provider: &ProviderEntry,
+    requested: &str,
+) -> Result<ModelPricing, MissingPricing> {
+    if let Some(pricing) = route.pricing {
+        return Ok(pricing);
+    }
+    let candidates = [route.upstream_model.as_deref(), Some(requested)];
+    candidates
+        .into_iter()
+        .flatten()
+        .find_map(|model| provider.find_served_model(model))
+        .map(|model| model.pricing)
+        .ok_or_else(|| MissingPricing {
+            provider: provider.name.as_str().to_owned(),
+            models: candidates
+                .into_iter()
+                .flatten()
+                .map(ToOwned::to_owned)
+                .collect(),
+        })
 }
 
 pub fn resolve(

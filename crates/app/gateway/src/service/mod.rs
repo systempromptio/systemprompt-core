@@ -83,7 +83,7 @@ impl GatewayService {
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
         let upstream = resolve_upstream(config, registry, &request, &ai_request_id).await?;
-        let pricing = dispatch_pricing(config, registry, &request, &upstream)?;
+        let pricing = dispatch_pricing(&request, &upstream)?;
 
         trace_dispatch(&ctx, &request, &upstream);
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
