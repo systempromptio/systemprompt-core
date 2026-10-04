@@ -142,7 +142,11 @@ impl GatewayConfig {
             };
         }
         let mut reached = 0usize;
-        for model in entry.models.iter().filter(|m| route_reaches_model(route, m)) {
+        for model in entry
+            .models
+            .iter()
+            .filter(|m| route_reaches_model(route, m))
+        {
             reached += 1;
             if !model.pricing.is_billable() {
                 return Err(GatewayProfileError::RouteModelUnpriced {
@@ -165,7 +169,10 @@ impl GatewayConfig {
 
 fn route_reaches_model(route: &GatewayRoute, model: &ProviderModel) -> bool {
     route.matches(model.id.as_str())
-        || model.aliases.iter().any(|alias| route.matches(alias.as_str()))
+        || model
+            .aliases
+            .iter()
+            .any(|alias| route.matches(alias.as_str()))
         || model
             .upstream_model
             .as_deref()
@@ -220,7 +227,11 @@ fn validate_route_governance(
     if let Some(upstream) = route.upstream_model.as_deref() {
         return check(upstream);
     }
-    for model in entry.models.iter().filter(|m| route_reaches_model(route, m)) {
+    for model in entry
+        .models
+        .iter()
+        .filter(|m| route_reaches_model(route, m))
+    {
         check(model.id.as_str())?;
     }
     Ok(())

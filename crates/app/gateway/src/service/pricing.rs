@@ -13,7 +13,7 @@ pub(super) fn dispatch_pricing(
     upstream: &ResolvedUpstream<'_>,
 ) -> Result<ModelPricing, DispatchError> {
     model_pricing::resolve_upstream(&upstream.route, upstream.provider, request.model.as_str())
-    .map_err(DispatchError::pre_audit)
+        .map_err(DispatchError::pre_audit)
 }
 
 pub(super) fn failover_pricing(
