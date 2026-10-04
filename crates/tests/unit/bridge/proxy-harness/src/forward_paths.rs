@@ -1082,10 +1082,7 @@ fn an_oversized_inference_request_returns_413_without_contacting_gateway() {
             .post(h.url("/v1/messages"))
             .header("authorization", format!("Bearer {SECRET}"))
             .header("content-type", "application/json")
-            .body(vec![
-                b'x';
-                systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES + 1
-            ])
+            .body(vec![b'x'; systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES + 1])
             .send()
             .await
             .expect("oversized request reaches loopback proxy");
