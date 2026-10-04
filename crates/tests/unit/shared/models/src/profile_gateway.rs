@@ -1639,7 +1639,7 @@ fn a_fallback_serves_the_requested_model_under_its_own_catalog_id() {
 }
 
 #[test]
-fn a_primary_route_is_still_reached_by_catalog_id_only() {
+fn a_primary_route_serves_the_requested_model_under_its_own_catalog_id() {
     let registry = same_model_two_hosts();
     let config = GatewayConfig {
         enabled: true,
@@ -1647,12 +1647,15 @@ fn a_primary_route_is_still_reached_by_catalog_id_only() {
         ..GatewayConfig::default()
     };
     assert!(
-        matches!(
-            config.validate(&registry),
-            Err(GatewayProfileError::RouteReachesNoPricedModel { .. })
-        ),
-        "an upstream-name match must not make a primary route look reachable"
+        registry
+            .find_provider("anthropic")
+            .unwrap()
+            .find_model("claude-sonnet-5")
+            .is_none()
     );
+    config
+        .validate(&registry)
+        .expect("a primary reaching the requested models by upstream name validates");
 }
 
 #[test]
