@@ -83,7 +83,7 @@ impl PreparedDispatch {
         }
         let model_limits = upstream
             .provider
-            .find_model(request.model.as_str())
+            .find_served_model(request.model.as_str())
             .map(|m| m.limits);
         let raw_body = match &override_descriptor {
             Some(_) => None,
@@ -134,7 +134,7 @@ fn automatic_prompt_caching(
         && upstream.provider.wire == systemprompt_wire::WireProtocol::Anthropic
         && upstream
             .provider
-            .find_model(upstream_model)
+            .find_served_model(upstream_model)
             .is_some_and(|model| model.capabilities.prompt_caching)
 }
 
