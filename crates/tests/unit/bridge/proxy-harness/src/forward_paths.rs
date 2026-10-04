@@ -590,7 +590,7 @@ fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
 }
 
 #[test]
-fn otel_posts_require_the_loopback_secret_and_are_rewritten_under_v1() {
+fn otel_posts_require_a_loopback_or_host_credential_and_are_rewritten_under_v1() {
     with_credentials(async {
         let h = spawn_harness().await;
         Mock::given(method("POST"))
@@ -626,8 +626,8 @@ fn otel_posts_require_the_loopback_secret_and_are_rewritten_under_v1() {
             .await;
         assert_eq!(
             with_host_token.status().as_u16(),
-            401,
-            "a host token read from managed preferences does not open the OTLP path"
+            200,
+            "an enrolled host token opens the authenticated OTLP path"
         );
 
         let resp = h
@@ -640,9 +640,12 @@ fn otel_posts_require_the_loopback_secret_and_are_rewritten_under_v1() {
         );
 
         let requests = h.upstream_requests().await;
+        assert_eq!(requests.len(), 2);
         assert_eq!(requests[0].url.path(), "/v1/otel/v1/traces");
+        assert_eq!(requests[0].url.query(), None);
+        assert_eq!(requests[1].url.path(), "/v1/otel/v1/traces");
         assert_eq!(
-            requests[0].url.query(),
+            requests[1].url.query(),
             Some("compression=gzip"),
             "the query string survives the rewrite"
         );
@@ -1079,7 +1082,10 @@ fn an_oversized_inference_request_returns_413_without_contacting_gateway() {
             .post(h.url("/v1/messages"))
             .header("authorization", format!("Bearer {SECRET}"))
             .header("content-type", "application/json")
-            .body(vec![b'x'; 8 * 1024 * 1024 + 1])
+            .body(vec![
+                b'x';
+                systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES + 1
+            ])
             .send()
             .await
             .expect("oversized request reaches loopback proxy");
@@ -1087,7 +1093,10 @@ fn an_oversized_inference_request_returns_413_without_contacting_gateway() {
         assert_eq!(response.status().as_u16(), 413);
         assert_eq!(
             response.text().await.expect("413 body"),
-            "request body exceeds 8388608 bytes\n"
+            format!(
+                "request body exceeds {} bytes; this is a serialized request-size limit, not a model context limit\n",
+                systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES
+            )
         );
         assert!(
             h.upstream_requests().await.is_empty(),

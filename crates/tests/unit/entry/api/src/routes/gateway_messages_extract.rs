@@ -438,7 +438,7 @@ fn a_conversation_header_that_is_not_utf8_is_a_400() {
 
 #[tokio::test]
 async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
-    let oversized = vec![b'x'; systemprompt_models::net::BUFFERED_BODY_LIMIT_BYTES + 1];
+    let oversized = vec![b'x'; systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES + 1];
     let request = Request::builder()
         .method("POST")
         .uri("/v1/messages")
@@ -452,8 +452,9 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
         .await
         .expect_err("a body past the buffer limit must not be read into memory");
 
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(message.contains("failed to read request body"), "{message}");
+    assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
+    assert!(message.contains("serialized inference request"), "{message}");
+    assert!(message.contains("separate token limit"), "{message}");
     assert!(
         partial.body.is_none(),
         "an unread body must not be recorded on the rejection partial"

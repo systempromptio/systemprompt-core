@@ -285,7 +285,7 @@ fn parse_unknown_content_block_is_dropped_not_rejected() {
         "messages":[{"role":"user","content":[
             {"type":"redacted_thinking","data":"xxx"},
             {"type":"text","text":"hi"},
-            {"type":"web_search_tool_result","tool_use_id":"srvtoolu_1","content":[]}
+            {"type":"future_vendor_tool_result","tool_use_id":"srvtoolu_1","content":[]}
         ]}]
     }"#;
     let req = parse_ok(body);
@@ -295,6 +295,32 @@ fn parse_unknown_content_block_is_dropped_not_rejected() {
         &req.messages[0].content[0],
         CanonicalContent::Text { text: t, .. } if t == "hi"
     ));
+}
+
+#[test]
+fn parse_native_web_search_result_preserves_the_provider_block() {
+    let body = br#"{
+        "model":"m","max_tokens":1,
+        "messages":[{"role":"assistant","content":[
+            {"type":"web_search_tool_result","tool_use_id":"srvtoolu_1","content":[]}
+        ]}]
+    }"#;
+    let req = parse_ok(body);
+    assert_eq!(req.messages[0].content.len(), 1);
+    match &req.messages[0].content[0] {
+        CanonicalContent::AnthropicToolBlock { tool_name, block } => {
+            assert_eq!(tool_name, "web_search_tool_result");
+            assert_eq!(
+                block,
+                &serde_json::json!({
+                    "type": "web_search_tool_result",
+                    "tool_use_id": "srvtoolu_1",
+                    "content": [],
+                })
+            );
+        },
+        other => panic!("expected native tool block, got {other:?}"),
+    }
 }
 
 #[test]

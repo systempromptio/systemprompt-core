@@ -91,7 +91,7 @@ fn a_hook_token_opens_only_its_own_plugins_hook_route() {
 }
 
 #[test]
-fn a_host_token_opens_inference_and_mcp_but_neither_hooks_nor_otel() {
+fn a_host_token_opens_inference_mcp_and_otel_but_not_hooks_or_other_routes() {
     let token = host(HostKind::ClaudeDesktop);
     assert_eq!(
         authenticate(&token, &secret(), &RouteClass::Inference),
@@ -108,8 +108,8 @@ fn a_host_token_opens_inference_and_mcp_but_neither_hooks_nor_otel() {
     );
     assert_eq!(
         authenticate(&token, &secret(), &RouteClass::Otel),
-        Err(Rejection::ScopeMismatch),
-        "OTLP ingest is forwarded only for the raw secret"
+        Ok(LoopbackCredential::Host(HostKind::ClaudeDesktop)),
+        "OTLP ingest is authenticated by the enrolled host credential"
     );
     assert_eq!(
         authenticate(&token, &secret(), &RouteClass::Other),

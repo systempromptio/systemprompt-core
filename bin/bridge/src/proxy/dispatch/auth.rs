@@ -163,7 +163,7 @@ fn scope_mismatch_body(ctx: &ProxyContext, route: &RouteClass) -> String {
              plugin's hook token and a host token are refused here",
             plugin.as_str()
         ),
-        RouteClass::Otel => "the loopback secret; a host token cannot emit telemetry".to_owned(),
+        RouteClass::Otel => "the loopback secret or a scoped host token".to_owned(),
         RouteClass::Inference | RouteClass::Mcp | RouteClass::Other => {
             "the loopback secret".to_owned()
         },

@@ -82,11 +82,14 @@ fn install_rejects_a_malformed_gateway_before_touching_the_filesystem() {
 fn install_apply_mobileconfig_is_rejected_off_macos() {
     let sb = Sandbox::new();
     sb.run(|| {
-        let _ = run_with_args(&argv(&["install", "--apply-mobileconfig"]));
+        assert_ne!(
+            run_with_args(&argv(&["install", "--apply-mobileconfig"])),
+            std::process::ExitCode::SUCCESS
+        );
     });
     assert!(
-        sb.org_plugins().is_dir(),
-        "the directory bootstrap still runs before the MDM step fails"
+        !sb.org_plugins().exists(),
+        "a failed catalog refresh must not bootstrap an installation"
     );
 }
 
@@ -95,11 +98,14 @@ fn install_apply_mobileconfig_is_rejected_off_macos() {
 fn install_apply_has_no_linux_mdm_format() {
     let sb = Sandbox::new();
     sb.run(|| {
-        let _ = run_with_args(&argv(&["install", "--apply"]));
+        assert_ne!(
+            run_with_args(&argv(&["install", "--apply"])),
+            std::process::ExitCode::SUCCESS
+        );
     });
     assert!(
-        sb.metadata().join("version.json").exists(),
-        "bootstrap completes even though Linux has no MDM apply"
+        !sb.metadata().join("version.json").exists(),
+        "a failed catalog refresh must not record an installation"
     );
 }
 
