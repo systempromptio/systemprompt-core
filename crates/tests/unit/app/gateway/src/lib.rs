@@ -67,9 +67,9 @@ mod policies;
 #[cfg(test)]
 mod pricing;
 #[cfg(test)]
-mod pricing_selected;
-#[cfg(test)]
 mod pricing_cache_table;
+#[cfg(test)]
+mod pricing_selected;
 #[cfg(test)]
 mod prompt_cache_control;
 #[cfg(test)]
