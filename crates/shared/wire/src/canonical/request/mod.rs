@@ -206,7 +206,7 @@ impl CanonicalRequest {
 pub(super) fn flatten_part(out: &mut String, part: &CanonicalContent) {
     match part {
         CanonicalContent::AnthropicToolBlock { block, .. } => {
-            push_with_sep(out, &block.to_string())
+            push_with_sep(out, &block.to_string());
         },
         CanonicalContent::Text { text, .. } | CanonicalContent::Thinking { text, .. } => {
             push_with_sep(out, text);

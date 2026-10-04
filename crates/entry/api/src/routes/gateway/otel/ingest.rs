@@ -130,6 +130,7 @@ pub fn ingest_metrics(req: &ExportMetricsServiceRequest) {
     tracing::debug!(total, "otel: metrics export");
 }
 
+// JSON: Sanitized OTLP resource attributes carry server-bound identity metadata.
 fn actor(
     resource: &serde_json::Value,
     trace: TraceId,
@@ -147,6 +148,7 @@ fn actor(
     LogActor::platform(trace)
 }
 
+// JSON: Allowlisted OTLP attributes form the persisted log metadata envelope.
 fn record_attributes(
     attributes: &[opentelemetry_proto::tonic::common::v1::KeyValue],
 ) -> serde_json::Value {

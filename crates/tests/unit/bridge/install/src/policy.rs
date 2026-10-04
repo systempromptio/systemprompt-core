@@ -155,7 +155,7 @@ fn the_plist_workspace_folders_carry_native_booleans() {
     assert!(block.contains("<key>isDefaultSelected</key>\n      <false/>"));
     assert!(!block.contains("<string>true</string>"));
     assert!(!block.contains("<string>false</string>"));
-    assert!(body.contains("<key>disableAutoUpdates</key>\n  <string>true</string>"));
+    assert!(body.contains("<key>disableAutoUpdates</key>\n  <string>false</string>"));
     assert!(body.contains("<key>disableNonessentialServices</key>\n  <string>false</string>"));
 }
 

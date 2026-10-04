@@ -39,6 +39,7 @@ pub(super) fn validate(policy: &DesktopPolicy) -> Result<(), DesktopPolicyError>
     Ok(())
 }
 
+// JSON: Catalog-defined Desktop setting values are type-checked at this boundary.
 fn matches_type(kind: &str, value: &Value) -> bool {
     match kind {
         "boolean" => value.is_boolean(),
@@ -56,6 +57,7 @@ fn matches_type(kind: &str, value: &Value) -> bool {
     }
 }
 
+// JSON: Desktop enum settings permit only catalog-declared string values.
 fn allowed_enum(values: &[String], value: &Value) -> bool {
     values.is_empty()
         || match value {
@@ -68,6 +70,7 @@ fn allowed_enum(values: &[String], value: &Value) -> bool {
         }
 }
 
+// JSON: External Desktop setting values are checked against their catalog schema.
 fn validate_value(setting: &DesktopSetting, value: &Value) -> Result<(), DesktopPolicyError> {
     if !matches_type(&setting.r#type, value) {
         return Err(DesktopPolicyError::InvalidType {
@@ -87,6 +90,7 @@ fn validate_value(setting: &DesktopSetting, value: &Value) -> Result<(), Desktop
     Ok(())
 }
 
+// JSON: Desktop object and object-array settings declare nested field schemas.
 fn validate_fields(setting: &DesktopSetting, value: &Value) -> Result<(), DesktopPolicyError> {
     if setting.fields.is_empty() {
         return Ok(());
@@ -103,6 +107,7 @@ fn validate_fields(setting: &DesktopSetting, value: &Value) -> Result<(), Deskto
     Ok(())
 }
 
+// JSON: Desktop object settings are validated field-by-field against the catalog.
 fn validate_object(
     setting: &DesktopSetting,
     object: &Map<String, Value>,
@@ -146,6 +151,7 @@ fn validate_object(
     Ok(())
 }
 
+// JSON: Desktop's managed wire settings receive additional safety constraints.
 fn validate_safety(key: &str, value: &Value) -> Result<(), DesktopPolicyError> {
     if key == "builtinToolPolicy"
         && value.as_object().is_some_and(|rules| {

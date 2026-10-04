@@ -11,7 +11,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-pub const SETTINGS_CATALOG: &str = include_str!("desktop_settings.json");
+pub const SETTINGS_CATALOG: &str = include_str!("../desktop_settings.json");
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DesktopSetting {
@@ -23,6 +23,7 @@ pub struct DesktopSetting {
     pub values: Vec<String>,
     pub min: Option<u64>,
     pub max: Option<u64>,
+    // JSON: Desktop's audited setting catalog declares heterogeneous defaults.
     pub default: Option<Value>,
     #[serde(default)]
     pub fields: BTreeMap<String, DesktopField>,
@@ -48,6 +49,7 @@ pub fn settings_catalog() -> Result<DesktopSettingsCatalog, serde_json::Error> {
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 pub struct DesktopPolicy {
     pub schema_version: u32,
+    // JSON: Managed Desktop settings have catalog-defined, validated value shapes.
     pub settings: BTreeMap<String, Value>,
 }
 
@@ -59,9 +61,10 @@ impl<'de> Deserialize<'de> for DesktopPolicy {
             #[serde(default = "schema_version")]
             schema_version: u32,
             #[serde(default)]
+            // JSON: External managed settings are validated before constructing the policy.
             settings: BTreeMap<String, Value>,
         }
-        fn schema_version() -> u32 {
+        const fn schema_version() -> u32 {
             1
         }
         let raw = Raw::deserialize(deserializer)?;
