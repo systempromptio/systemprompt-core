@@ -10,6 +10,7 @@ use super::content::CacheControl;
 #[derive(Debug, Clone)]
 pub struct CanonicalTool {
     pub name: String,
+    // JSON: Anthropic native-tool definitions retain provider-specific fields verbatim.
     pub anthropic_definition: Option<Value>,
     pub description: Option<String>,
     pub input_schema: Value,

@@ -74,6 +74,13 @@ async fn ingest_with_identity(
     request: Request<Body>,
     identity: Option<(UserId, SessionId)>,
 ) -> Response<Body> {
+    let signal = request
+        .uri()
+        .path()
+        .rsplit('/')
+        .next()
+        .unwrap_or("")
+        .to_owned();
     let is_json = request
         .headers()
         .get(http::header::CONTENT_TYPE)
@@ -96,39 +103,58 @@ async fn ingest_with_identity(
         return accepted();
     }
 
-    if is_json {
-        match json::decode_logs(&body_bytes) {
-            Ok(mut req) if !req.resource_logs.is_empty() => {
-                for item in &mut req.resource_logs {
-                    bind_identity(&mut item.resource, identity.as_ref());
-                }
-                ingest_logs(req);
-            },
-            _ => tracing::warn!(bytes = body_bytes.len(), "otel: invalid JSON log export"),
-        }
+    if is_json && signal != "metrics" && signal != "traces" {
+        ingest_json_logs(&body_bytes, identity.as_ref());
         return accepted();
     }
-    if let Ok(mut req) = ExportTraceServiceRequest::decode(body_bytes.as_ref())
+    ingest_protobuf(&signal, &body_bytes, identity.as_ref())
+}
+
+fn ingest_json_logs(body_bytes: &[u8], identity: Option<&(UserId, SessionId)>) {
+    match json::decode_logs(body_bytes) {
+        Ok(mut req) if !req.resource_logs.is_empty() => {
+            for item in &mut req.resource_logs {
+                bind_identity(&mut item.resource, identity);
+            }
+            count_export("logs");
+            ingest_logs(req);
+        },
+        _ => tracing::warn!(bytes = body_bytes.len(), "otel: invalid JSON log export"),
+    }
+}
+
+fn ingest_protobuf(
+    signal: &str,
+    body_bytes: &[u8],
+    identity: Option<&(UserId, SessionId)>,
+) -> Response<Body> {
+    if !matches!(signal, "logs" | "metrics")
+        && let Ok(mut req) = ExportTraceServiceRequest::decode(body_bytes)
         && !req.resource_spans.is_empty()
     {
         for item in &mut req.resource_spans {
-            bind_identity(&mut item.resource, identity.as_ref());
+            bind_identity(&mut item.resource, identity);
         }
+        count_export("traces");
         ingest_traces(req);
         return accepted();
     }
-    if let Ok(mut req) = ExportLogsServiceRequest::decode(body_bytes.as_ref())
+    if !matches!(signal, "traces" | "metrics")
+        && let Ok(mut req) = ExportLogsServiceRequest::decode(body_bytes)
         && !req.resource_logs.is_empty()
     {
         for item in &mut req.resource_logs {
-            bind_identity(&mut item.resource, identity.as_ref());
+            bind_identity(&mut item.resource, identity);
         }
+        count_export("logs");
         ingest_logs(req);
         return accepted();
     }
-    if let Ok(req) = ExportMetricsServiceRequest::decode(body_bytes.as_ref())
+    if !matches!(signal, "traces" | "logs")
+        && let Ok(req) = ExportMetricsServiceRequest::decode(body_bytes)
         && !req.resource_metrics.is_empty()
     {
+        count_export("metrics");
         ingest_metrics(&req);
         return accepted();
     }
@@ -174,4 +200,8 @@ fn bind_identity(
             });
         }
     }
+}
+
+fn count_export(signal: &'static str) {
+    metrics::counter!("gateway_desktop_telemetry_exports_total", "signal" => signal).increment(1);
 }

@@ -1694,8 +1694,8 @@
       "section": "Telemetry & updates",
       "group": "OTLP",
       "min_version": "1.2581.0",
-      "disposition": "diagnostics",
-      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "disposition": "bridge-owned",
+      "reason": "Authenticated Bridge telemetry transport and server-bound identity are authoritative.",
       "description": "Where OpenTelemetry logs and metrics are sent. Leave blank to disable."
     },
     {
@@ -1704,8 +1704,8 @@
       "section": "Telemetry & updates",
       "group": "OTLP",
       "min_version": "1.2581.0",
-      "disposition": "diagnostics",
-      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "disposition": "bridge-owned",
+      "reason": "Authenticated Bridge telemetry transport and server-bound identity are authoritative.",
       "description": "Transport protocol for the OpenTelemetry exporters. One of: `http/protobuf`, `http/json`, `grpc`. Defaults to `http/protobuf`.",
       "values": [
         "http/protobuf",
@@ -1719,8 +1719,8 @@
       "section": "Telemetry & updates",
       "group": "OTLP",
       "min_version": "1.2581.0",
-      "disposition": "diagnostics",
-      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "disposition": "bridge-owned",
+      "reason": "Authenticated Bridge telemetry transport and server-bound identity are authoritative.",
       "description": "Static collector headers \u2014 routing and tenant headers only. No credentials here; use Collector authentication or the headers helper script for tokens. Deprecated: `otlpHeaders as a \"Name=value,\u2026\" string or a [\"Name: value\", \u2026] list` (accepted until October 7, 2026); use a JSON object such as \\{\"Name\": \"value\"}. If it is still present after that, a string or list value will be rejected as malformed and no exporter headers will be sent."
     },
     {
@@ -1729,8 +1729,8 @@
       "section": "Telemetry & updates",
       "group": "OTLP",
       "min_version": "1.30096.1",
-      "disposition": "diagnostics",
-      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "disposition": "bridge-owned",
+      "reason": "Authenticated Bridge telemetry transport and server-bound identity are authoritative.",
       "description": "inference-credential sends the user\u2019s inference bearer token to the collector as Authorization: Bearer. One of: `none`, `inference-credential`.",
       "values": [
         "none",
@@ -1743,8 +1743,8 @@
       "section": "Telemetry & updates",
       "group": "OTLP",
       "min_version": "1.30096.1",
-      "disposition": "diagnostics",
-      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "disposition": "bridge-owned",
+      "reason": "Authenticated Bridge telemetry transport and server-bound identity are authoritative.",
       "description": "Absolute path to an executable that prints a JSON object of collector headers. Merged over the static headers and Collector authentication; the helper wins."
     },
     {
@@ -1753,8 +1753,8 @@
       "section": "Telemetry & updates",
       "group": "OTLP",
       "min_version": "1.5354.0",
-      "disposition": "diagnostics",
-      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "disposition": "bridge-owned",
+      "reason": "Authenticated Bridge telemetry transport and server-bound identity are authoritative.",
       "description": "Extra resource attributes to attach to every span/metric. A static enduser.id set here always wins over the runtime identity. Deprecated: `otlpResourceAttributes as a \"Name=value,\u2026\" string or a [\"Name: value\", \u2026] list` (accepted until October 7, 2026); use a JSON object such as \\{\"Name\": \"value\"}. If it is still present after that, a string or list value will be rejected as malformed and no custom resource attributes will be attached."
     },
     {

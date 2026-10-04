@@ -167,7 +167,7 @@ impl SignedManifestBuilder {
             host_model_protocols: std::collections::BTreeMap::new(),
             artifacts: Vec::new(),
             allow_claude_ai_connectors: false,
-            desktop_policy: Default::default(),
+            desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
             auto_update: AutoUpdatePolicy::default(),
             marketplaces: Vec::new(),
         }

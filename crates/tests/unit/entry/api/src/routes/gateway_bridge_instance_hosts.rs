@@ -21,7 +21,7 @@ fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConf
             description: String::new(),
             platforms: Vec::new(),
             docs_url: None,
-            desktop_policy: Default::default(),
+            desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         },
     )
 }

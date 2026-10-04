@@ -119,6 +119,7 @@ pub enum ImageSource {
 pub enum CanonicalContent {
     AnthropicToolBlock {
         tool_name: String,
+        // JSON: Anthropic server-tool result blocks retain their upstream wire shape.
         block: Value,
     },
     Text {

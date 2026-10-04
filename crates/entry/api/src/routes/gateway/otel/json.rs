@@ -11,6 +11,7 @@ use opentelemetry_proto::tonic::common::v1::{AnyValue, KeyValue, any_value};
 use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
 use opentelemetry_proto::tonic::resource::v1::Resource;
 use serde::Deserialize;
+use systemprompt_identifiers::TraceId;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,7 +52,7 @@ struct InputLog {
     #[serde(default)]
     severity_number: InputInteger,
     #[serde(default)]
-    trace_id: String,
+    trace_id: Option<TraceId>,
     #[serde(default)]
     span_id: String,
     #[serde(default)]
@@ -127,7 +128,10 @@ pub fn decode_logs(bytes: &[u8]) -> Result<ExportLogsServiceRequest, serde_json:
                             observed_time_unix_nano: record.observed_time_unix_nano.unsigned(),
                             severity_number: i32::try_from(record.severity_number.signed())
                                 .unwrap_or(0),
-                            trace_id: hex(&record.trace_id, 16),
+                            trace_id: record
+                                .trace_id
+                                .as_ref()
+                                .map_or_else(Vec::new, |id| hex(id.as_str(), 16)),
                             span_id: hex(&record.span_id, 8),
                             attributes: attributes(record.attributes),
                             ..Default::default()
@@ -163,9 +167,11 @@ fn attributes(input: Vec<InputAttribute>) -> Vec<KeyValue> {
             };
             Some(KeyValue {
                 key: attribute.key,
+                key_strindex: 0,
                 value: Some(AnyValue {
                     value: Some(scalar),
                 }),
+                ..Default::default()
             })
         })
         .collect()

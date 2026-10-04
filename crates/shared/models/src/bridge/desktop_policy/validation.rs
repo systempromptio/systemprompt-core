@@ -64,7 +64,7 @@ fn allowed_enum(values: &[String], value: &Value) -> bool {
                 item.as_str()
                     .is_some_and(|text| values.iter().any(|allowed| allowed == text))
             }),
-            _ => true,
+            _ => false,
         }
 }
 

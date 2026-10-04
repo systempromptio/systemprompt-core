@@ -15,7 +15,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod token_estimate;
+
 use std::collections::HashMap;
+use token_estimate::estimate_input_tokens;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ProviderId, RouteId};
@@ -24,9 +27,7 @@ use super::error::{GatewayProfileError, GatewayResult};
 use super::route_id::{match_pattern, synthesize_route_id};
 use crate::services::ai::ModelPricing;
 use crate::services::providers::{ProviderEntry, ProviderRegistry};
-use systemprompt_wire::canonical::{
-    CanonicalContent, CanonicalRequest, ReasoningEffort, ResponseFormat,
-};
+use systemprompt_wire::canonical::{CanonicalRequest, ReasoningEffort, ResponseFormat};
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -124,11 +125,9 @@ impl GatewayRoute {
 /// loops are `thinking` / `min_reasoning_effort` / `stream` and the model name
 /// itself — the full tool catalogue is typically resent on every step, so
 /// `requires_tools` / `min_tools` are weak signals retained for completeness.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RouteMatch {
-    /// Match any named tool, allowing provider-specific tools to select a
-    /// capable route.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_names_any: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -276,34 +275,5 @@ impl From<Option<&ResponseFormat>> for ResponseFormatKind {
             Some(ResponseFormat::JsonObject) => Self::JsonObject,
             Some(ResponseFormat::JsonSchema { .. }) => Self::JsonSchema,
         }
-    }
-}
-
-fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
-    let mut chars = request
-        .system
-        .iter()
-        .map(|block| block.text.len())
-        .sum::<usize>();
-    for message in &request.messages {
-        for part in &message.content {
-            accumulate_text_len(part, &mut chars);
-        }
-    }
-    u32::try_from(chars / 4 + 1).unwrap_or(u32::MAX)
-}
-
-fn accumulate_text_len(part: &CanonicalContent, acc: &mut usize) {
-    match part {
-        CanonicalContent::AnthropicToolBlock { block, .. } => *acc += block.to_string().len(),
-        CanonicalContent::Text { text, .. } | CanonicalContent::Thinking { text, .. } => {
-            *acc += text.len();
-        },
-        CanonicalContent::ToolResult { content, .. } => {
-            for inner in content {
-                accumulate_text_len(inner, acc);
-            }
-        },
-        CanonicalContent::ToolUse { .. } | CanonicalContent::Image { .. } => {},
     }
 }

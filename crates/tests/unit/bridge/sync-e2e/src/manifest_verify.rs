@@ -54,7 +54,7 @@ fn manifest() -> SignedManifest {
         host_model_protocols: std::collections::BTreeMap::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
-        desktop_policy: Default::default(),
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),

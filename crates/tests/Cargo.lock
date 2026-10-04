@@ -6863,6 +6863,7 @@ dependencies = [
  "futures-util",
  "hex",
  "http",
+ "http-body-util",
  "ipnet",
  "metrics",
  "metrics-exporter-prometheus",

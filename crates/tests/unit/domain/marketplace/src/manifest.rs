@@ -625,7 +625,7 @@ fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
         host_model_protocols: BTreeMap::new(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
-        desktop_policy: Default::default(),
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
