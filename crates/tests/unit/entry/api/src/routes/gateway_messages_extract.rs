@@ -453,7 +453,10 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
         .expect_err("a body past the buffer limit must not be read into memory");
 
     assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
-    assert!(message.contains("serialized inference request"), "{message}");
+    assert!(
+        message.contains("serialized inference request"),
+        "{message}"
+    );
     assert!(message.contains("separate token limit"), "{message}");
     assert!(
         partial.body.is_none(),
