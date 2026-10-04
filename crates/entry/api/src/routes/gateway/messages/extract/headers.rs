@@ -78,14 +78,7 @@ pub async fn read_gateway_body(
         systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES,
     )
     .await
-    .map_err(|e| {
-        if std::error::Error::source(&e).is_some_and(<(dyn std::error::Error + 'static)>::is::<http_body_util::LengthLimitError>) {
-            RejectionError::client(StatusCode::PAYLOAD_TOO_LARGE,
-                format!("serialized inference request exceeds {} bytes; model context capacity is a separate token limit", systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES)).with_cause(e)
-        } else {
-            RejectionError::client(StatusCode::BAD_REQUEST, "failed to read request body").with_cause(e)
-        }
-    })?;
+    .map_err(body_read_error)?;
     partial.body = Some(body_bytes.clone());
 
     let canonical = inbound
@@ -95,6 +88,24 @@ pub async fn read_gateway_body(
     partial.max_tokens = Some(canonical.max_tokens);
     partial.is_streaming = canonical.stream;
     Ok((body_bytes, canonical))
+}
+
+fn body_read_error(error: axum::Error) -> RejectionError {
+    let oversized = std::error::Error::source(&error)
+        .is_some_and(<dyn std::error::Error>::is::<http_body_util::LengthLimitError>);
+    if oversized {
+        RejectionError::client(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            format!(
+                "serialized inference request exceeds {} bytes; model context capacity is a separate token limit",
+                systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES
+            ),
+        )
+        .with_cause(error)
+    } else {
+        RejectionError::client(StatusCode::BAD_REQUEST, "failed to read request body")
+            .with_cause(error)
+    }
 }
 
 #[derive(Debug, Default, Clone)]
