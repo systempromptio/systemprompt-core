@@ -38,4 +38,6 @@ pub struct ExternalAgentConfig {
     pub platforms: Vec<String>,
     #[serde(default)]
     pub docs_url: Option<String>,
+    #[serde(default)]
+    pub desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy,
 }

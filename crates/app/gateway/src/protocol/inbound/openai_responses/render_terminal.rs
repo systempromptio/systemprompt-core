@@ -142,7 +142,9 @@ fn output_item_value(index: u32, block: &CanonicalContent, status: &str) -> Opti
             text,
             encrypted_content.as_deref(),
         )),
-        CanonicalContent::Image { .. } | CanonicalContent::ToolResult { .. } => None,
+        CanonicalContent::AnthropicToolBlock { .. }
+        | CanonicalContent::Image { .. }
+        | CanonicalContent::ToolResult { .. } => None,
     }
 }
 

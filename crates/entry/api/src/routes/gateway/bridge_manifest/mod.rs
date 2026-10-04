@@ -55,6 +55,12 @@ pub async fn manifest(
     let services = bridge_data::load_services_config()
         .map_err(|e| BridgeError::internal("manifest: services config load failed", e))?;
     let instance_hosts = instance_enabled_hosts(&services);
+    let desktop_policy = services
+        .external_agents
+        .values()
+        .find(|agent| agent.id.as_str() == "claude_desktop")
+        .map(|agent| agent.desktop_policy.clone())
+        .unwrap_or_default();
 
     let (candidate, bridge_policy) = assemble_candidate(
         &ctx,
@@ -104,6 +110,7 @@ pub async fn manifest(
         host_model_protocols,
         artifacts,
         allow_claude_ai_connectors: bridge_policy.allow_claude_ai_connectors,
+        desktop_policy,
         auto_update: bridge_policy.auto_update,
         diagnostics,
         marketplaces,

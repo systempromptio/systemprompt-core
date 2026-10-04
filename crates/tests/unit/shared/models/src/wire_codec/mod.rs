@@ -23,6 +23,7 @@ mod upstream_dialect;
 
 fn tool_with_unsupported_keywords() -> CanonicalTool {
     CanonicalTool {
+        anthropic_definition: None,
         name: "do_thing".to_owned(),
         description: Some("d".to_owned()),
         input_schema: json!({
@@ -42,6 +43,7 @@ fn tool_with_unsupported_keywords() -> CanonicalTool {
 // down, a `format` hint, `const`, a nullable union and a `$comment`.
 fn claude_code_shaped_tool() -> CanonicalTool {
     CanonicalTool {
+        anthropic_definition: None,
         name: "query_rows".to_owned(),
         description: Some("query".to_owned()),
         input_schema: json!({
@@ -78,6 +80,7 @@ fn claude_code_shaped_tool() -> CanonicalTool {
 
 fn plain_tool() -> CanonicalTool {
     CanonicalTool {
+        anthropic_definition: None,
         name: "lookup".to_owned(),
         description: Some("look something up".to_owned()),
         input_schema: json!({

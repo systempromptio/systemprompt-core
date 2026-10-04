@@ -29,6 +29,8 @@ pub(super) const REQUIRED_KEYS: &[&str] = &[
     "inferenceGatewayBaseUrl",
     API_KEY_KEY,
     "inferenceModels",
+    "modelPrefer1mContext",
+    "alwaysStartWithDefaultModel",
 ];
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]

@@ -10,6 +10,7 @@ use super::content::CacheControl;
 #[derive(Debug, Clone)]
 pub struct CanonicalTool {
     pub name: String,
+    pub anthropic_definition: Option<Value>,
     pub description: Option<String>,
     pub input_schema: Value,
     pub cache_control: Option<CacheControl>,

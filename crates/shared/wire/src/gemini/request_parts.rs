@@ -15,6 +15,7 @@ pub(super) fn content_to_part(
     call_names: &HashMap<&str, &str>,
 ) -> GeminiPart {
     match part {
+        CanonicalContent::AnthropicToolBlock { block, .. } => plain_text_part(block.to_string()),
         CanonicalContent::Text { text, .. } => plain_text_part(text.clone()),
         CanonicalContent::Image { source, .. } => image_part(source),
         CanonicalContent::ToolUse {

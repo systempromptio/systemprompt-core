@@ -94,6 +94,7 @@ fn canonical_block(content: &CanonicalContent) -> Option<ContentBlock> {
         } => Some(ContentBlock::text(url.clone())),
         CanonicalContent::ToolUse { .. }
         | CanonicalContent::ToolResult { .. }
-        | CanonicalContent::Thinking { .. } => None,
+        | CanonicalContent::Thinking { .. }
+        | CanonicalContent::AnthropicToolBlock { .. } => None,
     }
 }

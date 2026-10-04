@@ -7,7 +7,6 @@
 use hyper::StatusCode;
 use thiserror::Error;
 
-use super::BUFFERED_BODY_LIMIT;
 use super::replay::describe;
 
 #[derive(Debug, Error)]
@@ -57,8 +56,10 @@ pub enum ForwardError {
     Upstream(#[from] reqwest::Error),
     #[error("response build failed: {0}")]
     BuildResponse(#[from] http::Error),
-    #[error("request body exceeds {BUFFERED_BODY_LIMIT} bytes")]
-    BodyTooLarge,
+    #[error(
+        "request body exceeds {limit} bytes; this is a serialized request-size limit, not a model context limit"
+    )]
+    BodyTooLarge { limit: usize },
     #[error("request body read failed: {0}")]
     ReadBody(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
@@ -86,7 +87,7 @@ impl ForwardError {
             | Self::HookToken { .. }
             | Self::Routing(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::Scope { .. } => StatusCode::UNAUTHORIZED,
-            Self::BodyTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
+            Self::BodyTooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
             Self::BadMethod { .. } | Self::BadHeader(_) | Self::InvalidHeader { .. } => {
                 StatusCode::BAD_REQUEST
             },

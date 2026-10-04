@@ -115,7 +115,7 @@ pub fn authenticate(
         // because its third-party gateway contract has no credential helper),
         // so the inference and managed-MCP routes a host drives accept the
         // token derived for that host rather than the secret itself.
-        RouteClass::Inference | RouteClass::Mcp => {
+        RouteClass::Inference | RouteClass::Mcp | RouteClass::Otel => {
             if is_secret {
                 Ok(LoopbackCredential::Secret)
             } else if let Some(host) = host {
@@ -124,7 +124,7 @@ pub fn authenticate(
                 Err(Rejection::SecretMismatch)
             }
         },
-        RouteClass::Otel | RouteClass::Other => {
+        RouteClass::Other => {
             if is_secret {
                 Ok(LoopbackCredential::Secret)
             } else if host.is_some() {

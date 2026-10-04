@@ -188,6 +188,7 @@ pub fn tools_to_canonical(tools: Vec<McpTool>) -> Vec<CanonicalTool> {
     tools
         .into_iter()
         .map(|t| CanonicalTool {
+            anthropic_definition: None,
             name: t.name,
             description: t.description,
             input_schema: t

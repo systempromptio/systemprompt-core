@@ -65,6 +65,7 @@ pub(super) fn block_for_audience(part: &CanonicalContent, audience: BlockAudienc
 // JSON: Anthropic Messages API content block; upstream JSON is the contract.
 fn untagged_block(part: &CanonicalContent, audience: BlockAudience) -> Value {
     match part {
+        CanonicalContent::AnthropicToolBlock { block, .. } => block.clone(),
         CanonicalContent::Text { text, .. } => json!({ "type": "text", "text": text }),
         CanonicalContent::Thinking {
             text, signature, ..

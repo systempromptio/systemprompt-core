@@ -75,11 +75,16 @@ pub async fn read_gateway_body(
 ) -> Result<(Bytes, CanonicalRequest), RejectionError> {
     let body_bytes = axum::body::to_bytes(
         request.into_body(),
-        systemprompt_models::net::BUFFERED_BODY_LIMIT_BYTES,
+        systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES,
     )
     .await
     .map_err(|e| {
-        RejectionError::client(StatusCode::BAD_REQUEST, "failed to read request body").with_cause(e)
+        if std::error::Error::source(&e).is_some_and(|source| source.is::<http_body_util::LengthLimitError>()) {
+            RejectionError::client(StatusCode::PAYLOAD_TOO_LARGE,
+                format!("serialized inference request exceeds {} bytes; model context capacity is a separate token limit", systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES)).with_cause(e)
+        } else {
+            RejectionError::client(StatusCode::BAD_REQUEST, "failed to read request body").with_cause(e)
+        }
     })?;
     partial.body = Some(body_bytes.clone());
 

@@ -47,7 +47,21 @@ pub fn any_value_to_string(
 pub fn attrs_to_json(attrs: &[opentelemetry_proto::tonic::common::v1::KeyValue]) -> Value {
     let mut map = serde_json::Map::new();
     for kv in attrs {
-        map.insert(kv.key.clone(), any_value_to_json(kv.value.as_ref()));
+        if !metadata_key(&kv.key) {
+            continue;
+        }
+        let value = any_value_to_json(kv.value.as_ref());
+        if value.is_number()
+            || value.is_boolean()
+            || value.as_str().is_some_and(|s| {
+                s.len() <= 128
+                    && s.chars()
+                        .all(|c| c.is_ascii_alphanumeric() || "-._:/[] ".contains(c))
+                    && !s.starts_with("sk-")
+            })
+        {
+            map.insert(kv.key.clone(), value);
+        }
     }
     Value::Object(map)
 }
@@ -79,4 +93,31 @@ fn any_value_to_json(value: Option<&opentelemetry_proto::tonic::common::v1::AnyV
             Value::Object(map)
         },
     }
+}
+
+
+pub fn metadata_key(key: &str) -> bool {
+    matches!(
+        key,
+        "service.name"
+            | "service.version"
+            | "deployment.environment"
+            | "os.type"
+            | "gen_ai.system"
+            | "gen_ai.request.model"
+            | "gen_ai.response.model"
+            | "gen_ai.usage.input_tokens"
+            | "gen_ai.usage.output_tokens"
+            | "gen_ai.usage.cache_read_input_tokens"
+            | "gen_ai.usage.cache_creation_input_tokens"
+            | "http.response.status_code"
+            | "http.status_code"
+            | "error.type"
+            | "systemprompt.user.id"
+            | "systemprompt.session.id"
+            | "systemprompt.request.id"
+            | "systemprompt.context.capacity"
+            | "systemprompt.request.bytes"
+            | "systemprompt.compaction.count"
+    )
 }

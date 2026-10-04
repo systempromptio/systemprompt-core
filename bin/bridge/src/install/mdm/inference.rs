@@ -56,7 +56,6 @@ pub(super) fn inference_entries(inputs: &PolicyInputs<'_>) -> Result<Vec<PolicyE
     let models = anthropic_only(configured_models(inputs.models.as_deref())?);
     Ok(vec![
         ("inferenceProvider", PolicyValue::Str("gateway".into())),
-        ("modelPrefer1mContext", PolicyValue::Bool(true)),
         (
             "inferenceGatewayBaseUrl",
             PolicyValue::Str(inputs.base_url.to_owned()),

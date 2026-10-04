@@ -53,6 +53,7 @@ pub(super) fn convert_tools(
         .flatten()
         .filter(|tool| seen_names.insert(tool.name.clone()))
         .map(|tool| CanonicalTool {
+            anthropic_definition: None,
             name: tool.name,
             description: Some(tool.description),
             input_schema: tool.input_schema,

@@ -849,6 +849,7 @@ fn route_match_predicates_evaluate_against_request() {
 
     let mut tooled = req("m");
     tooled.tools = vec![CanonicalTool {
+        anthropic_definition: None,
         name: "t".to_owned(),
         description: None,
         input_schema: serde_json::Value::Null,
@@ -964,6 +965,7 @@ fn matched_predicates_lists_set_fields_in_declaration_order() {
     assert!(RouteMatch::default().matched_predicates().is_empty());
 
     let full = RouteMatch {
+        tool_names_any: Vec::new(),
         requires_tools: Some(true),
         min_tools: Some(2),
         thinking: Some(true),

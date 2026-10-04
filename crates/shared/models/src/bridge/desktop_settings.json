@@ -1,0 +1,2159 @@
+{
+  "schema_version": 1,
+  "source": "https://claude.com/docs/third-party/claude-desktop/configuration",
+  "audited_at": "2026-10-04",
+  "settings": [
+    {
+      "key": "inferenceCustomHeaders",
+      "type": "object",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.8089.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "Extra headers on every inference request \u2014 routing and tenant headers only (org IDs, Bedrock Guardrails). No credentials; use the credential helper for tokens. Previously named `inferenceGatewayHeaders` (the old name is accepted until October 7, 2026). If it is still present after that, no custom inference headers will be sent. Deprecated: `inferenceCustomHeaders as a \"Name=value,\u2026\" string or a [\"Name: value\", \u2026] list` (accepted until October 7, 2026); use a JSON object such as \\{\"Name\": \"value\"}. If it is still present after that, a string or list value will be rejected as malformed and no custom inference headers will be sent."
+    },
+    {
+      "key": "inferenceSessionLifetimeSec",
+      "type": "integer",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.14271.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "How long a sign-in stays valid under your IdP\u2019s session policy. Shows a re-authenticate banner before it expires."
+    },
+    {
+      "key": "inferenceCredentialHelper",
+      "type": "string",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Absolute path to an executable that prints the credential, optionally with per-request headers."
+    },
+    {
+      "key": "inferenceCredentialHelperWindows",
+      "type": "string",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "2.2553.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Absolute path of the helper executable on Windows devices, used there instead of Helper script. Leave unset to use Helper script on every operating system."
+    },
+    {
+      "key": "inferenceCredentialHelperArgs",
+      "type": "string[]",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "2.110.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Arguments passed to the helper script, one per entry, in order. Leave unset to run it with none."
+    },
+    {
+      "key": "inferenceCredentialHelperTtlSec",
+      "type": "integer",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Helper output is cached for this many seconds; once it expires the helper re-runs without a relaunch (before the next turn when set above 120). Defaults to `3600`."
+    },
+    {
+      "key": "inferenceCredentialHelperTimeoutSec",
+      "type": "integer",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.8089.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Maximum wait for the helper executable to finish. Raise this if the helper opens a browser for interactive sign-in. Defaults to `60`. Range: 1\u2013600.",
+      "min": 1,
+      "max": 600
+    },
+    {
+      "key": "inferenceCredentialHelperSilentRefreshEnabled",
+      "type": "boolean",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.10628.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "On credential expiry, re-run the helper (CLAUDE\\_HELPER\\_CONTEXT=mid-session-refresh) to recover silently. Turn off if the helper can\u2019t run non-interactively. Defaults to `true`."
+    },
+    {
+      "key": "egressProxyUrl",
+      "type": "string",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.44121.1",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Send the app\u2019s and the agent\u2019s traffic through this HTTP proxy instead of the operating system\u2019s proxy settings."
+    },
+    {
+      "key": "egressProxyPacUrl",
+      "type": "string",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.44121.1",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "URL of a PAC file that decides the proxy per request. Wins over the proxy server URL when both are set."
+    },
+    {
+      "key": "coworkVmIpv6Enabled",
+      "type": "boolean",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.52386.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Give the Cowork workspace VM an IPv6 address and route so the agent\u2019s tools can reach IPv6-only hosts through the device. macOS and Windows; off by default."
+    },
+    {
+      "key": "userContentRendererUrl",
+      "type": "string",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.24012.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "HTTPS origin of the user-content-renderer deployment used for artifact and file previews. Defaults to the commercial host when unset."
+    },
+    {
+      "key": "inferenceProvider",
+      "type": "enum",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "Selects the inference backend. Setting this key activates third-party mode. One of: `gateway`, `anthropic`, `bedrock`, `mantle`, `vertex`, `foundry`.",
+      "values": [
+        "gateway",
+        "anthropic",
+        "bedrock",
+        "mantle",
+        "vertex",
+        "foundry"
+      ]
+    },
+    {
+      "key": "inferenceCredentialKind",
+      "type": "enum",
+      "section": "Connection",
+      "group": "Connection",
+      "min_version": "1.8555.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Selects the credential source. When set, only that source is used (no fallback). One of: `static`, `helper-script`, `interactive`, `vendor-profile`, `workforce`, `external-idp`. Deprecated: `inferenceCredentialKind: \"oauth\" (Vertex AI)` (accepted until October 7, 2026); use \"interactive\" \u2014 the same Google sign-in under its new name (in hosted or nested documents, switch once every desktop is on a release that knows the Vertex \"interactive\" kind). If it is still present after that, \"oauth\" will no longer be a Vertex AI credential kind: the value will be reported as invalid and ignored \u2014 the device will then derive the kind from the credential fields present (Google sign-in when an OAuth client id is set), and the hosted editor will refuse to save the configuration until the kind is changed. Deprecated: `inferenceCredentialKind: \"interactive\" together with inferenceVertexWorkforceAudience (Vertex AI)` (accepted until October 7, 2026); use \"workforce\" \u2014 or remove inferenceVertexWorkforceAudience if Google sign-in (\"interactive\") is what is meant. If it is still present after that, the audience will no longer imply Workforce Identity: the kind will stay \"interactive\" (Google sign-in), which needs inferenceVertexOAuthClientId \u2014 without it the configuration will be reported as incomplete and inference will not start. Deprecated: `inferenceCredentialKind: \"interactive\" together with inferenceGatewayOidc (gateway)`; use \"external-idp\" once every desktop in the fleet is on a release that reads it. The original spelling will keep working (\"interactive\" with inferenceGatewayOidc is read as \"external-idp\"); no end date has been set.",
+      "values": [
+        "static",
+        "helper-script",
+        "interactive",
+        "vendor-profile",
+        "workforce",
+        "external-idp"
+      ]
+    },
+    {
+      "key": "inferenceAnthropicApiKey",
+      "type": "string",
+      "section": "Connection",
+      "group": "Anthropic",
+      "min_version": "1.8089.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Leave blank to fetch a key via browser sign-in, or to supply the key via a credential helper."
+    },
+    {
+      "key": "inferenceBedrockRegion",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "AWS region for the Bedrock runtime endpoint."
+    },
+    {
+      "key": "inferenceBedrockBaseUrl",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "For VPC endpoints or gateway proxies. Host origin only."
+    },
+    {
+      "key": "inferenceBedrockServiceTier",
+      "type": "enum",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.5186.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Sent as the X-Amzn-Bedrock-Service-Tier header. Leave unset for on-demand. One of: `flex`, `priority`.",
+      "values": [
+        "flex",
+        "priority"
+      ]
+    },
+    {
+      "key": "inferenceBedrockBearerToken",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Static bearer token for inference. For providers that support profile or helper-script credentials, prefer those."
+    },
+    {
+      "key": "inferenceBedrockSsoStartUrl",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.6259.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Enables in-app AWS sign-in (no AWS CLI needed). Set with the three SSO fields below."
+    },
+    {
+      "key": "inferenceBedrockSsoRegion",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.6259.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "IAM Identity Center home region."
+    },
+    {
+      "key": "inferenceBedrockSsoAccountId",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.6259.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "12-digit AWS account ID assigned to users in IAM Identity Center."
+    },
+    {
+      "key": "inferenceBedrockSsoRoleName",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.6259.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "IAM Identity Center permission-set name granting bedrock:InvokeModel\\* on the account above."
+    },
+    {
+      "key": "inferenceBedrockProfile",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "AWS named profile to use for Bedrock inference credentials."
+    },
+    {
+      "key": "inferenceBedrockAwsDir",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Folder with AWS config/credentials. Defaults to \\~/.aws when no bearer token is set."
+    },
+    {
+      "key": "inferenceBedrockAwsCliPath",
+      "type": "string",
+      "section": "Connection",
+      "group": "Bedrock",
+      "min_version": "1.13576.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Absolute path to the aws executable. Leave unset to find it on PATH."
+    },
+    {
+      "key": "inferenceFoundryResource",
+      "type": "string",
+      "section": "Connection",
+      "group": "Foundry",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Azure AI Foundry resource name used to construct the endpoint URL."
+    },
+    {
+      "key": "inferenceFoundryBaseUrl",
+      "type": "string",
+      "section": "Connection",
+      "group": "Foundry",
+      "min_version": "2.110.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Full base URL for a gateway or proxy in front of Foundry, path included (replaces [https://RESOURCE.services.ai.azure.com/anthropic](https://RESOURCE.services.ai.azure.com/anthropic))."
+    },
+    {
+      "key": "inferenceFoundryApiKey",
+      "type": "string",
+      "section": "Connection",
+      "group": "Foundry",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "API key for Azure AI Foundry inference."
+    },
+    {
+      "key": "inferenceFoundryTenantId",
+      "type": "string",
+      "section": "Connection",
+      "group": "Foundry",
+      "min_version": "1.9255.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Directory (tenant) ID of the Entra ID app registration that has the Cognitive Services scope."
+    },
+    {
+      "key": "inferenceFoundryClientId",
+      "type": "string",
+      "section": "Connection",
+      "group": "Foundry",
+      "min_version": "1.9255.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Application (client) ID of the Entra ID app registration. Device-code sign-in requires the app to allow public client flows."
+    },
+    {
+      "key": "inferenceFoundryAuthFlow",
+      "type": "enum",
+      "section": "Connection",
+      "group": "Foundry",
+      "min_version": "1.19367.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "How Entra sign-in runs: device code (default), system browser, or the OS identity broker. One of: `device-code`, `browser`, `broker`.",
+      "values": [
+        "device-code",
+        "browser",
+        "broker"
+      ]
+    },
+    {
+      "key": "inferenceGatewayBaseUrl",
+      "type": "string",
+      "section": "Connection",
+      "group": "Gateway",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "Full URL of the inference gateway endpoint."
+    },
+    {
+      "key": "inferenceStreamIdleTimeoutSec",
+      "type": "integer",
+      "section": "Connection",
+      "group": "Gateway",
+      "min_version": "1.44121.1",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Extra seconds to wait for model output on a streaming response that is sending only keep-alive pings. Gateway provider only. Default 300. Range: 300\u20131800.",
+      "min": 300,
+      "max": 1800,
+      "default": 300
+    },
+    {
+      "key": "inferenceGatewayApiKey",
+      "type": "string",
+      "section": "Connection",
+      "group": "Gateway",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "API key for the configured inference gateway."
+    },
+    {
+      "key": "inferenceGatewayAuthScheme",
+      "type": "enum",
+      "section": "Connection",
+      "group": "Gateway",
+      "min_version": "1.3036.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "How the gateway credential is sent on the wire (Authorization: Bearer vs x-api-key header). One of: `bearer`, `x-api-key`. Defaults to `bearer`. Deprecated: `inferenceGatewayAuthScheme: \"sso\"` (accepted until October 7, 2026); use inferenceCredentialKind: \"interactive\". If it is still present after that, browser sign-in will no longer be inferred from it \u2014 the key will be reported as invalid and, unless inferenceCredentialKind or another credential field (an API key, inferenceGatewayOidc) says how to sign in, the gateway connection will have no credential and inference will not start. Deprecated: `inferenceGatewayAuthScheme: \"auto\"` (accepted until October 7, 2026); use \"bearer\" (or remove the key \u2014 bearer is the default). If it is still present after that, the value will be reported as invalid and ignored like any unrecognised scheme; the key will then take its default, \"bearer\", so the credential will still be sent as an Authorization: Bearer header.",
+      "values": [
+        "bearer",
+        "x-api-key"
+      ]
+    },
+    {
+      "key": "inferenceGatewayOidcAuthFlow",
+      "type": "enum",
+      "section": "Connection",
+      "group": "Gateway",
+      "min_version": "1.25927.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "How the IdP sign-in runs: system browser (default) or the OS Microsoft Entra broker. One of: `browser`, `broker`. Deprecated: `inferenceGatewayOidcAuthFlow`; use inferenceIdpAuthFlow together with inferenceIdpOidc once every desktop in the fleet is on a release that reads them. The original spelling will keep working; no end date has been set.",
+      "values": [
+        "browser",
+        "broker"
+      ]
+    },
+    {
+      "key": "inferenceGatewayOidc",
+      "type": "object",
+      "section": "Connection",
+      "group": "Gateway",
+      "min_version": "1.6889.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "External IdP for gateway sign-in. The user\u2019s token from this issuer is sent to the gateway as the Bearer credential. Deprecated: `inferenceGatewayOidc`; use inferenceIdpOidc with inferenceCredentialKind: \"external-idp\" once every desktop in the fleet is on a release that reads them. The original spelling will keep working; no end date has been set.",
+      "fields": {
+        "clientId": {
+          "type": "string",
+          "description": "OAuth client ID of the desktop app registration at your identity provider (public client, PKCE)."
+        },
+        "issuer": {
+          "type": "string",
+          "description": "HTTPS issuer with OIDC discovery. Set this, or set the authorization and token URLs instead."
+        },
+        "authorizationUrl": {
+          "type": "string",
+          "description": "HTTPS authorization endpoint. Used with the token URL when no issuer is set."
+        },
+        "tokenUrl": {
+          "type": "string",
+          "description": "HTTPS token endpoint. Used with the authorization URL when no issuer is set."
+        },
+        "bearerTokenType": {
+          "type": "enum",
+          "description": "Which token to send as the bearer. Use access token for a gateway or proxy that validates as an OAuth resource server. One of: `id_token`, `access_token`.",
+          "values": [
+            "id_token",
+            "access_token"
+          ]
+        },
+        "scopes": {
+          "type": "string",
+          "description": "Space-separated scopes. Required in access-token mode: set the gateway or proxy API scope. offline\\_access is appended automatically unless disabled below."
+        },
+        "appendOfflineAccess": {
+          "type": "boolean",
+          "description": "Automatically append offline\\_access to scopes so the IdP returns a refresh token for silent refresh."
+        },
+        "resource": {
+          "type": "string",
+          "description": "Access-token audience of the gateway or proxy: an https URL or an AD FS relying-party identifier, sent as the RFC 8707 resource. Leave unset for Entra ID."
+        },
+        "redirectPort": {
+          "type": "integer",
+          "description": "Fixed loopback port for the sign-in redirect. Leave unset to use a free port each time."
+        },
+        "redirectHost": {
+          "type": "enum",
+          "description": "Use localhost only if your IdP\u2019s registered redirect URI specifies it. One of: `127.0.0.1`, `localhost`.",
+          "values": [
+            "127.0.0.1",
+            "localhost"
+          ]
+        },
+        "additionalRedirectReferrerHosts": {
+          "type": "string",
+          "description": "Space-separated hostnames also accepted as the referrer of the sign-in callback. Only needed when the IdP completes sign-in from a different host."
+        }
+      }
+    },
+    {
+      "key": "inferenceIdpAuthFlow",
+      "type": "enum",
+      "section": "Connection",
+      "group": "Gateway",
+      "min_version": "2.7032.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "How the identity-provider sign-in runs: system browser (default) or the OS Microsoft Entra broker. One of: `browser`, `broker`.",
+      "values": [
+        "browser",
+        "broker"
+      ]
+    },
+    {
+      "key": "inferenceIdpOidc",
+      "type": "object",
+      "section": "Connection",
+      "group": "Gateway",
+      "min_version": "2.7032.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Your organization\u2019s OpenID Connect identity provider. The user\u2019s token is sent as the Bearer credential to the gateway or the Bedrock proxy.",
+      "fields": {
+        "clientId": {
+          "type": "string",
+          "description": "OAuth client ID of the desktop app registration at your identity provider (public client, PKCE)."
+        },
+        "issuer": {
+          "type": "string",
+          "description": "HTTPS issuer with OIDC discovery. Set this, or set the authorization and token URLs instead."
+        },
+        "authorizationUrl": {
+          "type": "string",
+          "description": "HTTPS authorization endpoint. Used with the token URL when no issuer is set."
+        },
+        "tokenUrl": {
+          "type": "string",
+          "description": "HTTPS token endpoint. Used with the authorization URL when no issuer is set."
+        },
+        "bearerTokenType": {
+          "type": "enum",
+          "description": "Which token to send as the bearer. Use access token for a gateway or proxy that validates as an OAuth resource server. One of: `id_token`, `access_token`.",
+          "values": [
+            "id_token",
+            "access_token"
+          ]
+        },
+        "scopes": {
+          "type": "string",
+          "description": "Space-separated scopes. Required in access-token mode: set the gateway or proxy API scope. offline\\_access is appended automatically unless disabled below."
+        },
+        "appendOfflineAccess": {
+          "type": "boolean",
+          "description": "Automatically append offline\\_access to scopes so the IdP returns a refresh token for silent refresh."
+        },
+        "resource": {
+          "type": "string",
+          "description": "Access-token audience of the gateway or proxy: an https URL or an AD FS relying-party identifier, sent as the RFC 8707 resource. Leave unset for Entra ID."
+        },
+        "redirectPort": {
+          "type": "integer",
+          "description": "Fixed loopback port for the sign-in redirect. Leave unset to use a free port each time."
+        },
+        "redirectHost": {
+          "type": "enum",
+          "description": "Use localhost only if your IdP\u2019s registered redirect URI specifies it. One of: `127.0.0.1`, `localhost`.",
+          "values": [
+            "127.0.0.1",
+            "localhost"
+          ]
+        },
+        "additionalRedirectReferrerHosts": {
+          "type": "string",
+          "description": "Space-separated hostnames also accepted as the referrer of the sign-in callback. Only needed when the IdP completes sign-in from a different host."
+        }
+      }
+    },
+    {
+      "key": "modelDiscoveryEnabled",
+      "type": "boolean",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "1.8089.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Auto-populate the model picker from the provider at launch.",
+      "default": false
+    },
+    {
+      "key": "modelPrefer1mContext",
+      "type": "boolean",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "1.28929.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "When a user has no saved selection, start the picker on the 1M-context variant of the default model if it offers one.",
+      "default": true
+    },
+    {
+      "key": "inferenceModels",
+      "type": "object[]",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "Override the auto-discovered model list. First entry is the default.",
+      "fields": {
+        "name": {
+          "type": "string",
+          "description": "Model ID exactly as the provider expects it. The first entry is the default model."
+        },
+        "labelOverride": {
+          "type": "string",
+          "description": "Shown in the model picker. Leave blank to auto-format from the ID."
+        },
+        "supports1m": {
+          "type": "boolean",
+          "description": "Adds a 1M-context variant of this model to the picker. Set only if the deployment accepts 1M-token context for it."
+        },
+        "prefer1m": {
+          "type": "boolean",
+          "description": "Make the 1M-context variant the default picker selection when this model is the default (first) entry. Users can still choose the standard variant."
+        },
+        "anthropicFamilyTier": {
+          "type": "enum",
+          "description": "Which Claude tier this model stands in for. Pins the bare alias (e.g. \u2018opus\u2019) and, for opus/fable, the refusal fallback. One of: `sonnet`, `opus`, `haiku`, `fable`, `mythos`.",
+          "values": [
+            "sonnet",
+            "opus",
+            "haiku",
+            "fable",
+            "mythos"
+          ]
+        },
+        "isFamilyDefault": {
+          "type": "boolean",
+          "description": "When several models share a tier alias, marks this one as the model the alias resolves to. Otherwise the first listed wins."
+        },
+        "maxEffort": {
+          "type": "enum",
+          "description": "Highest effort level offered for this model; higher levels are hidden and never requested by Claude Desktop. An unrecognized value caps the model at low. One of: `low`, `medium`, `high`, `xhigh`, `max`.",
+          "values": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "key": "defaultModelEffort",
+      "type": "enum",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "2.110.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Effort level the default model (the first listed model) starts at, instead of Anthropic\u2019s recommended level: low, medium, high, xhigh or max. One of: `low`, `medium`, `high`, `xhigh`, `max`.",
+      "values": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "key": "alwaysStartWithDefaultModel",
+      "type": "boolean",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "2.110.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "When true, each new conversation or task starts on the default model, and a person\u2019s model and effort changes are no longer saved as their default.",
+      "default": true
+    },
+    {
+      "key": "inferenceModelPricingEnabled",
+      "type": "boolean",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "1.37937.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Show an estimated cost on the Usage page at Anthropic list price; turn on to set a multiplier or per-model rates."
+    },
+    {
+      "key": "inferenceModelPricingMultiplier",
+      "type": "number",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "1.37937.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Scales every estimated cost (0.85 = 85% of the price); between 0 and 1. Range: 0\u20131.",
+      "min": 0,
+      "max": 1
+    },
+    {
+      "key": "inferenceModelPricing",
+      "type": "object[]",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "1.37937.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Per-model rates replacing Anthropic list price in the Usage page\u2019s estimate.",
+      "fields": {
+        "name": {
+          "type": "string",
+          "description": "A model ID from the list above, or any other ID or alias your provider serves. A built-in Claude ID also covers its dated and provider forms."
+        },
+        "inputPerMtok": {
+          "type": "number",
+          "description": "USD per million input tokens."
+        },
+        "outputPerMtok": {
+          "type": "number",
+          "description": "USD per million output tokens."
+        },
+        "cacheReadPerMtok": {
+          "type": "number",
+          "description": "USD per million prompt-cache read tokens."
+        },
+        "cacheWritePerMtok": {
+          "type": "number",
+          "description": "USD per million prompt-cache write tokens (5-minute and 1-hour writes alike)."
+        }
+      }
+    },
+    {
+      "key": "modelCatalogEnabled",
+      "type": "boolean",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "2.110.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Label and describe the model picker\u2019s entries from the published Claude Code model catalog, instead of the app\u2019s built-in table."
+    },
+    {
+      "key": "modelCatalogUrl",
+      "type": "string",
+      "section": "Connection",
+      "group": "Models",
+      "min_version": "2.110.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Fetch the model catalog and its signature file from this URL (a mirror inside your network serving Anthropic\u2019s published files) instead of downloads.claude.ai."
+    },
+    {
+      "key": "inferenceVertexProjectId",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Google Cloud project ID for Vertex AI inference."
+    },
+    {
+      "key": "inferenceVertexRegion",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "GCP region where your Vertex AI Claude models are deployed."
+    },
+    {
+      "key": "inferenceVertexBaseUrl",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "PSC endpoint, if using one."
+    },
+    {
+      "key": "inferenceVertexOAuthClientId",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Desktop-app OAuth client ID. Enables Sign in with Google instead of a credentials file."
+    },
+    {
+      "key": "inferenceVertexOAuthClientSecret",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Secret for the Desktop-app OAuth client above. Google classifies installed-app client secrets as non-confidential, so this may be set from hosted config."
+    },
+    {
+      "key": "inferenceVertexOAuthScopes",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Override the Google OAuth scopes (space-separated). Leave blank for the default."
+    },
+    {
+      "key": "inferenceVertexOAuthLoginHint",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.12603.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Pre-fill Google's account chooser and forward to your federated IdP. \\{username} expands to the OS login name."
+    },
+    {
+      "key": "inferenceVertexWorkforceAudience",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.10628.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Workforce-pool provider audience. When set, sign-in uses your own IdP plus a GCP STS exchange instead of a Google identity."
+    },
+    {
+      "key": "inferenceVertexWorkforceUserProject",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.10628.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "GCP project for STS billing and quota. Defaults to the Vertex project ID above."
+    },
+    {
+      "key": "inferenceVertexWorkforceAuthFlow",
+      "type": "enum",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.25927.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "How the IdP sign-in runs: system browser (default) or the OS Microsoft Entra broker. One of: `browser`, `broker`.",
+      "values": [
+        "browser",
+        "broker"
+      ]
+    },
+    {
+      "key": "inferenceVertexWorkforceOidc",
+      "type": "object",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.10628.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Your organization\u2019s OIDC IdP. The app runs an authorization-code-with-PKCE flow against this issuer and exchanges the returned ID token at GCP STS.",
+      "fields": {
+        "clientId": {
+          "type": "string",
+          "description": "OAuth client ID of the desktop app registration at your identity provider (public client, PKCE)."
+        },
+        "issuer": {
+          "type": "string",
+          "description": "HTTPS issuer with OIDC discovery. Set this, or set the authorization and token URLs instead."
+        },
+        "authorizationUrl": {
+          "type": "string",
+          "description": "HTTPS authorization endpoint. Used with the token URL when no issuer is set."
+        },
+        "tokenUrl": {
+          "type": "string",
+          "description": "HTTPS token endpoint. Used with the authorization URL when no issuer is set."
+        },
+        "scopes": {
+          "type": "string",
+          "description": "Space-separated scopes. Defaults to openid profile email offline\\_access."
+        },
+        "redirectPort": {
+          "type": "integer",
+          "description": "Fixed loopback port for the sign-in redirect. Leave unset to use a free port each time."
+        },
+        "redirectHost": {
+          "type": "enum",
+          "description": "Use localhost only if your IdP\u2019s registered redirect URI specifies it. One of: `127.0.0.1`, `localhost`.",
+          "values": [
+            "127.0.0.1",
+            "localhost"
+          ]
+        },
+        "omitOfflineAccess": {
+          "type": "boolean",
+          "description": "Only enable if your IdP rejects the offline\\_access scope on this client. Without it the app prompts for sign-in each time the token expires."
+        },
+        "additionalRedirectReferrerHosts": {
+          "type": "string",
+          "description": "Space-separated hostnames also accepted as the referrer of the sign-in callback. Only needed when the IdP completes sign-in from a different host."
+        }
+      }
+    },
+    {
+      "key": "inferenceVertexCredentialsFile",
+      "type": "string",
+      "section": "Connection",
+      "group": "Vertex",
+      "min_version": "1.2581.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Absolute path to service-account JSON. Leave blank to fall back to ADC."
+    },
+    {
+      "key": "disableDeploymentModeChooser",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Authentication",
+      "min_version": "1.3834.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Users see only this provider at the login screen. The option to sign in to Claude.ai is hidden. Defaults to `false`."
+    },
+    {
+      "key": "disableDeepLinkRegistration",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Authentication",
+      "min_version": "1.6889.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Stop external apps and websites from opening Claude Desktop via claude:// links. Defaults to `false`."
+    },
+    {
+      "key": "builtinBrowserEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Built-in browser",
+      "min_version": "2.2553.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Offer the built-in browser in Cowork and Code sessions so users and Claude can open and work with web pages. Site sign-ins stay on the device until cleared. Defaults to `false`."
+    },
+    {
+      "key": "builtinBrowserDefaultDomainPolicy",
+      "type": "enum",
+      "section": "Capabilities",
+      "group": "Built-in browser",
+      "min_version": "2.2553.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Whether Claude may open sites in the built-in browser by default; the allowed or blocked list is the exception. Mirrors the Claude in Chrome site policy. One of: `allow`, `block`. Defaults to `allow`.",
+      "values": [
+        "allow",
+        "block"
+      ]
+    },
+    {
+      "key": "builtinBrowserAllowedDomains",
+      "type": "string[]",
+      "section": "Capabilities",
+      "group": "Built-in browser",
+      "min_version": "2.2553.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Sites Claude may open, read, and act on in the built-in browser when the default site policy is block. Users can still view other sites."
+    },
+    {
+      "key": "builtinBrowserBlockedDomains",
+      "type": "string[]",
+      "section": "Capabilities",
+      "group": "Built-in browser",
+      "min_version": "2.2553.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Sites Claude may not open, read, or act on in the built-in browser when the default site policy is allow. Users can still view them."
+    },
+    {
+      "key": "chatTabEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Chat surface",
+      "min_version": "1.13576.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Enable Chat. Quick questions and drafting."
+    },
+    {
+      "key": "chatAdvancedFileAnalysisEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Chat surface",
+      "min_version": "1.14271.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Allow Claude to run code in a local sandbox to analyze attached files it can\u2019t read natively \u2014 like Excel and PowerPoint. Off by default.",
+      "default": true
+    },
+    {
+      "key": "isClaudeCodeForDesktopEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Code surface",
+      "min_version": "1.2581.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Enable Code. Claude writes and runs code. Defaults to `true`."
+    },
+    {
+      "key": "sshHostAllowlist",
+      "type": "string[]",
+      "section": "Capabilities",
+      "group": "Code surface",
+      "min_version": "1.40609.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "SSH hosts users may connect to for Code sessions. Empty or unset: off unless the device\u2019s Claude Code managed-settings allowlist applies. \\* allows any host."
+    },
+    {
+      "key": "sshClientPath",
+      "type": "string",
+      "section": "Capabilities",
+      "group": "Code surface",
+      "min_version": "1.46388.1",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Absolute path to the OpenSSH ssh program the app runs for SSH sessions. Unset: the first ssh on the user\u2019s PATH."
+    },
+    {
+      "key": "sshTransport",
+      "type": "enum",
+      "section": "Capabilities",
+      "group": "Code surface",
+      "min_version": "1.52386.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Which SSH engine carries Code sessions: the OpenSSH ssh program on the device, or the app\u2019s built-in SSH library. Unset or auto: the build\u2019s default. One of: `auto`, `system-openssh`, `builtin`.",
+      "values": [
+        "auto",
+        "system-openssh",
+        "builtin"
+      ]
+    },
+    {
+      "key": "coworkTabEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Cowork surface",
+      "min_version": "1.9659.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Enable Cowork. Claude works on longer tasks like research, analysis, and documents. Defaults to `true`."
+    },
+    {
+      "key": "userPluginMarketplacesEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.37937.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Allow users to add plugin marketplaces. When off, marketplaces your organization did not provision are hidden and the app\u2019s sessions do not load their plugins."
+    },
+    {
+      "key": "userPluginUploadsEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.37937.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Allow users to add their own plugins. When off, every in-app option for adding one is hidden and uploads that still reach the app are refused."
+    },
+    {
+      "key": "disabledBuiltinTools",
+      "type": "string[]",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.2581.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Built-in tools, or argument-scoped permission rules such as Read(//\\*\\*/.env), denied in Cowork and Code."
+    },
+    {
+      "key": "disableBundledSkills",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.15962.0",
+      "disposition": "default",
+      "reason": "Enable normal public web tools and bundled skills.",
+      "description": "Disables Claude Code\u2019s bundled skills and workflows (deep-research and similar). Use where WebFetch/WebSearch aren\u2019t available.",
+      "default": false
+    },
+    {
+      "key": "skillCreationEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.25927.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Allow users to create and upload their own skills. When off, the creation and upload surfaces are hidden and the agent\u2019s skill-creation tools are disabled."
+    },
+    {
+      "key": "scheduledTasksEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "2.110.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Allow scheduled tasks in Cowork and Code. When off, the Scheduled page is hidden, existing tasks stop running, and Claude cannot create new ones."
+    },
+    {
+      "key": "keepAwakeEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "2.7032.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Let Claude keep the computer awake. When off, Claude never prevents sleep and hides the keep-awake switches in Settings, the Scheduled page and the Code tab."
+    },
+    {
+      "key": "builtinToolPolicy",
+      "type": "object",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.8089.0",
+      "disposition": "default",
+      "reason": "Enable normal public web tools and bundled skills.",
+      "description": "Approval policy per built-in tool or argument-scoped rule such as Bash(curl \\*). \u201cask\u201d requires user approval before each matching call; \u201callow\u201d is the default. Deprecated: `builtinToolPolicy: \"ask-session\"` (accepted until October 7, 2026); use \"ask\". If it is still present after that, the entry will be read as \"ask\" (approval on every call), like any unrecognized value.",
+      "default": {
+        "WebSearch": "allow",
+        "WebFetch": "allow"
+      }
+    },
+    {
+      "key": "autoModeEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.10628.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Offer Auto mode in the Code permission selector (on unless set to false); set to true to also offer it in Cowork. Claude decides which actions need approval."
+    },
+    {
+      "key": "disableBypassPermissionsMode",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.46388.1",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Remove the bypass permissions mode from Code sessions and Cowork tasks, so Claude always follows the permission policy. Off by default."
+    },
+    {
+      "key": "toolSearchEnabled",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.21459.0",
+      "disposition": "default",
+      "reason": "Load MCP schemas on demand; native search requests use a compatible Anthropic route.",
+      "description": "Load MCP tool schemas on demand (tool search) instead of inlining every schema into context. Defaults to `false`.",
+      "default": true
+    },
+    {
+      "key": "skipWebFetchPreflight",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.37937.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Skip Claude Code\u2019s WebFetch domain lookup against api.anthropic.com in Code sessions. Off by default; turn on when that host is blocked."
+    },
+    {
+      "key": "allowedWorkspaceFolders",
+      "type": "object[]",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "Folders where Claude may work. Applies to both Cowork and Code sessions. Leave unset for unrestricted access.",
+      "fields": {
+        "path": {
+          "type": "string",
+          "description": "Absolute folder path. May start with \\~ or one of the listed %VAR% tokens, expanded per user. Subfolders are included."
+        },
+        "isDefaultSelected": {
+          "type": "boolean",
+          "description": "Shows as a folder chip on the new-task page and skips the trust prompt. Users can remove it."
+        },
+        "mode": {
+          "type": "enum",
+          "description": "Read-only folders can be viewed and searched but not modified in Cowork. In Code, applies to file tools only; Bash and SSH do not yet enforce read-only. One of: `rw`, `ro`.",
+          "values": [
+            "rw",
+            "ro"
+          ]
+        }
+      }
+    },
+    {
+      "key": "blockReadsOutsideWorkingDirectories",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.46388.1",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Keep Claude from reading files outside a Code session\u2019s working directories. File tools refuse such reads; sandboxed shell commands lose the home directory."
+    },
+    {
+      "key": "coworkEgressAllowedHosts",
+      "type": "string[]",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "Hostnames the agent\u2019s tools may reach from Cowork and Code sessions. Also surfaced under Egress Requirements."
+    },
+    {
+      "key": "requireCoworkFullVmSandbox",
+      "type": "boolean",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.2581.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Runs tools inside an isolated VM instead of the host. Stronger isolation; slower file access and no host-process tools. Defaults to `false`."
+    },
+    {
+      "key": "organizationInstructions",
+      "type": "string",
+      "section": "Capabilities",
+      "group": "Workspace",
+      "min_version": "1.37937.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Appended to Claude\u2019s system prompt in Chat, Cowork, and Code. Guidance the model follows, not an enforced control. Up to 3,000 characters."
+    },
+    {
+      "key": "claudeAiImport",
+      "type": "object",
+      "section": "Connectors",
+      "group": "Workspace",
+      "min_version": "1.10628.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Lets users import Claude.ai chats and projects, plus earlier Claude sessions on this computer, when `enabled` is true. `automatic3pImport` is a separate switch.",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Lets users import a Claude.ai data export and earlier Claude sessions on this computer from Settings \u2192 Import. Doesn\u2019t affect a provisioned sign-in import."
+        },
+        "automatic3pImport": {
+          "type": "boolean",
+          "description": "Copy this computer\u2019s earlier third-party sessions into the app once, in the background. Independent of `enabled`."
+        },
+        "exportEnabled": {
+          "type": "boolean",
+          "description": "Lets users export this computer\u2019s chats, Cowork tasks, and Code sessions as a zip another install can import. No effect unless `enabled` is true."
+        },
+        "bannerBehavior": {
+          "type": "enum",
+          "description": "Prompt to import on a new chat or task. Off if unset. `show`: always; needs `enabled` or a sign-in import. `detect`: if `enabled` finds earlier Claude sessions. One of: `off`, `detect`, `show`.",
+          "values": [
+            "off",
+            "detect",
+            "show"
+          ]
+        }
+      }
+    },
+    {
+      "key": "microsoftAuthBroker",
+      "type": "enum",
+      "section": "Connectors",
+      "group": "Authentication",
+      "min_version": "1.19367.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "\u201cdisabled\u201d forces browser-based Microsoft 365 sign-in; \u201crequired\u201d fails sign-in when the OS broker is unavailable, so the refresh token stays broker-held. One of: `auto`, `disabled`, `required`. Defaults to `auto`.",
+      "values": [
+        "auto",
+        "disabled",
+        "required"
+      ]
+    },
+    {
+      "key": "isDesktopExtensionEnabled",
+      "type": "boolean",
+      "section": "Connectors",
+      "group": "Extensions",
+      "min_version": "1.2581.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": ".dxt and .mcpb installs. Defaults to `false`. Previously named `isDxtEnabled` (the old name is accepted until October 7, 2026). If it is still present after that, the old name will be reported as unreadable and the key will read as false: desktop extensions will be disabled until the name is updated."
+    },
+    {
+      "key": "isDesktopExtensionSignatureRequired",
+      "type": "boolean",
+      "section": "Connectors",
+      "group": "Extensions",
+      "min_version": "1.2581.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Reject desktop extensions that are not signed by a trusted publisher. Defaults to `false`. Previously named `isDxtSignatureRequired` (the old name is accepted until October 7, 2026). If it is still present after that, the old name will be reported as unreadable and the key will read as true: only signed extensions will load until the name is updated."
+    },
+    {
+      "key": "managedMcpServers",
+      "type": "object[]",
+      "section": "Connectors",
+      "group": "MCP",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "Org-pushed MCP servers: remote (HTTP/SSE) or local (stdio command). May embed bearer tokens. Deprecated: `managedMcpServers[].scopes` (accepted until October 7, 2026); use scope (one space-separated string, for example \"Mail.Read Calendars.Read\"). If it is still present after that, the entry will be rejected as invalid and that connector will be unavailable until the entry is rewritten. Deprecated: `managedMcpServers[].toolPolicy: \"ask-session\"` (accepted until October 7, 2026); use \"ask\". If it is still present after that, the entry will be rejected as invalid and that connector will be unavailable until the entry is rewritten. Deprecated: `managedMcpServers[].transport: \"builtin\"` (accepted until October 7, 2026); no longer needed \u2014 safe to remove. If it is still present after that, the entry will be rejected as invalid and that connector will be unavailable until the entry is rewritten. Deprecated: `managedMcpServers[].authorityHost` (accepted until October 7, 2026); use azureCloud: \"us-gov-high\" for a GCC High tenant; otherwise nothing. If it is still present after that, the entry will be rejected as invalid and that connector will be unavailable until the entry is rewritten \u2014 the Microsoft 365 connector will disappear rather than guess a cloud. Deprecated: `managedMcpServers[].source` (accepted until October 7, 2026); no longer needed \u2014 safe to remove. If it is still present after that, it will be treated as any unrecognised entry member \u2014 ignored by the desktop (the connector still loads; the app assigns each connector's provenance itself) and refused by a customer-run Apps Gateway serving the configuration. Deprecated: `managedMcpServers[].oauth as a number or string` (accepted until October 7, 2026); use true (automatic registration) or an oauth object. If it is still present after that, it will be treated as any wrong-typed member: the entry will be rejected as invalid and that connector will be unavailable until the entry is rewritten. Deprecated: `managedMcpServers[].oauth.scopes (or oauth.scope as a list)` (accepted until October 7, 2026); use oauth.scope as one space-separated string, for example \"read write\". If it is still present after that, it will be treated as any wrong-typed member: the entry will be rejected as invalid and that connector will be unavailable until the entry is rewritten. Deprecated: `managedMcpServers[] entry without transport` (accepted until October 7, 2026); use transport: \"http\" (or \"sse\" / \"stdio\") on every entry that is not a built-in server. If it is still present after that, the entry will be rejected as invalid and that connector will be unavailable until the entry is rewritten.",
+      "fields": {
+        "name": {
+          "type": "string",
+          "description": "Unique name for this server. Shown to users and used to key tool policy and sign-in state."
+        },
+        "server": {
+          "type": "string",
+          "description": "Which bundled connector this entry turns on. Set instead of a transport; each built-in server has its own fields. One of: `microsoft365`, `websearch`, `github`.",
+          "values": [
+            "microsoft365",
+            "websearch",
+            "github"
+          ]
+        },
+        "tenantId": {
+          "type": "string",
+          "description": "Your organization\u2019s Microsoft Entra directory (tenant) ID."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "OAuth app client ID for this built-in server."
+        },
+        "azureCloud": {
+          "type": "enum",
+          "description": "Microsoft cloud for sign-in and Graph. Leave as global for commercial Microsoft 365; US Government clouds require your own app registration (Client ID). One of: `global`, `us-gov-high`, `us-gov-dod`.",
+          "values": [
+            "global",
+            "us-gov-high",
+            "us-gov-dod"
+          ]
+        },
+        "continuousAccessEvaluation": {
+          "type": "enum",
+          "description": "Request CAE-capable Microsoft Graph tokens: long-lived (up to about 28 hours) but revocable within minutes. Set \u201cdisabled\u201d to keep standard one-hour tokens. One of: `enabled`, `disabled`.",
+          "values": [
+            "enabled",
+            "disabled"
+          ]
+        },
+        "scope": {
+          "type": "string",
+          "description": "What the server may request at sign-in. If blank, Desktop\u2019s default read set is used."
+        },
+        "toolPolicy": {
+          "type": "object",
+          "description": "Lock the approval state for specific tools. Unlisted tools stay user-controlled."
+        },
+        "headers": {
+          "type": "object",
+          "description": "Static headers sent on every request \u2014 routing and tenant headers only. No credentials here; use the headers helper script for tokens and rotating values."
+        },
+        "headersHelper": {
+          "type": "string",
+          "description": "Script that prints the auth header as a JSON object to stdout. Runs before each request (cached for the TTL below)."
+        },
+        "headersHelperTtlSec": {
+          "type": "integer",
+          "description": "How long the helper\u2019s headers are reused before it runs again, in seconds. Defaults to 300."
+        },
+        "headersHelperRefreshBufferSec": {
+          "type": "integer",
+          "description": "Seconds before the TTL expires at which the helper re-runs mid-session. Defaults to 60. Keep it larger than the helper\u2019s typical runtime."
+        },
+        "provider": {
+          "type": "enum",
+          "description": "Runs search from the desktop, for inference providers without native web search. Supply the provider\u2019s API key through the headers helper script below. One of: `brave`, `tavily`, `exa`, `custom`.",
+          "values": [
+            "brave",
+            "tavily",
+            "exa",
+            "custom"
+          ]
+        },
+        "customUrl": {
+          "type": "string",
+          "description": "POST endpoint accepting \\{q} JSON and returning a results\\[] array. Only used when provider is Custom."
+        },
+        "host": {
+          "type": "string",
+          "description": "Leave blank for github.com. For GitHub Enterprise Server, your instance\u2019s base URL."
+        },
+        "toolsets": {
+          "type": "string",
+          "description": "Comma-separated github-mcp-server toolsets to enable. If blank, the bundled server\u2019s default toolsets are used."
+        },
+        "readOnly": {
+          "type": "boolean",
+          "description": "Offer only read tools \u2014 the server registers no write tools at all."
+        },
+        "transport": {
+          "type": "enum",
+          "description": "How the app connects: Streamable HTTP, legacy SSE, or a local command (stdio). policy-only connects to nothing; it only sets a plugin server\u2019s tool policy. One of: `http`, `sse`, `stdio`, `policy-only`.",
+          "values": [
+            "http",
+            "sse",
+            "stdio",
+            "policy-only"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "description": "HTTPS endpoint of the remote MCP server."
+        },
+        "oauth": {
+          "type": "object",
+          "description": "OAuth for a remote server: true to auto-register a client, a pre-registered client ID with tenant and scope, or mode \u201chosted\u201d for an Anthropic-signed identity."
+        },
+        "oauth.clientId": {
+          "type": "string",
+          "description": "OAuth client ID from your IdP app registration. Leave unset to auto-register (dynamic client registration) and only narrow scopes."
+        },
+        "oauth.clientSecret": {
+          "type": "string",
+          "description": "Only for IdPs that require one (e.g. Box). Hosted config can store only a Google Desktop-app secret (GOCSPX-\u2026); for other IdPs use the client secret helper."
+        },
+        "oauth.clientSecretHelper": {
+          "type": "string",
+          "description": "Executable that prints the client secret on stdout as a JSON object with a single clientSecret key; any other output is rejected. Overrides the inline value."
+        },
+        "oauth.authorizationServer": {
+          "type": "string[]",
+          "description": "Issuer URLs the OAuth sign-in may use, as a JSON array. Pre-filled by presets; ask your IdP admin if unsure."
+        },
+        "oauth.authorizationUrl": {
+          "type": "string",
+          "description": "Only for IdPs that don\u2019t serve a .well-known discovery document. Set together with Token URL; requires Client ID."
+        },
+        "oauth.tokenUrl": {
+          "type": "string",
+          "description": "Only for IdPs that don\u2019t serve a .well-known discovery document. Set together with Authorization URL; requires Client ID."
+        },
+        "oauth.tenantId": {
+          "type": "string",
+          "description": "Required for single-tenant Entra apps. Leave blank for multi-tenant or non-Microsoft IdPs."
+        },
+        "oauth.authFlow": {
+          "type": "enum",
+          "description": "How Entra sign-in runs for this server: the system browser (default) or the OS identity broker. One of: `browser`, `broker`.",
+          "values": [
+            "browser",
+            "broker"
+          ]
+        },
+        "oauth.scope": {
+          "type": "string",
+          "description": "Space-separated scopes sent on the authorize request. Leave unset to use the scopes the server advertises. Required when Tenant ID is set."
+        },
+        "oauth.appendOfflineAccess": {
+          "type": "boolean",
+          "description": "Adds offline\\_access to the authorize request so the IdP returns a refresh token for silent renewal."
+        },
+        "oauth.callbackHost": {
+          "type": "enum",
+          "description": "Use localhost only if your IdP\u2019s registered redirect URI specifies it. One of: `127.0.0.1`, `localhost`.",
+          "values": [
+            "127.0.0.1",
+            "localhost"
+          ]
+        },
+        "oauth.callbackPort": {
+          "type": "integer",
+          "description": "Only set if your IdP requires an exact-match redirect port. Entra accepts any."
+        },
+        "oauth.additionalRedirectReferrerHosts": {
+          "type": "string",
+          "description": "Space-separated hostnames also accepted as the referrer of the sign-in callback. Only needed when the IdP completes sign-in from a different host."
+        },
+        "command": {
+          "type": "string",
+          "description": "Absolute path to the server executable, run on the user\u2019s machine."
+        },
+        "args": {
+          "type": "string[]",
+          "description": "Arguments passed to the command, one per entry."
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables set for the command."
+        },
+        "envHelper": {
+          "type": "string",
+          "description": "Script that prints environment variables as a JSON object to stdout. Runs when the local server starts (cached for the TTL below)."
+        },
+        "envHelperTtlSec": {
+          "type": "integer",
+          "description": "Maximum age of a cached helper result, in seconds (default 300). Applies when the server starts or restarts."
+        },
+        "startupTimeoutSec": {
+          "type": "integer",
+          "description": "Maximum wait in seconds for the server to start and list its tools."
+        }
+      }
+    },
+    {
+      "key": "mcpPersistentAlwaysAllowEnabled",
+      "type": "boolean",
+      "section": "Connectors",
+      "group": "MCP",
+      "min_version": "1.24012.9",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Offer the persistent \u201cAlways allow\u201d approval options for MCP tools. Disable to keep tool approvals per-call or session-scoped only. Defaults to `true`."
+    },
+    {
+      "key": "mcpScheduledTaskApprovalLifetimeDays",
+      "type": "integer",
+      "section": "Connectors",
+      "group": "MCP",
+      "min_version": "2.7032.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "How many days a scheduled task may reuse a lasting MCP-tool approval before it asks again. 0 removes the lasting option. Range: 0\u20133650.",
+      "min": 0,
+      "max": 3650
+    },
+    {
+      "key": "isLocalDevMcpEnabled",
+      "type": "boolean",
+      "section": "Connectors",
+      "group": "MCP",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Local stdio servers added via the Developer settings. Remote servers come from the managed list above or organization plugins. Defaults to `true`."
+    },
+    {
+      "key": "allowedPluginMcpServers",
+      "type": "object[]",
+      "section": "Connectors",
+      "group": "MCP",
+      "min_version": "2.2553.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Servers plugins may connect in sessions, beyond the managed list above and organization plugins. An empty list allows none; unset keeps today\u2019s rules.",
+      "fields": {
+        "serverUrl": {
+          "type": "string",
+          "description": "URL pattern a plugin\u2019s remote server must match, with \\* wildcards."
+        }
+      }
+    },
+    {
+      "key": "deniedPluginMcpServers",
+      "type": "object[]",
+      "section": "Connectors",
+      "group": "MCP",
+      "min_version": "2.16120.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Remote servers plugins may not connect, even if the allowed list admits them; in Code sessions, configuration-file servers too. Unset or empty blocks none.",
+      "fields": {
+        "serverUrl": {
+          "type": "string",
+          "description": "URL pattern of the remote servers to block, with \\* wildcards."
+        }
+      }
+    },
+    {
+      "key": "mcpToolTimeoutSec",
+      "type": "integer",
+      "section": "Connectors",
+      "group": "MCP",
+      "min_version": "1.37937.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Per-call timeout for MCP tool calls, in seconds. Default 180 (3 minutes). Range: 60\u20133600.",
+      "min": 60,
+      "max": 3600,
+      "default": 300
+    },
+    {
+      "key": "deploymentOrganizationUuid",
+      "type": "string",
+      "section": "Telemetry & updates",
+      "group": "MCP",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "A UUID you generate. Tags telemetry so Anthropic support can locate your fleet\u2019s events, and namespaces each user\u2019s local data. Not used for auth."
+    },
+    {
+      "key": "disableEssentialTelemetry",
+      "type": "boolean",
+      "section": "Telemetry & updates",
+      "group": "MCP",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Crash and performance reports to Anthropic. Defaults to `false`."
+    },
+    {
+      "key": "disableNonessentialTelemetry",
+      "type": "boolean",
+      "section": "Telemetry & updates",
+      "group": "MCP",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Product-usage analytics and diagnostic-report uploads. No message content. Defaults to `false`."
+    },
+    {
+      "key": "disableNonessentialServices",
+      "type": "boolean",
+      "section": "Telemetry & updates",
+      "group": "MCP",
+      "min_version": "1.2581.0",
+      "disposition": "bridge-owned",
+      "reason": "Bridge owns authentication and transport hardening; keep the signed gateway identity authoritative.",
+      "description": "Connector favicons, artifact-preview and MCP Apps iframes, and the Linux spellcheck dictionary. Connector widgets fall back to text; spellcheck is off on Linux. Defaults to `false`."
+    },
+    {
+      "key": "disableAutoUpdates",
+      "type": "boolean",
+      "section": "Telemetry & updates",
+      "group": "Auto update",
+      "min_version": "1.2581.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Stop Claude Desktop from fetching updates entirely (no time limit). You\u2019ll need to push new versions yourself. Defaults to `false`.",
+      "default": false
+    },
+    {
+      "key": "autoUpdaterEnforcementHours",
+      "type": "integer",
+      "section": "Telemetry & updates",
+      "group": "Auto update",
+      "min_version": "1.2581.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Hours before a downloaded update force-installs. Only applies when auto-updates are enabled. Blank = 72-hour default. Range: 1\u201372.",
+      "min": 1,
+      "max": 72,
+      "default": 72
+    },
+    {
+      "key": "updateViaUpdatesHost",
+      "type": "boolean",
+      "section": "Telemetry & updates",
+      "group": "Auto update",
+      "min_version": "1.26832.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Read the update feed from releases.claude.com so api.anthropic.com can stay blocked. Defaults to `false`."
+    },
+    {
+      "key": "relaunchEnforcementHours",
+      "type": "integer",
+      "section": "Telemetry & updates",
+      "group": "Configuration updates",
+      "min_version": "1.40609.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Hours a user may keep working on the old configuration after a managed-configuration change is detected. 0 = restart required at once. Blank = 24 hours. Defaults to `24`. Range: 0\u2013336.",
+      "min": 0,
+      "max": 336,
+      "default": 24
+    },
+    {
+      "key": "configRecheckIntervalMinutes",
+      "type": "integer",
+      "section": "Telemetry & updates",
+      "group": "Configuration updates",
+      "min_version": "1.46388.1",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Minutes between the running app\u2019s checks for a changed managed configuration. Blank = 10 minutes. Defaults to `10`. Range: 2\u201330.",
+      "min": 2,
+      "max": 30,
+      "default": 2
+    },
+    {
+      "key": "disableLocalConfigCache",
+      "type": "boolean",
+      "section": "Telemetry & updates",
+      "group": "Configuration updates",
+      "min_version": "2.7032.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Don\u2019t keep your organization\u2019s name or any permissive setting on disk between launches; only your organization ID and the restrictions you turn on are kept. Defaults to `false`."
+    },
+    {
+      "key": "otlpEndpoint",
+      "type": "string",
+      "section": "Telemetry & updates",
+      "group": "OTLP",
+      "min_version": "1.2581.0",
+      "disposition": "diagnostics",
+      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "description": "Where OpenTelemetry logs and metrics are sent. Leave blank to disable."
+    },
+    {
+      "key": "otlpProtocol",
+      "type": "enum",
+      "section": "Telemetry & updates",
+      "group": "OTLP",
+      "min_version": "1.2581.0",
+      "disposition": "diagnostics",
+      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "description": "Transport protocol for the OpenTelemetry exporters. One of: `http/protobuf`, `http/json`, `grpc`. Defaults to `http/protobuf`.",
+      "values": [
+        "http/protobuf",
+        "http/json",
+        "grpc"
+      ]
+    },
+    {
+      "key": "otlpHeaders",
+      "type": "object",
+      "section": "Telemetry & updates",
+      "group": "OTLP",
+      "min_version": "1.2581.0",
+      "disposition": "diagnostics",
+      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "description": "Static collector headers \u2014 routing and tenant headers only. No credentials here; use Collector authentication or the headers helper script for tokens. Deprecated: `otlpHeaders as a \"Name=value,\u2026\" string or a [\"Name: value\", \u2026] list` (accepted until October 7, 2026); use a JSON object such as \\{\"Name\": \"value\"}. If it is still present after that, a string or list value will be rejected as malformed and no exporter headers will be sent."
+    },
+    {
+      "key": "otlpAuthMode",
+      "type": "enum",
+      "section": "Telemetry & updates",
+      "group": "OTLP",
+      "min_version": "1.30096.1",
+      "disposition": "diagnostics",
+      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "description": "inference-credential sends the user\u2019s inference bearer token to the collector as Authorization: Bearer. One of: `none`, `inference-credential`.",
+      "values": [
+        "none",
+        "inference-credential"
+      ]
+    },
+    {
+      "key": "otlpHeadersHelper",
+      "type": "string",
+      "section": "Telemetry & updates",
+      "group": "OTLP",
+      "min_version": "1.30096.1",
+      "disposition": "diagnostics",
+      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "description": "Absolute path to an executable that prints a JSON object of collector headers. Merged over the static headers and Collector authentication; the helper wins."
+    },
+    {
+      "key": "otlpResourceAttributes",
+      "type": "object",
+      "section": "Telemetry & updates",
+      "group": "OTLP",
+      "min_version": "1.5354.0",
+      "disposition": "diagnostics",
+      "reason": "Astound metadata-only diagnostics; content capture and arbitrary exporter destinations are restricted.",
+      "description": "Extra resource attributes to attach to every span/metric. A static enduser.id set here always wins over the runtime identity. Deprecated: `otlpResourceAttributes as a \"Name=value,\u2026\" string or a [\"Name: value\", \u2026] list` (accepted until October 7, 2026); use a JSON object such as \\{\"Name\": \"value\"}. If it is still present after that, a string or list value will be rejected as malformed and no custom resource attributes will be attached."
+    },
+    {
+      "key": "otlpDesktopLogLevel",
+      "type": "enum",
+      "section": "Telemetry & updates",
+      "group": "OTLP",
+      "min_version": "1.9255.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Controls the Claude Desktop application\u2019s events, separate from Cowork and Code sessions. Defaults to error. One of: `off`, `error`, `warn`, `info`, `debug`. Defaults to `error`.",
+      "values": [
+        "off",
+        "error",
+        "warn",
+        "info",
+        "debug"
+      ],
+      "default": "info"
+    },
+    {
+      "key": "otlpContentCapture",
+      "type": "enum[]",
+      "section": "Telemetry & updates",
+      "group": "OTLP",
+      "min_version": "1.15962.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Content categories the desktop exporter sends unredacted to your collector. Leave empty to redact all content (default). One of: `userPrompts`, `assistantResponses`, `toolDetails`, `toolContent`, `rawApiBodies`.",
+      "values": [
+        "userPrompts",
+        "assistantResponses",
+        "toolDetails",
+        "toolContent",
+        "rawApiBodies"
+      ],
+      "default": []
+    },
+    {
+      "key": "otlpTracesEnabled",
+      "type": "boolean",
+      "section": "Telemetry & updates",
+      "group": "OTLP",
+      "min_version": "1.22209.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Also export OpenTelemetry traces from Cowork tasks and Code sessions. Uses Claude Code\u2019s session tracing.",
+      "default": true
+    },
+    {
+      "key": "chatSessionRetentionDays",
+      "type": "integer",
+      "section": "Limits",
+      "group": "Session retention",
+      "min_version": "1.52386.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Delete chats, with their files, after this many days without activity. Unset: kept until the user deletes them. Projects and memory stay. Range: 1\u20133650.",
+      "min": 1,
+      "max": 3650
+    },
+    {
+      "key": "coworkSessionRetentionDays",
+      "type": "integer",
+      "section": "Limits",
+      "group": "Session retention",
+      "min_version": "1.52386.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Delete Cowork tasks, with their uploads and outputs, after this many days without activity. Unset: kept until the user deletes them. Spaces and memory stay. Range: 1\u20133650.",
+      "min": 1,
+      "max": 3650
+    },
+    {
+      "key": "codeSessionRetentionDays",
+      "type": "integer",
+      "section": "Limits",
+      "group": "Session retention",
+      "min_version": "1.52386.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Delete Code sessions, conversation included, after this many days without activity. Unset: kept until the user deletes them. Uncommitted work stays on disk. Range: 1\u20133650.",
+      "min": 1,
+      "max": 3650
+    },
+    {
+      "key": "sessionRetentionHold",
+      "type": "boolean",
+      "section": "Limits",
+      "group": "Session retention",
+      "min_version": "1.52386.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Suspend all automatic session deletion for these users (legal hold). While on, the retention periods above delete nothing."
+    },
+    {
+      "key": "inferenceMaxTokensPerWindow",
+      "type": "integer",
+      "section": "Limits",
+      "group": "Token limits",
+      "min_version": "1.2581.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Per-user soft cap, counted client-side over the token cap window. Not a server-enforced quota."
+    },
+    {
+      "key": "inferenceTokenWindowHours",
+      "type": "integer",
+      "section": "Limits",
+      "group": "Token limits",
+      "min_version": "1.2581.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Tumbling window length for the token cap. Max 720 hours (30 days). Range: 1\u2013720.",
+      "min": 1,
+      "max": 720
+    },
+    {
+      "key": "endUserAttribution",
+      "type": "boolean",
+      "section": "Appearance",
+      "group": "Token limits",
+      "min_version": "1.25927.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Show the signed-in user\u2019s identity-provider identity in the sidebar and account menu, and emit it as the OpenTelemetry enduser.id resource attribute. Previously named `enduserAttribution` (the old name is accepted until October 7, 2026). If it is still present after that, the key will read as false (its fail-closed value): end-user attribution will stay off \u2014 no identity shown, no enduser.id emitted \u2014 whatever the old name said."
+    },
+    {
+      "key": "deploymentDisplayName",
+      "type": "string",
+      "section": "Appearance",
+      "group": "Token limits",
+      "min_version": "1.24012.0",
+      "disposition": "default",
+      "reason": "Chosen fleet default for predictable 1M operation, updates, file analysis, or metadata diagnostics.",
+      "description": "Overrides the provider label shown in the sidebar footer, user-menu header, and connection-error banner.",
+      "default": "Astound Digital"
+    },
+    {
+      "key": "deploymentDisplaySubtitle",
+      "type": "string",
+      "section": "Appearance",
+      "group": "Token limits",
+      "min_version": "1.24012.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Optional detail shown after the deployment display name in the account-menu header."
+    },
+    {
+      "key": "disableConfigDeprecationWarnings",
+      "type": "boolean",
+      "section": "Appearance",
+      "group": "Token limits",
+      "min_version": "1.40609.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Don\u2019t show users the in-app warning that this configuration uses a deprecated field. The final reminder in the 24 hours before the cut-off still appears."
+    },
+    {
+      "key": "banner",
+      "type": "object",
+      "section": "Appearance",
+      "group": "Token limits",
+      "min_version": "1.7196.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "A persistent banner across the top of the app window after sign-in.",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Turns the banner on. When false or unset, the other banner fields are ignored."
+        },
+        "text": {
+          "type": "string",
+          "description": "Single line, truncated on overflow. Maximum 200 characters."
+        },
+        "backgroundColor": {
+          "type": "string",
+          "description": "Six-digit hex (#RRGGBB). Applied exactly as configured; not theme-adapted."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Six-digit hex (#RRGGBB). Applied exactly as configured; not theme-adapted."
+        },
+        "linkUrl": {
+          "type": "string",
+          "description": "Optional HTTPS URL. The banner text becomes a link when set."
+        }
+      }
+    },
+    {
+      "key": "disableFeatureDiscovery",
+      "type": "boolean",
+      "section": "Appearance",
+      "group": "Feature discovery",
+      "min_version": "1.21459.0",
+      "disposition": "operator-configurable",
+      "reason": "Explicit deployment option; preserve current behavior when unset.",
+      "description": "Suppress unprompted feature-announcement UI: the post-update \u201cWhat\u2019s new\u201d nudge and new-feature tips. Users can still open release notes themselves. Defaults to `false`."
+    },
+    {
+      "key": "orgPluginSettings",
+      "type": "object[]",
+      "section": "Plugins",
+      "group": "Feature discovery",
+      "min_version": "1.8089.0",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "Admin policy applied to plugin-delivered MCP servers. Deprecated: `orgPluginSettings as a {\"mcpServers\": {\u2026}} record` (accepted until October 7, 2026); use the array form \\[\\{\"serverName\": \"\u2026\", \"tools\": \\[\\{\"toolName\": \"\u2026\", \"permission\": \"\u2026\"}]}] (read by desktop 1.15200.0 and later; older desktops ignore the array and enforce no tool blocks). If it is still present after that, the record will be rejected as malformed and the key will fail closed: every plugin-delivered MCP tool will be blocked until the value is rewritten. Deprecated: `orgPluginSettings[].tools[].permission: \"ask-session\"` (accepted until October 7, 2026); use \"ask\". If it is still present after that, that tool will be treated as \"blocked\", like any unrecognized permission.",
+      "fields": {
+        "serverName": {
+          "type": "string",
+          "description": "Name of the plugin-delivered MCP server this policy applies to."
+        },
+        "tools": {
+          "type": "object[]",
+          "description": "Per-tool approval locks for this server."
+        },
+        "tools.toolName": {
+          "type": "string",
+          "description": "MCP tool name as the server reports it."
+        },
+        "tools.permission": {
+          "type": "enum",
+          "description": "Approval state locked for this tool. Unlisted tools stay user-controlled. One of: `allow`, `ask`, `ask-session`, `blocked`.",
+          "values": [
+            "allow",
+            "ask",
+            "ask-session",
+            "blocked"
+          ]
+        }
+      }
+    },
+    {
+      "key": "allowedPluginMarketplaces",
+      "type": "object[]",
+      "section": "Plugins",
+      "group": "Feature discovery",
+      "min_version": "1.17377.1",
+      "disposition": "bridge-owned",
+      "reason": "Resolved from trusted gateway, identity, model, connector, or workspace sources.",
+      "description": "Git repositories or hosted marketplace.json URLs to surface as plugin marketplaces in the Directory\u2019s Organization tab. The app re-fetches each periodically.",
+      "fields": {
+        "source": {
+          "type": "string",
+          "description": "Where the marketplace is fetched from: a GitHub repository (set repo), any Git remote (set url), or a hosted marketplace.json file (set url). One of: `github`, `git`, `url`.",
+          "values": [
+            "github",
+            "git",
+            "url"
+          ]
+        },
+        "repo": {
+          "type": "string",
+          "description": "GitHub repository in owner/repo form. Case-insensitive."
+        },
+        "ref": {
+          "type": "string",
+          "description": "Commit SHA, branch, or tag. Leave empty to track the default branch; auto\\_install and required need a full 40-character commit SHA."
+        },
+        "path": {
+          "type": "string",
+          "description": "Folder within the repository that contains the marketplace, when it isn\u2019t at the root."
+        },
+        "expectedName": {
+          "type": "string",
+          "description": "Rejects the marketplace if its manifest name differs."
+        },
+        "installationPreference": {
+          "type": "enum",
+          "description": "Whether users install plugins themselves or get them automatically. One of: `available`, `auto_install`, `required`.",
+          "values": [
+            "available",
+            "auto_install",
+            "required"
+          ]
+        },
+        "credentialKind": {
+          "type": "enum",
+          "description": "How fetches authenticate: anonymously, with the user\u2019s git credentials, via a helper executable, or as the app does to its gateway or bootstrap server (url). One of: `anonymous`, `userGit`, `credentialHelper`, `inferenceCredential`.",
+          "values": [
+            "anonymous",
+            "userGit",
+            "credentialHelper",
+            "inferenceCredential"
+          ]
+        },
+        "credentialHelper": {
+          "type": "string",
+          "description": "Executable that prints an access token for this marketplace."
+        },
+        "url": {
+          "type": "string",
+          "description": "HTTPS Git remote of the marketplace repository (git), or direct HTTPS URL of a hosted marketplace.json file (url)."
+        },
+        "manifestSha256": {
+          "type": "string",
+          "description": "SHA-256 of the exact marketplace.json to accept. Without it auto\\_install and required act as available; a served manifest with any other digest is refused."
+        }
+      }
+    },
+    {
+      "key": "bootstrapEnabled",
+      "type": "boolean",
+      "section": "Source",
+      "group": "Bootstrap",
+      "min_version": "1.10628.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Fetch and apply the URL above at launch. Turn off to keep the URL saved but skip the fetch. Defaults to `true`."
+    },
+    {
+      "key": "bootstrapUrl",
+      "type": "string",
+      "section": "Source",
+      "group": "Bootstrap",
+      "min_version": "1.10628.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "HTTPS endpoint that returns a per-user JSON config overlay. Values from the response override local settings and become read-only."
+    },
+    {
+      "key": "bootstrapOidc",
+      "type": "object",
+      "section": "Source",
+      "group": "Bootstrap",
+      "min_version": "1.10628.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "When set, the bootstrap request sends a Bearer token from a browser sign-in (authorization-code-with-PKCE).",
+      "fields": {
+        "clientId": {
+          "type": "string",
+          "description": "OAuth client ID of the desktop app registration at your identity provider (public client, PKCE)."
+        },
+        "issuer": {
+          "type": "string",
+          "description": "HTTPS issuer with OIDC discovery. Set this, or set the authorization and token URLs instead."
+        },
+        "authorizationUrl": {
+          "type": "string",
+          "description": "HTTPS authorization endpoint. Used with the token URL when no issuer is set."
+        },
+        "tokenUrl": {
+          "type": "string",
+          "description": "HTTPS token endpoint. Used with the authorization URL when no issuer is set."
+        },
+        "scopes": {
+          "type": "string",
+          "description": "Space-separated; the token\u2019s audience must match what your bootstrap server validates."
+        },
+        "redirectPort": {
+          "type": "integer",
+          "description": "Fixed loopback port for the sign-in redirect. Leave unset to use a free port each time."
+        },
+        "redirectHost": {
+          "type": "enum",
+          "description": "Use localhost only if your IdP\u2019s registered redirect URI specifies it. One of: `127.0.0.1`, `localhost`.",
+          "values": [
+            "127.0.0.1",
+            "localhost"
+          ]
+        },
+        "additionalRedirectReferrerHosts": {
+          "type": "string",
+          "description": "Space-separated hostnames also accepted as the referrer of the sign-in callback. Only needed when the IdP completes sign-in from a different host."
+        }
+      }
+    },
+    {
+      "key": "bootstrapHeaders",
+      "type": "object",
+      "section": "Source",
+      "group": "Bootstrap",
+      "min_version": "1.32885.1",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "HTTP headers sent on every bootstrap config fetch. Use this instead of embedding user:pass@ in the URL. Deprecated: `bootstrapHeaders as a \"Name=value,\u2026\" string or a [\"Name: value\", \u2026] list` (accepted until October 7, 2026); use a JSON object such as \\{\"Name\": \"value\"}. If it is still present after that, a string or list value will be rejected as malformed and no bootstrap request headers will be sent (the fetch may then fail to authenticate)."
+    },
+    {
+      "key": "bootstrapHeadersHelper",
+      "type": "string",
+      "section": "Source",
+      "group": "Bootstrap",
+      "min_version": "1.32885.1",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Absolute path to an executable that prints a JSON object of bootstrap request headers. Merged over the static headers; the helper wins."
+    },
+    {
+      "key": "trustBootstrapDelivery",
+      "type": "boolean",
+      "section": "Source",
+      "group": "Bootstrap",
+      "min_version": "1.26832.0",
+      "disposition": "inapplicable",
+      "reason": "Not used by the Bridge gateway deployment; do not emit.",
+      "description": "Skip the per-user consent prompt for sign-in targets, inference endpoints, helper scripts, and connectors the bootstrap server delivers. Defaults to `false`. Previously named `trustBootstrapLocalExec` (the old name is accepted until October 7, 2026). If it is still present after that, the key will read as false (its fail-closed value): each user will be asked to consent to bootstrap-delivered sign-in targets, endpoints, helper scripts and connectors, even when the bootstrap URL came from a device-managed profile."
+    }
+  ]
+}

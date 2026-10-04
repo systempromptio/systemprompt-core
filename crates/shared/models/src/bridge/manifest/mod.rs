@@ -115,6 +115,11 @@ pub struct SignedManifest {
     pub artifacts: Vec<ArtifactEntry>,
     #[serde(default)]
     pub allow_claude_ai_connectors: bool,
+    #[serde(
+        default,
+        skip_serializing_if = "crate::bridge::desktop_policy::DesktopPolicy::is_empty"
+    )]
+    pub desktop_policy: crate::bridge::desktop_policy::DesktopPolicy,
     #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

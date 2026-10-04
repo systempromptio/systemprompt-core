@@ -15,7 +15,7 @@ use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use systemprompt_identifiers::{ClientSessionId, GatewayConversationId};
 
-use super::BUFFERED_BODY_LIMIT;
+
 use super::error::{ForwardError, ForwardResult};
 use crate::feedback::sessions::OPENCODE_SESSION_HEADER;
 use crate::proxy::session::{self, SessionContext};
@@ -30,7 +30,15 @@ pub(super) async fn prepare_upstream_body(
     request_headers: &http::HeaderMap,
     request_path: &str,
 ) -> ForwardResult<(Bytes, Option<GatewayConversationId>)> {
-    let buffered = stamp_opencode_session(collect_body(body).await?, request_headers, request_path);
+    let buffered = stamp_opencode_session(
+        collect_body(
+            body,
+            systemprompt_models::net::gateway_request_body_limit(request_path),
+        )
+        .await?,
+        request_headers,
+        request_path,
+    );
     let id = session::derive_gateway_conversation_id(&buffered)
         .map(|hash| session_context.context_for_prefix(hash));
     if let Some(ref c) = id {
@@ -39,13 +47,12 @@ pub(super) async fn prepare_upstream_body(
     Ok((buffered, id))
 }
 
-async fn collect_body(body: Incoming) -> ForwardResult<Bytes> {
-    match http_body_util::Limited::new(body, BUFFERED_BODY_LIMIT)
-        .collect()
-        .await
-    {
+async fn collect_body(body: Incoming, limit: usize) -> ForwardResult<Bytes> {
+    match http_body_util::Limited::new(body, limit).collect().await {
         Ok(collected) => Ok(collected.to_bytes()),
-        Err(e) if e.is::<http_body_util::LengthLimitError>() => Err(ForwardError::BodyTooLarge),
+        Err(e) if e.is::<http_body_util::LengthLimitError>() => {
+            Err(ForwardError::BodyTooLarge { limit })
+        },
         Err(e) => Err(ForwardError::ReadBody(e)),
     }
 }

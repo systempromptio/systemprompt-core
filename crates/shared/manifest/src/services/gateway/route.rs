@@ -127,6 +127,10 @@ impl GatewayRoute {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RouteMatch {
+    /// Match any named tool, allowing provider-specific tools to select a
+    /// capable route.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_names_any: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requires_tools: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -146,8 +150,14 @@ pub struct RouteMatch {
 impl RouteMatch {
     #[must_use]
     pub fn matches_request(&self, request: &CanonicalRequest) -> bool {
-        self.requires_tools
-            .is_none_or(|want| request.tools.is_empty() != want)
+        (self.tool_names_any.is_empty()
+            || request
+                .tools
+                .iter()
+                .any(|tool| self.tool_names_any.contains(&tool.name)))
+            && self
+                .requires_tools
+                .is_none_or(|want| request.tools.is_empty() != want)
             && self.min_tools.is_none_or(|n| request.tools.len() >= n)
             && self
                 .thinking
@@ -167,6 +177,9 @@ impl RouteMatch {
     #[must_use]
     pub fn matched_predicates(&self) -> Vec<&'static str> {
         let mut out = Vec::new();
+        if !self.tool_names_any.is_empty() {
+            out.push("tool_names_any");
+        }
         if self.requires_tools.is_some() {
             out.push("requires_tools");
         }
@@ -282,6 +295,7 @@ fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
 
 fn accumulate_text_len(part: &CanonicalContent, acc: &mut usize) {
     match part {
+        CanonicalContent::AnthropicToolBlock { block, .. } => *acc += block.to_string().len(),
         CanonicalContent::Text { text, .. } | CanonicalContent::Thinking { text, .. } => {
             *acc += text.len();
         },

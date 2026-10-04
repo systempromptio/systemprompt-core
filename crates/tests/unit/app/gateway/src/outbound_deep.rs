@@ -124,6 +124,7 @@ fn rich_request() -> CanonicalRequest {
         top_k: Some(40),
         stop_sequences: vec!["END".into(), "STOP".into()],
         tools: vec![CanonicalTool {
+            anthropic_definition: None,
             name: "search".into(),
             description: Some("web search".into()),
             input_schema: json!({"type": "object"}),

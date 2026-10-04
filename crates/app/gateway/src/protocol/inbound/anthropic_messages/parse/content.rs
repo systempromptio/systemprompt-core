@@ -128,7 +128,9 @@ fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, Inboun
         "tool_result" => {
             let inner = value
                 .get("content")
-                .map_or_else(Vec::new, parse_tool_result_content);
+                .map(parse_tool_result_content)
+                .transpose()?
+                .unwrap_or_default();
             Ok(Some(CanonicalContent::ToolResult {
                 tool_use_id: value
                     .get("tool_use_id")
@@ -145,6 +147,19 @@ fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, Inboun
                 cache_control: parse_cache_control(value),
             }))
         },
+        "tool_reference"
+        | "server_tool_use"
+        | "web_search_tool_result"
+        | "web_fetch_tool_result"
+        | "tool_search_tool_result" => Ok(Some(CanonicalContent::AnthropicToolBlock {
+            tool_name: value
+                .get("tool_name")
+                .or_else(|| value.get("name"))
+                .and_then(Value::as_str)
+                .unwrap_or(kind)
+                .to_owned(),
+            block: value.clone(),
+        })),
         "thinking" => Ok(Some(CanonicalContent::Thinking {
             id: None,
             encrypted_content: None,
@@ -170,15 +185,8 @@ fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, Inboun
 
 // JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
 // canonical form.
-fn parse_tool_result_content(value: &Value) -> Vec<CanonicalContent> {
-    match value {
-        Value::String(s) => vec![CanonicalContent::text(s.clone())],
-        Value::Array(arr) => arr
-            .iter()
-            .filter_map(|v| parse_content_block(v).ok().flatten())
-            .collect(),
-        _ => Vec::new(),
-    }
+fn parse_tool_result_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseError> {
+    parse_content(value)
 }
 
 // JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into

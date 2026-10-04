@@ -145,6 +145,19 @@ async fn send_learning_refusals(
     if !header_carries && !body_carries {
         return Err(error);
     }
+    if refused
+        .iter()
+        .any(|beta| beta.starts_with("tool-search-") || beta.starts_with("advanced-tool-use-"))
+        || refused_fields
+            .iter()
+            .any(|field| matches!(field.as_str(), "defer_loading" | "tool_reference"))
+    {
+        tracing::warn!(
+            provider,
+            "tool search is not supported by this upstream; preserving the original error"
+        );
+        return Err(error);
+    }
     rejected_betas::learn(provider, &refused);
     refused_fields::learn(provider, &refused_fields);
     tracing::warn!(

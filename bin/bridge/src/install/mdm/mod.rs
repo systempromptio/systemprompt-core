@@ -4,6 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod claude_code_settings;
+pub mod desktop_policy;
+mod desktop_settings;
 pub mod desktop_tool_policy;
 pub(crate) mod egress;
 mod error;

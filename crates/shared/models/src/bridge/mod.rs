@@ -47,3 +47,5 @@ pub mod manifest_version;
 pub mod plugin_bundle;
 pub mod profile;
 pub mod update_policy;
+
+pub mod desktop_policy;

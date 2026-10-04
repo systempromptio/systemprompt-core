@@ -133,6 +133,7 @@ fn parse_tool(value: &Value) -> Option<CanonicalTool> {
         .cloned()
         .unwrap_or(Value::Object(Map::new()));
     Some(CanonicalTool {
+        anthropic_definition: None,
         name: name.to_owned(),
         description,
         input_schema: parameters,

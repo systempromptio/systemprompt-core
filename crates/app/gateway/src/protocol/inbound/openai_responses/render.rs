@@ -48,7 +48,9 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
                 text,
                 encrypted_content.as_deref(),
             )),
-            CanonicalContent::Image { .. } | CanonicalContent::ToolResult { .. } => {},
+            CanonicalContent::AnthropicToolBlock { .. }
+            | CanonicalContent::Image { .. }
+            | CanonicalContent::ToolResult { .. } => {},
         }
     }
 

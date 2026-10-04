@@ -36,6 +36,7 @@ fn replace_json(value: &mut Value, replacements: &[(String, String)]) {
 fn replace_content(content: &mut [CanonicalContent], replacements: &[(String, String)]) {
     for part in content {
         match part {
+            CanonicalContent::AnthropicToolBlock { block, .. } => replace_json(block, replacements),
             CanonicalContent::Text { text, .. } | CanonicalContent::Thinking { text, .. } => {
                 replace_text(text, replacements);
             },

@@ -117,6 +117,10 @@ pub enum ImageSource {
 
 #[derive(Debug, Clone)]
 pub enum CanonicalContent {
+    AnthropicToolBlock {
+        tool_name: String,
+        block: Value,
+    },
     Text {
         text: String,
         cache_control: Option<CacheControl>,
@@ -178,7 +182,7 @@ impl CanonicalContent {
             | Self::Image { cache_control, .. }
             | Self::ToolUse { cache_control, .. }
             | Self::ToolResult { cache_control, .. } => *cache_control,
-            Self::Thinking { .. } => None,
+            Self::Thinking { .. } | Self::AnthropicToolBlock { .. } => None,
         }
     }
 }

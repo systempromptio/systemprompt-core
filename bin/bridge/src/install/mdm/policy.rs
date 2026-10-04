@@ -43,6 +43,24 @@ pub const WRITTEN_POLICY_KEYS: &[&str] = &[
     "inferenceCustomHeaders",
     "deploymentOrganizationUuid",
     "managedMcpServers",
+    "inferenceStreamIdleTimeoutSec",
+    "modelDiscoveryEnabled",
+    "alwaysStartWithDefaultModel",
+    "builtinToolPolicy",
+    "toolSearchEnabled",
+    "disableBundledSkills",
+    "chatAdvancedFileAnalysisEnabled",
+    "mcpToolTimeoutSec",
+    "autoUpdaterEnforcementHours",
+    "relaunchEnforcementHours",
+    "configRecheckIntervalMinutes",
+    "otlpDesktopLogLevel",
+    "otlpContentCapture",
+    "otlpTracesEnabled",
+    "deploymentDisplayName",
+    "otlpEndpoint",
+    "otlpProtocol",
+    "otlpAuthMode",
 ];
 
 /// One managed MCP server as the policy publishes it. `tool_policy` is
@@ -75,8 +93,17 @@ pub fn desktop_host_token(secret: &LoopbackSecret) -> HostToken {
 }
 
 pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Result<Vec<PolicyEntry>, MdmError> {
+    let policy = super::desktop_policy::verified_operator_policy()?;
+    claude_desktop_policy_with(inputs, &policy)
+}
+
+pub fn claude_desktop_policy_with(
+    inputs: &PolicyInputs<'_>,
+    policy: &super::desktop_policy::DesktopPolicy,
+) -> Result<Vec<PolicyEntry>, MdmError> {
     let mut out = super::inference::inference_entries(inputs)?;
     out.extend(hardening_entries());
+    out.extend(super::desktop_policy::entries_with_policy(inputs, policy)?);
     if let Some(hosts) = super::cowork_egress_allowed_hosts(inputs.egress_allowed_hosts)? {
         out.push((
             "coworkEgressAllowedHosts",
@@ -115,7 +142,6 @@ fn hardening_entries() -> Vec<PolicyEntry> {
         ("disableEssentialTelemetry", PolicyValue::Bool(true)),
         ("disableNonessentialTelemetry", PolicyValue::Bool(true)),
         ("disableNonessentialServices", PolicyValue::Bool(false)),
-        ("disableAutoUpdates", PolicyValue::Bool(true)),
         ("disableDeploymentModeChooser", PolicyValue::Bool(true)),
         ("isLocalDevMcpEnabled", PolicyValue::Bool(false)),
     ]

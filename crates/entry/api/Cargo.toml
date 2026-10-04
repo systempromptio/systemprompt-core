@@ -18,6 +18,7 @@ include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 all-features = true
 
 [dependencies]
+http-body-util = "0.1"
 # Core runtime
 tokio = { workspace = true, features = ["fs", "process", "signal"] }
 tokio-stream = { workspace = true }

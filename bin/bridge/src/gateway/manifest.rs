@@ -136,6 +136,7 @@ pub struct SignedManifestBuilder {
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     artifacts: Vec<ArtifactEntry>,
     allow_claude_ai_connectors: bool,
+    desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy,
     auto_update: AutoUpdatePolicy,
     marketplaces: Vec<ManifestMarketplace>,
 }
@@ -166,6 +167,7 @@ impl SignedManifestBuilder {
             host_model_protocols: std::collections::BTreeMap::new(),
             artifacts: Vec::new(),
             allow_claude_ai_connectors: false,
+            desktop_policy: Default::default(),
             auto_update: AutoUpdatePolicy::default(),
             marketplaces: Vec::new(),
         }
@@ -286,6 +288,7 @@ impl SignedManifestBuilder {
             host_model_protocols: self.host_model_protocols,
             artifacts: self.artifacts,
             allow_claude_ai_connectors: self.allow_claude_ai_connectors,
+            desktop_policy: self.desktop_policy,
             auto_update: self.auto_update,
             diagnostics: Vec::new(),
             marketplaces: self.marketplaces,

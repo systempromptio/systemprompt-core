@@ -175,7 +175,8 @@ fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {
     let mut tool_calls: Vec<Value> = Vec::new();
     for part in content {
         match part {
-            CanonicalContent::Text { text: t, .. } => text.push_str(t),
+            CanonicalContent::AnthropicToolBlock { tool_name: t, .. }
+            | CanonicalContent::Text { text: t, .. } => text.push_str(t),
             CanonicalContent::Thinking { text: t, .. } => reasoning.push_str(t),
             CanonicalContent::ToolUse {
                 id, name, input, ..
@@ -212,7 +213,10 @@ fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {
 // JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn content_to_chat_part(part: &CanonicalContent) -> Option<Value> {
     match part {
-        CanonicalContent::Text { text, .. } => Some(json!({ "type": "text", "text": text })),
+        CanonicalContent::AnthropicToolBlock {
+            tool_name: text, ..
+        }
+        | CanonicalContent::Text { text, .. } => Some(json!({ "type": "text", "text": text })),
         CanonicalContent::Image { source, .. } => {
             let (url, detail) = match source {
                 ImageSource::Url { url, detail } => (url.clone(), *detail),

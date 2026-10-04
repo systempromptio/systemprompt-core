@@ -20,6 +20,7 @@
 pub mod convert;
 
 pub mod ingest;
+pub mod json;
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -27,6 +28,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use prost::Message;
 use std::sync::Arc;
+use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_runtime::AppContext;
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
@@ -61,10 +63,27 @@ pub async fn handle(
     if let Err(rejection) = principal.enforce_session_binding(&session_id) {
         return rejection.into_response();
     }
-    ingest_envelope(request).await
+    ingest_with_identity(request, Some((principal.user_id().clone(), session_id))).await
 }
 
 pub async fn ingest_envelope(request: Request<Body>) -> Response<Body> {
+    ingest_with_identity(request, None).await
+}
+
+async fn ingest_with_identity(
+    request: Request<Body>,
+    identity: Option<(UserId, SessionId)>,
+) -> Response<Body> {
+    let is_json = request
+        .headers()
+        .get(http::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| {
+            value
+                .split(';')
+                .next()
+                .is_some_and(|kind| kind.trim() == "application/json")
+        });
     let body_bytes = match axum::body::to_bytes(request.into_body(), MAX_BODY_BYTES).await {
         Ok(b) => b,
         Err(e) => {
@@ -77,15 +96,33 @@ pub async fn ingest_envelope(request: Request<Body>) -> Response<Body> {
         return accepted();
     }
 
-    if let Ok(req) = ExportTraceServiceRequest::decode(body_bytes.as_ref())
+    if is_json {
+        match json::decode_logs(&body_bytes) {
+            Ok(mut req) if !req.resource_logs.is_empty() => {
+                for item in &mut req.resource_logs {
+                    bind_identity(&mut item.resource, identity.as_ref());
+                }
+                ingest_logs(req);
+            },
+            _ => tracing::warn!(bytes = body_bytes.len(), "otel: invalid JSON log export"),
+        }
+        return accepted();
+    }
+    if let Ok(mut req) = ExportTraceServiceRequest::decode(body_bytes.as_ref())
         && !req.resource_spans.is_empty()
     {
+        for item in &mut req.resource_spans {
+            bind_identity(&mut item.resource, identity.as_ref());
+        }
         ingest_traces(req);
         return accepted();
     }
-    if let Ok(req) = ExportLogsServiceRequest::decode(body_bytes.as_ref())
+    if let Ok(mut req) = ExportLogsServiceRequest::decode(body_bytes.as_ref())
         && !req.resource_logs.is_empty()
     {
+        for item in &mut req.resource_logs {
+            bind_identity(&mut item.resource, identity.as_ref());
+        }
         ingest_logs(req);
         return accepted();
     }
@@ -108,4 +145,33 @@ fn accepted() -> Response<Body> {
         .status(StatusCode::ACCEPTED)
         .body(Body::empty())
         .unwrap_or_else(|_| Response::new(Body::empty()))
+}
+
+
+fn bind_identity(
+    resource: &mut Option<opentelemetry_proto::tonic::resource::v1::Resource>,
+    identity: Option<&(UserId, SessionId)>,
+) {
+    use opentelemetry_proto::tonic::common::v1::{AnyValue, KeyValue, any_value};
+    let resource = resource.get_or_insert_default();
+    resource.attributes.retain(|kv| {
+        !matches!(
+            kv.key.as_str(),
+            "systemprompt.user.id" | "systemprompt.session.id" | "enduser.id"
+        )
+    });
+    if let Some((user, session)) = identity {
+        for (key, value) in [
+            ("systemprompt.user.id", user.as_str()),
+            ("systemprompt.session.id", session.as_str()),
+        ] {
+            resource.attributes.push(KeyValue {
+                key: key.to_owned(),
+                value: Some(AnyValue {
+                    value: Some(any_value::Value::StringValue(value.to_owned())),
+                }),
+                ..Default::default()
+            });
+        }
+    }
 }

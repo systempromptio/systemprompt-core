@@ -69,6 +69,7 @@ fn buffered_request() -> CanonicalRequest {
         top_k: Some(40),
         stop_sequences: vec!["END".into()],
         tools: vec![CanonicalTool {
+            anthropic_definition: None,
             name: "t".into(),
             description: Some("do".into()),
             input_schema: json!({"type":"object"}),

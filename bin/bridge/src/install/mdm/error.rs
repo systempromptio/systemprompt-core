@@ -7,6 +7,10 @@ use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MdmError {
+    #[error(transparent)]
+    DesktopPolicy(#[from] systemprompt_models::bridge::desktop_policy::DesktopPolicyError),
+    #[error(transparent)]
+    Manifest(#[from] crate::gateway::manifest::ManifestError),
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     #[error(transparent)]
     DesktopCatalog(#[from] crate::gateway::desktop_catalog::CatalogError),

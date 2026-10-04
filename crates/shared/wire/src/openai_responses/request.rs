@@ -166,7 +166,8 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
     let mut reasoning_items: Vec<Value> = Vec::new();
     for part in &msg.content {
         match part {
-            CanonicalContent::Text { text: t, .. } => text.push_str(t),
+            CanonicalContent::AnthropicToolBlock { tool_name: t, .. }
+            | CanonicalContent::Text { text: t, .. } => text.push_str(t),
             CanonicalContent::ToolUse {
                 id,
                 name,
@@ -242,7 +243,12 @@ fn render_user_or_system(msg: &CanonicalMessage, input: &mut Vec<Value>) {
 // JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn content_to_input_part(part: &CanonicalContent) -> Option<Value> {
     match part {
-        CanonicalContent::Text { text, .. } => Some(json!({ "type": "input_text", "text": text })),
+        CanonicalContent::AnthropicToolBlock {
+            tool_name: text, ..
+        }
+        | CanonicalContent::Text { text, .. } => {
+            Some(json!({ "type": "input_text", "text": text }))
+        },
         CanonicalContent::Image { source, .. } => {
             let (url, detail) = match source {
                 ImageSource::Url { url, detail } => (url.clone(), *detail),

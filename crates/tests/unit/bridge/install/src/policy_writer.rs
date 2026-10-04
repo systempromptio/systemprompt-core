@@ -90,6 +90,7 @@ fn manifest(servers: Vec<ManagedMcpServer>) -> SignedManifest {
         host_model_protocols: BTreeMap::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: Default::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),

@@ -43,7 +43,8 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
                     },
                 }));
             },
-            CanonicalContent::Thinking { .. }
+            CanonicalContent::AnthropicToolBlock { .. }
+            | CanonicalContent::Thinking { .. }
             | CanonicalContent::Image { .. }
             | CanonicalContent::ToolResult { .. } => {},
         }

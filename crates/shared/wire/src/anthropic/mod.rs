@@ -224,6 +224,10 @@ fn web_search_tool(search: &SearchConfig) -> Value {
 
 // JSON: Anthropic Messages API request body; upstream JSON is the contract.
 fn tool_to_anthropic(tool: &CanonicalTool) -> Value {
+    if let Some(definition) = &tool.anthropic_definition {
+        return definition.clone();
+    }
+
     let sanitizer = SchemaSanitizer::new(WireProtocol::Anthropic.schema_capabilities());
     let mut tobj = Map::new();
     tobj.insert("name".into(), Value::String(tool.name.clone()));

@@ -35,6 +35,17 @@ pub enum OutboundUrlError {
 }
 
 pub const BUFFERED_BODY_LIMIT_BYTES: usize = 8 * 1024 * 1024;
+pub const INFERENCE_BODY_LIMIT_BYTES: usize = 32 * 1024 * 1024;
+
+#[must_use]
+pub fn gateway_request_body_limit(path: &str) -> usize {
+    match path {
+        "/v1/messages" | "/v1/messages/count_tokens" | "/v1/chat/completions" | "/v1/responses" => {
+            INFERENCE_BODY_LIMIT_BYTES
+        },
+        _ => BUFFERED_BODY_LIMIT_BYTES,
+    }
+}
 
 pub const HTTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 

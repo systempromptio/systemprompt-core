@@ -17,6 +17,7 @@ const TOOL_CHOICE_EXPECTED: &str = "expected an object with type auto|any|tool";
 // canonical form.
 pub(super) fn parse_tool(value: &Value) -> CanonicalTool {
     CanonicalTool {
+        anthropic_definition: Some(value.clone()),
         name: value
             .get("name")
             .and_then(Value::as_str)
