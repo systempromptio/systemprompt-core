@@ -11,7 +11,7 @@ pub fn flatten_message_content(parts: &[CanonicalContent]) -> String {
     for part in parts {
         match part {
             CanonicalContent::AnthropicToolBlock { block, .. } => {
-                push_with_sep(&mut out, &block.to_string())
+                push_with_sep(&mut out, &block.to_string());
             },
             CanonicalContent::Text { text, .. } | CanonicalContent::Thinking { text, .. } => {
                 push_with_sep(&mut out, text);

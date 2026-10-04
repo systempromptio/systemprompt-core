@@ -39,7 +39,8 @@ pub(super) fn validate(policy: &DesktopPolicy) -> Result<(), DesktopPolicyError>
     Ok(())
 }
 
-// JSON: Catalog-defined Desktop setting values are type-checked at this boundary.
+// JSON: Catalog-defined Desktop setting values are type-checked at this
+// boundary.
 fn matches_type(kind: &str, value: &Value) -> bool {
     match kind {
         "boolean" => value.is_boolean(),
@@ -70,7 +71,8 @@ fn allowed_enum(values: &[String], value: &Value) -> bool {
         }
 }
 
-// JSON: External Desktop setting values are checked against their catalog schema.
+// JSON: External Desktop setting values are checked against their catalog
+// schema.
 fn validate_value(setting: &DesktopSetting, value: &Value) -> Result<(), DesktopPolicyError> {
     if !matches_type(&setting.r#type, value) {
         return Err(DesktopPolicyError::InvalidType {
@@ -107,7 +109,8 @@ fn validate_fields(setting: &DesktopSetting, value: &Value) -> Result<(), Deskto
     Ok(())
 }
 
-// JSON: Desktop object settings are validated field-by-field against the catalog.
+// JSON: Desktop object settings are validated field-by-field against the
+// catalog.
 fn validate_object(
     setting: &DesktopSetting,
     object: &Map<String, Value>,

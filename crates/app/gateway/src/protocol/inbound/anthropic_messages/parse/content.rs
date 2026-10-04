@@ -125,28 +125,7 @@ fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, Inboun
                 .map(str::to_owned),
             cache_control: parse_cache_control(value),
         })),
-        "tool_result" => {
-            let inner = value
-                .get("content")
-                .map(parse_tool_result_content)
-                .transpose()?
-                .unwrap_or_default();
-            Ok(Some(CanonicalContent::ToolResult {
-                tool_use_id: value
-                    .get("tool_use_id")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_owned(),
-                content: inner,
-                is_error: value
-                    .get("is_error")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false),
-                structured_content: value.get("structuredContent").cloned(),
-                meta: value.get("_meta").cloned(),
-                cache_control: parse_cache_control(value),
-            }))
-        },
+        "tool_result" => parse_tool_result(value).map(Some),
         "tool_reference"
         | "server_tool_use"
         | "web_search_tool_result"
@@ -185,8 +164,27 @@ fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, Inboun
 
 // JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
 // canonical form.
-fn parse_tool_result_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseError> {
-    parse_content(value)
+fn parse_tool_result(value: &Value) -> Result<CanonicalContent, InboundParseError> {
+    let content = value
+        .get("content")
+        .map(parse_content)
+        .transpose()?
+        .unwrap_or_default();
+    Ok(CanonicalContent::ToolResult {
+        tool_use_id: value
+            .get("tool_use_id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_owned(),
+        content,
+        is_error: value
+            .get("is_error")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        structured_content: value.get("structuredContent").cloned(),
+        meta: value.get("_meta").cloned(),
+        cache_control: parse_cache_control(value),
+    })
 }
 
 // JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into

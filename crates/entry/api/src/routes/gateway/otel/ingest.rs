@@ -130,7 +130,8 @@ pub fn ingest_metrics(req: &ExportMetricsServiceRequest) {
     tracing::debug!(total, "otel: metrics export");
 }
 
-// JSON: Sanitized OTLP resource attributes carry server-bound identity metadata.
+// JSON: Sanitized OTLP resource attributes carry server-bound identity
+// metadata.
 fn actor(
     resource: &serde_json::Value,
     trace: TraceId,
