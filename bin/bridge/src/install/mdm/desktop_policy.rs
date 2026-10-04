@@ -150,6 +150,7 @@ pub fn supports_version(installed: &str, required: &str) -> bool {
     }
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub fn installed_desktop_version() -> Option<String> {
     #[cfg(target_os = "macos")]
     {
@@ -191,8 +192,9 @@ pub fn installed_desktop_version() -> Option<String> {
             .to_owned();
         (!version.is_empty() && output.status.success()).then_some(version)
     }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        None
-    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub const fn installed_desktop_version() -> Option<String> {
+    None
 }
