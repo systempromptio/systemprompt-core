@@ -11,7 +11,6 @@ use systemprompt_models::providers::ApiSurface;
 
 use crate::gateway::types::ProviderHealth;
 
-/// Desktop accepts only advertised million-token Claude context variants.
 #[must_use]
 pub fn with_context_variants(
     models: &[String],

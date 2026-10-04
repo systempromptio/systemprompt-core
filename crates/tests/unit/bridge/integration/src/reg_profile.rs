@@ -120,26 +120,12 @@ fn hklm_profile_parses_to_the_whole_policy() {
     let rendered = render_reg(true, &inputs()).expect("profile renders");
     assert!(rendered.contains(r"[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]"));
     let parsed = parse_reg_entries(&rendered).expect("rendered profile parses");
-    let names: Vec<&str> = parsed.iter().map(|(k, _)| k.as_str()).collect();
-    assert_eq!(
-        names,
-        vec![
-            "inferenceProvider",
-            "inferenceGatewayBaseUrl",
-            "inferenceGatewayApiKey",
-            "inferenceGatewayAuthScheme",
-            "inferenceModels",
-            "disableEssentialTelemetry",
-            "disableNonessentialTelemetry",
-            "disableNonessentialServices",
-            "disableAutoUpdates",
-            "disableDeploymentModeChooser",
-            "isLocalDevMcpEnabled",
-            "allowedWorkspaceFolders",
-            "deploymentOrganizationUuid",
-            "managedMcpServers",
-        ]
-    );
+    let expected: Vec<(String, String)> = profile_entries(&inputs())
+        .expect("profile renders")
+        .into_iter()
+        .map(|(key, value)| (key.to_owned(), value))
+        .collect();
+    assert_eq!(parsed, expected);
 }
 
 fn mcp_servers() -> Vec<McpServerEntry> {
@@ -172,7 +158,10 @@ fn profile_key_set_equals_the_enforced_policy_key_set() {
     let policy = claude_desktop_policy(&PolicyInputs {
         base_url: &probe.gateway_base_url,
         host_token: &probe.host_token,
-        models: Some(serde_json::to_string(&probe.models).expect("json")),
+        models: Some(
+            serde_json::to_string(&with_context_variants(&probe.models, &probe.model_limits))
+                .expect("json"),
+        ),
         headers: &probe.headers,
         egress_allowed_hosts: None,
         org_uuid: probe.organization_uuid.as_deref(),

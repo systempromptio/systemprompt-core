@@ -363,7 +363,7 @@ fn desktop_inference_models_never_carry_non_anthropic_ids() {
 }
 
 #[test]
-fn an_all_gemini_list_falls_back_to_the_default_claude_models() {
+fn an_all_gemini_list_does_not_invent_unadvertised_claude_models() {
     let headers = BTreeMap::new();
     let token = host_token();
     let policy = claude_desktop_policy(&PolicyInputs {
@@ -381,10 +381,5 @@ fn an_all_gemini_list_falls_back_to_the_default_claude_models() {
         panic!("inferenceModels must be a JSON value");
     };
     let ids = models.as_array().expect("array");
-    assert!(!ids.is_empty());
-    assert!(
-        ids.iter()
-            .all(|m| m.as_str().is_some_and(|s| s.contains("claude"))),
-        "{models}"
-    );
+    assert!(ids.is_empty(), "{models}");
 }
