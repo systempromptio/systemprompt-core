@@ -151,6 +151,10 @@ pub fn supports_version(installed: &str, required: &str) -> bool {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+#[cfg_attr(
+    not(any(target_os = "macos", target_os = "windows")),
+    allow(clippy::missing_const_for_fn)
+)]
 pub fn installed_desktop_version() -> Option<String> {
     #[cfg(target_os = "macos")]
     {
