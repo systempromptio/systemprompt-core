@@ -42,6 +42,7 @@ pub const POLICY_KEYS: &[&str] = &[
     "inferenceGatewayAuthScheme",
     "inferenceCustomHeaders",
     "inferenceModels",
+    "modelPrefer1mContext",
     "allowedWorkspaceFolders",
     "managedMcpServers",
 ];

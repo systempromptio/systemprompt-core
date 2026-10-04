@@ -31,6 +31,7 @@ pub const WRITTEN_POLICY_KEYS: &[&str] = &[
     "inferenceGatewayApiKey",
     "inferenceGatewayAuthScheme",
     "inferenceModels",
+    "modelPrefer1mContext",
     "disableEssentialTelemetry",
     "disableNonessentialTelemetry",
     "disableNonessentialServices",
