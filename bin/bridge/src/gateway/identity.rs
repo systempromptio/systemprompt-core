@@ -92,9 +92,16 @@ impl GatewayClient {
             .map_err(|e| GatewayError::ProfileFetch(Box::new(e)))?;
         record_span(&resp, started);
         let resp = ensure_success(resp, "profile").await?;
-        resp.json::<BridgeProfile>()
+        let profile = resp
+            .json::<BridgeProfile>()
             .await
-            .map_err(|e| GatewayError::ProfileDecode(Box::new(e)))
+            .map_err(|e| GatewayError::ProfileDecode(Box::new(e)))?;
+        if let Err(error) =
+            crate::install::mdm::desktop_catalog::remember(self.base_url().as_str(), &profile)
+        {
+            tracing::warn!(%error, "could not cache the desktop model catalog");
+        }
+        Ok(profile)
     }
 
     #[tracing::instrument(

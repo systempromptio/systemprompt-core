@@ -13,7 +13,9 @@ const ORG_UUID: &str = "6f1d2c3a-4b5e-4f60-8a71-9b0c1d2e3f40";
 
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
-        model_limits: Default::default(),
+        model_limits: [("claude-opus-4-7".to_owned(), limit(1_000_000))]
+            .into_iter()
+            .collect(),
         gateway_base_url: "https://gateway.example.com".to_string(),
         host_token: HostToken::new("sp-secret-key"),
         models: vec!["claude-opus-4-7".to_string()],
@@ -50,11 +52,14 @@ fn profile_entries_carry_required_policy_keys() {
         "sp-secret-key",
         "the registry profile carries the host token it was handed"
     );
-    assert_eq!(value_of(&owned, "inferenceModels"), "[\"claude-opus-4-7\"]");
+    assert_eq!(
+        value_of(&owned, "inferenceModels"),
+        "[\"claude-opus-4-7[1m]\"]"
+    );
 }
 
 #[test]
-fn empty_models_falls_back_to_defaults() {
+fn empty_models_never_invent_a_gateway_catalog() {
     let mut probe = inputs();
     probe.models = vec![];
     let entries: Vec<(String, String)> = profile_entries(&probe)
@@ -65,10 +70,9 @@ fn empty_models_falls_back_to_defaults() {
     let parsed: Vec<String> = serde_json::from_str(value_of(&entries, "inferenceModels"))
         .expect("models is a json array");
     assert!(
-        parsed.len() >= 2,
-        "expected default model list, got {parsed:?}"
+        parsed.is_empty(),
+        "no advertised model means no desktop model"
     );
-    assert!(parsed.iter().any(|m| m == "claude-opus-5"));
 }
 
 #[test]
@@ -311,7 +315,7 @@ fn million_context_models_are_listed_only_as_the_1m_variant() {
     .collect();
     assert_eq!(
         with_context_variants(&models, &limits),
-        vec!["claude-sonnet-5[1m]", "claude-haiku-4-5"],
+        vec!["claude-sonnet-5[1m]"],
     );
 }
 

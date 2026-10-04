@@ -248,16 +248,7 @@ fn the_gateway_block_is_written_as_one_complete_unit() {
     else {
         panic!("inferenceModels must be a JSON value");
     };
-    assert_eq!(
-        models,
-        &serde_json::json!([
-            "claude-opus-5-5",
-            "claude-opus-5",
-            "claude-sonnet-5",
-            "claude-fable-5-1",
-            "claude-haiku-4-5-20251001"
-        ])
-    );
+    assert_eq!(models, &serde_json::json!(["claude-sonnet-5[1m]"]));
 }
 
 // Why: the gateway supplies a compatible model list through the host profile,

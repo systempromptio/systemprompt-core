@@ -241,10 +241,7 @@ fn policy_values(
                 source,
             }
         })?;
-    let existing_models = inputs
-        .policy_store
-        .backend()
-        .read_managed_policy("inferenceModels")?;
+    let existing_models = super::desktop_catalog::models()?;
     let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
         base_url,
         host_token: &host_token,

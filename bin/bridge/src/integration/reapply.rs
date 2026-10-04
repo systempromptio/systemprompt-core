@@ -123,7 +123,11 @@ pub async fn build_profile_inputs(
     Ok(ProfileGenInputs {
         gateway_base_url,
         host_token,
-        models: view.compatible_models,
+        models: if host.id() == systemprompt_models::bridge::host::HostKind::ClaudeDesktop {
+            server_profile.models.clone()
+        } else {
+            view.compatible_models
+        },
         model_limits: server_profile.model_limits,
         default_model: server_profile.default_model,
         organization_uuid: server_profile.organization_uuid,

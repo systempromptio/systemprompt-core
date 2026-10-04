@@ -56,6 +56,28 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
             return ExitCode::from(64);
         },
     };
+    if apply || apply_mobileconfig {
+        let cfg = match crate::config::load() {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                diag(&e.to_string());
+                return ExitCode::from(1);
+            },
+        };
+        if let Err(e) = ctx.block_on(
+            ctx.gateway_client(
+                gateway
+                    .clone()
+                    .unwrap_or_else(|| crate::config::gateway_url_or_default(&cfg)),
+            )
+            .fetch_bridge_profile(),
+        ) {
+            diag(&format!(
+                "Cannot refresh the Desktop model catalog: {e}. Install was not applied."
+            ));
+            return ExitCode::from(1);
+        }
+    }
     match install::install(
         &install::InstallOptions {
             print_mdm,

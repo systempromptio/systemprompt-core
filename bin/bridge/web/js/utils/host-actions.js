@@ -26,6 +26,12 @@ export class HostActionError extends Error {
  * UI reflects the result rather than waiting for the next tick.
  * @throws {HostActionError} carrying the stage that failed.
  */
+const installWarnings = new Map();
+
+export function hostInstallMessage(hostId, completedMessage) {
+  return installWarnings.get(hostId) || completedMessage;
+}
+
 export async function repairHost(hostId) {
   let generated;
   try {
@@ -38,7 +44,10 @@ export async function repairHost(hostId) {
     throw new HostActionError("generate", new Error("generate did not return a path"));
   }
   try {
-    await bridge.hostProfileInstall(hostId, path);
+    const result = await bridge.hostProfileInstall(hostId, path);
+    const warnings = result && Array.isArray(result.warnings) ? result.warnings : [];
+    installWarnings.set(hostId, warnings.join(" "));
+
   } catch (e) {
     throw new HostActionError("install", e);
   }

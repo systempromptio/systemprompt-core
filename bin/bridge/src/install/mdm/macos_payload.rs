@@ -37,10 +37,7 @@ fn policy_body(
             source,
         }
     })?;
-    let existing_models = mcp
-        .policy_store
-        .backend()
-        .read_managed_policy("inferenceModels")?;
+    let existing_models = super::desktop_catalog::models()?;
     let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
         base_url: gateway,
         host_token: &host_token,

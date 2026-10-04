@@ -151,6 +151,12 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<crate::host_sync::HostSyncReport, crate::host_sync::ApplyError> {
+        ctx.client.fetch_bridge_profile().await.map_err(|source| {
+            crate::host_sync::ApplyError::Step {
+                context: "refresh desktop model catalog",
+                source: Box::new(source),
+            }
+        })?;
         let report = refresh_tool_catalog(ctx).await?;
         let inputs = super::MdmPayloadInputs {
             policy_store: ctx.policy_store,

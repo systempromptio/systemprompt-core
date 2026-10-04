@@ -91,8 +91,13 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfil
 }
 
 pub(super) fn install_profile(path: &str) -> Result<ProfileInstalled, HostAppError> {
-    Command::new("/usr/bin/open").args(["-g", path]).status()?;
-    Ok(ProfileInstalled::ok())
+    let status = Command::new("/usr/bin/open").arg(path).status()?;
+    if !status.success() {
+        return Err(std::io::Error::other("could not open the configuration profile").into());
+    }
+    Ok(ProfileInstalled::with_warning(
+        "Approval required: open System Settings > General > Device Management, select the Claude Desktop profile, and click Install. Then quit and relaunch Claude Desktop.".to_owned(),
+    ))
 }
 
 pub(super) fn install_profile_unattended(_path: &str) -> Result<ProfileInstalled, HostAppError> {
@@ -112,11 +117,7 @@ fn render_profile(
     payload_uuid: &str,
     profile_uuid: &str,
 ) -> std::io::Result<String> {
-    let models = if inputs.models.is_empty() {
-        super::shared::default_models()
-    } else {
-        super::reg_profile::with_context_variants(&inputs.models, &inputs.model_limits)
-    };
+    let models = super::reg_profile::with_context_variants(&inputs.models, &inputs.model_limits);
     let models_json = serde_json::to_string(&models)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let policy = crate::install::mdm::policy::claude_desktop_policy(

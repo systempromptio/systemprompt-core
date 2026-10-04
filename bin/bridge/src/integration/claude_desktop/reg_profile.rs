@@ -33,14 +33,18 @@ pub fn with_context_variants(
 ) -> Vec<String> {
     let mut out = Vec::with_capacity(models.len());
     for id in models {
+        let base = id.strip_suffix("[1m]").unwrap_or(id);
+        if !base.starts_with("claude-") || base.starts_with("claude-fable-") {
+            continue;
+        }
         let is_million = limits
-            .get(id)
+            .get(base)
+            .or_else(|| limits.get(id))
             .is_some_and(|limit| limit.context_window >= ONE_MILLION);
-        let listed = if is_million && !id.ends_with("[1m]") {
-            format!("{id}[1m]")
-        } else {
-            id.clone()
-        };
+        if !is_million {
+            continue;
+        }
+        let listed = format!("{base}[1m]");
         if !out.contains(&listed) {
             out.push(listed);
         }
@@ -49,17 +53,13 @@ pub fn with_context_variants(
 }
 
 pub fn profile_entries(inputs: &ProfileGenInputs) -> Result<Vec<(&'static str, String)>, MdmError> {
-    let models = if inputs.models.is_empty() {
-        None
-    } else {
-        Some(
-            serde_json::to_string(&with_context_variants(&inputs.models, &inputs.model_limits))
-                .map_err(|source| MdmError::ConfigJson {
-                    key: "inferenceModels",
-                    source,
-                })?,
-        )
-    };
+    let models = Some(
+        serde_json::to_string(&with_context_variants(&inputs.models, &inputs.model_limits))
+            .map_err(|source| MdmError::ConfigJson {
+                key: "inferenceModels",
+                source,
+            })?,
+    );
     let policy = claude_desktop_policy(&PolicyInputs {
         base_url: &inputs.gateway_base_url,
         host_token: &inputs.host_token,

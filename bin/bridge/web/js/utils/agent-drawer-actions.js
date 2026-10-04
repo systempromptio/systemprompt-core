@@ -1,6 +1,6 @@
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
-import { repairHost, runHostAction, openHostConfig } from "/assets/js/utils/host-actions.js";
+import { repairHost, hostInstallMessage, runHostAction, openHostConfig } from "/assets/js/utils/host-actions.js";
 import { notifyOk, notifyErr, notifyAction } from "/assets/js/utils/notify.js";
 import { AGENT_WIRE_SURFACES, agentHostName } from "/assets/js/components/agent-drawer-parts.js";
 
@@ -29,7 +29,7 @@ export async function runAgentDrawerAct(drawer, trigger) {
   try {
     const result = await runHostAction(kind, host);
     const line = successLine(kind, host, result);
-    if (line) { notifyOk(line); }
+    if (line) { notifyOk(kind === "verify" ? line : hostInstallMessage(host.id, line)); }
   } catch (e) {
     notifyErr(e, t(`agent-action-${kind}`) || kind);
   } finally {
@@ -51,8 +51,8 @@ export async function runAgentDrawerAddHost(drawer, trigger) {
   const name = agentHostName(drawer._hostById(id));
   try {
     const path = await repairHost(id);
-    notifyOk(t("toast-agent-added", { name, path })
-      || `${name} added — wrote ${path}. Restart ${name} to pick it up.`);
+    notifyOk(hostInstallMessage(id, t("toast-agent-added", { name, path })
+      || `${name} added — wrote ${path}. Restart ${name} to pick it up.`));
   } catch (e) {
     notifyErr(e, t("agent-action-add") || "Add");
   } finally {

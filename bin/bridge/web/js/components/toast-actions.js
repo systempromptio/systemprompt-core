@@ -1,5 +1,5 @@
 import { bridge } from "/assets/js/bridge.js";
-import { repairHost } from "/assets/js/utils/host-actions.js";
+import { repairHost, hostInstallMessage } from "/assets/js/utils/host-actions.js";
 import { notifyErr, notifyOk } from "/assets/js/utils/notify.js";
 import { t } from "/assets/js/i18n.js";
 import { activateRailTab } from "/assets/js/utils/rail-tabs.js";
@@ -47,7 +47,7 @@ function repairHostAction(hostId) {
     run: async () => {
       try {
         await repairHost(hostId);
-        notifyOk(t("toast-agent-repaired-short", { name: hostId }) || `${hostId} repaired.`);
+        notifyOk(hostInstallMessage(hostId, t("toast-agent-repaired-short", { name: hostId }) || `${hostId} repaired.`));
       } catch (e) {
         notifyErr(e, repairLabel());
       }

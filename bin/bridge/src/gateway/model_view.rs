@@ -38,6 +38,9 @@ pub fn host_model_view(health: &[ProviderHealth], accepted: &[ApiSurface]) -> Ho
         } else if !provider.models.is_empty() {
             view.available = true;
         }
+        if !provider.configured {
+            continue;
+        }
         for model in &provider.models {
             if seen.insert(model.clone()) {
                 view.compatible_models.push(model.clone());
