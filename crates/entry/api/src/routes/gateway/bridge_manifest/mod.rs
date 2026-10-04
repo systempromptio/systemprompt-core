@@ -55,12 +55,7 @@ pub async fn manifest(
     let services = bridge_data::load_services_config()
         .map_err(|e| BridgeError::internal("manifest: services config load failed", e))?;
     let instance_hosts = instance_enabled_hosts(&services);
-    let desktop_policy = services
-        .external_agents
-        .values()
-        .find(|agent| agent.id.as_str() == "claude_desktop")
-        .map(|agent| agent.desktop_policy.clone())
-        .unwrap_or_default();
+    let desktop_policy = desktop_policy(&services);
 
     let (candidate, bridge_policy) = assemble_candidate(
         &ctx,
@@ -119,6 +114,17 @@ pub async fn manifest(
     let envelope = ManifestService::seal(&manifest)
         .map_err(|e| BridgeError::internal("manifest signing failed", e))?;
     Ok(Json(envelope))
+}
+
+fn desktop_policy(
+    services: &systemprompt_manifest::services::ServicesConfig,
+) -> systemprompt_models::bridge::desktop_policy::DesktopPolicy {
+    services
+        .external_agents
+        .values()
+        .find(|agent| agent.id.as_str() == "claude_desktop")
+        .map(|agent| agent.desktop_policy.clone())
+        .unwrap_or_default()
 }
 
 pub(crate) async fn assemble_candidate(

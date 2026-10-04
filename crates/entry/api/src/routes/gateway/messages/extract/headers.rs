@@ -79,7 +79,7 @@ pub async fn read_gateway_body(
     )
     .await
     .map_err(|e| {
-        if std::error::Error::source(&e).is_some_and(|source| source.is::<http_body_util::LengthLimitError>()) {
+        if std::error::Error::source(&e).is_some_and(<(dyn std::error::Error + 'static)>::is::<http_body_util::LengthLimitError>) {
             RejectionError::client(StatusCode::PAYLOAD_TOO_LARGE,
                 format!("serialized inference request exceeds {} bytes; model context capacity is a separate token limit", systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES)).with_cause(e)
         } else {

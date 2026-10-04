@@ -66,12 +66,15 @@ struct InputAttribute {
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct InputValue {
-    string_value: Option<String>,
-    bool_value: Option<bool>,
-    int_value: Option<InputInteger>,
-    double_value: Option<f64>,
+    #[serde(rename = "stringValue")]
+    text: Option<String>,
+    #[serde(rename = "boolValue")]
+    boolean: Option<bool>,
+    #[serde(rename = "intValue")]
+    integer: Option<InputInteger>,
+    #[serde(rename = "doubleValue")]
+    decimal: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -154,16 +157,14 @@ fn attributes(input: Vec<InputAttribute>) -> Vec<KeyValue> {
                 return None;
             }
             let value = attribute.value;
-            let scalar = if let Some(text) = value.string_value {
+            let scalar = if let Some(text) = value.text {
                 any_value::Value::StringValue(text)
-            } else if let Some(boolean) = value.bool_value {
+            } else if let Some(boolean) = value.boolean {
                 any_value::Value::BoolValue(boolean)
-            } else if let Some(number) = value.int_value {
+            } else if let Some(number) = value.integer {
                 any_value::Value::IntValue(number.signed())
-            } else if let Some(number) = value.double_value {
-                any_value::Value::DoubleValue(number)
             } else {
-                return None;
+                any_value::Value::DoubleValue(value.decimal?)
             };
             Some(KeyValue {
                 key: attribute.key,
@@ -171,7 +172,6 @@ fn attributes(input: Vec<InputAttribute>) -> Vec<KeyValue> {
                 value: Some(AnyValue {
                     value: Some(scalar),
                 }),
-                ..Default::default()
             })
         })
         .collect()
