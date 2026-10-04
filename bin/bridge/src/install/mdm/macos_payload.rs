@@ -37,7 +37,7 @@ fn policy_body(
             source,
         }
     })?;
-    let existing_models = super::desktop_catalog::models()?;
+    let existing_models = crate::gateway::desktop_catalog::models()?;
     let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
         base_url: gateway,
         host_token: &host_token,

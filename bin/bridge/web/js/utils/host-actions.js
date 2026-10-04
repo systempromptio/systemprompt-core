@@ -45,8 +45,8 @@ export async function repairHost(hostId) {
   }
   try {
     const result = await bridge.hostProfileInstall(hostId, path);
-    const warnings = result && Array.isArray(result.warnings) ? result.warnings : [];
-    installWarnings.set(hostId, warnings.join(" "));
+    const profileWarnings = result && Array.isArray(result.warnings) ? result.warnings : [];
+    installWarnings.set(hostId, profileWarnings.join(" "));
 
   } catch (e) {
     throw new HostActionError("install", e);

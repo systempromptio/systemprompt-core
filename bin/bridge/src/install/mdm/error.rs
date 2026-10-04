@@ -7,6 +7,9 @@ use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MdmError {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[error(transparent)]
+    DesktopCatalog(#[from] crate::gateway::desktop_catalog::CatalogError),
     #[error("policy partially completed {completed:?}; {source}")]
     Partial {
         completed: super::MdmApplication,

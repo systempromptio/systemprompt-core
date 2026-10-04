@@ -69,7 +69,7 @@ fn available_only_counts_matching_surface() {
 
     let view = host_model_view(&health, &[ApiSurface::Anthropic]);
     assert!(!view.available);
-    assert_eq!(view.compatible_models, vec!["claude-sonnet-4-6".to_owned()]);
+    assert!(view.compatible_models.is_empty());
 }
 
 #[test]

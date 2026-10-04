@@ -9,16 +9,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
-
-use systemprompt_models::bridge::profile::AdvertisedLimits;
-
 use super::shared::ProfileGenInputs;
 use crate::install::mdm::MdmError;
 use crate::install::mdm::policy::{PolicyInputs, claude_desktop_policy, reg_values};
 use crate::install::reg_values::render_reg_values;
-
-const ONE_MILLION: u32 = 1_000_000;
 
 // Why: Claude Desktop sizes a gateway model's context from its id, not from
 // the gateway's advertised limits: it budgets 200k unless the id carries the
@@ -26,31 +20,7 @@ const ONE_MILLION: u32 = 1_000_000;
 // folds `<id>` and `<id>[1m]` into one row that may resolve to either, so a
 // Claude model the gateway serves at 1M is listed only as `<id>[1m]`. The
 // gateway strips the suffix before routing.
-#[must_use]
-pub fn with_context_variants(
-    models: &[String],
-    limits: &BTreeMap<String, AdvertisedLimits>,
-) -> Vec<String> {
-    let mut out = Vec::with_capacity(models.len());
-    for id in models {
-        let base = id.strip_suffix("[1m]").unwrap_or(id);
-        if !base.starts_with("claude-") || base.starts_with("claude-fable-") {
-            continue;
-        }
-        let is_million = limits
-            .get(base)
-            .or_else(|| limits.get(id))
-            .is_some_and(|limit| limit.context_window >= ONE_MILLION);
-        if !is_million {
-            continue;
-        }
-        let listed = format!("{base}[1m]");
-        if !out.contains(&listed) {
-            out.push(listed);
-        }
-    }
-    out
-}
+pub use crate::gateway::model_view::with_context_variants;
 
 pub fn profile_entries(inputs: &ProfileGenInputs) -> Result<Vec<(&'static str, String)>, MdmError> {
     let models = Some(
