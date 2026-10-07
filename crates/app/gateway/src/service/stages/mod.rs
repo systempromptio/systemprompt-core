@@ -7,11 +7,10 @@ mod governance;
 mod outbound;
 mod rebind;
 pub mod recovery;
+mod scanned;
 
-use crate::policies::SafetyConfig;
 use bytes::Bytes;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::AiRequestId;
 use systemprompt_manifest::services::GatewayConfig;
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{ChainEntryResult, GovernanceEngine, SECRET_SCAN_ID};
@@ -27,11 +26,9 @@ use super::super::audit::{GatewayAudit, GatewayRequestContext};
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::inbound::InboundAdapter;
 use super::super::protocol::outbound::{OutboundOutcome, PreparedBody};
-use super::finalize::{
-    apply_system_prompt_override, request_finding_blocks, run_request_safety_scan,
-};
+use super::finalize::apply_system_prompt_override;
 use super::resolve::ResolvedUpstream;
-use super::{DispatchError, GatewayError, GovernanceDenied, PromptRepairRequired, SafetyBlocked};
+use super::{DispatchError, GatewayError, GovernanceDenied, PromptRepairRequired};
 
 const UNSANITIZABLE_SECRET_MESSAGE: &str = "Secret content could not be safely sanitized; remove \
                                             the affected content or restart with a corrected \
@@ -220,43 +217,6 @@ fn governance_denial(policy: String, message: String, mut locations: Vec<String>
 }
 
 impl ScannedDispatch {
-    pub(super) async fn enforce(
-        governed: GovernedDispatch,
-        repos: &super::super::GatewayRepositories,
-        ai_request_id: &AiRequestId,
-        safety: &SafetyConfig,
-        audit: &GatewayAudit,
-    ) -> Result<Self, DispatchError> {
-        let GovernedDispatch(prepared) = governed;
-        let findings = run_request_safety_scan(
-            &repos.safety_findings,
-            ai_request_id,
-            &prepared.request,
-            safety,
-        )
-        .await;
-        let Some(finding) = findings.iter().find(|f| request_finding_blocks(f, safety)) else {
-            return Ok(Self(prepared));
-        };
-        let msg = format!(
-            "request blocked by safety policy: category '{}'",
-            finding.category
-        );
-        tracing::warn!(
-            ai_request_id = %ai_request_id,
-            category = %finding.category,
-            scanner = %finding.scanner,
-            "Gateway blocked request by safety policy"
-        );
-        if let Err(e) = audit.fail(&msg).await {
-            tracing::warn!(error = %e, "safety-block audit fail failed");
-        }
-        Err(DispatchError::recorded(SafetyBlocked {
-            category: finding.category.clone(),
-            message: msg,
-        }))
-    }
-
     pub(super) const fn recovery_count(&self) -> usize {
         self.0.recovery_count
     }

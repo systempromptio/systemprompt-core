@@ -24,10 +24,9 @@ use systemprompt_identifiers::AiRequestId;
 
 use super::super::super::protocol::canonical::{CanonicalRequest, CanonicalResponse};
 use super::super::super::registry::SafetyScannerRegistry;
+use super::super::stages::recovery::redaction_marker;
 
 pub(crate) async fn run_request_safety_scan(
-    safety_repo: &AiSafetyFindingRepository,
-    ai_request_id: &AiRequestId,
     request: &CanonicalRequest,
     safety: &SafetyConfig,
 ) -> Vec<Finding> {
@@ -61,13 +60,21 @@ pub(crate) async fn run_request_safety_scan(
         }
     }
     dedupe_findings(&mut findings);
+    findings
+}
+
+pub(crate) async fn persist_request_findings(
+    repo: &AiSafetyFindingRepository,
+    ai_request_id: &AiRequestId,
+    findings: &[Finding],
+    safety: &SafetyConfig,
+) {
     if !findings.is_empty() {
-        persist_findings(safety_repo, ai_request_id, &findings, &|f: &Finding| {
+        persist_findings(repo, ai_request_id, findings, safety, &|f: &Finding| {
             request_finding_blocks(f, safety)
         })
         .await;
     }
-    findings
 }
 
 pub fn request_finding_blocks(finding: &Finding, safety: &SafetyConfig) -> bool {
@@ -125,8 +132,37 @@ pub async fn scan_bounded<F>(
 }
 
 pub fn dedupe_findings(findings: &mut Vec<Finding>) {
-    let mut seen = std::collections::HashSet::new();
-    findings.retain(|f| seen.insert((f.phase, f.category.clone(), f.scanner)));
+    let mut kept: Vec<Finding> = Vec::with_capacity(findings.len());
+    for finding in findings.drain(..) {
+        match kept.iter_mut().find(|k| same_row(k, &finding)) {
+            Some(existing) => {
+                existing.spans.extend(finding.spans);
+                if existing.replacement.is_none() {
+                    existing.replacement = finding.replacement;
+                }
+            },
+            None => kept.push(finding),
+        }
+    }
+    *findings = kept;
+}
+
+fn same_row(a: &Finding, b: &Finding) -> bool {
+    let replacements_compatible = match (&a.replacement, &b.replacement) {
+        (Some(x), Some(y)) => x.part == y.part,
+        _ => true,
+    };
+    a.phase == b.phase
+        && a.category == b.category
+        && a.scanner == b.scanner
+        && replacements_compatible
+}
+
+pub fn persisted_excerpt(finding: &Finding, safety: &SafetyConfig) -> Option<String> {
+    if safety.redacts(&finding.category) {
+        return Some(redaction_marker(&finding.category));
+    }
+    finding.excerpt.clone()
 }
 
 pub(crate) async fn run_response_safety_scan(
@@ -154,9 +190,13 @@ pub(crate) async fn run_response_safety_scan(
     }
     dedupe_findings(&mut findings);
     if !findings.is_empty() {
-        persist_findings(safety_repo, ai_request_id, &findings, &|f: &Finding| {
-            response_finding_blocks(f, safety)
-        })
+        persist_findings(
+            safety_repo,
+            ai_request_id,
+            &findings,
+            safety,
+            &|f: &Finding| response_finding_blocks(f, safety),
+        )
         .await;
     }
     findings
@@ -166,16 +206,18 @@ async fn persist_findings(
     repo: &AiSafetyFindingRepository,
     ai_request_id: &AiRequestId,
     findings: &[Finding],
+    safety: &SafetyConfig,
     blocks: &(dyn Fn(&Finding) -> bool + Sync),
 ) {
     for f in findings {
+        let excerpt = persisted_excerpt(f, safety);
         let params = InsertSafetyFinding {
             ai_request_id,
             phase: f.phase,
             severity: f.severity.as_str(),
             category: &f.category,
             scanner: f.scanner,
-            excerpt: f.excerpt.as_deref(),
+            excerpt: excerpt.as_deref(),
             blocked: blocks(f),
         };
         if let Err(e) = repo.insert(params).await {

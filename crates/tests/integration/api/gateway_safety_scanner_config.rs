@@ -73,6 +73,8 @@ impl SafetyScanner for ConfigReadingScanner {
                 category: self.category.clone(),
                 excerpt: None,
                 scanner: READER,
+                spans: Vec::new(),
+                replacement: None,
             })
             .into_iter()
             .collect())

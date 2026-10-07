@@ -68,6 +68,25 @@ policies:
 - `config` is not interpreted by core. Its keys are the scanner's own.
 - Validation refuses `scanner_settings` for a scanner not listed in `scanners`, and a `timeout_ms` of 0.
 
+### Redacting instead of refusing
+
+A category listed in `redact_categories` is rewritten in the forwarded request instead of blocking it:
+
+```yaml
+      safety:
+        scanners: [heuristic]
+        block_categories: [jailbreak]
+        redact_categories: [pii_email, pii_credit_card]
+```
+
+- Each matched span becomes `[REDACTED:<category>]` in the body sent upstream and in the canonical request. A scanner can instead supply a whole-part replacement (vendor de-identified text, for example), which takes precedence over spans on that part.
+- The persisted finding's excerpt is the marker, not the matched text.
+- Redaction fails closed. If a redact-category finding carries no location, or its span falls on a signed block or a protocol field (`id`, `model`, tool-call ids and the like), the request is refused with the category rather than forwarded unredacted.
+- A category is either blocked or redacted: validation refuses one listed in both `block_categories` and `redact_categories`.
+- Scope: redaction covers the forwarded upstream payload and the persisted findings. Responses are not redacted, and the copy of the inbound request journaled before the scan is not rewritten.
+
+Scanners locate matches with `Finding.spans` (`FindingSpan { part, range }`, where `part` is the `safety_parts` path of the scanned text and `range` a byte range in it) and `Finding.replacement` (`PartReplacement { part, text }`). The built-in `heuristic` scanner fills `spans` for its jailbreak-phrase, email and card-number matches.
+
 ### Writing an external scanner
 
 An extension crate depends on `systemprompt-gateway`, implements `SafetyScanner`, and registers a factory that receives the scanner's `ScannerSettings`:

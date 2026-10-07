@@ -32,8 +32,8 @@ pub mod safety;
 
 pub use self::accounting::record_accounting_outcome;
 pub(crate) use self::safety::{
-    request_finding_blocks, response_finding_blocks, run_request_safety_scan,
-    run_response_safety_scan,
+    persist_request_findings, request_finding_blocks, response_finding_blocks,
+    run_request_safety_scan, run_response_safety_scan,
 };
 
 use super::super::audit::GatewayAudit;

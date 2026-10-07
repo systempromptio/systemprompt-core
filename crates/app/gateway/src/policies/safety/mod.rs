@@ -18,6 +18,7 @@
 mod heuristic;
 mod null;
 
+use std::ops::Range;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -52,6 +53,26 @@ pub const PHASE_RESPONSE: &str = "response";
 
 pub const CATEGORY_SCANNER_FAILURE: &str = "scanner_failure";
 
+/// Where in the request a finding matched.
+///
+/// `part` is the `safety_parts` path of the scanned text (a forwarded-surface
+/// leaf such as `$.messages[0].content[0].text`) and `range` the byte range
+/// within it. Spans are what `safety.redact_categories` rewrites before
+/// forwarding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FindingSpan {
+    pub part: String,
+    pub range: Range<usize>,
+}
+
+/// A scanner-supplied substitute for a whole part (a vendor's de-identified
+/// text). It wins over spans on the same part when the finding is redacted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartReplacement {
+    pub part: String,
+    pub text: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Finding {
     pub phase: &'static str,
@@ -59,6 +80,8 @@ pub struct Finding {
     pub category: String,
     pub excerpt: Option<String>,
     pub scanner: &'static str,
+    pub spans: Vec<FindingSpan>,
+    pub replacement: Option<PartReplacement>,
 }
 
 impl Finding {
@@ -70,6 +93,8 @@ impl Finding {
             category: CATEGORY_SCANNER_FAILURE.to_owned(),
             excerpt: Some(error.to_string()),
             scanner,
+            spans: Vec::new(),
+            replacement: None,
         }
     }
 

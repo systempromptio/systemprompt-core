@@ -300,6 +300,10 @@ mod gateway_safety_scanner_failure;
 mod gateway_safety_scanner_config;
 
 #[cfg(test)]
+#[path = "gateway_safety_redaction.rs"]
+mod gateway_safety_redaction;
+
+#[cfg(test)]
 #[path = "gateway_matrix.rs"]
 mod gateway_matrix;
 

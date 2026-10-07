@@ -14,6 +14,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod canonical;
+mod leaf_edit;
+pub mod redact;
 pub mod repair;
 
 use std::borrow::Cow;
@@ -34,6 +36,7 @@ use systemprompt_wire::canonical::CanonicalRequest;
 use systemprompt_wire::inspect;
 use systemprompt_wire::inspect::{ForwardedSurface, SurfaceBudget};
 
+pub use self::redact::{RedactionReport, Unredactable, redact_findings, redaction_marker};
 pub use self::repair::repair_prompt;
 use crate::protocol::outbound::PreparedBody;
 use crate::service::RECOVERY_COUNT_HEADER;

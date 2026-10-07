@@ -77,9 +77,16 @@ pub struct SafetyConfig {
     pub history: SafetyHistoryMode,
     #[serde(default)]
     pub scanner_settings: BTreeMap<String, ScannerSettings>,
+    #[serde(default)]
+    pub redact_categories: Vec<String>,
 }
 
 impl SafetyConfig {
+    #[must_use]
+    pub fn redacts(&self, category: &str) -> bool {
+        self.redact_categories.iter().any(|c| c == category)
+    }
+
     #[must_use]
     pub fn settings_for(&self, scanner: &str) -> ScannerSettings {
         self.scanner_settings

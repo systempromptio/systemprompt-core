@@ -91,6 +91,8 @@ mod safety;
 #[cfg(test)]
 mod safety_fail_mode;
 #[cfg(test)]
+mod safety_redaction;
+#[cfg(test)]
 mod signature_cache;
 #[cfg(test)]
 mod stream_tap;

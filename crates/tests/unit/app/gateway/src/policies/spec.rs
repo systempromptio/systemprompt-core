@@ -152,3 +152,11 @@ fn scanner_settings_reject_unknown_keys() {
     let yaml = "scanner_settings:\n  vendor:\n    fail_mod: open";
     assert!(serde_yaml::from_str::<SafetyConfig>(yaml).is_err());
 }
+
+#[test]
+fn redact_categories_default_empty_and_parse() {
+    assert!(SafetyConfig::default().redact_categories.is_empty());
+    let safety: SafetyConfig = serde_yaml::from_str("redact_categories: [pii_email]").expect("de");
+    assert!(safety.redacts("pii_email"));
+    assert!(!safety.redacts("jailbreak"));
+}

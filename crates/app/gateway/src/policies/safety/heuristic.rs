@@ -3,12 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::ops::Range;
+
 use async_trait::async_trait;
 use systemprompt_wire::canonical::{CanonicalRequest, CanonicalResponse};
 
 use super::{
-    Finding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyScanner, ScanError,
-    Severity,
+    Finding, FindingSpan, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyScanner,
+    ScanError, Severity,
 };
 use crate::policies::spec::HeuristicConfig;
 
@@ -65,8 +67,14 @@ impl SafetyScanner for HeuristicScanner {
 
     async fn scan_request(&self, req: &CanonicalRequest) -> Result<Vec<Finding>, ScanError> {
         let mut findings = Vec::new();
-        for (_, text) in req.safety_parts(false) {
-            scan_text(&self.phrases, PHASE_REQUEST, &text, &mut findings);
+        for (part, text) in req.safety_parts(false) {
+            scan_text(
+                &self.phrases,
+                PHASE_REQUEST,
+                Some(&part),
+                &text,
+                &mut findings,
+            );
         }
         Ok(findings)
     }
@@ -76,8 +84,14 @@ impl SafetyScanner for HeuristicScanner {
         req: &CanonicalRequest,
     ) -> Result<Vec<Finding>, ScanError> {
         let mut findings = Vec::new();
-        for (_, unit) in req.safety_parts(true) {
-            scan_text(&self.phrases, PHASE_REQUEST_HISTORY, &unit, &mut findings);
+        for (part, unit) in req.safety_parts(true) {
+            scan_text(
+                &self.phrases,
+                PHASE_REQUEST_HISTORY,
+                Some(&part),
+                &unit,
+                &mut findings,
+            );
         }
         Ok(findings)
     }
@@ -88,54 +102,71 @@ impl SafetyScanner for HeuristicScanner {
     ) -> Result<Vec<Finding>, ScanError> {
         let mut findings = Vec::new();
         for unit in response.content_units() {
-            scan_text(&self.phrases, PHASE_RESPONSE, &unit, &mut findings);
+            scan_text(&self.phrases, PHASE_RESPONSE, None, &unit, &mut findings);
         }
         Ok(findings)
     }
 }
 
-fn scan_text(phrases: &[String], phase: &'static str, text: &str, out: &mut Vec<Finding>) {
+fn scan_text(
+    phrases: &[String],
+    phase: &'static str,
+    part: Option<&str>,
+    text: &str,
+    out: &mut Vec<Finding>,
+) {
+    let finding = |severity, category: &str, excerpt, ranges: Vec<Range<usize>>| Finding {
+        phase,
+        severity,
+        category: category.to_owned(),
+        excerpt,
+        scanner: "heuristic",
+        spans: part.map_or_else(Vec::new, |part| {
+            ranges
+                .into_iter()
+                .map(|range| FindingSpan {
+                    part: part.to_owned(),
+                    range,
+                })
+                .collect()
+        }),
+        replacement: None,
+    };
     if !phrases.is_empty() {
         let lower = text.to_ascii_lowercase();
         for phrase in phrases {
-            if let Some(idx) = lower.find(phrase.as_str()) {
-                let start = floor_boundary(text, idx.saturating_sub(40));
-                let end = ceil_boundary(text, idx + phrase.len() + 80);
-                let excerpt = text[start..end]
-                    .chars()
-                    .take(EXCERPT_CAP)
-                    .collect::<String>();
-                out.push(Finding {
-                    phase,
-                    severity: Severity::Medium,
-                    category: "jailbreak".to_owned(),
-                    excerpt: Some(excerpt),
-                    scanner: "heuristic",
-                });
-            }
+            let ranges: Vec<_> = lower
+                .match_indices(phrase.as_str())
+                .map(|(idx, _)| idx..idx + phrase.len())
+                .collect();
+            let Some(first) = ranges.first() else {
+                continue;
+            };
+            let start = floor_boundary(text, first.start.saturating_sub(40));
+            let end = ceil_boundary(text, first.end + 80);
+            let excerpt = text[start..end]
+                .chars()
+                .take(EXCERPT_CAP)
+                .collect::<String>();
+            out.push(finding(
+                Severity::Medium,
+                "jailbreak",
+                Some(excerpt),
+                ranges,
+            ));
         }
     }
 
-    if detect_email(text) {
-        out.push(Finding {
-            phase,
-            severity: Severity::Low,
-            category: "pii_email".to_owned(),
-            excerpt: None,
-            scanner: "heuristic",
-        });
+    let emails = email_ranges(text);
+    if !emails.is_empty() {
+        out.push(finding(Severity::Low, "pii_email", None, emails));
     }
     if !text.bytes().any(|b| b.is_ascii_digit()) {
         return;
     }
-    if detect_credit_card(text) {
-        out.push(Finding {
-            phase,
-            severity: Severity::High,
-            category: "pii_credit_card".to_owned(),
-            excerpt: None,
-            scanner: "heuristic",
-        });
+    let cards = credit_card_ranges(text);
+    if !cards.is_empty() {
+        out.push(finding(Severity::High, "pii_credit_card", None, cards));
     }
 }
 
@@ -156,8 +187,9 @@ const fn ceil_boundary(text: &str, mut i: usize) -> usize {
     i
 }
 
-fn detect_email(text: &str) -> bool {
+fn email_ranges(text: &str) -> Vec<Range<usize>> {
     let bytes = text.as_bytes();
+    let mut ranges = Vec::new();
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'@' {
@@ -171,19 +203,21 @@ fn detect_email(text: &str) -> bool {
                 .take_while(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-'))
                 .count();
             if before >= 2 && after >= 4 && bytes[i + 1..i + 1 + after].contains(&b'.') {
-                return true;
+                ranges.push(i - before..i + 1 + after);
+                i += after;
             }
         }
         i += 1;
     }
-    false
+    ranges
 }
 
 const CARD_MIN_DIGITS: usize = 13;
 const CARD_MAX_DIGITS: usize = 19;
 
-fn detect_credit_card(text: &str) -> bool {
+fn credit_card_ranges(text: &str) -> Vec<Range<usize>> {
     let bytes = text.as_bytes();
+    let mut ranges = Vec::new();
     let mut i = 0;
     while i < bytes.len() {
         if !bytes[i].is_ascii_digit() {
@@ -192,11 +226,11 @@ fn detect_credit_card(text: &str) -> bool {
         }
         let (digits, end) = card_candidate(bytes, i);
         if is_card(&digits) {
-            return true;
+            ranges.push(i..end);
         }
         i = end;
     }
-    false
+    ranges
 }
 
 fn card_candidate(bytes: &[u8], start: usize) -> (Vec<u8>, usize) {

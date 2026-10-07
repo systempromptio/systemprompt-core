@@ -74,6 +74,8 @@ impl SafetyScanner for StubSecretsScanner {
             category: "secret".to_owned(),
             excerpt: None,
             scanner: "stub_secrets",
+            spans: Vec::new(),
+            replacement: None,
         }])
     }
     async fn scan_response_final(
@@ -355,6 +357,8 @@ mod dedup {
             category: category.to_owned(),
             excerpt: Some(excerpt.to_owned()),
             scanner: "heuristic",
+            spans: Vec::new(),
+            replacement: None,
         }
     }
 

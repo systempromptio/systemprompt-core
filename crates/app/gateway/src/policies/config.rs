@@ -67,13 +67,26 @@ impl GatewayPolicyConfig {
                         .to_owned(),
                 });
             }
-            validate_scanner_settings(idx, safety)?;
+            validate_safety_settings(idx, safety)?;
         }
         Ok(())
     }
 }
 
-fn validate_scanner_settings(idx: usize, safety: &SafetyConfig) -> Result<(), GatewayPolicyError> {
+fn validate_safety_settings(idx: usize, safety: &SafetyConfig) -> Result<(), GatewayPolicyError> {
+    if let Some(category) = safety
+        .redact_categories
+        .iter()
+        .find(|c| safety.block_categories.contains(c))
+    {
+        return Err(GatewayPolicyError::Invalid {
+            field: format!("policies[{idx}].spec.safety.redact_categories"),
+            reason: format!(
+                "category '{category}' is in both block_categories and redact_categories; a \
+                 category is either refused or redacted"
+            ),
+        });
+    }
     for (name, settings) in &safety.scanner_settings {
         let field = format!("policies[{idx}].spec.safety.scanner_settings.{name}");
         if !safety.scanners.iter().any(|s| s == name) {

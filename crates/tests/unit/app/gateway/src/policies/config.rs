@@ -197,3 +197,23 @@ fn settings_for_a_listed_scanner_validate() {
     );
     config.validate().expect("valid settings");
 }
+
+#[test]
+fn a_category_both_blocked_and_redacted_is_rejected() {
+    let config = policy_with_safety(
+        "scanners: [heuristic]\nblock_categories: [jailbreak, pii_email]\nredact_categories: \
+         [pii_email]",
+    );
+    let msg = config.validate().expect_err("overlap").to_string();
+    assert!(msg.contains("redact_categories"), "{msg}");
+    assert!(msg.contains("pii_email"), "{msg}");
+}
+
+#[test]
+fn disjoint_block_and_redact_categories_validate() {
+    let config = policy_with_safety(
+        "scanners: [heuristic]\nblock_categories: [jailbreak]\nredact_categories: [pii_email, \
+         pii_credit_card]",
+    );
+    config.validate().expect("disjoint lists");
+}

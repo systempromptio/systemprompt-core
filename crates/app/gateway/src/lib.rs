@@ -43,16 +43,16 @@ pub use audit::{GatewayAudit, GatewayRequestContext};
 pub use captures::CapturedToolUse;
 pub use error::{GatewayAuditError, GatewayAuditResult};
 pub use policies::{
-    API_KEY_QUOTA_SUBJECT, CATEGORY_SCANNER_FAILURE, Finding, GATEWAY_POLICIES_FILE,
+    API_KEY_QUOTA_SUBJECT, CATEGORY_SCANNER_FAILURE, Finding, FindingSpan, GATEWAY_POLICIES_FILE,
     GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicyError, GatewayPolicyIngestionService,
     GatewayPolicySpec, HeuristicConfig, HeuristicScanner,
     IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
     NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
     OverrideError, OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY,
-    PHASE_RESPONSE, PolicyResolver, PolicyUnavailable, QuotaMode, QuotaWindow, RouteSelector,
-    RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration, SafetyConfig,
-    SafetyHistoryMode, SafetyMode, SafetyScanner, SafetyScannerRegistration, ScanError,
-    ScannerFactory, ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
+    PHASE_RESPONSE, PartReplacement, PolicyResolver, PolicyUnavailable, QuotaMode, QuotaWindow,
+    RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
+    SafetyConfig, SafetyHistoryMode, SafetyMode, SafetyScanner, SafetyScannerRegistration,
+    ScanError, ScannerFactory, ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
     SystemPromptOverrideRegistration, USER_QUOTA_SUBJECT,
     load_from_yaml as load_gateway_policies_from_yaml,
 };
