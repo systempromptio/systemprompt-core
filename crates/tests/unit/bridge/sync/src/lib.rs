@@ -27,6 +27,8 @@ mod progress_sink;
 #[cfg(test)]
 mod replay;
 #[cfg(test)]
+mod skill_passthrough;
+#[cfg(test)]
 mod summary_line;
 #[cfg(test)]
 mod summary_serde;

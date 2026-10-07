@@ -25,6 +25,12 @@ pub enum ApplyError {
         first: String,
         second: String,
     },
+    #[error("render frontmatter for skill {skill}: {source}")]
+    SkillFrontmatter {
+        skill: SkillId,
+        #[source]
+        source: serde_yaml::Error,
+    },
     #[error("unsafe agent name in manifest: {0}")]
     UnsafeAgentName(String),
     #[error("plugin fetch failed: {0}")]

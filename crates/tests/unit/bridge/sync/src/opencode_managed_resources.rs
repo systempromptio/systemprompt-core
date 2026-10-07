@@ -481,3 +481,14 @@ fn no_governance_owner_means_no_hook_plugin_and_clear_removes_it() {
         assert!(!sb.hook_plugin.exists());
     });
 }
+
+#[test]
+fn authored_frontmatter_keys_follow_name_and_description() {
+    with_sandbox(|sb| {
+        let mut entry = skill("Deep_Tooled", "Body.");
+        entry.frontmatter = Some(crate::skill_passthrough::authored_frontmatter());
+        apply(&manifest_with(vec![entry], vec![]), &sb.skills).unwrap();
+        let written = fs::read_to_string(sb.skills.join("deep-tooled").join("SKILL.md")).unwrap();
+        crate::skill_passthrough::assert_passthrough_block(&written, "deep-tooled");
+    });
+}

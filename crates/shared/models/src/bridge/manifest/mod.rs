@@ -23,6 +23,8 @@
 mod entries;
 mod external;
 mod managed_mcp;
+/// Platform-owned `SKILL.md` frontmatter keys and the passthrough renderer.
+pub mod skill_frontmatter;
 
 use std::collections::BTreeMap;
 

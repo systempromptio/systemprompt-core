@@ -1,6 +1,7 @@
 //! Authored `SKILL.md` frontmatter carried through to the client.
 //!
-//! The platform owns seven frontmatter keys ([`PLATFORM_OWNED_SKILL_KEYS`]):
+//! The platform owns seven frontmatter keys
+//! (`systemprompt_models::bridge::manifest::skill_frontmatter::PLATFORM_OWNED_SKILL_KEYS`):
 //! `name` and `description` are re-emitted from the skill's descriptor, and
 //! `title`, `tags`, `category`, `display_category` and `hosts` are catalogue
 //! metadata Claude Code does not read. Every other key is the author's and is
@@ -19,6 +20,8 @@
 
 use serde_yaml::{Mapping, Value};
 use thiserror::Error;
+
+use systemprompt_models::bridge::manifest::skill_frontmatter::is_platform_owned_skill_key;
 
 use super::frontmatter::split_frontmatter;
 
@@ -41,21 +44,6 @@ pub enum SkillFrontmatterError {
 
     #[error("frontmatter '{0}' carries a YAML tag")]
     Tagged(String),
-}
-
-pub const PLATFORM_OWNED_SKILL_KEYS: [&str; 7] = [
-    "name",
-    "title",
-    "description",
-    "tags",
-    "category",
-    "display_category",
-    "hosts",
-];
-
-pub fn is_platform_owned_skill_key(key: &Value) -> bool {
-    key.as_str()
-        .is_some_and(|key| PLATFORM_OWNED_SKILL_KEYS.contains(&key))
 }
 
 #[derive(Debug, Clone, Default)]
@@ -89,23 +77,6 @@ pub fn authored_skill_frontmatter(markdown: &str) -> Result<Mapping, SkillFrontm
         Value::Mapping(mapping) => Ok(mapping),
         _ => Err(SkillFrontmatterError::NotMapping),
     }
-}
-
-pub fn render_passthrough_frontmatter(
-    frontmatter: Option<&Mapping>,
-) -> Result<String, serde_yaml::Error> {
-    let Some(frontmatter) = frontmatter else {
-        return Ok(String::new());
-    };
-    let kept: Mapping = frontmatter
-        .iter()
-        .filter(|(key, _)| !is_platform_owned_skill_key(key))
-        .map(|(key, value)| (key.clone(), value.clone()))
-        .collect();
-    if kept.is_empty() {
-        return Ok(String::new());
-    }
-    serde_yaml::to_string(&kept)
 }
 
 pub fn check_json_compatible(frontmatter: &Mapping) -> Result<(), SkillFrontmatterError> {

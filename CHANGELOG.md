@@ -97,6 +97,7 @@
 - **Breaking:** the `systemprompt_cli::session` store functions take `&ResolvedPaths` first; `core plugins show` takes a `PluginId` and `api-key revoke --id` an `ApiKeyId`. Migrate by passing `&ResolvedPaths::discover()` and typed ids.
 - **Breaking:** the bridge's `ElevatedResult.job_id` and `PolicyWriteRequest.job_id` are `ElevatedJobId`, and `verify`, `request_path` and `result_path` take `&ElevatedJobId`. Migrate by generating ids with `ElevatedJobId::generate()`.
 - **Breaking:** static 404s and the API fallback 404 return the JSON `ApiError` envelope (fallback suggestions move into `details`), the SSE connection cap answers with a 429 envelope, a malformed task-status notification returns 400 and a database failure during the webhook ownership check is a 500, not a 403. Migrate clients that parsed the previous bodies to the `ApiError` envelope.
+- **Breaking:** `systemprompt_manifest::services::skill_frontmatter::{PLATFORM_OWNED_SKILL_KEYS, is_platform_owned_skill_key, render_passthrough_frontmatter}` are `systemprompt_models::bridge::manifest::skill_frontmatter::*`, so the bridge renders authored frontmatter with the same code as the Claude Code bundle. The parse, split and check helpers stay in `systemprompt_manifest::services::skill_frontmatter`. Migrate by renaming the paths.
 
 ### Changed
 
@@ -144,6 +145,7 @@
 - **MCP:** a tool-execution completion whose output cannot be serialised now fails instead of being logged and dropped.
 - **CLI:** the session store resolves under an injected project root, so its tests no longer read or write the developer's real `~/.systemprompt`.
 - **Slack:** `user_info` falls back to `display_name` when `real_name` is null.
+- **Bridge:** the Codex, OpenCode and Hermes skill writers emit a skill's authored frontmatter keys (`allowed-tools`, `model`, …) after `name` and `description`, as the Claude Code plugin bundle already did. Before, those hosts received only `name` and `description`, so a skill's tool allowlist or model pin was silently dropped. Platform-owned keys (`title`, `tags`, `category`, `display_category`, `hosts`) are still withheld, and a frontmatter that cannot be rendered fails the apply with `ApplyError::SkillFrontmatter` instead of writing a partial `SKILL.md`.
 
 ### Removed
 

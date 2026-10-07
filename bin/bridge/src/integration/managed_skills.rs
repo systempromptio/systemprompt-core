@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::manifest::skill_frontmatter::render_passthrough_frontmatter;
 
 use crate::gateway::manifest::{SignedManifest, SkillEntry};
 use crate::hash::{safe_id_segment, sha256_hex};
@@ -55,7 +56,7 @@ impl SkillTarget {
         }
     }
 
-    fn render(&self, skill: &SkillEntry, dir: &str) -> String {
+    fn render(&self, skill: &SkillEntry, dir: &str) -> Result<String, ApplyError> {
         match self.policy {
             SkillDirPolicy::Verbatim => skill_markdown(skill),
             SkillDirPolicy::KebabNamed => skill_markdown_named(skill, dir),
@@ -88,7 +89,7 @@ impl SkillTarget {
         for s in self.selected(manifest)? {
             buf.push_str(&s.dir);
             buf.push('\u{0}');
-            buf.push_str(&self.render(s.skill, &s.dir));
+            buf.push_str(&self.render(s.skill, &s.dir)?);
             buf.push('\u{0}');
         }
         Ok(sha256_hex(buf.as_bytes())[..16].to_owned())
@@ -101,7 +102,7 @@ impl SkillTarget {
 
         let mut new_ids: Vec<String> = Vec::with_capacity(selected.len());
         for s in &selected {
-            write_skill(&self.root, &s.dir, &self.render(s.skill, &s.dir))?;
+            write_skill(&self.root, &s.dir, &self.render(s.skill, &s.dir)?)?;
             new_ids.push(s.dir.clone());
         }
 
@@ -213,19 +214,19 @@ fn write_skill(root: &Path, dir_name: &str, content: &str) -> Result<(), ApplyEr
         .map_err(|e| io_err("write SKILL.md", &path, e))
 }
 
-pub(crate) fn skill_markdown(skill: &SkillEntry) -> String {
+pub(crate) fn skill_markdown(skill: &SkillEntry) -> Result<String, ApplyError> {
     let trimmed = skill.instructions.trim_start();
     if trimmed.starts_with("---") {
-        return ensure_trailing_newline(skill.instructions.clone());
+        return Ok(ensure_trailing_newline(skill.instructions.clone()));
     }
-    ensure_trailing_newline(
-        front_matter(skill.name.as_str(), &skill.description) + &skill.instructions,
-    )
+    Ok(ensure_trailing_newline(
+        front_matter(skill, skill.name.as_str())? + &skill.instructions,
+    ))
 }
 
 // Why: OpenCode requires the skill's front-matter name to match its directory
 // name.
-fn skill_markdown_named(skill: &SkillEntry, dir: &str) -> String {
+fn skill_markdown_named(skill: &SkillEntry, dir: &str) -> Result<String, ApplyError> {
     let trimmed = skill.instructions.trim_start();
     if let Some(rest) = trimmed.strip_prefix("---")
         && let Some(end) = rest.find("\n---")
@@ -239,16 +240,28 @@ fn skill_markdown_named(skill: &SkillEntry, dir: &str) -> String {
             .collect();
         lines.retain(|l| !l.trim().is_empty());
         lines.insert(0, format!("name: {dir}"));
-        return ensure_trailing_newline(format!("---\n{}\n---{tail}", lines.join("\n")));
+        return Ok(ensure_trailing_newline(format!(
+            "---\n{}\n---{tail}",
+            lines.join("\n")
+        )));
     }
-    ensure_trailing_newline(front_matter(dir, &skill.description) + &skill.instructions)
+    Ok(ensure_trailing_newline(
+        front_matter(skill, dir)? + &skill.instructions,
+    ))
 }
 
-fn front_matter(name: &str, description: &str) -> String {
-    format!(
-        "---\nname: {name}\ndescription: {}\n---\n\n",
-        yaml_scalar(description)
-    )
+fn front_matter(skill: &SkillEntry, name: &str) -> Result<String, ApplyError> {
+    let passthrough =
+        render_passthrough_frontmatter(skill.frontmatter.as_ref()).map_err(|source| {
+            ApplyError::SkillFrontmatter {
+                skill: skill.id.clone(),
+                source,
+            }
+        })?;
+    Ok(format!(
+        "---\nname: {name}\ndescription: {}\n{passthrough}---\n\n",
+        yaml_scalar(&skill.description)
+    ))
 }
 
 fn ensure_trailing_newline(mut s: String) -> String {

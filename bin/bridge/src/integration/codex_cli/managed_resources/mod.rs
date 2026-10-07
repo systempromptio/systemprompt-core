@@ -93,7 +93,7 @@ fn write_marketplace_tree(
 ) -> Result<(), ApplyError> {
     let root = marketplace_root();
     let plugin_dir = plugin_src_dir();
-    let version = bundle_version(loopback, manifest);
+    let version = bundle_version(loopback, manifest)?;
 
     let source_current = read_existing_version(&plugin_dir).as_deref() == Some(version.as_str())
         && root.join(".agents/plugins/marketplace.json").is_file();
@@ -175,12 +175,12 @@ pub(crate) fn feedback_skill_roots(
     loopback: &LoopbackEndpoint,
     manifest: &SignedManifest,
     skill: &crate::gateway::manifest::SkillEntry,
-) -> Vec<PathBuf> {
-    vec![
+) -> Result<Vec<PathBuf>, ApplyError> {
+    Ok(vec![
         plugin_src_dir().join("skills").join(skill.id.as_str()),
         cache_plugin_dir()
-            .join(bundle_version(loopback, manifest))
+            .join(bundle_version(loopback, manifest)?)
             .join("skills")
             .join(skill.id.as_str()),
-    ]
+    ])
 }

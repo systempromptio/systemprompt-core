@@ -7481,6 +7481,7 @@ dependencies = [
  "http",
  "reqwest",
  "serde_json",
+ "serde_yaml_ng",
  "systemprompt-bridge",
  "systemprompt-identifiers",
  "systemprompt-models",

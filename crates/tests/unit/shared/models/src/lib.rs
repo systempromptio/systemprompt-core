@@ -339,3 +339,6 @@ mod services_rules;
 
 #[cfg(test)]
 mod feedback_contracts;
+
+#[cfg(test)]
+mod skill_frontmatter_render;

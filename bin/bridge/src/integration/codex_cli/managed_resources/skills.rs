@@ -22,7 +22,7 @@ pub(super) fn targets_codex(skill: &SkillEntry) -> bool {
 pub(super) fn bundle_version(
     loopback: &crate::proxy::LoopbackEndpoint,
     manifest: &SignedManifest,
-) -> String {
+) -> Result<String, ApplyError> {
     let mut skills: Vec<&SkillEntry> = manifest
         .skills
         .iter()
@@ -34,7 +34,7 @@ pub(super) fn bundle_version(
     for s in skills {
         buf.push_str(s.id.as_str());
         buf.push('\u{0}');
-        buf.push_str(&skill_markdown(s));
+        buf.push_str(&skill_markdown(s)?);
         buf.push('\u{0}');
     }
     buf.push('\u{1}');
@@ -56,7 +56,7 @@ pub(super) fn bundle_version(
         buf.push('\u{0}');
     }
 
-    sha256_hex(buf.as_bytes())[..16].to_owned()
+    Ok(sha256_hex(buf.as_bytes())[..16].to_owned())
 }
 
 pub(super) fn write_skill(plugin_dir: &Path, skill: &SkillEntry) -> Result<(), ApplyError> {
@@ -66,6 +66,6 @@ pub(super) fn write_skill(plugin_dir: &Path, skill: &SkillEntry) -> Result<(), A
     let dir = plugin_dir.join("skills").join(skill.id.as_str());
     fs::create_dir_all(&dir).map_err(|e| io_err("create skill dir", &dir, e))?;
     let path = dir.join("SKILL.md");
-    crate::fsutil::atomic_write_0644(&path, skill_markdown(skill).as_bytes())
+    crate::fsutil::atomic_write_0644(&path, skill_markdown(skill)?.as_bytes())
         .map_err(|e| io_err("write SKILL.md", &path, e))
 }

@@ -635,3 +635,20 @@ fn clearing_a_codex_home_that_was_never_written_is_a_no_op() {
         );
     });
 }
+
+#[test]
+fn authored_frontmatter_keys_follow_name_and_description() {
+    with_codex_home(|home| {
+        let mut entry = skill("tooled", "Body.");
+        entry.frontmatter = Some(crate::skill_passthrough::authored_frontmatter());
+        apply(&manifest_with(vec![entry], vec![], vec![]), home);
+        let written = fs::read_to_string(
+            plugin_src(home)
+                .join("skills")
+                .join("tooled")
+                .join("SKILL.md"),
+        )
+        .expect("SKILL.md");
+        crate::skill_passthrough::assert_passthrough_block(&written, "tooled");
+    });
+}

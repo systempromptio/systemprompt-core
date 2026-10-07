@@ -17,8 +17,9 @@ use crate::managed::error::integrity;
 use crate::managed::{ManagedError, Result, RevisionBundle};
 use systemprompt_identifiers::{ManagedResourceId, PublicationId};
 use systemprompt_manifest::services::skill_frontmatter::{
-    authored_skill_frontmatter, render_passthrough_frontmatter, split_skill_frontmatter,
+    authored_skill_frontmatter, split_skill_frontmatter,
 };
+use systemprompt_models::bridge::manifest::skill_frontmatter::render_passthrough_frontmatter;
 use systemprompt_models::feedback::receipts::{
     ConsumerInstallationPlan, FileReadback, InstallationPlanFile, ReadbackStatus,
 };

@@ -541,3 +541,17 @@ fn an_empty_manifest_writes_no_skills_and_no_config_blocks() {
         }
     });
 }
+
+#[test]
+fn authored_frontmatter_keys_follow_name_and_description() {
+    with_hermes_home(|home| {
+        let mut entry = skill("tooled", "Body.");
+        entry.frontmatter = Some(crate::skill_passthrough::authored_frontmatter());
+        apply(
+            &manifest_with(vec![entry], vec![], vec!["hermes".into()]),
+            home,
+        );
+        let written = fs::read_to_string(skill_md(home, "tooled")).unwrap();
+        crate::skill_passthrough::assert_passthrough_block(&written, "tooled");
+    });
+}

@@ -27,6 +27,7 @@ pub(super) fn roots(
         )],
         HostKind::CodexCli => {
             crate::integration::codex_cli::feedback_skill_roots(ctx.loopback, ctx.manifest, skill)
+                .map_err(|error| FeedbackError::Io(std::io::Error::other(error)))?
         },
         HostKind::ClaudeCode => {
             crate::integration::claude_code_cli::feedback_skill_roots(ctx.manifest, skill)
