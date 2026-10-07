@@ -128,7 +128,7 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
         let profile = managed.join("opencode.json");
         std::fs::write(
             &profile,
-            r#"{"provider":{"systemprompt":{"npm":"@ai-sdk/openai-compatible","options":{"baseURL":"http://127.0.0.1:1/v1","headers":{"x-inference-protocol":"openai"}},"models":{"gpt-4.1":{"name":"gpt-4.1"}}}},"model":"systemprompt/gpt-4.1"}"#,
+            r#"{"provider":{"systemprompt":{"npm":"@ai-sdk/openai-compatible","options":{"baseURL":"http://127.0.0.1:1/v1","headers":{"x-inference-protocol":"openai"}},"models":{"gpt-4.1":{"name":"gpt-4.1"}}}},"model":"systemprompt/gpt-4.1","enabled_providers":["systemprompt"]}"#,
         )
         .expect("stale profile");
         let auth = root.join("opencode/auth.json");
