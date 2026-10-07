@@ -23,6 +23,7 @@ fn minimal_config(
         instance_id: systemprompt_manifest::config::InstanceId::new("test-instance"),
         metrics_port: None,
         max_concurrent_streams: 256,
+        role: Default::default(),
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://u:p@localhost:5432/t".to_string(),

@@ -56,6 +56,7 @@ pub struct Config {
     pub instance_id: InstanceId,
     pub metrics_port: Option<u16>,
     pub max_concurrent_streams: usize,
+    pub role: crate::profile::NodeRole,
     pub sitename: String,
     pub database_type: String,
     pub database_url: String,
@@ -110,6 +111,7 @@ impl std::fmt::Debug for Config {
             .field("instance_id", &self.instance_id)
             .field("metrics_port", &self.metrics_port)
             .field("max_concurrent_streams", &self.max_concurrent_streams)
+            .field("role", &self.role)
             .field("sitename", &self.sitename)
             .field("database_type", &self.database_type)
             .field("database_url", &REDACTED)
@@ -214,6 +216,7 @@ impl ConfigProvider for Config {
             "is_cloud" => Some(self.is_cloud.to_string()),
             "instance_id" => Some(self.instance_id.as_str().to_owned()),
             "max_concurrent_streams" => Some(self.max_concurrent_streams.to_string()),
+            "role" => Some(self.role.to_string()),
             _ => None,
         }
     }

@@ -285,6 +285,5 @@ pub(super) fn mount_content_and_misc(
             .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
     );
 
-    router = super::managed::mount(router, mount)?;
-    super::gateway::mount_gateway(router, mount)
+    Ok(router)
 }

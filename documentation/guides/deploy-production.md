@@ -98,6 +98,15 @@ readinessProbe:
 
 Rolling deploys are safe: replace one replica at a time and wait for `/readyz` to answer `200` before moving on.
 
+**Node roles.** `server.role` splits the platform across Deployments. `all` (the default) serves everything. `gateway` serves the AI gateway (`/v1/*`, `/api/public/gateway`), the bridge consumer surface, OAuth, well-known and health routes, and runs no scheduler, MCP servers or agents, so it scales horizontally on request load alone. `admin` serves everything except the gateway and the bridge consumer surface, and runs the scheduler and the MCP and agent processes. A gateway node renders no `web/dist` and does not serve the static site.
+
+```yaml
+# Two Deployments from one image; the mounted profile differs only in server.role.
+# gateway Deployment: replicas: 4,  profile server.role: gateway
+# admin Deployment:   replicas: 1,  profile server.role: admin
+# Route /v1/* and /api/public/gateway to the gateway Service, everything else to admin.
+```
+
 ### 3.2 Database tier
 
 Target recovery objectives for a regulated deployment:
@@ -163,7 +172,7 @@ One image, N replicas, one Postgres primary. Every replica must agree with the o
 - **`server.trusted_proxies` is required on cloud profiles.** Without it every request resolves to the balancer's address and all callers share one rate-limit bucket and one ban target. Validation refuses the profile.
 - **`/metrics` on its own port.** Set `server.metrics_port`; the scrape endpoint is served on that port only and never on the public router. Leave it unset and no metrics endpoint is exposed.
 - **Storage.** `paths.storage` holds uploads and generated images. With `storage.shared: true` it must be one mount every replica sees (NFS, EFS, SMB); the boot probe writes a marker per instance and warns when it finds none from other nodes. With `shared: false` those files are node-local and a request for a file uploaded through another replica is a 404 — acceptable only for a single node. Alternatively set `storage.backend: gcs` to keep these files in a Cloud Storage bucket every replica reaches; no shared mount is needed and the shared-mount probe is skipped. On GKE, bind the Kubernetes service account to a Google service account with `roles/storage.objectAdmin` on the bucket (annotation `iam.gke.io/gcp-service-account`) and leave `credentials` at `workload_identity`. See [configure.md](configure.md#file-storage).
-- **Scheduler scope.** Jobs are `cluster` by default and run on exactly one replica under an advisory lock. Jobs that write the local filesystem (`content_prerender`, `page_prerender`, `copy_extension_assets`) declare `scope: node` and run on every replica so each serves a current `web/dist`. Override per job in `services.yaml` with `scope: cluster | node`.
+- **Scheduler scope.** Only `all` and `admin` nodes run the scheduler; a `gateway` node runs none. Jobs are `cluster` by default and run on exactly one replica under an advisory lock. Jobs that write the local filesystem (`content_prerender`, `page_prerender`, `copy_extension_assets`) declare `scope: node` and run on every replica so each serves a current `web/dist`. Override per job in `services.yaml` with `scope: cluster | node`.
 - **Databases.** `database_write_url` is the primary; `database_url` is the nearest replica. Security-critical lookups (session attestation, token and revocation checks, API keys, bans, MCP sessions) always read the primary, so a fresh login is valid in every region at once; listings and analytics read the replica. The cross-replica event relay (`LISTEN`/`NOTIFY`) also runs on the primary.
 - **MCP service registry.** Rows are keyed `(instance_id, name)`; each replica registers, reconciles and reaps only its own children, heartbeats every 15 s, and a scheduler job removes rows whose replica stopped heartbeating for 90 s and no longer holds its identity claim, so a stalled but live replica is never reaped. Replicas may boot concurrently; the post-reconcile registration check retries for up to about a second before failing the boot.
 - **Session-free.** Passkey challenges, MCP proxy session identities and Gemini thought signatures live in Postgres, so no balancer affinity is required.

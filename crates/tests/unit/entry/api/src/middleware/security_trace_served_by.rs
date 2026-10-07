@@ -34,6 +34,7 @@ pub(crate) fn test_config() -> Config {
         instance_id: systemprompt_identifiers::InstanceId::new("unit-test-instance"),
         metrics_port: None,
         max_concurrent_streams: 16,
+        role: Default::default(),
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://x".to_string(),

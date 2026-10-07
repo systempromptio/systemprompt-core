@@ -45,6 +45,9 @@ pub struct ServerConfig {
     #[serde(default = "default_max_concurrent_streams")]
     pub max_concurrent_streams: usize,
 
+    #[serde(default)]
+    pub role: super::NodeRole,
+
     #[serde(
         default,
         deserialize_with = "deserialize_trusted_proxies",

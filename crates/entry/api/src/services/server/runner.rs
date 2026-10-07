@@ -1,5 +1,9 @@
 //! Server run loop: MCP orchestrator wiring and lifecycle supervision.
 //!
+//! The startup phases a node runs follow its `server.role`
+//! ([`super::routes::role::lifecycle_plan`]): a gateway node spawns no MCP
+//! servers or agents and runs no scheduler.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -28,14 +32,23 @@ pub async fn run_server(
         .context("replica identity")?;
     tracing::info!(instance_id = %instance_claim.instance_id(), "replica identity claimed");
 
-    let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
+    let plan = super::routes::role::lifecycle_plan(ctx.config().role);
+    tracing::info!(role = %ctx.config().role, "node role");
 
     start_event_bridge(&ctx);
     start_registry_heartbeat(&ctx);
-    reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;
-
-    run_agents_phase(&ctx, events.as_ref()).await?;
-    let scheduler_handle = run_scheduler_phase(&ctx, events.as_ref()).await?;
+    if plan.reconcile_mcp {
+        let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
+        reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;
+    }
+    if plan.reconcile_agents {
+        run_agents_phase(&ctx, events.as_ref()).await?;
+    }
+    let scheduler_handle = if plan.scheduler {
+        run_scheduler_phase(&ctx, events.as_ref()).await?
+    } else {
+        None
+    };
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);

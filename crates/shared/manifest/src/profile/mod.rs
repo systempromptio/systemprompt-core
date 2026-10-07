@@ -17,6 +17,7 @@ mod error;
 mod governance;
 mod info;
 mod judge;
+mod node_role;
 mod observability;
 mod oci_reference;
 mod paths;
@@ -42,6 +43,7 @@ pub use governance::{
 };
 pub use info::ProfileInfo;
 pub use judge::JudgeProfile;
+pub use node_role::NodeRole;
 pub use observability::{ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal};
 pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};

@@ -114,6 +114,7 @@ impl CloudProfileBuilder {
                 metrics_port: None,
                 max_concurrent_streams:
                     systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+                role: systemprompt_manifest::profile::NodeRole::All,
                 trusted_proxies: crate::trusted_proxies::default_cloud_trusted_proxies(),
             },
             paths: PathsConfig {

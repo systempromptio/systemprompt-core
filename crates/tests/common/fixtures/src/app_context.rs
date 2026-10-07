@@ -56,6 +56,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         instance_id: systemprompt_identifiers::InstanceId::new("fixture"),
         metrics_port: None,
         max_concurrent_streams: 16,
+        role: Default::default(),
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url: database_url.to_string(),

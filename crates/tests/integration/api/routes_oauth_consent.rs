@@ -34,6 +34,7 @@ fn ensure_config() {
             instance_id: systemprompt_identifiers::InstanceId::new("test"),
             metrics_port: None,
             max_concurrent_streams: 16,
+            role: Default::default(),
             sitename: "test".to_owned(),
             database_type: "postgres".to_owned(),
             database_url: "postgres://x".to_owned(),

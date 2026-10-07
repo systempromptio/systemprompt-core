@@ -46,6 +46,7 @@ pub(super) fn server(is_prod: bool) -> ServerConfig {
         instance_id: None,
         metrics_port: None,
         max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+        role: systemprompt_manifest::profile::NodeRole::All,
         trusted_proxies: Vec::new(),
     }
 }

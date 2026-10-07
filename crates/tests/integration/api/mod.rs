@@ -17,6 +17,10 @@ mod routes_gateway_auth;
 mod server_mount_gateway_and_mcp_scope;
 
 #[cfg(test)]
+#[path = "routes_role_gateway.rs"]
+mod routes_role_gateway;
+
+#[cfg(test)]
 #[path = "routes_mcp_registry.rs"]
 mod routes_mcp_registry;
 

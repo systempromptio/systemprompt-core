@@ -79,6 +79,9 @@ pub async fn execute_with_events(
 
     if events.is_none() {
         CliService::phase_success("System validation complete", None);
+        CliService::phase_info(&format!("Node role: {}", ctx.config().role), None);
+    } else if let Some(tx) = events {
+        tx.info(format!("Node role: {}", ctx.config().role));
     }
 
     if events.is_none() {

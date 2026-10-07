@@ -21,7 +21,7 @@ pub mod lifecycle;
 pub mod metrics;
 mod probes;
 pub mod readiness;
-mod routes;
+pub mod routes;
 pub mod runner;
 pub mod scheduler_health;
 pub mod shutdown;
