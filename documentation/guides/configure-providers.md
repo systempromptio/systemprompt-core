@@ -82,7 +82,8 @@ Each route maps a model name pattern to one upstream (`crates/shared/manifest/sr
 | `accepted_betas` | no | The `anthropic-beta` values forwarded from a client request. Unset, first-party Anthropic forwards every beta and Vertex AI forwards none. The 1M context window is native on both and needs no beta. |
 | `pricing` | no | Per-token pricing used for usage accounting. |
 | `id` | no | Stable route id; synthesised from pattern/provider/endpoint if omitted. |
-| `fallback_provider` | no | A second provider the request is re-sent to when this one exhausts its transient-failure retries, returns a 5xx, or cannot be reached. Pair with `fallback_upstream_model` when the fallback names the model differently. |
+| `fallbacks` | no | Ordered list of `{provider, upstream_model}` deployments the request is re-sent to, in turn, when the previous one exhausts its transient-failure retries, returns a 5xx, or cannot be reached. A provider is only used when listed. |
+| `by_scope` | no | `{dimension, chains: {<value>: {provider, upstream_model, fallbacks}}, unmapped: deny\|shared}`: requests attributed to a mapped value in that scope dimension use its own chain (for example a tenant's own Vertex project and region); an unmapped value is refused unless `unmapped: shared`. |
 
 The first matching route wins, so order specific patterns before general ones. The API key is referenced by name, not inlined: `api_key_secret: anthropic` reads the `anthropic` key from your secrets document (see [configure.md](configure.md) §5).
 

@@ -1,5 +1,6 @@
-//! The failover decision: which upstream errors leave the primary, the
-//! attempt order the breakers dictate, and the per-provider breaker registry.
+//! The failover decision: which upstream errors leave a deployment,
+//! the attempt order the breakers dictate, and the per-provider breaker
+//! registry.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -7,8 +8,7 @@ use std::time::Duration;
 use systemprompt_gateway::protocol::outbound::UpstreamError;
 use systemprompt_gateway::service::GatewayError;
 use systemprompt_gateway::service::failover::{
-    AttemptPlan, FailoverReason, ProviderBreakers, failover_reason, is_failover_status,
-    plan_attempts,
+    FailoverReason, ProviderBreakers, failover_reason, is_failover_status, plan_attempts,
 };
 use systemprompt_manifest::services::ResilienceSettings;
 
@@ -80,35 +80,21 @@ fn reason_labels_are_stable_metric_values() {
 }
 
 #[test]
-fn no_fallback_means_the_primary_alone() {
-    assert_eq!(plan_attempts(false, false, false), AttemptPlan::PrimaryOnly);
-    assert_eq!(plan_attempts(false, true, true), AttemptPlan::PrimaryOnly);
-}
-
-#[test]
-fn healthy_breakers_try_primary_then_fallback() {
-    assert_eq!(
-        plan_attempts(true, false, false),
-        AttemptPlan::PrimaryThenFallback
-    );
-}
-
-#[test]
-fn a_tripped_primary_is_skipped_without_spending_its_retry_budget() {
-    assert_eq!(plan_attempts(true, true, false), AttemptPlan::FallbackOnly);
-}
-
-#[test]
-fn a_tripped_fallback_is_not_tried_after_a_primary_failure() {
-    assert_eq!(plan_attempts(true, false, true), AttemptPlan::PrimaryOnly);
-}
-
-#[test]
-fn two_tripped_breakers_still_send_the_request() {
-    assert_eq!(
-        plan_attempts(true, true, true),
-        AttemptPlan::PrimaryThenFallback
-    );
+fn the_attempt_plan_puts_healthy_deployments_first_and_never_leaves_a_request_unsent() {
+    let table: &[(&[bool], &[usize])] = &[
+        (&[false], &[0]),
+        (&[true], &[0]),
+        (&[false, false, false], &[0, 1, 2]),
+        (&[false, true, false], &[0, 2]),
+        (&[true, false, false], &[1, 2]),
+        (&[true, true, false], &[2]),
+        (&[false, true, true], &[0]),
+        (&[true, true, true], &[0, 1, 2]),
+        (&[], &[]),
+    ];
+    for (tripped, expected) in table {
+        assert_eq!(&plan_attempts(tripped), expected, "tripped = {tripped:?}");
+    }
 }
 
 #[test]
@@ -142,11 +128,7 @@ fn a_provider_trips_after_its_failure_threshold_and_stays_isolated() {
         "the fallback's breaker is its own"
     );
     assert_eq!(
-        plan_attempts(
-            true,
-            primary.acquire().is_err(),
-            fallback.acquire().is_err()
-        ),
-        AttemptPlan::FallbackOnly
+        plan_attempts(&[primary.acquire().is_err(), fallback.acquire().is_err()]),
+        vec![1]
     );
 }

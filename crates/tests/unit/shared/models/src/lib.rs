@@ -75,6 +75,9 @@ mod profile;
 mod profile_gateway;
 
 #[cfg(test)]
+mod profile_gateway_chains;
+
+#[cfg(test)]
 mod profile_secrets_vault;
 
 #[cfg(test)]

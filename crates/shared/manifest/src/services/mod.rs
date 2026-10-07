@@ -59,9 +59,10 @@ pub use bundle::{
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{
-    BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult,
-    GatewayRoute, GatewayState, OverrideRuleAction, QuotaFaultMode, ResponseFormatKind, RouteMatch,
-    RouteRequirements, SystemPromptRule, slugify_pattern, synthesize_route_id,
+    BridgeReleasesSpec, ChainSelection, GatewayConfig, GatewayConfigSpec, GatewayProfileError,
+    GatewayResult, GatewayRoute, GatewayState, OverrideRuleAction, QuotaFaultMode,
+    ResponseFormatKind, RouteDeployment, RouteMatch, RouteRequirements, RouteScopeChains,
+    ScopeChain, SystemPromptRule, UnmappedScope, slugify_pattern, synthesize_route_id,
 };
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookEventsConfig, HookMatcher, HookType,

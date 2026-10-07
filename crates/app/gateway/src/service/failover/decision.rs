@@ -1,6 +1,8 @@
 //! The failover decision, kept free of I/O so it can be tested as a table:
-//! which upstream errors leave the primary, and the attempt order the two
-//! circuit breakers dictate.
+//! which upstream errors leave a deployment, and the attempt order the
+//! deployments' circuit breakers dictate: healthy deployments in chain
+//! order, or every deployment in chain order when none is healthy, so a
+//! request is never left unsent.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,7 +10,7 @@
 use crate::protocol::outbound::UpstreamError;
 use crate::service::GatewayError;
 
-/// Why a request left its primary provider.
+/// Why a request left a deployment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailoverReason {
     CircuitOpen,
@@ -43,24 +45,12 @@ pub fn failover_reason(error: &GatewayError) -> Option<FailoverReason> {
     }
 }
 
-/// The order in which a request tries its upstreams, decided from the two
-/// breakers before anything is sent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AttemptPlan {
-    PrimaryOnly,
-    PrimaryThenFallback,
-    FallbackOnly,
-}
-
 #[must_use]
-pub const fn plan_attempts(
-    has_fallback: bool,
-    primary_tripped: bool,
-    fallback_tripped: bool,
-) -> AttemptPlan {
-    match (has_fallback, primary_tripped, fallback_tripped) {
-        (true, true, false) => AttemptPlan::FallbackOnly,
-        (false, _, _) | (true, false, true) => AttemptPlan::PrimaryOnly,
-        (true, false, false) | (true, true, true) => AttemptPlan::PrimaryThenFallback,
+pub fn plan_attempts(tripped: &[bool]) -> Vec<usize> {
+    let healthy: Vec<usize> = (0..tripped.len()).filter(|&i| !tripped[i]).collect();
+    if healthy.is_empty() {
+        (0..tripped.len()).collect()
+    } else {
+        healthy
     }
 }

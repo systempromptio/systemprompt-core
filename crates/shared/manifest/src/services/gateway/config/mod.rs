@@ -11,6 +11,7 @@
 
 mod runtime;
 mod validate;
+mod validate_chain;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ProviderId;

@@ -70,8 +70,8 @@ pub fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
                 pricing: None,
                 when: None,
                 requires: None,
-                fallback_provider: None,
-                fallback_upstream_model: None,
+                fallbacks: Vec::new(),
+                by_scope: None,
             };
             route.ensure_id();
             route

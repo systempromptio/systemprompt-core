@@ -91,11 +91,11 @@ pub fn is_model_servable(
     };
     if let Some(gw) = gateway {
         if let Some(route) = gw.find_route(model) {
-            return configured(route.provider.as_str())
-                || route
-                    .fallback_provider
-                    .as_ref()
-                    .is_some_and(|fallback| configured(fallback.as_str()));
+            return route
+                .all_chains()
+                .iter()
+                .flat_map(|(_, views)| views)
+                .any(|view| configured(view.provider.as_str()));
         }
         if let Some(default) = gw.default_provider.as_ref() {
             return configured(default.as_str());

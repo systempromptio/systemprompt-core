@@ -1,8 +1,11 @@
 //! Pre-dispatch upstream resolution: model-exposure check, route and provider
 //! lookup, API-key secret, and outbound wire adapter.
 //!
-//! `resolve_fallback_upstream` binds the same request to a route's
-//! `fallback_provider` when the primary upstream has failed.
+//! The matched route's deployment chain is selected from the request's scope
+//! attribution (`by_scope`); an attributed value the route does not map is
+//! refused unless the route opts into `unmapped: shared`.
+//! `resolve_deployment_upstream` binds the same request to a later deployment
+//! of that chain when an earlier one has failed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,8 +17,9 @@ use crate::policies::RouteSelectorEngine;
 use systemprompt_ai::UpstreamCall;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_manifest::services::{
-    GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry,
+    ChainSelection, GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry,
 };
+use systemprompt_models::attribution::RequestAttribution;
 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
@@ -28,12 +32,15 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) call: UpstreamCall,
     pub(super) adapter: &'static Arc<dyn OutboundAdapter>,
     pub(super) route_match_descriptor: Option<String>,
+    pub(super) deployments: Vec<GatewayRoute>,
+    pub(super) scoped: bool,
 }
 
 pub(super) async fn resolve_upstream<'a>(
     config: &'a GatewayConfig,
     registry: &'a ProviderRegistry,
     request: &CanonicalRequest,
+    attribution: &RequestAttribution,
     ai_request_id: &AiRequestId,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
     if !config.is_model_exposed(registry, request.model.as_str()) {
@@ -68,31 +75,58 @@ pub(super) async fn resolve_upstream<'a>(
         (matched, None)
     };
 
-    let route_match_descriptor = describe_route_match(&route, declarative, selector);
-    bind_route(
+    let selection = route.chain_for(attribution);
+    if let ChainSelection::Unmapped { dimension, value } = selection {
+        tracing::warn!(
+            ai_request_id = %ai_request_id,
+            route = %route.effective_id(),
+            dimension = %dimension,
+            value = %value,
+            "Gateway denied: scope value has no deployment chain on the route"
+        );
+        return Err(DispatchError::pre_audit(PolicyDenied(format!(
+            "scope {dimension}='{value}' has no deployment on route '{}'",
+            route.effective_id()
+        ))));
+    }
+    let scope = selection.descriptor();
+    let scoped = matches!(selection, ChainSelection::Scope { .. });
+    let deployments = route.chain_views(&selection);
+    let route_match_descriptor = describe_route_match(&route, declarative, selector, scope);
+    let Some(primary) = deployments.first().cloned() else {
+        return Err(DispatchError::pre_audit(GatewayError::NoRoute {
+            model: request.model.to_string(),
+        }));
+    };
+    let mut bound = bind_route(
         registry,
-        route,
+        Cow::Owned(primary),
         request.model.as_str(),
         ai_request_id,
         route_match_descriptor,
     )
-    .await
+    .await?;
+    bound.deployments = deployments;
+    bound.scoped = scoped;
+    Ok(bound)
 }
 
-pub(super) async fn resolve_fallback_upstream<'a>(
+pub(super) struct DeploymentHop<'h> {
+    pub(super) index: usize,
+    pub(super) hops: &'h [String],
+}
+
+pub(super) async fn resolve_deployment_upstream<'a>(
     registry: &'a ProviderRegistry,
     primary: &ResolvedUpstream<'a>,
+    hop: DeploymentHop<'_>,
     requested_model: &str,
     ai_request_id: &AiRequestId,
 ) -> Result<Option<ResolvedUpstream<'a>>, DispatchError> {
-    let Some(view) = primary.route.fallback_view() else {
+    let Some(view) = primary.deployments.get(hop.index).cloned() else {
         return Ok(None);
     };
-    let failover = format!(
-        "failover:{}->{}",
-        primary.provider.name.as_str(),
-        view.provider.as_str()
-    );
+    let failover = format!("failover:{}", hop.hops.join("->"));
     let descriptor = Some(match primary.route_match_descriptor.as_deref() {
         Some(existing) => format!("{existing};{failover}"),
         None => failover,
@@ -140,6 +174,8 @@ async fn bind_route<'a>(
         call,
         adapter,
         route_match_descriptor,
+        deployments: Vec::new(),
+        scoped: false,
     })
 }
 
@@ -147,14 +183,16 @@ pub fn describe_route_match(
     route: &GatewayRoute,
     declarative: Option<String>,
     selector: Option<String>,
+    scope: Option<String>,
 ) -> Option<String> {
     let governance = route.requires.as_ref().and_then(|r| {
         let declared = r.declared();
         (!declared.is_empty()).then(|| format!("requires:{}", declared.join(",")))
     });
 
-    (declarative.is_some() || selector.is_some() || governance.is_some()).then(|| {
-        [declarative, selector, governance]
+    let any = declarative.is_some() || selector.is_some() || governance.is_some();
+    (any || scope.is_some()).then(|| {
+        [declarative, selector, governance, scope]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>()

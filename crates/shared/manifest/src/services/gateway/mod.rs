@@ -29,6 +29,9 @@ mod state;
 pub use config::{BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, QuotaFaultMode};
 pub use error::{GatewayProfileError, GatewayResult};
 pub use override_rule::{OverrideRuleAction, SystemPromptRule};
-pub use route::{GatewayRoute, ResponseFormatKind, RouteMatch, RouteRequirements};
+pub use route::{
+    ChainSelection, GatewayRoute, ResponseFormatKind, RouteDeployment, RouteMatch,
+    RouteRequirements, RouteScopeChains, ScopeChain, UnmappedScope,
+};
 pub use route_id::{slugify_pattern, synthesize_route_id};
 pub use state::GatewayState;

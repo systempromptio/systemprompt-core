@@ -570,5 +570,9 @@ mod gateway_attribution;
 mod gateway_quota_reservation;
 
 #[cfg(test)]
+#[path = "gateway_scope_routing.rs"]
+mod gateway_scope_routing;
+
+#[cfg(test)]
 #[path = "gateway_api_key_limits.rs"]
 mod gateway_api_key_limits;

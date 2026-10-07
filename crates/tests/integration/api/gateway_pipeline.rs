@@ -167,8 +167,8 @@ pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
         pricing: None,
         when: None,
         requires: None,
-        fallback_provider: None,
-        fallback_upstream_model: None,
+        fallbacks: Vec::new(),
+        by_scope: None,
     };
     route.ensure_id();
     GatewayConfig {

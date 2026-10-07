@@ -82,7 +82,8 @@ impl GatewayService {
         let policy = dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
-        let upstream = resolve_upstream(config, registry, &request, &ai_request_id).await?;
+        let upstream =
+            resolve_upstream(config, registry, &request, &ctx.attribution, &ai_request_id).await?;
         let pricing = dispatch_pricing(&request, &upstream)?;
 
         trace_dispatch(&ctx, &request, &upstream);
@@ -143,6 +144,11 @@ async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
 
     if let Some(descriptor) = opened.upstream.route_match_descriptor.as_deref() {
         audit.set_route_match(descriptor).await;
+    }
+    if opened.upstream.scoped {
+        audit
+            .set_served_provider(opened.upstream.provider.name.as_str())
+            .await;
     }
 
     let admission = guards::QuotaAdmission::for_request(

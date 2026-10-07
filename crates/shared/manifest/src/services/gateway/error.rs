@@ -20,22 +20,35 @@ pub enum GatewayProfileError {
     DefaultProviderNotInRegistry { provider: String },
 
     #[error(
-        "gateway route '{route}' fallback_provider '{provider}' is not declared in services \
-         providers"
+        "gateway route '{route}' deployment '{provider}' is not declared in services providers"
     )]
-    RouteFallbackProviderNotInRegistry { route: String, provider: String },
+    RouteDeploymentProviderNotInRegistry { route: String, provider: String },
 
     #[error(
-        "gateway route '{route}' names '{provider}' as both provider and fallback_provider; a \
-         fallback must be a different upstream"
+        "gateway route '{route}' scope chain '{scope}' deployment '{provider}' is not declared in \
+         services providers"
     )]
-    RouteFallbackIsPrimary { route: String, provider: String },
+    RouteScopeChainProviderNotInRegistry {
+        route: String,
+        scope: String,
+        provider: String,
+    },
 
     #[error(
-        "gateway route '{route}' sets fallback_upstream_model without a fallback_provider to \
-         apply it to"
+        "gateway route '{route}' chain '{chain}' lists deployment '{provider}' more than once; \
+         each deployment in a chain must be a different upstream"
     )]
-    RouteFallbackModelWithoutProvider { route: String },
+    RouteDeploymentDuplicate {
+        route: String,
+        chain: String,
+        provider: String,
+    },
+
+    #[error("gateway route '{route}' declares `by_scope` with no `chains`")]
+    RouteScopeChainsEmpty { route: String },
+
+    #[error("gateway route '{route}' declares a `by_scope` chain under an empty scope value")]
+    RouteScopeKeyEmpty { route: String },
 
     #[error("system_prompt override with action 'replace' must set a 'prompt'")]
     OverrideReplaceMissingPrompt,
