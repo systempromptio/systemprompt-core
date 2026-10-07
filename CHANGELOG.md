@@ -128,6 +128,7 @@
 
 ### Fixed
 
+- **Bridge:** the OpenCode hooks plugin loads again (a syntax error since 2026-09-17 silenced skill-use reporting and session linking for every OpenCode host), the OpenCode desktop app counts as an installed OpenCode and gains an Open button, and the managed OpenCode config sets `enabled_providers: ["systemprompt"]` so only gateway models are offered. See `bin/bridge/CHANGELOG.md`.
 - **OAuth:** WebAuthn registration fails with `server_error` when the global configuration is unavailable, and the authorize form hides registration, instead of allowing it.
 - **API:** the detailed health endpoint runs its filesystem and memory probes on the blocking pool, so a slow disk no longer stalls the async runtime.
 - **Content / Files:** ingestion reads markdown and file metadata through `tokio::fs` instead of blocking the async runtime.

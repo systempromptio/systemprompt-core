@@ -9,7 +9,7 @@
 
 use serde_json::{Map, Value, json};
 
-use super::super::config::{DEFAULT_MODEL, NPM_PACKAGE, PROVIDER_ID};
+use super::super::config::{DEFAULT_MODEL, ENABLED_PROVIDERS, NPM_PACKAGE, PROVIDER_ID};
 use crate::integration::host_app::ProfileGenInputs;
 
 pub(super) const API_KEY_MARKER: &str = "_systemprompt_api_key";
@@ -67,6 +67,7 @@ pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
 
     let mut root = Map::new();
     root.insert("provider".to_owned(), Value::Object(providers));
+    root.insert(ENABLED_PROVIDERS.to_owned(), json!([PROVIDER_ID]));
     // Why: with the whole catalog advertised, the first entry is whichever
     // provider happens to sort first — not a choice. Prefer the gateway's own
     // default when it is one of the models we just declared, since a default

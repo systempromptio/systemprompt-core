@@ -21,6 +21,7 @@ pub(super) const PROVIDER_PROTOCOL_HEADER: &str =
     "provider.systemprompt.options.headers.x-inference-protocol";
 pub(super) const PROVIDER_MODELS: &str = "provider.systemprompt.models";
 pub(super) const DEFAULT_MODEL: &str = "model";
+pub(super) const ENABLED_PROVIDERS: &str = "enabled_providers";
 
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     PROVIDER_NPM,
@@ -28,9 +29,13 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     PROVIDER_PROTOCOL_HEADER,
     PROVIDER_MODELS,
     DEFAULT_MODEL,
+    ENABLED_PROVIDERS,
 ];
 
-pub(super) const REQUIRED_KEYS: &[&str] = &[PROVIDER_NPM, PROVIDER_BASE_URL];
+// Why: without the allowlist OpenCode still offers its own built-in providers
+// (the free "Zen" tier, anything a user connects) beside the gateway, so a
+// managed file that lacks it is governed in name only.
+pub(super) const REQUIRED_KEYS: &[&str] = &[PROVIDER_NPM, PROVIDER_BASE_URL, ENABLED_PROVIDERS];
 
 pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
     required_keys: REQUIRED_KEYS,
@@ -150,6 +155,35 @@ pub(super) fn extra_bin_dirs() -> Vec<PathBuf> {
         dirs.push(PathBuf::from(appdata).join("npm"));
     }
     dirs
+}
+
+// Why: the Electron desktop app is a per-user NSIS install whose folder is the
+// npm scope of its package (`@opencodedesktop`), not the product name, and it
+// puts no `opencode` binary on PATH.
+pub(super) fn desktop_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        out.push(
+            PathBuf::from(local)
+                .join("Programs")
+                .join("@opencodedesktop")
+                .join("OpenCode.exe"),
+        );
+    }
+    out
+}
+
+pub(super) const fn desktop_locator(
+    candidates: &[PathBuf],
+) -> crate::integration::app_launch::AppLocator<'_> {
+    crate::integration::app_launch::AppLocator {
+        macos_name: "OpenCode",
+        windows_name: "OpenCode",
+        windows_candidates: candidates,
+        linux_bin: BINARY,
+        msix_family: None,
+        msix_app_id: "",
+    }
 }
 
 pub(super) fn now_unix() -> u64 {

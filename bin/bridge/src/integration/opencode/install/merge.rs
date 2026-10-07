@@ -2,7 +2,8 @@
 //! prior bridge-owned values first so a shrunk model list leaves no stale
 //! entries, and preserving every other key. Bridge-owned surface: the whole
 //! `provider.systemprompt` object (and `provider` itself once empty) plus the
-//! top-level `model` when it names our provider.
+//! top-level `model` when it names our provider, and `enabled_providers` when
+//! it is exactly our allowlist.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +12,7 @@ use std::path::Path;
 
 use serde_json::{Map, Value};
 
-use super::super::config::{DEFAULT_MODEL, PROVIDER_ID};
+use super::super::config::{DEFAULT_MODEL, ENABLED_PROVIDERS, PROVIDER_ID};
 use super::{elevation_prompt, pretty, read_object};
 use crate::install::approval::GatedChangeError;
 use crate::install::managed_file::{ManagedWrite, remove_managed_file, write_managed_file};
@@ -60,6 +61,13 @@ pub(crate) fn strip_owned(root: &mut Map<String, Value>) {
         .is_some_and(|m| m.starts_with(&format!("{PROVIDER_ID}/")));
     if ours {
         root.remove(DEFAULT_MODEL);
+    }
+    let allowlist_is_ours = root
+        .get(ENABLED_PROVIDERS)
+        .and_then(Value::as_array)
+        .is_some_and(|list| list.len() == 1 && list[0].as_str() == Some(PROVIDER_ID));
+    if allowlist_is_ours {
+        root.remove(ENABLED_PROVIDERS);
     }
 }
 

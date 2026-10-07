@@ -38,15 +38,36 @@ pub use managed_resources::OpenCodeSync;
 use systemprompt_models::bridge::host::HostKind;
 
 use crate::integration::host_app::{
-    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppKind, HostAppSnapshot,
-    HostConfigSchema, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
-    ProfileRemoval, ProfileState,
+    AppInstallState, ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppKind,
+    HostAppSnapshot, HostConfigSchema, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled,
+    ProfileProbe, ProfileRemoval, ProfileState,
 };
 use crate::integration::reapply::Attendance;
 
 #[must_use]
 pub fn admin_tier_models() -> Option<(std::path::PathBuf, Vec<String>)> {
     install::admin_tier_models()
+}
+
+// Why: the CLI and the desktop app are two installs of one host; either one
+// reads the managed tier, so either one counts, and only a conclusive miss on
+// both is a miss.
+#[must_use]
+pub const fn install_state(cli: AppInstallState, desktop: AppInstallState) -> AppInstallState {
+    match (cli, desktop) {
+        (AppInstallState::Installed, _) | (_, AppInstallState::Installed) => {
+            AppInstallState::Installed
+        },
+        (AppInstallState::NotInstalled, AppInstallState::NotInstalled) => {
+            AppInstallState::NotInstalled
+        },
+        _ => AppInstallState::Unknown,
+    }
+}
+
+fn desktop_app_present() -> bool {
+    let candidates = config::desktop_candidates();
+    crate::integration::app_launch::desktop_present_on_disk(&config::desktop_locator(&candidates))
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -90,6 +111,17 @@ impl HostApp for OpenCodeHost {
             managed_servers: Freshness::Unchecked,
         });
         let found = HostProcesses::from_enumeration(probe::list_opencode_processes());
+        let desktop_candidates = config::desktop_candidates();
+        let app_installed = install_state(
+            crate::integration::app_launch::cli_installed(
+                config::BINARY,
+                &config::extra_bin_dirs(),
+            ),
+            crate::integration::app_launch::is_installed(
+                &config::desktop_locator(&desktop_candidates),
+                &env.start_menu,
+            ),
+        );
         HostAppSnapshot {
             host_id: self.id(),
             display_name: self.display_name(),
@@ -99,10 +131,7 @@ impl HostApp for OpenCodeHost {
             probe_error: read.probe_error.or(found.error),
             host_running: found.running,
             host_processes: found.processes,
-            app_installed: crate::integration::app_launch::cli_installed(
-                config::BINARY,
-                &config::extra_bin_dirs(),
-            ),
+            app_installed,
             probed_at_unix: config::now_unix(),
             update_needs_approval: false,
         }
@@ -127,8 +156,15 @@ impl HostApp for OpenCodeHost {
         install::remove_profile()
     }
 
+    fn open(&self) -> Result<(), HostAppError> {
+        let candidates = config::desktop_candidates();
+        Ok(crate::integration::app_launch::open_app(
+            &config::desktop_locator(&candidates),
+        )?)
+    }
+
     fn can_open(&self) -> bool {
-        false
+        desktop_app_present()
     }
 
     fn install_action_label(&self) -> &'static str {

@@ -99,9 +99,41 @@ fn installing_merges_the_provider_block_and_preserves_foreign_keys() {
             "gpt-4.1"
         );
         assert_eq!(doc["model"], "systemprompt/claude-sonnet-5");
+        assert_eq!(
+            doc["enabled_providers"],
+            serde_json::json!(["systemprompt"]),
+            "only the gateway provider may load: {doc}"
+        );
         assert!(
             doc.get("_systemprompt_api_key").is_none(),
             "the key marker never reaches the managed file: {doc}"
+        );
+    });
+}
+
+#[test]
+fn an_admin_allowlist_is_replaced_by_ours_and_only_ours_is_removed() {
+    sandbox(|p| {
+        std::fs::write(&p.managed, r#"{ "enabled_providers": ["anthropic"] }"#).expect("seed");
+        install(&["claude-sonnet-5"]);
+        let doc = read(&p.managed);
+        assert_eq!(
+            doc["enabled_providers"],
+            serde_json::json!(["systemprompt"])
+        );
+
+        OPENCODE_HOST.remove_profile().expect("remove");
+        assert!(!p.managed.exists(), "nothing but our keys was left");
+
+        std::fs::write(
+            &p.managed,
+            r#"{ "enabled_providers": ["systemprompt", "anthropic"] }"#,
+        )
+        .expect("seed widened list");
+        let removal = OPENCODE_HOST.remove_profile().expect("remove");
+        assert!(
+            matches!(removal, ProfileRemoval::NothingToRemove),
+            "a list an admin widened is not ours to delete: {removal:?}"
         );
     });
 }
