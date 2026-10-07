@@ -18,6 +18,7 @@ pub mod ai_request_client_evidence;
 pub mod ai_request_payloads;
 pub mod ai_requests;
 pub mod ai_safety_findings;
+pub mod ai_usage_anomaly;
 pub mod ownership;
 pub mod thought_signatures;
 
@@ -35,6 +36,7 @@ pub use ai_requests::{AiRequestRepository, InsertToolCallParams};
 pub use ai_safety_findings::{
     AiSafetyFindingRepository, InsertSafetyFinding, SafetyFindingRollupRow,
 };
+pub use ai_usage_anomaly::{AiUsageAnomalyRepository, HourlyUsageProfile};
 pub use ownership::AiOwnerReassignment;
 pub use thought_signatures::AiThoughtSignatureRepository;
 

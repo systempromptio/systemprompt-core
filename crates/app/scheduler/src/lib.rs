@@ -58,6 +58,7 @@ pub use jobs::otlp_export::{
 pub use jobs::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
     GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob, OtlpExportJob,
+    UsageAnomalyScanJob,
 };
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
 pub use repository::otlp::{OtlpExportState, OtlpExportStateRepository};

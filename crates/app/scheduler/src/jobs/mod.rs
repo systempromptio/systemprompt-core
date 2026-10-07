@@ -19,6 +19,7 @@ mod malicious_ip_blacklist;
 mod no_js_cleanup;
 pub mod otlp_export;
 mod thought_signature_cleanup;
+pub mod usage_anomaly_scan;
 pub mod vertex_discovery;
 
 pub use backfill_session_geo::BackfillSessionGeoJob;
@@ -32,4 +33,5 @@ pub use malicious_ip_blacklist::MaliciousIpBlacklistJob;
 pub use no_js_cleanup::NoJsCleanupJob;
 pub use otlp_export::OtlpExportJob;
 pub use thought_signature_cleanup::ThoughtSignatureCleanupJob;
+pub use usage_anomaly_scan::UsageAnomalyScanJob;
 pub use vertex_discovery::VertexDiscoveryJob;

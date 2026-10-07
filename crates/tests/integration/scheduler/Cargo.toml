@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
+systemprompt-ai = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }

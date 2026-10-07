@@ -87,6 +87,8 @@ Suggested alerts:
 - p99 of `http_request_duration_seconds` over your latency SLO for 10 minutes — page.
 - `http_requests_in_flight` approaching the replica's concurrency ceiling — warn (saturation).
 
+Gateway spend controls add two counters. `systemprompt_quota_denials_total{subject_kind, dimension, mode}` counts every quota-window breach (`mode` is `enforce` or `warn`). `systemprompt_usage_anomaly_total{kind, subject_kind}` is raised by the `usage_anomaly_scan` job (enable it under that name in the scheduler config; it runs at two minutes past each hour): for the previous closed hour it compares each user's completed-request cost and count with their trailing seven-day hourly average and flags `kind="spend"` at three times the baseline and at least 1,000,000 microdollars, `kind="request_rate"` at three times the baseline and at least 50 requests. Each flag also logs a `usage_anomaly` warning (target `usage_anomaly`) carrying `user_id`, `observed`, `baseline`, `ratio` and `window_start`. Alert on any increase of either counter.
+
 ## 4. Read structured logs
 
 Logs are emitted as structured JSON to stdout and persisted to the `logs` table in Postgres (`crates/infra/logging/src/layer/mod.rs`). The verbosity is set by `runtime.log_level` in the profile (`quiet`→`error`, `normal`→`info`, `verbose`→`debug`, `debug`→`trace`); set `runtime.output_format: json` for machine ingestion.
