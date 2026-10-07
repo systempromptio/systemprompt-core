@@ -78,7 +78,7 @@ The binary is stateless — all durable state lives in Postgres. Run N ≥ 2 rep
 | Endpoint | Auth | Returns |
 |----------|------|---------|
 | `GET /livez` | none | `200` as soon as the process has bound its port, including while it is still booting. Liveness only. |
-| `GET /readyz` | none | `503 {"status":"starting"}` during boot, `503 {"status":"draining"}` after `SIGTERM`, `503 {"status":"unready"}` when the database probe fails, otherwise `200 {"status":"ready"}`. The admission signal for a load balancer. |
+| `GET /readyz` | none | `503 {"status":"starting"}` during boot, `503 {"status":"draining"}` after `SIGTERM`, `503 {"status":"saturated","in_flight":N,"limit":N}` while every `server.max_in_flight` permit is taken, `503 {"status":"unready"}` when the database probe fails, otherwise `200 {"status":"ready"}`. The admission signal for a load balancer. |
 | `GET /health` and `GET /api/v1/health` | none | `200 {"status":"starting"}` during boot, then `200` healthy / degraded or `503` when the database is unreachable. Kept at `200` during boot so a platform with a single probe (Fly) does not kill a machine mid-migration. |
 | `GET /api/v1/health/detail` | authenticated | DB latency, service counts, memory, disk, table sizes. |
 
@@ -252,6 +252,8 @@ Recorded series (`crates/entry/api/src/services/server/metrics.rs`, `crates/app/
 | `http_requests_total` | counter | `method`, `path`, `status` | request and error rate |
 | `http_request_duration_seconds` | histogram (5 ms–10 s) | `method`, `path`, `status` | p50/p95/p99 latency |
 | `http_requests_in_flight` | gauge | — | concurrency / saturation |
+| `http_in_flight_limit`, `http_in_flight_saturation` | gauge | — | configured `server.max_in_flight` and the fraction in use |
+| `http_load_shed_total` | counter | — | requests refused with `503` at the ceiling |
 | `sse_active_connections` | gauge | `channel` (`context`, `agui`, `a2a`, `analytics`) | live SSE stream counts |
 | `gateway_overhead_seconds` | histogram (1 ms–1 s) | `route` (inbound wire dialect, e.g. `anthropic.messages`), `provider` | time the gateway added to a completed inference request, excluding the provider call |
 | `gateway_upstream_duration_seconds` | histogram (100 ms–120 s) | `route`, `provider` | provider call duration for a completed inference request |
@@ -312,6 +314,8 @@ Starting points; benchmark against your own workload.
 | Enterprise (≤10,000 AI users) | 4–8 | 4 | 2 GB | 16 vCPU / 64 GB / 1 TB SSD + replica |
 
 The request hot path is CPU-bound; Postgres becomes the capacity bottleneck before the binary does.
+
+**Overload shedding.** Set `server.max_in_flight` to cap concurrent requests per replica. A request that finds no free permit is refused at once with `503`, `Retry-After: 1` and `error_key: "overloaded"` instead of queueing until the balancer times out; `/livez`, `/readyz`, `/health`, `/api/v1/health` and `/metrics` are exempt, and `/readyz` reports `saturated` so the balancer stops sending new work. Unset (the default) means no ceiling; `0` is rejected. Start near 64 × vCPU for gateway nodes and tune with `http_in_flight_saturation` (fraction of the ceiling in use) and `http_load_shed_total`. A permit covers the handler, not the remainder of a streamed response body, so long SSE streams are bounded by `server.max_concurrent_streams` instead.
 
 ## Next steps
 

@@ -18,7 +18,7 @@ use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use super::routes::configure_routes;
 use crate::services::middleware::{
-    AnalyticsMiddleware, CorsMiddleware, PublicContextMiddleware, SessionMiddleware,
+    AnalyticsMiddleware, CorsMiddleware, LoadShed, PublicContextMiddleware, SessionMiddleware,
     inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
 };
 
@@ -55,6 +55,14 @@ fn register_artifact_scanner(ctx: &AppContext) {
 
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     let mut router = router;
+
+    if let Some(max) = ctx.config().max_in_flight {
+        let shed = std::sync::Arc::new(LoadShed::new(max));
+        router = router.layer(axum::middleware::from_fn_with_state(
+            shed,
+            crate::services::middleware::load_shed::shed,
+        ));
+    }
 
     router = router.layer(DefaultBodyLimit::max(2 * 1024 * 1024));
 

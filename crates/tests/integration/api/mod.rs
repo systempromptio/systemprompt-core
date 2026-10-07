@@ -25,6 +25,10 @@ mod routes_role_gateway;
 mod gateway_overhead_metrics;
 
 #[cfg(test)]
+#[path = "server_load_shed.rs"]
+mod server_load_shed;
+
+#[cfg(test)]
 #[path = "routes_mcp_registry.rs"]
 mod routes_mcp_registry;
 

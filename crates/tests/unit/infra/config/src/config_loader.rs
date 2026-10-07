@@ -17,6 +17,7 @@ fn base_config() -> Config {
         metrics_port: None,
         max_concurrent_streams: 16,
         role: Default::default(),
+        max_in_flight: None,
         sitename: "t".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://user:pass@localhost/db".to_string(),

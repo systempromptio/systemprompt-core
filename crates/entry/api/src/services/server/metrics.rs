@@ -63,6 +63,21 @@ pub fn install_recorder(instance_id: &InstanceId) -> anyhow::Result<PrometheusHa
 }
 
 fn describe_metrics() {
+    use crate::services::middleware::load_shed::{
+        HTTP_IN_FLIGHT_LIMIT, HTTP_IN_FLIGHT_SATURATION, HTTP_LOAD_SHED_TOTAL,
+    };
+    metrics::describe_counter!(
+        HTTP_LOAD_SHED_TOTAL,
+        "Requests refused with 503 because the in-flight ceiling was reached"
+    );
+    metrics::describe_gauge!(
+        HTTP_IN_FLIGHT_LIMIT,
+        "Configured server.max_in_flight ceiling"
+    );
+    metrics::describe_gauge!(
+        HTTP_IN_FLIGHT_SATURATION,
+        "Fraction of the in-flight ceiling in use (1.0 = shedding)"
+    );
     metrics::describe_histogram!(
         HTTP_REQUEST_DURATION_SECONDS,
         metrics::Unit::Seconds,

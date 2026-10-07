@@ -26,6 +26,7 @@ fn install_test_config() {
             metrics_port: None,
             max_concurrent_streams: 256,
             role: Default::default(),
+            max_in_flight: None,
             sitename: "test".to_owned(),
             database_type: "postgres".to_owned(),
             database_url: String::new(),

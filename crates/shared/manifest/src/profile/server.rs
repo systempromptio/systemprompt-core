@@ -48,6 +48,9 @@ pub struct ServerConfig {
     #[serde(default)]
     pub role: super::NodeRole,
 
+    #[serde(default)]
+    pub max_in_flight: Option<std::num::NonZeroU32>,
+
     #[serde(
         default,
         deserialize_with = "deserialize_trusted_proxies",

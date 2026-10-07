@@ -27,6 +27,7 @@ fn test_config() -> Config {
         metrics_port: None,
         max_concurrent_streams: 16,
         role: Default::default(),
+        max_in_flight: None,
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://x".to_string(),

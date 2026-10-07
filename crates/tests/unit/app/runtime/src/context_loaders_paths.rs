@@ -18,6 +18,7 @@ fn fixture_config(geoip: Option<String>) -> Config {
         metrics_port: None,
         max_concurrent_streams: 16,
         role: Default::default(),
+        max_in_flight: None,
         sitename: "t".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://x/y".to_string(),

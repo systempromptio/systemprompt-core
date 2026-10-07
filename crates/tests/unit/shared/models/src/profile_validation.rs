@@ -39,6 +39,7 @@ fn server_config() -> ServerConfig {
         metrics_port: None,
         max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         role: Default::default(),
+        max_in_flight: None,
         trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
     }
 }

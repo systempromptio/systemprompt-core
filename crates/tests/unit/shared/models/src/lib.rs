@@ -88,6 +88,8 @@ mod profile_instance_identity;
 mod profile_judge;
 #[cfg(test)]
 mod profile_observability;
+#[cfg(test)]
+mod profile_server_capacity;
 
 #[cfg(test)]
 mod oci_reference;

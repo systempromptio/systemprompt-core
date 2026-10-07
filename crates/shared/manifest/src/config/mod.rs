@@ -57,6 +57,7 @@ pub struct Config {
     pub metrics_port: Option<u16>,
     pub max_concurrent_streams: usize,
     pub role: crate::profile::NodeRole,
+    pub max_in_flight: Option<std::num::NonZeroU32>,
     pub sitename: String,
     pub database_type: String,
     pub database_url: String,
@@ -112,6 +113,7 @@ impl std::fmt::Debug for Config {
             .field("metrics_port", &self.metrics_port)
             .field("max_concurrent_streams", &self.max_concurrent_streams)
             .field("role", &self.role)
+            .field("max_in_flight", &self.max_in_flight)
             .field("sitename", &self.sitename)
             .field("database_type", &self.database_type)
             .field("database_url", &REDACTED)
