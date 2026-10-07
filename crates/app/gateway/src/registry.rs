@@ -13,7 +13,7 @@ use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use super::protocol::outbound::{OutboundAdapter, OutboundAdapterRegistration};
 use crate::policies::{
     HeuristicScanner, NullScanner, SafetyConfig, SafetyScanner, SafetyScannerRegistration,
-    ScannerFactory,
+    ScannerFactory, ScannerSettings,
 };
 use systemprompt_wire::WireProtocol;
 
@@ -99,7 +99,10 @@ impl SafetyScannerRegistry {
     }
 
     pub fn create(&self, name: &str, safety: &SafetyConfig) -> Option<Arc<dyn SafetyScanner>> {
-        self.entries.get(name).map(|factory| factory.create(safety))
+        let settings = safety.settings_for(name);
+        self.entries
+            .get(name)
+            .map(|factory| factory.create(safety, &settings))
     }
 
     pub fn names(&self) -> Vec<&str> {
@@ -109,10 +112,10 @@ impl SafetyScannerRegistry {
     }
 
     pub(super) fn build() -> Self {
-        fn null_factory(_: &SafetyConfig) -> Arc<dyn SafetyScanner> {
+        fn null_factory(_: &SafetyConfig, _: &ScannerSettings) -> Arc<dyn SafetyScanner> {
             Arc::new(NullScanner)
         }
-        fn heuristic_factory(safety: &SafetyConfig) -> Arc<dyn SafetyScanner> {
+        fn heuristic_factory(safety: &SafetyConfig, _: &ScannerSettings) -> Arc<dyn SafetyScanner> {
             Arc::new(HeuristicScanner::new(&safety.heuristic))
         }
 
@@ -131,8 +134,9 @@ impl SafetyScannerRegistry {
                 continue;
             }
             let factory = registration.factory;
-            let config_blind: Arc<dyn ScannerFactory> = Arc::new(move |_: &SafetyConfig| factory());
-            entries.insert(name, config_blind);
+            let settings_driven: Arc<dyn ScannerFactory> =
+                Arc::new(move |_: &SafetyConfig, settings: &ScannerSettings| factory(settings));
+            entries.insert(name, settings_driven);
         }
 
         Self { entries }

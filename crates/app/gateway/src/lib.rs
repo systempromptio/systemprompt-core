@@ -52,8 +52,9 @@ pub use policies::{
     PHASE_RESPONSE, PolicyResolver, PolicyUnavailable, QuotaMode, QuotaWindow, RouteSelector,
     RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration, SafetyConfig,
     SafetyHistoryMode, SafetyMode, SafetyScanner, SafetyScannerRegistration, ScanError,
-    ScannerFactory, Severity, SystemPromptOverride, SystemPromptOverrideRegistration,
-    USER_QUOTA_SUBJECT, load_from_yaml as load_gateway_policies_from_yaml,
+    ScannerFactory, ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
+    SystemPromptOverrideRegistration, USER_QUOTA_SUBJECT,
+    load_from_yaml as load_gateway_policies_from_yaml,
 };
 pub use protocol::{
     CanonicalEvent, CanonicalRequest, CanonicalResponse, InboundAdapter, OutboundAdapter,

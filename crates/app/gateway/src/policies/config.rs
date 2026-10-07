@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::error::GatewayPolicyError;
-use super::spec::GatewayPolicySpec;
+use super::spec::{GatewayPolicySpec, SafetyConfig};
 
 const fn default_enabled() -> bool {
     true
@@ -67,7 +67,29 @@ impl GatewayPolicyConfig {
                         .to_owned(),
                 });
             }
+            validate_scanner_settings(idx, safety)?;
         }
         Ok(())
     }
+}
+
+fn validate_scanner_settings(idx: usize, safety: &SafetyConfig) -> Result<(), GatewayPolicyError> {
+    for (name, settings) in &safety.scanner_settings {
+        let field = format!("policies[{idx}].spec.safety.scanner_settings.{name}");
+        if !safety.scanners.iter().any(|s| s == name) {
+            return Err(GatewayPolicyError::Invalid {
+                field,
+                reason: format!(
+                    "settings name scanner '{name}', which is not listed in safety.scanners"
+                ),
+            });
+        }
+        if settings.timeout_ms == 0 {
+            return Err(GatewayPolicyError::Invalid {
+                field: format!("{field}.timeout_ms"),
+                reason: "timeout_ms must be at least 1".to_owned(),
+            });
+        }
+    }
+    Ok(())
 }

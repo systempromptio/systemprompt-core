@@ -155,3 +155,45 @@ policies:
     );
     cfg.validate().expect("validates");
 }
+
+fn policy_with_safety(yaml: &str) -> GatewayPolicyConfig {
+    let mut indented = String::new();
+    for line in yaml.lines() {
+        indented.push_str("        ");
+        indented.push_str(line);
+        indented.push('\n');
+    }
+    serde_yaml::from_str(&format!(
+        "policies:\n  - name: p\n    spec:\n      safety:\n{indented}"
+    ))
+    .expect("policy yaml parses")
+}
+
+#[test]
+fn scanner_settings_for_an_unlisted_scanner_are_rejected() {
+    let config =
+        policy_with_safety("scanners: [null]\nscanner_settings:\n  vendor:\n    fail_mode: open");
+    let msg = config
+        .validate()
+        .expect_err("unlisted scanner settings")
+        .to_string();
+    assert!(msg.contains("scanner_settings.vendor"), "{msg}");
+    assert!(msg.contains("not listed"), "{msg}");
+}
+
+#[test]
+fn a_zero_scanner_timeout_is_rejected() {
+    let config =
+        policy_with_safety("scanners: [null]\nscanner_settings:\n  null:\n    timeout_ms: 0");
+    let msg = config.validate().expect_err("zero timeout").to_string();
+    assert!(msg.contains("scanner_settings.null.timeout_ms"), "{msg}");
+}
+
+#[test]
+fn settings_for_a_listed_scanner_validate() {
+    let config = policy_with_safety(
+        "scanners: [null]\nscanner_settings:\n  null:\n    fail_mode: open\n    timeout_ms: \
+         1\n    config: {anything: [1, 2]}",
+    );
+    config.validate().expect("valid settings");
+}

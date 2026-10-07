@@ -40,6 +40,91 @@ Each proxied request passes through a fixed sequence of gateway-owned controls b
 | Audit | Every request and the streamed/whole response are recorded (method, path, status, latency, token counts, pricing). | `services/gateway/audit/`, `stream_tap/`, `pricing.rs` |
 | SSRF guard | Outbound route endpoints are validated by the shared `validate_outbound_url` guard. | `crates/shared/models/src/net/mod.rs` |
 
+## Safety scanners
+
+A gateway policy's `safety` block names the scanners that judge each request (and, when `block_response_categories` is set, each response). Core ships two: `heuristic` (phrase list, email and card-number detection) and `null`. Any other scanner — a vendor guardrail service, an in-house classifier — is implemented outside core and registered at compile time with `register_safety_scanner!`.
+
+Every scanner is governed the same way, whoever wrote it:
+
+```yaml
+policies:
+  - name: default
+    spec:
+      safety:
+        scanners: [heuristic, vendor_guard]
+        block_categories: [jailbreak, prompt_injection]
+        scanner_settings:
+          vendor_guard:
+            fail_mode: open        # open | closed (default closed)
+            timeout_ms: 1500       # default 5000, at least 1
+            config:                # opaque to core, handed to the scanner
+              endpoint: https://guard.example.com/v1/screen
+              template: strict
+              credential_secret: vendor_guard_key
+```
+
+- `timeout_ms` bounds the scan in the request, history and response phases. A scan that overruns it fails with `ScanError::TimedOut`.
+- A failed or timed-out scan is persisted as a `scanner_failure` finding. Under `fail_mode: closed` it blocks the request; under `open` it is recorded with `blocked = false` and the request proceeds. `safety.mode: warn` never blocks.
+- `config` is not interpreted by core. Its keys are the scanner's own.
+- Validation refuses `scanner_settings` for a scanner not listed in `scanners`, and a `timeout_ms` of 0.
+
+### Writing an external scanner
+
+An extension crate depends on `systemprompt-gateway`, implements `SafetyScanner`, and registers a factory that receives the scanner's `ScannerSettings`:
+
+```rust
+use std::sync::Arc;
+
+use systemprompt_gateway::protocol::canonical::{CanonicalRequest, CanonicalResponse};
+use systemprompt_gateway::{
+    Finding, PHASE_REQUEST, SafetyScanner, ScanError, ScannerSettings, Severity,
+    register_safety_scanner,
+};
+
+struct VendorGuard {
+    endpoint: Option<String>,
+    template: String,
+}
+
+impl VendorGuard {
+    fn from_settings(settings: &ScannerSettings) -> Self {
+        let text = |key: &str| settings.config.get(key).and_then(|v| v.as_str()).map(str::to_owned);
+        Self {
+            endpoint: text("endpoint"),
+            template: text("template").unwrap_or_else(|| "default".to_owned()),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl SafetyScanner for VendorGuard {
+    fn name(&self) -> &'static str {
+        "vendor_guard"
+    }
+
+    async fn scan_request(&self, req: &CanonicalRequest) -> Result<Vec<Finding>, ScanError> {
+        let Some(endpoint) = &self.endpoint else {
+            return Err(ScanError::Failed {
+                scanner: "vendor_guard",
+                reason: "config.endpoint is not set".to_owned(),
+            });
+        };
+        for (_part, text) in req.safety_parts(false) {
+            // call `endpoint` with `self.template` and `text`; map its verdicts to findings
+        }
+        Ok(Vec::new())
+    }
+
+    async fn scan_response_final(&self, _r: &CanonicalResponse) -> Result<Vec<Finding>, ScanError> {
+        Ok(Vec::new())
+    }
+}
+
+register_safety_scanner!(VendorGuard::from_settings, name = "vendor_guard");
+```
+
+The factory runs once per policy evaluation with that policy's settings (defaults when the policy has no `scanner_settings` entry for the scanner). The scanner does not need its own timeout or fail-open logic: the gateway applies `timeout_ms` and `fail_mode` around every call. A registration that reuses a built-in name (`heuristic`, `null`) is rejected.
+
 ## Resilience
 
 The gateway uses a shared outbound HTTP client and a bounded retry policy. Transient

@@ -7,7 +7,7 @@ use systemprompt_gateway::protocol::canonical::{CanonicalRequest, CanonicalRespo
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_gateway::{
     CATEGORY_SCANNER_FAILURE, Finding, GatewayRepositories, SafetyScanner, ScanError,
-    register_safety_scanner,
+    ScannerSettings, register_safety_scanner,
 };
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::providers::ApiSurface;
@@ -55,7 +55,7 @@ impl SafetyScanner for FailingOnMarkerScanner {
     }
 }
 
-register_safety_scanner!(FailingOnMarkerScanner::default, name = SCANNER);
+register_safety_scanner!(|_: &ScannerSettings| FailingOnMarkerScanner, name = SCANNER);
 
 async fn install_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
     let pg = pool.pool();

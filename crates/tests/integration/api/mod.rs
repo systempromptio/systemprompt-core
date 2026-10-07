@@ -296,6 +296,10 @@ mod gateway_tool_result_artifacts;
 mod gateway_safety_scanner_failure;
 
 #[cfg(test)]
+#[path = "gateway_safety_scanner_config.rs"]
+mod gateway_safety_scanner_config;
+
+#[cfg(test)]
 #[path = "gateway_matrix.rs"]
 mod gateway_matrix;
 

@@ -4,9 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::future::Future;
+
 use crate::policies::{
     Finding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyConfig, SafetyHistoryMode,
-    ScanError,
+    ScanError, ScannerFailMode, ScannerSettings,
 };
 use systemprompt_ai::InsertSafetyFinding;
 use systemprompt_ai::repository::AiSafetyFindingRepository;
@@ -34,20 +36,25 @@ pub(crate) async fn run_request_safety_scan(
     let mut findings = Vec::new();
     for name in &safety.scanners {
         if let Some(scanner) = registry.create(name, safety) {
+            let settings = safety.settings_for(name);
             let scanner_name = scanner.name();
-            record_scan(
+            scan_bounded(
                 &mut findings,
                 PHASE_REQUEST,
                 scanner_name,
-                scanner.scan_request(request).await,
-            );
+                &settings,
+                scanner.scan_request(request),
+            )
+            .await;
             if scan_history {
-                record_scan(
+                scan_bounded(
                     &mut findings,
                     PHASE_REQUEST_HISTORY,
                     scanner_name,
-                    scanner.scan_request_history(request).await,
-                );
+                    &settings,
+                    scanner.scan_request_history(request),
+                )
+                .await;
             }
         } else {
             tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped");
@@ -63,36 +70,58 @@ pub(crate) async fn run_request_safety_scan(
     findings
 }
 
-pub(crate) fn request_finding_blocks(finding: &Finding, safety: &SafetyConfig) -> bool {
+pub fn request_finding_blocks(finding: &Finding, safety: &SafetyConfig) -> bool {
     !safety.mode.is_warn()
-        && (finding.is_scanner_failure() || safety.block_categories.contains(&finding.category))
+        && (failure_blocks(finding, safety) || safety.block_categories.contains(&finding.category))
         && blocks_at_phase(finding.phase, safety.history)
 }
 
-pub(crate) fn response_finding_blocks(finding: &Finding, safety: &SafetyConfig) -> bool {
+pub fn response_finding_blocks(finding: &Finding, safety: &SafetyConfig) -> bool {
     !safety.mode.is_warn()
-        && (finding.is_scanner_failure()
+        && (failure_blocks(finding, safety)
             || safety.block_response_categories.contains(&finding.category))
 }
 
-fn record_scan(
+fn failure_blocks(finding: &Finding, safety: &SafetyConfig) -> bool {
+    finding.is_scanner_failure()
+        && safety.settings_for(finding.scanner).fail_mode == ScannerFailMode::Closed
+}
+
+pub async fn scan_bounded<F>(
     findings: &mut Vec<Finding>,
     phase: &'static str,
     scanner: &'static str,
-    outcome: Result<Vec<Finding>, ScanError>,
-) {
-    match outcome {
-        Ok(found) => findings.extend(found),
-        Err(e) => {
-            tracing::error!(
-                scanner,
-                phase,
-                error = %e,
-                "Safety scanner failed — recorded as a blocking finding"
-            );
-            findings.push(Finding::scanner_failure(phase, scanner, &e));
+    settings: &ScannerSettings,
+    scan: F,
+) where
+    F: Future<Output = Result<Vec<Finding>, ScanError>> + Send,
+{
+    let after = settings.timeout();
+    let outcome = tokio::time::timeout(after, scan)
+        .await
+        .unwrap_or(Err(ScanError::TimedOut { scanner, after }));
+    let error = match outcome {
+        Ok(found) => {
+            findings.extend(found);
+            return;
         },
+        Err(error) => error,
+    };
+    match settings.fail_mode {
+        ScannerFailMode::Closed => tracing::error!(
+            scanner,
+            phase,
+            error = %error,
+            "Safety scanner failed closed — recorded as a blocking finding"
+        ),
+        ScannerFailMode::Open => tracing::warn!(
+            scanner,
+            phase,
+            error = %error,
+            "Safety scanner failed open — recorded, request proceeds"
+        ),
     }
+    findings.push(Finding::scanner_failure(phase, scanner, &error));
 }
 
 pub fn dedupe_findings(findings: &mut Vec<Finding>) {
@@ -110,13 +139,15 @@ pub(crate) async fn run_response_safety_scan(
     let mut findings = Vec::new();
     for name in &safety.scanners {
         if let Some(scanner) = registry.create(name, safety) {
-            let scanner_name = scanner.name();
-            record_scan(
+            let settings = safety.settings_for(name);
+            scan_bounded(
                 &mut findings,
                 PHASE_RESPONSE,
-                scanner_name,
-                scanner.scan_response_final(response).await,
-            );
+                scanner.name(),
+                &settings,
+                scanner.scan_response_final(response),
+            )
+            .await;
         } else {
             tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped");
         }

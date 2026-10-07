@@ -19,11 +19,12 @@ mod heuristic;
 mod null;
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_wire::canonical::{CanonicalRequest, CanonicalResponse};
 
-use super::spec::SafetyConfig;
+use super::spec::{SafetyConfig, ScannerSettings};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {
@@ -87,6 +88,11 @@ pub enum ScanError {
         scanner: &'static str,
         reason: String,
     },
+    #[error("safety scanner {scanner} timed out after {} ms", after.as_millis())]
+    TimedOut {
+        scanner: &'static str,
+        after: Duration,
+    },
 }
 
 /// Built by the scanner registry as `Arc<dyn SafetyScanner>` and fanned out
@@ -110,18 +116,21 @@ pub trait SafetyScanner: Send + Sync {
     ) -> Result<Vec<Finding>, ScanError>;
 }
 
-/// Constructs a scanner for one policy's [`SafetyConfig`], so per-policy
-/// configuration (such as the heuristic phrase list) applies at scan time.
+/// Constructs a scanner per policy evaluation.
+///
+/// It receives the policy's [`SafetyConfig`] and the scanner's own
+/// [`ScannerSettings`], so per-policy configuration (the heuristic phrase
+/// list, an extension scanner's opaque `config`) applies at scan time.
 pub trait ScannerFactory: Send + Sync {
-    fn create(&self, safety: &SafetyConfig) -> Arc<dyn SafetyScanner>;
+    fn create(&self, safety: &SafetyConfig, settings: &ScannerSettings) -> Arc<dyn SafetyScanner>;
 }
 
 impl<F> ScannerFactory for F
 where
-    F: Fn(&SafetyConfig) -> Arc<dyn SafetyScanner> + Send + Sync,
+    F: Fn(&SafetyConfig, &ScannerSettings) -> Arc<dyn SafetyScanner> + Send + Sync,
 {
-    fn create(&self, safety: &SafetyConfig) -> Arc<dyn SafetyScanner> {
-        self(safety)
+    fn create(&self, safety: &SafetyConfig, settings: &ScannerSettings) -> Arc<dyn SafetyScanner> {
+        self(safety, settings)
     }
 }
 
@@ -129,11 +138,13 @@ where
 ///
 /// The gateway's scanner registry seeds its built-ins, then folds in every
 /// `inventory`-collected registration. A registration whose `name` collides
-/// with a built-in is rejected at registry build time.
+/// with a built-in is rejected at registry build time. The factory receives the
+/// policy's `scanner_settings.<name>` entry (defaults when absent), whose
+/// `config` mapping is the scanner's own, uninterpreted by core.
 #[derive(Debug, Clone, Copy)]
 pub struct SafetyScannerRegistration {
     pub name: &'static str,
-    pub factory: fn() -> Arc<dyn SafetyScanner>,
+    pub factory: fn(&ScannerSettings) -> Arc<dyn SafetyScanner>,
 }
 
 inventory::collect!(SafetyScannerRegistration);
@@ -144,7 +155,9 @@ macro_rules! register_safety_scanner {
         ::inventory::submit! {
             $crate::SafetyScannerRegistration {
                 name: $name,
-                factory: || ::std::sync::Arc::new($factory()),
+                factory: |settings: &$crate::ScannerSettings| {
+                    ::std::sync::Arc::new(($factory)(settings))
+                },
             }
         }
     };

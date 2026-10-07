@@ -89,6 +89,8 @@ mod route_requirements;
 #[cfg(test)]
 mod safety;
 #[cfg(test)]
+mod safety_fail_mode;
+#[cfg(test)]
 mod signature_cache;
 #[cfg(test)]
 mod stream_tap;

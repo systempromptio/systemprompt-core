@@ -12,7 +12,8 @@ use systemprompt_gateway::protocol::canonical::{
 use systemprompt_gateway::registry::SafetyScannerRegistry;
 use systemprompt_gateway::{
     CATEGORY_SCANNER_FAILURE, Finding, HeuristicScanner, NullScanner, PHASE_REQUEST, SafetyConfig,
-    SafetyScanner, SafetyScannerRegistration, ScanError, Severity, register_safety_scanner,
+    SafetyScanner, SafetyScannerRegistration, ScanError, ScannerSettings, Severity,
+    register_safety_scanner,
 };
 
 fn req_with(text: &str) -> CanonicalRequest {
@@ -83,7 +84,10 @@ impl SafetyScanner for StubSecretsScanner {
     }
 }
 
-register_safety_scanner!(StubSecretsScanner::default, name = "stub_secrets");
+register_safety_scanner!(
+    |_: &ScannerSettings| StubSecretsScanner,
+    name = "stub_secrets"
+);
 
 #[derive(Default)]
 struct StubBrokenScanner;
@@ -110,7 +114,10 @@ impl SafetyScanner for StubBrokenScanner {
     }
 }
 
-register_safety_scanner!(StubBrokenScanner::default, name = "stub_broken");
+register_safety_scanner!(
+    |_: &ScannerSettings| StubBrokenScanner,
+    name = "stub_broken"
+);
 
 #[tokio::test]
 async fn a_failing_extension_scanner_reports_failure_instead_of_an_empty_clean_list() {
@@ -194,9 +201,12 @@ async fn registry_resolves_registered_extension_scanner() {
 fn registration_factory_builds_scanner() {
     let reg = SafetyScannerRegistration {
         name: "stub_secrets",
-        factory: || Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>,
+        factory: |_| Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>,
     };
-    assert_eq!((reg.factory)().name(), "stub_secrets");
+    assert_eq!(
+        (reg.factory)(&ScannerSettings::default()).name(),
+        "stub_secrets"
+    );
 }
 
 #[tokio::test]

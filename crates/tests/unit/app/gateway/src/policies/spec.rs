@@ -107,3 +107,48 @@ fn an_unknown_quota_mode_is_a_parse_error_not_a_default() {
         "an unrecognised mode must not fall back to enforce or warn"
     );
 }
+
+#[test]
+fn scanner_settings_default_to_fail_closed_with_a_five_second_timeout() {
+    let settings = systemprompt_gateway::ScannerSettings::default();
+    assert_eq!(
+        settings.fail_mode,
+        systemprompt_gateway::ScannerFailMode::Closed
+    );
+    assert_eq!(settings.timeout_ms, 5_000);
+    assert!(settings.config.is_empty());
+}
+
+#[test]
+fn settings_for_an_unconfigured_scanner_are_the_defaults() {
+    let safety = SafetyConfig::default();
+    assert_eq!(
+        safety.settings_for("heuristic"),
+        systemprompt_gateway::ScannerSettings::default()
+    );
+}
+
+#[test]
+fn scanner_settings_parse_fail_mode_timeout_and_an_opaque_config() {
+    let yaml = "scanners: [vendor]\nscanner_settings:\n  vendor:\n    fail_mode: open\n    \
+                timeout_ms: 750\n    config:\n      location: europe-west4\n      template: \
+                strict\n      limits: {max: 3}";
+    let safety: SafetyConfig = serde_yaml::from_str(yaml).expect("de");
+    let settings = safety.settings_for("vendor");
+    assert_eq!(
+        settings.fail_mode,
+        systemprompt_gateway::ScannerFailMode::Open
+    );
+    assert_eq!(settings.timeout_ms, 750);
+    assert_eq!(settings.config["location"], "europe-west4");
+    assert_eq!(settings.config["limits"]["max"], 3);
+    let json = serde_json::to_value(&safety).expect("spec rows are stored as JSON");
+    let back: SafetyConfig = serde_json::from_value(json).expect("round-trip");
+    assert_eq!(back.settings_for("vendor"), settings);
+}
+
+#[test]
+fn scanner_settings_reject_unknown_keys() {
+    let yaml = "scanner_settings:\n  vendor:\n    fail_mod: open";
+    assert!(serde_yaml::from_str::<SafetyConfig>(yaml).is_err());
+}

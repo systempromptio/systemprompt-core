@@ -1,49 +1,15 @@
-//! Declarative gateway-policy specification.
-//!
-//! Spec payload of `ai_gateway_policies` rows, shared with the YAML schema in
-//! `services/gateway/policies.yaml`. Carries quota windows and safety
-//! configuration.
-//!
-//! Model exposure lives on the profile's gateway catalog, not here — see
-//! `GatewayConfig::is_model_exposed`.
+//! Safety-scanner section of a gateway policy: which scanners run, what they
+//! block or redact, and how each scanner's failure and latency are governed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct QuotaWindow {
-    pub window_seconds: i32,
-    #[serde(default = "default_subject")]
-    pub subject: String,
-    pub max_requests: Option<i64>,
-    pub max_input_tokens: Option<i64>,
-    pub max_output_tokens: Option<i64>,
-    #[serde(default)]
-    pub max_cost_microdollars: Option<i64>,
-}
-
-impl Default for QuotaWindow {
-    fn default() -> Self {
-        Self {
-            window_seconds: 0,
-            subject: default_subject(),
-            max_requests: None,
-            max_input_tokens: None,
-            max_output_tokens: None,
-            max_cost_microdollars: None,
-        }
-    }
-}
-
-fn default_subject() -> String {
-    "user".to_owned()
-}
-
-pub const USER_QUOTA_SUBJECT: &str = "user";
-pub const API_KEY_QUOTA_SUBJECT: &str = "api_key";
+pub const DEFAULT_SCANNER_TIMEOUT_MS: u64 = 5_000;
 
 /// How far back into a conversation the request-phase scanners look.
 ///
@@ -109,46 +75,69 @@ pub struct SafetyConfig {
     pub block_response_categories: Vec<String>,
     #[serde(default)]
     pub history: SafetyHistoryMode,
+    #[serde(default)]
+    pub scanner_settings: BTreeMap<String, ScannerSettings>,
 }
 
-/// Whether an exhausted quota window refuses the request or only records
-/// that it would have.
+impl SafetyConfig {
+    #[must_use]
+    pub fn settings_for(&self, scanner: &str) -> ScannerSettings {
+        self.scanner_settings
+            .get(scanner)
+            .cloned()
+            .unwrap_or_default()
+    }
+}
+
+/// What a scanner that errors or exceeds its timeout means for the request.
 ///
-/// The quota windows are the third enforcement plane on an inference request,
-/// beside the governance chain and the safety scanners, and warn mode has to
-/// cover it too or "nothing blocks" is not true. Under `warn` every window is
-/// still reserved against and every ceiling still evaluated; a breach is
-/// written to `governance_decisions` as a `warn` under policy `quota`, and
-/// the request proceeds.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+/// `closed` (the default) treats an unanswered scan as a blocking finding;
+/// `open` records the failure and lets the request proceed, for scanners whose
+/// availability must not gate inference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum QuotaMode {
+pub enum ScannerFailMode {
+    Open,
     #[default]
-    Enforce,
-    Warn,
+    Closed,
 }
 
-impl QuotaMode {
-    #[must_use]
-    pub const fn is_warn(self) -> bool {
-        matches!(self, Self::Warn)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Per-scanner settings under `safety.scanner_settings.<name>`.
+///
+/// `fail_mode` and `timeout_ms` are enforced by the gateway for every scanner.
+/// `config` is opaque to core: it is handed unchanged to the scanner's factory,
+/// so an extension scanner reads its own endpoint, template or credential
+/// reference from it without core knowing their shape.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct GatewayPolicySpec {
+pub struct ScannerSettings {
     #[serde(default)]
-    pub quota_mode: QuotaMode,
+    pub fail_mode: ScannerFailMode,
+    #[serde(default = "default_scanner_timeout_ms")]
+    pub timeout_ms: u64,
+    // JSON: extension-defined scanner configuration, opaque to core and
+    // interpreted only by the scanner it names.
     #[serde(default)]
-    pub quota_windows: Vec<QuotaWindow>,
-    #[serde(default)]
-    pub safety: SafetyConfig,
+    pub config: BTreeMap<String, serde_json::Value>,
 }
 
-impl GatewayPolicySpec {
-    #[must_use]
-    pub fn permissive() -> Self {
-        Self::default()
+impl Default for ScannerSettings {
+    fn default() -> Self {
+        Self {
+            fail_mode: ScannerFailMode::default(),
+            timeout_ms: DEFAULT_SCANNER_TIMEOUT_MS,
+            config: BTreeMap::new(),
+        }
     }
+}
+
+impl ScannerSettings {
+    #[must_use]
+    pub const fn timeout(&self) -> Duration {
+        Duration::from_millis(self.timeout_ms)
+    }
+}
+
+const fn default_scanner_timeout_ms() -> u64 {
+    DEFAULT_SCANNER_TIMEOUT_MS
 }
