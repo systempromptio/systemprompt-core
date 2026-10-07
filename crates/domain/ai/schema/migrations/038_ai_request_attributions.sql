@@ -1,3 +1,5 @@
+-- @supersedes-checksum: 8046193ebe98e890
+-- @cost: rows=0 measured=40ms triggers=live
 -- Scope attribution: the API key that authenticated a gateway request, and
 -- one row per tenant-registered subject dimension the request is charged to.
 ALTER TABLE ai_requests
