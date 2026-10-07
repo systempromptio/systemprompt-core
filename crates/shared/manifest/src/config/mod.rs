@@ -39,6 +39,18 @@ pub fn random_instance_id() -> InstanceId {
     InstanceId::new(format!("instance-{}", uuid::Uuid::new_v4().simple()))
 }
 
+/// Whether `id` has the shape [`random_instance_id`] produces, i.e. it names
+/// one process and can never be claimed again after that process exits.
+#[must_use]
+pub fn is_random_instance_id(id: &str) -> bool {
+    id.strip_prefix("instance-").is_some_and(|hex| {
+        hex.len() == 32
+            && hex
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    })
+}
+
 #[derive(Clone)]
 pub struct Config {
     pub instance_id: InstanceId,

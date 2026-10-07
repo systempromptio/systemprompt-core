@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- `probe_shared_mount` no longer leaks a marker per process when the instance id is random (a local profile with no `instance_id` and no `HOSTNAME`). The process removes its own marker after the read-back check, and markers left by earlier random-id processes are pruned instead of being reported as sibling replicas, which made every local boot warn that `storage.shared` was wrong.
+
 ## [0.53.0] - 2026-09-15
 
 ### Fixed
