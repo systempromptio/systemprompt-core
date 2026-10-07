@@ -81,7 +81,7 @@ A category listed in `redact_categories` is rewritten in the forwarded request i
 
 - Each matched span becomes `[REDACTED:<category>]` in the body sent upstream and in the canonical request. A scanner can instead supply a whole-part replacement (vendor de-identified text, for example), which takes precedence over spans on that part.
 - The persisted finding's excerpt is the marker, not the matched text.
-- Redaction fails closed. If a redact-category finding carries no location, or its span falls on a signed block or a protocol field (`id`, `model`, tool-call ids and the like), the request is refused with the category rather than forwarded unredacted.
+- Redaction fails closed. If a redact-category finding carries no location, or its span falls on a signed block or a protocol field (`id`, `model`, tool-call ids and the like), the request is refused with the category rather than forwarded unredacted. This refusal does not depend on `mode`: a policy in `mode: warn` still refuses a request whose redact-category content cannot be redacted, because forwarding it unredacted would break the redaction policy itself. Enable `redact_categories` only once that posture is acceptable.
 - A category is either blocked or redacted: validation refuses one listed in both `block_categories` and `redact_categories`.
 - Scope: redaction covers the forwarded upstream payload and the persisted findings. Responses are not redacted, and the copy of the inbound request journaled before the scan is not rewritten.
 
