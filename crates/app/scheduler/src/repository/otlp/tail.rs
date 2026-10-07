@@ -19,7 +19,7 @@ use std::time::Duration;
 use sqlx::PgPool;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, ClientId, ContextId, GatewayConversationId, InstanceId,
+    AiRequestId, AiToolCallId, ApiKeyId, ClientId, ContextId, GatewayConversationId, InstanceId,
     McpExecutionId, McpServerId, McpToolName, PluginId, ProviderRequestId, SessionId, TraceId,
     UserId,
 };
@@ -76,7 +76,7 @@ impl OtlpAuditTailRepository {
                output_tokens, cache_read_tokens, cache_creation_tokens, cost_microdollars,
                latency_ms, upstream_latency_ms, finish_reason, status, error_message,
                client_kind, wire_protocol, request_kind, actor_kind, actor_id, instance_id,
-               created_at, completed_at AS "completed_at!"
+               api_key_id, created_at, completed_at AS "completed_at!"
         FROM ai_requests
         WHERE completed_at IS NOT NULL
           AND (completed_at > $1 OR (completed_at = $1 AND id > $2))
@@ -121,6 +121,8 @@ impl OtlpAuditTailRepository {
                 actor_kind: row.actor_kind,
                 actor_id: row.actor_id,
                 instance_id: row.instance_id.map(InstanceId::new),
+                api_key_id: row.api_key_id.map(ApiKeyId::new),
+                attributions: Vec::new(),
                 created_at: row.created_at,
                 completed_at: row.completed_at,
             })

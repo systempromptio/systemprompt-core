@@ -32,8 +32,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::Utc;
 use sqlx::PgPool;
+use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_database::DbPool;
+use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{AiRequestId, InstanceId};
 use systemprompt_manifest::profile::{OtlpExportConfig, OtlpSignal};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
@@ -122,6 +123,8 @@ async fn run(
 ) -> SchedulerResult<ExportReport> {
     let repository = OtlpExportStateRepository::new(pool.as_ref().clone());
     let tails = OtlpAuditTailRepository::new(pool.as_ref().clone());
+    let requests =
+        AiRequestRepository::new(&Arc::new(Database::from_pools(Arc::clone(pool), None)));
     let mut report = ExportReport::default();
     for signal in OtlpSignal::ALL {
         if !config.exports(signal) {
@@ -142,6 +145,7 @@ async fn run(
         let stores = SignalStores {
             state: &repository,
             tails: &tails,
+            requests: &requests,
         };
         let outcome = export_signal(config, stores, &state, instance_id).await;
         report.signals.push(match outcome {
@@ -173,6 +177,7 @@ async fn run(
 struct SignalStores<'a> {
     state: &'a OtlpExportStateRepository,
     tails: &'a OtlpAuditTailRepository,
+    requests: &'a AiRequestRepository,
 }
 
 async fn export_signal(
@@ -188,7 +193,7 @@ async fn export_signal(
         })?;
     let (rows, skipped, next) = match signal {
         OtlpSignal::Traces => {
-            let batch = load_trace_batch(stores.tails, &after).await?;
+            let batch = load_trace_batch(stores, &after).await?;
             let next = batch
                 .requests
                 .last()
@@ -226,14 +231,19 @@ struct SignalExport {
 }
 
 async fn load_trace_batch(
-    tails: &OtlpAuditTailRepository,
+    stores: SignalStores<'_>,
     after: &Watermark,
 ) -> SchedulerResult<TraceBatch> {
-    let requests = tails.list_requests_after(after, BATCH_ROWS).await?;
+    let tails = stores.tails;
+    let mut requests = tails.list_requests_after(after, BATCH_ROWS).await?;
     if requests.is_empty() {
         return Ok(TraceBatch::default());
     }
     let ids: Vec<AiRequestId> = requests.iter().map(|r| r.id.clone()).collect();
+    let mut attributions = stores.requests.attributions_for(&ids).await?;
+    for request in &mut requests {
+        request.attributions = attributions.remove(&request.id).unwrap_or_default();
+    }
     let mut batch = TraceBatch {
         requests,
         ..TraceBatch::default()

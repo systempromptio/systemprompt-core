@@ -7,6 +7,7 @@ use opentelemetry_proto::tonic::common::v1::any_value::Value;
 use opentelemetry_proto::tonic::common::v1::{AnyValue, InstrumentationScope, KeyValue};
 use opentelemetry_proto::tonic::resource::v1::Resource;
 use systemprompt_identifiers::InstanceId;
+use systemprompt_models::attribution::AttributionEntry;
 
 pub(super) const SERVICE_NAME: &str = "systemprompt";
 pub(super) const SCOPE_NAME: &str = "systemprompt.gateway";
@@ -51,6 +52,15 @@ impl Attrs {
 
     pub(super) fn flag(&mut self, key: &str, value: bool) -> &mut Self {
         self.push(key, Value::BoolValue(value));
+        self
+    }
+
+    pub(super) fn scopes(&mut self, entries: &[AttributionEntry]) -> &mut Self {
+        for entry in entries {
+            let key = format!("systemprompt.scope.{}", entry.dimension);
+            self.text(&key, &entry.value)
+                .text(&format!("{key}.source"), entry.source.as_str());
+        }
         self
     }
 

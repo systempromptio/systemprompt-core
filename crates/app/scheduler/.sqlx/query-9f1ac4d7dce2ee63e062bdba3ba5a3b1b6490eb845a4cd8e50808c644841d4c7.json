@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, request_id, user_id AS \"user_id: UserId\", session_id AS \"session_id: SessionId\",\n               context_id AS \"context_id: ContextId\", trace_id AS \"trace_id: TraceId\", provider,\n               served_provider, model, requested_model, route_match, input_tokens,\n               output_tokens, cache_read_tokens, cache_creation_tokens, cost_microdollars,\n               latency_ms, upstream_latency_ms, finish_reason, status, error_message,\n               client_kind, wire_protocol, request_kind, actor_kind, actor_id, instance_id,\n               created_at, completed_at AS \"completed_at!\"\n        FROM ai_requests\n        WHERE completed_at IS NOT NULL\n          AND (completed_at > $1 OR (completed_at = $1 AND id > $2))\n          AND completed_at <= NOW() - make_interval(secs => $3::DOUBLE PRECISION)\n        ORDER BY completed_at, id\n        LIMIT $4\n        ",
+  "query": "\n        SELECT id, request_id, user_id AS \"user_id: UserId\", session_id AS \"session_id: SessionId\",\n               context_id AS \"context_id: ContextId\", trace_id AS \"trace_id: TraceId\", provider,\n               served_provider, model, requested_model, route_match, input_tokens,\n               output_tokens, cache_read_tokens, cache_creation_tokens, cost_microdollars,\n               latency_ms, upstream_latency_ms, finish_reason, status, error_message,\n               client_kind, wire_protocol, request_kind, actor_kind, actor_id, instance_id,\n               api_key_id, created_at, completed_at AS \"completed_at!\"\n        FROM ai_requests\n        WHERE completed_at IS NOT NULL\n          AND (completed_at > $1 OR (completed_at = $1 AND id > $2))\n          AND completed_at <= NOW() - make_interval(secs => $3::DOUBLE PRECISION)\n        ORDER BY completed_at, id\n        LIMIT $4\n        ",
   "describe": {
     "columns": [
       {
@@ -302,6 +302,17 @@
       },
       {
         "ordinal": 27,
+        "name": "api_key_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_requests",
+            "name": "api_key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 28,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -312,7 +323,7 @@
         }
       },
       {
-        "ordinal": 28,
+        "ordinal": 29,
         "name": "completed_at!",
         "type_info": "Timestamptz",
         "origin": {
@@ -359,9 +370,10 @@
       false,
       false,
       true,
+      true,
       false,
       true
     ]
   },
-  "hash": "97e91f6146d65f06f31f34c7ce1034b242745acd27913a70b7cf5cde3c6e9486"
+  "hash": "9f1ac4d7dce2ee63e062bdba3ba5a3b1b6490eb845a4cd8e50808c644841d4c7"
 }

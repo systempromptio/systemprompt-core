@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Scheduler Rust API:** `repository::otlp::RequestRow` gains `api_key_id: Option<ApiKeyId>` and `attributions: Vec<AttributionEntry>`; a struct literal must name them.
 - **Gateway Rust API:** `GatewayRequestContext` gains `attribution: RequestAttribution` and `GatewayRepositories` gains `subject_providers: SubjectProviderSet` (discovered in `new`, replaceable with `with_subject_providers`); a `GatewayRequestContext` struct literal must name `attribution` (`RequestAttribution::none()` keeps the old behaviour).
 - **AI Rust API:** `AiRequestRecord` gains `attribution: RequestAttribution`, set with the builder's `.attribution(..)` (default `RequestAttribution::none()`); `insert_with_id` writes the request row and its `ai_request_attributions` rows in one transaction.
 - **API Rust API:** `ApiKeyPrincipal` gains `api_key_id`, `RejectionPartial` gains `attribution`, and `GatewayConfig`/`GatewayConfigSpec` gain `require_scopes: Vec<ScopeDimension>`; a struct literal must name them.
@@ -117,6 +118,7 @@
 
 ### Added
 
+- **OTLP scope attributes:** every exported `ai_request` span carries its scope attribution as `systemprompt.scope.<dimension>` and `systemprompt.scope.<dimension>.source`, plus `systemprompt.api_key.id`. Core has no cost-centre column: a deployment that registers a `cost_centre` subject dimension gets `systemprompt.scope.cost_centre` on every span through the same path.
 - **Gateway scope attribution:** every `/v1/messages` and `/v1/responses` request is attributed to one value in each subject dimension a deployment registers through `register_subject_attribute_provider!` (core registers none, so a tenant's `project` or `cost_centre` model plugs in without a core change). The value comes from the `x-systemprompt-scope-<dimension>` header, then the API key's bound value, then the provider's first value; a header or bound value the caller does not hold is `403`, a header for an unregistered dimension is `400`, and a dimension listed in the new `gateway.require_scopes` that resolves to nothing is `400 scope_required`. The values land in the new `ai_request_attributions` table (`dimension`, `value`, `source` = `header`/`api_key`/`default`) and `ai_requests.api_key_id` records the authenticating key (ai migration 038), rejections included. New types: `ScopeDimension`, `headers::SCOPE_PREFIX`, `systemprompt_models::attribution::{RequestAttribution, AttributionEntry, AttributionSource, ScopeBinding}`, `systemprompt_security::authz::SubjectProviderSet`, and `AiRequestRepository::attributions_for`. The header contract is documented in the HTTP API reference.
 - **Config:** `systemprompt_config::{create_state_dir, ensure_state_dirs_writable}` create and write-probe runtime-state directories, failing with `StateDirError` / `StateDirsError` that name the directory's owner and the process's uid. The API server's boot check and the gateway journal both use them.
 - **Identifiers:** `ExtensionId`, `TeamsAppId` and `CloudAppId` (checked, non-empty) and `ElevatedJobId` (UUID) type the extension metadata id, the Teams Bot Framework app id, the cloud tenant's hosting app and the bridge's elevated helper job.

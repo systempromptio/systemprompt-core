@@ -9,10 +9,11 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, ClientId, ContextId, GatewayConversationId, InstanceId,
+    AiRequestId, AiToolCallId, ApiKeyId, ClientId, ContextId, GatewayConversationId, InstanceId,
     McpExecutionId, McpServerId, McpToolName, PluginId, ProviderRequestId, SessionId, TraceId,
     UserId,
 };
+use systemprompt_models::attribution::AttributionEntry;
 
 #[derive(Debug, Clone)]
 pub struct RequestRow {
@@ -43,6 +44,8 @@ pub struct RequestRow {
     pub actor_kind: String,
     pub actor_id: String,
     pub instance_id: Option<InstanceId>,
+    pub api_key_id: Option<ApiKeyId>,
+    pub attributions: Vec<AttributionEntry>,
     pub created_at: DateTime<Utc>,
     pub completed_at: DateTime<Utc>,
 }

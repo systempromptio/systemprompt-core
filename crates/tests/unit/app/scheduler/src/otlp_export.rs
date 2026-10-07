@@ -99,6 +99,8 @@ fn request(id: &str, trace_id: Option<&str>, status: &str) -> RequestRow {
         actor_kind: "user".to_owned(),
         actor_id: "user-1".to_owned(),
         instance_id: Some(InstanceId::new("node-a")),
+        api_key_id: None,
+        attributions: Vec::new(),
         created_at: at(0),
         completed_at: at(1),
     }
@@ -626,6 +628,58 @@ async fn an_empty_signal_marks_the_cursor_caught_up_without_posting_to_the_colle
     drop(raw);
     drop(pool);
     db.drop_now().await;
+}
+
+#[test]
+fn request_span_carries_scope_attribution_and_api_key() {
+    use systemprompt_models::attribution::{AttributionEntry, AttributionSource};
+    let mut row = request("r-scope", Some("trace-scope"), "completed");
+    row.api_key_id = Some(systemprompt_identifiers::ApiKeyId::new("key-42"));
+    row.attributions = vec![
+        AttributionEntry {
+            dimension: systemprompt_identifiers::ScopeDimension::try_new("cost_centre")
+                .expect("dimension"),
+            value: "cc-900".to_owned(),
+            source: AttributionSource::ApiKey,
+        },
+        AttributionEntry {
+            dimension: systemprompt_identifiers::ScopeDimension::try_new("project")
+                .expect("dimension"),
+            value: "apollo".to_owned(),
+            source: AttributionSource::Header,
+        },
+    ];
+    let spans = to_spans(&TraceBatch {
+        requests: vec![row],
+        ..TraceBatch::default()
+    });
+    let root = &spans[0];
+    assert_eq!(attr(root, "systemprompt.api_key.id"), Some("key-42"));
+    assert_eq!(attr(root, "systemprompt.scope.project"), Some("apollo"));
+    assert_eq!(
+        attr(root, "systemprompt.scope.project.source"),
+        Some("header")
+    );
+    assert_eq!(attr(root, "systemprompt.scope.cost_centre"), Some("cc-900"));
+    assert_eq!(
+        attr(root, "systemprompt.scope.cost_centre.source"),
+        Some("api_key")
+    );
+}
+
+#[test]
+fn an_unattributed_request_span_has_no_scope_attributes() {
+    let spans = to_spans(&TraceBatch {
+        requests: vec![request("r-bare", None, "completed")],
+        ..TraceBatch::default()
+    });
+    assert!(
+        !spans[0]
+            .attributes
+            .iter()
+            .any(|kv| kv.key.starts_with("systemprompt.scope.")
+                || kv.key == "systemprompt.api_key.id")
+    );
 }
 
 #[test]

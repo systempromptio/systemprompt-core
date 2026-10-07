@@ -16,11 +16,11 @@ use opentelemetry_proto::tonic::trace::v1::status::StatusCode;
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span, Status};
 
 use super::attrs::{Attrs, resource, scope};
-use super::ids::{span_id_bytes, trace_id_bytes, unix_nanos};
+use super::ids::{span_id_bytes, trace_id_bytes, trace_key, unix_nanos};
 use crate::repository::otlp::{GovernanceRow, LedgerRow, RequestRow};
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, InstanceId, McpExecutionId, McpServerId, McpToolName, PluginId,
-    SessionId, TraceId,
+    AiRequestId, AiToolCallId, ApiKeyId, InstanceId, McpExecutionId, McpServerId, McpToolName,
+    PluginId, SessionId, TraceId,
 };
 
 pub const REQUEST_SPAN: &str = "ai_request";
@@ -53,14 +53,6 @@ impl TraceBatch {
     }
 }
 
-fn trace_key(request: &RequestRow) -> &str {
-    request
-        .trace_id
-        .as_ref()
-        .map(TraceId::as_str)
-        .filter(|t| !t.is_empty())
-        .unwrap_or(request.id.as_str())
-}
 
 #[must_use]
 pub(super) fn to_export_request(
@@ -161,7 +153,12 @@ fn request_span(row: &RequestRow, trace_id: Vec<u8>, span_id: Vec<u8>) -> Span {
         .opt_str(
             "systemprompt.instance.id",
             row.instance_id.as_ref().map(InstanceId::as_str),
-        );
+        )
+        .opt_str(
+            "systemprompt.api_key.id",
+            row.api_key_id.as_ref().map(ApiKeyId::as_str),
+        )
+        .scopes(&row.attributions);
     let (code, message) = request_status(row);
     Span {
         trace_id,
