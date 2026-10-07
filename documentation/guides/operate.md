@@ -170,7 +170,7 @@ Gateway requests to `/v1/messages` map upstream failures as follows (`crates/ent
 | `404 Gateway not enabled` | `gateway.enabled` is `false` or absent | Enable the gateway in services configuration (see [configure-providers.md](configure-providers.md)). |
 | `404 No gateway route matches model` | No `routes[*].model_pattern` matches the requested model | Add or widen a route pattern. |
 | `403` policy denied | The requested model is not in the gateway policy's allowed list | Adjust the gateway policy. |
-| `429` quota exceeded | A per-user quota window is exhausted; a `retry-after` header is set | Back off until the window resets, or raise the quota. |
+| `429` quota exceeded | A quota window (per user, API key or scope dimension) is exhausted; `retry-after` is the time to the window reset and `error.quota` names the window, subject, dimension, limit and usage | Back off until `error.quota.resets_at`, or raise the quota. |
 | `502 Bad Gateway` | The upstream provider returned a non-2xx or the connection failed | Inspect the gateway access log for the upstream status and body; verify `api_key_secret` and `endpoint`. |
 | `503 Profile not ready` / API key secret not configured | The named `api_key_secret` is missing from the secrets document | Add the secret and restart the affected process. |
 

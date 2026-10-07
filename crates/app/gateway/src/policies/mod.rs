@@ -43,6 +43,6 @@ pub use safety::{
     ScannerFactory, Severity,
 };
 pub use spec::{
-    GatewayPolicySpec, HeuristicConfig, QuotaMode, QuotaWindow, SafetyConfig, SafetyHistoryMode,
-    SafetyMode, USER_QUOTA_SUBJECT,
+    API_KEY_QUOTA_SUBJECT, GatewayPolicySpec, HeuristicConfig, QuotaMode, QuotaWindow,
+    SafetyConfig, SafetyHistoryMode, SafetyMode, USER_QUOTA_SUBJECT,
 };

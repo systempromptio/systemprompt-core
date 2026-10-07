@@ -5,9 +5,15 @@
 //! DB pool.
 
 use systemprompt_gateway::policies::{PolicyResolver, QuotaWindow, merge_policy_rows};
-use systemprompt_gateway::quota::{PostUpdateParams, post_update_tokens, precheck_and_reserve};
+use systemprompt_gateway::quota::{
+    AccountingOutcome, QuotaDecision, QuotaDimension, QuotaEstimate, QuotaReservation,
+    QuotaSubjects, QuotaUsage, ReserveOutcome, ReserveParams, ReservedWindow, precheck_and_reserve,
+    release, settle,
+};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::QuotaFaultMode;
+use systemprompt_models::attribution::RequestAttribution;
+use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 
 const ERROR_DIMENSION: &str = "quota_fault_error";
 const EMPTY_DIMENSION: &str = "quota_fault_empty";
@@ -90,14 +96,87 @@ fn window(window_seconds: i32) -> QuotaWindow {
     }
 }
 
+fn providers(p: &systemprompt_database::DbPool) -> SubjectProviderSet {
+    SubjectProviderSet::discover(&AuthzHookContext {
+        pool: p.pool(),
+        sink: std::sync::Arc::new(NullAuditSink),
+    })
+}
+
+async fn reserve_with(
+    p: &systemprompt_database::DbPool,
+    user: &UserId,
+    windows: &[QuotaWindow],
+    mode: QuotaFaultMode,
+    estimate: QuotaEstimate,
+) -> ReserveOutcome {
+    let attribution = RequestAttribution::none();
+    precheck_and_reserve(
+        &quota_repo(p),
+        ReserveParams {
+            providers: &providers(p),
+            subjects: QuotaSubjects {
+                user_id: user,
+                api_key_id: None,
+                attribution: &attribution,
+            },
+            windows,
+            fault_mode: mode,
+            estimate,
+        },
+    )
+    .await
+    .expect("reservation write succeeds")
+}
+
+async fn reserve(
+    p: &systemprompt_database::DbPool,
+    user: &UserId,
+    windows: &[QuotaWindow],
+    mode: QuotaFaultMode,
+) -> Option<QuotaDecision> {
+    match reserve_with(p, user, windows, mode, QuotaEstimate::default()).await {
+        ReserveOutcome::Admitted(_) => None,
+        ReserveOutcome::Denied { decision, .. } => Some(decision),
+    }
+}
+
+async fn admitted(
+    p: &systemprompt_database::DbPool,
+    user: &UserId,
+    windows: &[QuotaWindow],
+) -> QuotaReservation {
+    match reserve_with(
+        p,
+        user,
+        windows,
+        QuotaFaultMode::Open,
+        QuotaEstimate::default(),
+    )
+    .await
+    {
+        ReserveOutcome::Admitted(reservation) => reservation,
+        ReserveOutcome::Denied { decision, .. } => panic!("expected admission: {decision:?}"),
+    }
+}
+
+async fn bucket(p: &systemprompt_database::DbPool, user: &UserId) -> (i64, i64, i64, i64) {
+    sqlx::query_as(
+        "SELECT requests, input_tokens, output_tokens, cost_microdollars FROM ai_quota_buckets \
+         WHERE subject_kind = 'user' AND subject_id = $1",
+    )
+    .bind(user.as_str())
+    .fetch_one(p.pool().as_ref())
+    .await
+    .expect("bucket row")
+}
+
 #[tokio::test]
-async fn precheck_with_empty_windows_returns_none() {
+async fn precheck_with_empty_windows_admits_with_an_empty_reservation() {
     let p = pool().await;
     let user = UserId::new(format!("quota-test-{}", uuid::Uuid::new_v4()));
-    let decision = precheck_and_reserve(&p, &quota_repo(&p), &user, &[], QuotaFaultMode::Open)
-        .await
-        .expect("ok");
-    assert!(decision.is_none());
+    let reservation = admitted(&p, &user, &[]).await;
+    assert!(reservation.is_empty());
 }
 
 #[tokio::test]
@@ -108,9 +187,7 @@ async fn precheck_within_limit_allows() {
         max_requests: Some(100),
         ..window(60)
     }];
-    let decision = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows, QuotaFaultMode::Open)
-        .await
-        .expect("ok");
+    let decision = reserve(&p, &user, &windows, QuotaFaultMode::Open).await;
     assert!(decision.is_none(), "expected allow, got {decision:?}");
 }
 
@@ -122,14 +199,14 @@ async fn precheck_over_limit_denies_second_call() {
         max_requests: Some(1),
         ..window(60)
     }];
-    let d1 = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows, QuotaFaultMode::Open)
+    assert!(
+        reserve(&p, &user, &windows, QuotaFaultMode::Open)
+            .await
+            .is_none()
+    );
+    let dec = reserve(&p, &user, &windows, QuotaFaultMode::Open)
         .await
-        .expect("ok");
-    assert!(d1.is_none());
-    let d2 = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows, QuotaFaultMode::Open)
-        .await
-        .expect("ok");
-    let dec = d2.expect("expected denial");
+        .expect("expected denial");
     assert!(!dec.allow);
     assert_eq!(dec.window_seconds, 60);
     assert!(
@@ -137,6 +214,215 @@ async fn precheck_over_limit_denies_second_call() {
         "unexpected message: {}",
         dec.message
     );
+    assert_eq!(dec.detail.dimension, Some(QuotaDimension::Requests));
+    assert_eq!(dec.detail.limit, Some(1));
+    assert_eq!(dec.detail.used, Some(2));
+    assert_eq!(dec.detail.subject, "user");
+    assert!((1..=60).contains(&dec.detail.retry_after_seconds));
+}
+
+#[tokio::test]
+async fn admission_reserves_the_estimate_in_the_bucket() {
+    let p = pool().await;
+    let user = UserId::new(format!("quota-estimate-{}", uuid::Uuid::new_v4()));
+    let windows = vec![window(3600)];
+    let estimate = QuotaEstimate {
+        input_tokens: 10,
+        output_tokens: 20,
+        cost_microdollars: 30,
+    };
+    let outcome = reserve_with(&p, &user, &windows, QuotaFaultMode::Open, estimate).await;
+    assert!(matches!(outcome, ReserveOutcome::Admitted(_)));
+    assert_eq!(bucket(&p, &user).await, (1, 10, 20, 30));
+}
+
+#[tokio::test]
+async fn an_estimate_above_the_cost_ceiling_denies_the_first_request() {
+    let p = pool().await;
+    let user = UserId::new(format!("quota-cost-first-{}", uuid::Uuid::new_v4()));
+    let windows = vec![QuotaWindow {
+        max_cost_microdollars: Some(1_000),
+        ..window(3600)
+    }];
+    let estimate = QuotaEstimate {
+        cost_microdollars: 1_500,
+        ..QuotaEstimate::default()
+    };
+    let ReserveOutcome::Denied { decision, .. } =
+        reserve_with(&p, &user, &windows, QuotaFaultMode::Open, estimate).await
+    else {
+        panic!("in-flight spend above the ceiling must deny");
+    };
+    assert_eq!(
+        decision.detail.dimension,
+        Some(QuotaDimension::CostMicrodollars)
+    );
+    assert_eq!(decision.detail.limit, Some(1_000));
+    assert_eq!(decision.detail.used, Some(1_500));
+}
+
+#[tokio::test]
+async fn release_after_denial_keeps_request_count_and_returns_cost() {
+    let p = pool().await;
+    let user = UserId::new(format!("quota-release-{}", uuid::Uuid::new_v4()));
+    let windows = vec![QuotaWindow {
+        max_cost_microdollars: Some(1_000),
+        ..window(3600)
+    }];
+    let estimate = QuotaEstimate {
+        input_tokens: 40,
+        output_tokens: 60,
+        cost_microdollars: 1_500,
+    };
+    let ReserveOutcome::Denied { reservation, .. } =
+        reserve_with(&p, &user, &windows, QuotaFaultMode::Open, estimate).await
+    else {
+        panic!("expected denial");
+    };
+    let outcome = release(&quota_repo(&p), &reservation).await;
+    assert!(matches!(outcome, AccountingOutcome::Counted));
+    assert_eq!(bucket(&p, &user).await, (1, 0, 0, 0));
+}
+
+#[tokio::test]
+async fn settle_trues_the_bucket_up_to_actual_usage() {
+    let p = pool().await;
+    let user = UserId::new(format!("quota-settle-{}", uuid::Uuid::new_v4()));
+    let windows = vec![window(3600)];
+    let estimate = QuotaEstimate {
+        input_tokens: 100,
+        output_tokens: 400,
+        cost_microdollars: 900,
+    };
+    let ReserveOutcome::Admitted(reservation) =
+        reserve_with(&p, &user, &windows, QuotaFaultMode::Open, estimate).await
+    else {
+        panic!("expected admission");
+    };
+    let actual = QuotaUsage {
+        input_tokens: 70,
+        output_tokens: 30,
+        cost_microdollars: 120,
+    };
+    assert!(matches!(
+        settle(&quota_repo(&p), &reservation, actual).await,
+        AccountingOutcome::Counted
+    ));
+    assert_eq!(bucket(&p, &user).await, (1, 70, 30, 120));
+}
+
+#[tokio::test]
+async fn settle_trues_up_the_reserved_bucket_across_a_window_boundary() {
+    let p = pool().await;
+    let user = UserId::new(format!("quota-boundary-{}", uuid::Uuid::new_v4()));
+    let repo = quota_repo(&p);
+    let admitted_at = chrono::Utc::now() - chrono::Duration::hours(2);
+    let window_start = chrono::DateTime::from_timestamp((admitted_at.timestamp() / 60) * 60, 0)
+        .expect("aligned start");
+    let delta = systemprompt_ai::repository::QuotaBucketDelta {
+        requests: 1,
+        input_tokens: 50,
+        output_tokens: 50,
+        cost_microdollars: 500,
+    };
+    repo.increment(systemprompt_ai::repository::IncrementParams {
+        subject_kind: "user",
+        subject_id: user.as_str(),
+        window_seconds: 60,
+        window_start,
+        delta,
+    })
+    .await
+    .expect("seed the admitted bucket");
+    let reservation = QuotaReservation {
+        windows: vec![ReservedWindow {
+            subject_kind: "user".to_owned(),
+            subject_id: user.as_str().to_owned(),
+            window_seconds: 60,
+            window_start,
+            delta,
+        }],
+    };
+    let actual = QuotaUsage {
+        input_tokens: 5,
+        output_tokens: 6,
+        cost_microdollars: 7,
+    };
+    assert!(matches!(
+        settle(&repo, &reservation, actual).await,
+        AccountingOutcome::Counted
+    ));
+    let rows: Vec<(chrono::DateTime<chrono::Utc>, i64, i64, i64, i64)> = sqlx::query_as(
+        "SELECT window_start, requests, input_tokens, output_tokens, cost_microdollars \
+         FROM ai_quota_buckets WHERE subject_kind = 'user' AND subject_id = $1",
+    )
+    .bind(user.as_str())
+    .fetch_all(p.pool().as_ref())
+    .await
+    .expect("bucket rows");
+    assert_eq!(rows, vec![(window_start, 1, 5, 6, 7)]);
+}
+
+#[tokio::test]
+async fn an_attributed_scope_keys_its_window_by_the_attributed_value() {
+    let p = pool().await;
+    let user = UserId::new(format!("quota-scope-{}", uuid::Uuid::new_v4()));
+    let value = format!("tenant-{}", uuid::Uuid::new_v4());
+    let attribution = RequestAttribution {
+        entries: vec![systemprompt_models::attribution::AttributionEntry {
+            dimension: systemprompt_identifiers::ScopeDimension::try_new(ERROR_DIMENSION)
+                .expect("dimension"),
+            value: value.clone(),
+            source: systemprompt_models::attribution::AttributionSource::Header,
+        }],
+        api_key_id: None,
+    };
+    let windows = vec![QuotaWindow {
+        subject: ERROR_DIMENSION.to_owned(),
+        max_requests: Some(10),
+        ..window(60)
+    }];
+    let outcome = precheck_and_reserve(
+        &quota_repo(&p),
+        ReserveParams {
+            providers: &providers(&p),
+            subjects: QuotaSubjects {
+                user_id: &user,
+                api_key_id: None,
+                attribution: &attribution,
+            },
+            windows: &windows,
+            fault_mode: QuotaFaultMode::Closed,
+            estimate: QuotaEstimate::default(),
+        },
+    )
+    .await
+    .expect("reserve");
+    let ReserveOutcome::Admitted(reservation) = outcome else {
+        panic!("expected admission");
+    };
+    assert_eq!(reservation.windows[0].subject_kind, ERROR_DIMENSION);
+    assert_eq!(reservation.windows[0].subject_id, value);
+}
+
+#[tokio::test]
+async fn an_api_key_window_without_a_key_denies_when_closed() {
+    let p = pool().await;
+    let user = UserId::new(format!("quota-nokey-{}", uuid::Uuid::new_v4()));
+    let dec = reserve(
+        &p,
+        &user,
+        &[subject_window("api_key")],
+        QuotaFaultMode::Closed,
+    )
+    .await
+    .expect("closed mode denies an api_key window with no key");
+    assert!(
+        dec.message.contains("not authenticated by an API key"),
+        "{}",
+        dec.message
+    );
+    assert_eq!(dec.detail.dimension, None);
 }
 
 #[tokio::test]
@@ -147,29 +433,20 @@ async fn precheck_denies_once_the_cost_ceiling_is_spent() {
         max_cost_microdollars: Some(1_000),
         ..window(3600)
     }];
-
-    let before = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows, QuotaFaultMode::Open)
-        .await
-        .expect("ok");
-    assert!(before.is_none(), "no spend yet, must allow");
-
-    post_update_tokens(
-        &p,
+    let reservation = admitted(&p, &user, &windows).await;
+    settle(
         &quota_repo(&p),
-        PostUpdateParams {
-            user_id: &user,
-            windows: &windows,
+        &reservation,
+        QuotaUsage {
             input_tokens: 10,
             output_tokens: 20,
             cost_microdollars: 1_500,
         },
     )
     .await;
-
-    let after = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows, QuotaFaultMode::Open)
+    let dec = reserve(&p, &user, &windows, QuotaFaultMode::Open)
         .await
-        .expect("ok");
-    let dec = after.expect("spend exceeds the ceiling, must deny");
+        .expect("spend exceeds the ceiling, must deny");
     assert!(!dec.allow);
     assert!(
         dec.message.contains("cost ceiling"),
@@ -191,10 +468,8 @@ async fn fault_decision(
     user: &UserId,
     subject: &str,
     mode: QuotaFaultMode,
-) -> Option<systemprompt_gateway::quota::QuotaDecision> {
-    precheck_and_reserve(p, &quota_repo(p), user, &[subject_window(subject)], mode)
-        .await
-        .expect("ok")
+) -> Option<QuotaDecision> {
+    reserve(p, user, &[subject_window(subject)], mode).await
 }
 
 #[tokio::test]
@@ -291,29 +566,18 @@ async fn precheck_denies_once_the_input_token_ceiling_is_spent() {
         max_input_tokens: Some(100),
         ..window(3600)
     }];
-    assert!(
-        precheck_and_reserve(&p, &quota_repo(&p), &user, &windows, QuotaFaultMode::Open)
-            .await
-            .expect("ok")
-            .is_none()
-    );
-
-    post_update_tokens(
-        &p,
+    let reservation = admitted(&p, &user, &windows).await;
+    settle(
         &quota_repo(&p),
-        PostUpdateParams {
-            user_id: &user,
-            windows: &windows,
+        &reservation,
+        QuotaUsage {
             input_tokens: 500,
-            output_tokens: 0,
-            cost_microdollars: 0,
+            ..QuotaUsage::default()
         },
     )
     .await;
-
-    let dec = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows, QuotaFaultMode::Open)
+    let dec = reserve(&p, &user, &windows, QuotaFaultMode::Open)
         .await
-        .expect("ok")
         .expect("input tokens exceed the ceiling, must deny");
     assert!(!dec.allow);
     assert!(
@@ -331,22 +595,18 @@ async fn precheck_denies_once_the_output_token_ceiling_is_spent() {
         max_output_tokens: Some(100),
         ..window(3600)
     }];
-    post_update_tokens(
-        &p,
+    let reservation = admitted(&p, &user, &windows).await;
+    settle(
         &quota_repo(&p),
-        PostUpdateParams {
-            user_id: &user,
-            windows: &windows,
-            input_tokens: 0,
+        &reservation,
+        QuotaUsage {
             output_tokens: 500,
-            cost_microdollars: 0,
+            ..QuotaUsage::default()
         },
     )
     .await;
-
-    let dec = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows, QuotaFaultMode::Open)
+    let dec = reserve(&p, &user, &windows, QuotaFaultMode::Open)
         .await
-        .expect("ok")
         .expect("output tokens exceed the ceiling, must deny");
     assert!(!dec.allow);
     assert!(
@@ -357,45 +617,19 @@ async fn precheck_denies_once_the_output_token_ceiling_is_spent() {
 }
 
 #[tokio::test]
-async fn post_update_with_empty_windows_is_noop() {
+async fn settling_an_empty_reservation_writes_nothing() {
     let p = pool().await;
-    let user = UserId::new("quota-post-empty");
-    post_update_tokens(
-        &p,
+    let outcome = settle(
         &quota_repo(&p),
-        PostUpdateParams {
-            user_id: &user,
-            windows: &[],
+        &QuotaReservation::default(),
+        QuotaUsage {
             input_tokens: 100,
             output_tokens: 50,
             cost_microdollars: 10,
         },
     )
     .await;
-}
-
-#[tokio::test]
-async fn post_update_increments_token_counts() {
-    let p = pool().await;
-    let user = UserId::new(format!("quota-post-{}", uuid::Uuid::new_v4()));
-    let windows = vec![QuotaWindow {
-        max_requests: Some(1000),
-        max_input_tokens: Some(1000),
-        max_output_tokens: Some(1000),
-        ..window(60)
-    }];
-    post_update_tokens(
-        &p,
-        &quota_repo(&p),
-        PostUpdateParams {
-            user_id: &user,
-            windows: &windows,
-            input_tokens: 10,
-            output_tokens: 20,
-            cost_microdollars: 5,
-        },
-    )
-    .await;
+    assert!(matches!(outcome, AccountingOutcome::Counted));
 }
 
 #[tokio::test]

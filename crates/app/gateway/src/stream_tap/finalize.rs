@@ -12,7 +12,6 @@ use systemprompt_logging::LogActor;
 use crate::audit::access_log::{TerminalOutcome, log_gateway_terminal};
 
 use super::super::audit::GatewayAudit;
-use super::super::quota;
 use super::super::service::finalize::record_accounting_outcome;
 use super::super::service::run_response_safety_scan;
 use super::super::signature_cache::ThoughtSignatureCache;
@@ -167,18 +166,7 @@ pub(super) fn finalize(
                         0
                     },
                 };
-                let accounting = quota::post_update_tokens(
-                    &ctx.db,
-                    &ctx.repos.quota_buckets,
-                    quota::PostUpdateParams {
-                        user_id: &audit.ctx.user_id,
-                        windows: &ctx.policy.quota_windows,
-                        input_tokens: summary.usage.input_tokens,
-                        output_tokens: summary.usage.output_tokens,
-                        cost_microdollars,
-                    },
-                )
-                .await;
+                let accounting = audit.settle_quota(&summary.usage, cost_microdollars).await;
                 record_accounting_outcome(&audit, ctx.quota_fault_mode, accounting).await;
                 run_response_safety_scan(
                     &ctx.repos.safety_findings,

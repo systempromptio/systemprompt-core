@@ -58,6 +58,14 @@ impl GatewayAudit {
                 }
             });
         let tokens_recorded = receipt.partial.is_some();
+        let settled = receipt
+            .partial
+            .as_ref()
+            .map(|partial| crate::quota::QuotaUsage {
+                input_tokens: i64::from(partial.usage[0]),
+                output_tokens: i64::from(partial.usage[1]),
+                cost_microdollars: partial.cost,
+            });
         if self.journal_lease.get().is_some() {
             journal::record(&self.settlement, receipt).await?;
         } else {
@@ -77,6 +85,15 @@ impl GatewayAudit {
             error,
             "Gateway audit: request failed"
         );
+        if let crate::quota::AccountingOutcome::Faulted { message } =
+            self.settle_quota_usage(settled.unwrap_or_default()).await
+        {
+            tracing::warn!(
+                ai_request_id = %self.ctx.ai_request_id,
+                reason = %message,
+                "Gateway quota release failed; the reservation stays counted until the window rolls"
+            );
+        }
         Ok(())
     }
 }

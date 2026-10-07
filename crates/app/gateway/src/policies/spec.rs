@@ -43,6 +43,7 @@ fn default_subject() -> String {
 }
 
 pub const USER_QUOTA_SUBJECT: &str = "user";
+pub const API_KEY_QUOTA_SUBJECT: &str = "api_key";
 
 /// How far back into a conversation the request-phase scanners look.
 ///

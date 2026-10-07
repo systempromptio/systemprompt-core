@@ -160,6 +160,7 @@ fn a_quota_failure_renders_a_429_response_with_retry_after() {
     let response = map_dispatch_error(DispatchError::PreAudit(GatewayError::from(QuotaExceeded {
         message: "monthly budget exhausted".to_owned(),
         retry_after_seconds: 90,
+        detail: None,
     })))
     .expect("a quota failure renders a response rather than a rejection");
 

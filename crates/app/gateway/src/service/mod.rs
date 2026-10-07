@@ -135,7 +135,39 @@ struct OpenedDispatch<'a> {
     governance: Arc<GovernanceEngine>,
 }
 
+async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
+    let audit = &opened.audit;
+    audit
+        .pin_pricing(opened.pricing)
+        .map_err(|e| DispatchError::PreAudit(GatewayError::internal("pricing pin failed", e)))?;
+
+    if let Some(descriptor) = opened.upstream.route_match_descriptor.as_deref() {
+        audit.set_route_match(descriptor).await;
+    }
+
+    let admission = guards::QuotaAdmission::for_request(
+        &opened.policy,
+        opened.config.quota_fault_mode,
+        &opened.upstream,
+        &opened.request,
+        guards::Priced {
+            raw_body_len: opened.raw_body.len(),
+            pricing: &opened.pricing,
+        },
+    );
+    enforce_quota(opened.db, opened.repos, audit, admission).await?;
+    enforce_request_guards(
+        opened.db,
+        &opened.ctx.user_id,
+        &opened.upstream,
+        &opened.request,
+        audit,
+    )
+    .await
+}
+
 async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, DispatchError> {
+    admit(&opened).await?;
     let OpenedDispatch {
         config,
         registry,
@@ -146,7 +178,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         stream_usage,
         ai_request_id,
         upstream,
-        pricing,
+        pricing: _,
         request,
         raw_body,
         ctx,
@@ -154,16 +186,6 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         forward_headers,
         governance,
     } = opened;
-    audit
-        .pin_pricing(pricing)
-        .map_err(|e| DispatchError::PreAudit(GatewayError::internal("pricing pin failed", e)))?;
-
-    if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
-        audit.set_route_match(descriptor).await;
-    }
-
-    enforce_quota(db, repos, &policy, &audit, config.quota_fault_mode).await?;
-    enforce_request_guards(db, &ctx.user_id, &upstream, &request, &audit).await?;
 
     let prepared = PreparedDispatch::build(
         config,

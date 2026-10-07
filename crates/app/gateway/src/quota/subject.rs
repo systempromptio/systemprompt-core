@@ -1,18 +1,18 @@
 //! Resolution of the subject a quota window is keyed by.
 //!
+//! `user` is the authenticated user and `api_key` the authenticating key.
+//! Any other subject names a scope dimension: the request's attributed value
+//! for it wins, and only a dimension the request was not attributed in falls
+//! through to that dimension's subject-attribute provider (its first value).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
-
-use crate::policies::USER_QUOTA_SUBJECT;
-use sqlx::PgPool;
-use systemprompt_identifiers::UserId;
-use systemprompt_security::authz::{
-    AuthzHookContext, NullAuditSink, SharedSubjectAttributeProvider, discover_subject_providers,
-};
+use systemprompt_security::authz::SubjectProviderSet;
 
 use super::QuotaWindow;
+use super::reserve::QuotaSubjects;
+use crate::policies::{API_KEY_QUOTA_SUBJECT, USER_QUOTA_SUBJECT};
 
 pub(super) struct WindowSubject<'a> {
     pub(super) kind: &'a str,
@@ -27,35 +27,39 @@ pub(super) enum SubjectResolution<'a> {
 pub(super) const FAULT_PROVIDER_ERROR: &str = "subject attribute provider failed";
 pub(super) const FAULT_PROVIDER_EMPTY: &str = "subject attribute provider returned no value";
 pub(super) const FAULT_PROVIDER_MISSING: &str = "no subject attribute provider for this dimension";
-
-fn subject_providers(pool: &Arc<PgPool>) -> &'static [SharedSubjectAttributeProvider] {
-    static PROVIDERS: OnceLock<Vec<SharedSubjectAttributeProvider>> = OnceLock::new();
-    PROVIDERS.get_or_init(|| {
-        discover_subject_providers(&AuthzHookContext {
-            pool: Arc::clone(pool),
-            sink: Arc::new(NullAuditSink),
-        })
-    })
-}
+pub(super) const FAULT_NO_API_KEY: &str = "request was not authenticated by an API key";
 
 pub(super) async fn resolve_subject<'a>(
     window: &'a QuotaWindow,
-    user_id: &UserId,
-    pool: &Arc<PgPool>,
+    subjects: &QuotaSubjects<'_>,
+    providers: &SubjectProviderSet,
 ) -> SubjectResolution<'a> {
     if window.subject == USER_QUOTA_SUBJECT {
         return SubjectResolution::Resolved(WindowSubject {
             kind: USER_QUOTA_SUBJECT,
-            id: user_id.as_str().to_owned(),
+            id: subjects.user_id.as_str().to_owned(),
         });
     }
-    let Some(provider) = subject_providers(pool)
-        .iter()
-        .find(|p| p.dimension().rule_type.as_str() == window.subject)
-    else {
+    if window.subject == API_KEY_QUOTA_SUBJECT {
+        return subjects
+            .api_key_id
+            .map_or(SubjectResolution::Fault(FAULT_NO_API_KEY), |key| {
+                SubjectResolution::Resolved(WindowSubject {
+                    kind: API_KEY_QUOTA_SUBJECT,
+                    id: key.as_str().to_owned(),
+                })
+            });
+    }
+    if let Some(value) = subjects.attribution.value_for(&window.subject) {
+        return SubjectResolution::Resolved(WindowSubject {
+            kind: &window.subject,
+            id: value.to_owned(),
+        });
+    }
+    let Some(provider) = providers.find(&window.subject) else {
         return SubjectResolution::Fault(FAULT_PROVIDER_MISSING);
     };
-    let values = match provider.values_for(user_id).await {
+    let values = match provider.values_for(subjects.user_id).await {
         Ok(values) => values,
         Err(error) => {
             tracing::warn!(

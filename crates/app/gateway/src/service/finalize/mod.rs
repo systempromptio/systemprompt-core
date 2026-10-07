@@ -41,7 +41,7 @@ use super::super::protocol::canonical::{CanonicalRequest, CanonicalResponse};
 use super::super::protocol::inbound::InboundAdapter;
 use super::super::protocol::outbound::OutboundOutcome;
 use super::super::signature_cache::ThoughtSignatureCache;
-use super::super::{parse, quota, stream_tap};
+use super::super::{parse, stream_tap};
 use super::REQUEST_ID_HEADER;
 use crate::policies::GatewayPolicySpec;
 
@@ -256,18 +256,7 @@ async fn buffered_completion(
             0
         },
     };
-    let accounting = quota::post_update_tokens(
-        &ctx.db,
-        &ctx.repos.quota_buckets,
-        quota::PostUpdateParams {
-            user_id: &audit.ctx.user_id,
-            windows: &ctx.policy.quota_windows,
-            input_tokens: usage.input_tokens,
-            output_tokens: usage.output_tokens,
-            cost_microdollars,
-        },
-    )
-    .await;
+    let accounting = audit.settle_quota(&usage, cost_microdollars).await;
     record_accounting_outcome(&audit, ctx.quota_fault_mode, accounting).await;
     if !response_scanned {
         run_response_safety_scan(

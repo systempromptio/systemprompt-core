@@ -25,13 +25,15 @@ pub mod journal;
 pub mod message_text;
 mod open;
 pub mod payload;
+mod quota_settlement;
 mod tool_results;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use systemprompt_ai::repository::{
-    AiRequestClientEvidenceRepository, AiRequestPayloadRepository, AiRequestRepository,
+    AiQuotaBucketRepository, AiRequestClientEvidenceRepository, AiRequestPayloadRepository,
+    AiRequestRepository,
 };
 use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
@@ -85,6 +87,8 @@ pub struct GatewayAudit {
     started_at: Instant,
     upstream: Mutex<UpstreamClock>,
     background: systemprompt_traits::BackgroundTasks,
+    quota_buckets: AiQuotaBucketRepository,
+    quota_reservation: Mutex<Option<crate::quota::QuotaReservation>>,
 }
 
 #[derive(Debug, Default)]
@@ -111,6 +115,8 @@ impl GatewayAudit {
             started_at: Instant::now(),
             upstream: Mutex::new(UpstreamClock::default()),
             background: repos.background.clone(),
+            quota_buckets: repos.quota_buckets.clone(),
+            quota_reservation: Mutex::new(None),
         }
     }
 

@@ -1386,8 +1386,18 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         let systemprompt_gateway::service::GatewayError::Quota(quota) = &error else {
             panic!("expected QuotaExceeded, got {error:?}");
         };
-        assert_eq!(quota.retry_after_seconds, 60);
+        assert!(
+            (1..=60).contains(&quota.retry_after_seconds),
+            "retry-after is the time to the window reset: {}",
+            quota.retry_after_seconds
+        );
         assert!(quota.message.contains("used 2/1"), "{}", quota.message);
+        let detail = quota
+            .detail
+            .as_ref()
+            .expect("a window denial carries its detail");
+        assert_eq!(detail.used, Some(2));
+        assert_eq!(detail.limit, Some(1));
     }
     upstream.verify().await;
     assert_eq!(

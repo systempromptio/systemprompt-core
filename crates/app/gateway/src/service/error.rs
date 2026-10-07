@@ -178,6 +178,7 @@ pub struct PolicyDenied(pub String);
 pub struct QuotaExceeded {
     pub message: String,
     pub retry_after_seconds: i32,
+    pub detail: Option<crate::quota::QuotaDetail>,
 }
 
 #[derive(Debug, thiserror::Error)]

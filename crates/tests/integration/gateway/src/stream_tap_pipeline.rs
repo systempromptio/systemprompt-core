@@ -147,6 +147,35 @@ fn tap_ctx(db: &DbPool, ai_request_id: &AiRequestId, policy: GatewayPolicySpec) 
     }
 }
 
+async fn admit(audit: &GatewayAudit, db: &DbPool, policy: &GatewayPolicySpec) {
+    use systemprompt_gateway::quota;
+    let repos = gateway_repos(db);
+    let outcome = quota::precheck_and_reserve(
+        &repos.quota_buckets,
+        quota::ReserveParams {
+            providers: &repos.subject_providers,
+            subjects: quota::QuotaSubjects {
+                user_id: &audit.ctx.user_id,
+                api_key_id: None,
+                attribution: &audit.ctx.attribution,
+            },
+            windows: &policy.quota_windows,
+            fault_mode: systemprompt_manifest::services::QuotaFaultMode::Closed,
+            estimate: quota::QuotaEstimate {
+                input_tokens: 50,
+                output_tokens: 60,
+                cost_microdollars: 70,
+            },
+        },
+    )
+    .await
+    .expect("reserve");
+    let quota::ReserveOutcome::Admitted(reservation) = outcome else {
+        panic!("expected admission");
+    };
+    audit.set_quota_reservation(reservation);
+}
+
 fn user_window(window_seconds: i32) -> QuotaWindow {
     QuotaWindow {
         window_seconds,
@@ -205,6 +234,7 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
         quota_windows: vec![user_window(3600)],
         ..GatewayPolicySpec::default()
     };
+    admit(&audit, &db, &policy).await;
     let body = tap(
         upstream,
         render(inbound),
@@ -275,6 +305,7 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
         quota_windows: vec![user_window(3600)],
         ..GatewayPolicySpec::default()
     };
+    admit(&audit, &db, &policy).await;
     let body = tap(
         upstream,
         render(inbound),
@@ -297,10 +328,14 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
         "{error:?}"
     );
 
+    let (input, output, cost) = quota_bucket(&db, &user_id)
+        .await
+        .expect("admission reserved a bucket");
     assert!(
-        quota_bucket(&db, &user_id).await.is_none(),
-        "a failed stream must not debit tokens beyond the precheck reservation"
+        input <= 3 && output == 0,
+        "a failed stream releases the reservation down to what it streamed: {input}/{output}"
     );
+    assert_eq!(cost, 0, "the unpriced fixture model streams no cost");
 }
 
 #[tokio::test]

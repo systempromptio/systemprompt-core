@@ -14,30 +14,96 @@ use super::stages::record_quota_warning;
 use super::{DispatchError, GatewayError, GuardForbidden, GuardUnavailable, QuotaExceeded};
 use crate::policies::GatewayPolicySpec;
 
+#[derive(Debug, Clone, Copy)]
+pub(super) struct QuotaAdmission<'a> {
+    pub(super) policy: &'a GatewayPolicySpec,
+    pub(super) fault_mode: QuotaFaultMode,
+    pub(super) estimate: quota::QuotaEstimate,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Priced<'a> {
+    pub(super) raw_body_len: usize,
+    pub(super) pricing: &'a systemprompt_manifest::services::ModelPricing,
+}
+
+impl<'a> QuotaAdmission<'a> {
+    pub(super) fn for_request(
+        policy: &'a GatewayPolicySpec,
+        fault_mode: QuotaFaultMode,
+        upstream: &ResolvedUpstream<'_>,
+        request: &CanonicalRequest,
+        priced: Priced<'_>,
+    ) -> Self {
+        let model_limits = upstream
+            .provider
+            .find_served_model(request.model.as_str())
+            .map(|m| m.limits);
+        Self {
+            policy,
+            fault_mode,
+            estimate: quota::estimate(
+                priced.raw_body_len,
+                request.max_tokens,
+                model_limits.as_ref(),
+                priced.pricing,
+            ),
+        }
+    }
+}
+
 pub(super) async fn enforce_quota(
     db: &DbPool,
     repos: &GatewayRepositories,
-    policy: &GatewayPolicySpec,
     audit: &GatewayAudit,
-    fault_mode: QuotaFaultMode,
+    admission: QuotaAdmission<'_>,
 ) -> Result<(), DispatchError> {
-    let ctx = &audit.ctx;
-    let reservation = quota::precheck_and_reserve(
-        db,
-        &repos.quota_buckets,
-        &ctx.user_id,
-        &policy.quota_windows,
+    let QuotaAdmission {
+        policy,
         fault_mode,
+        estimate,
+    } = admission;
+    let ctx = &audit.ctx;
+    let outcome = quota::precheck_and_reserve(
+        &repos.quota_buckets,
+        quota::ReserveParams {
+            providers: &repos.subject_providers,
+            subjects: quota::QuotaSubjects {
+                user_id: &ctx.user_id,
+                api_key_id: ctx.attribution.api_key_id.as_ref(),
+                attribution: &ctx.attribution,
+            },
+            windows: &policy.quota_windows,
+            fault_mode,
+            estimate,
+        },
     )
     .await
     .map_err(|e| DispatchError::Recorded(GatewayError::internal("quota precheck failed", e)))?;
-    let Some(decision) = reservation else {
-        return Ok(());
+    let (decision, reservation) = match outcome {
+        quota::ReserveOutcome::Admitted(reservation) => {
+            audit.set_quota_reservation(reservation);
+            return Ok(());
+        },
+        quota::ReserveOutcome::Denied {
+            decision,
+            reservation,
+        } => (decision, reservation),
     };
-    if decision.allow {
-        return Ok(());
-    }
+    let mode = if policy.quota_mode.is_warn() {
+        "warn"
+    } else {
+        "enforce"
+    };
+    metrics::counter!(
+        "systemprompt_quota_denials_total",
+        "subject_kind" => decision.detail.subject.clone(),
+        "dimension" => decision.detail.dimension.map_or("unevaluated", quota::QuotaDimension::as_str),
+        "mode" => mode,
+    )
+    .increment(1);
     if policy.quota_mode.is_warn() {
+        audit.set_quota_reservation(reservation);
         tracing::warn!(
             ai_request_id = %ctx.ai_request_id,
             user_id = %ctx.user_id,
@@ -52,13 +118,15 @@ pub(super) async fn enforce_quota(
             })?;
         return Ok(());
     }
+    audit.set_quota_reservation(reservation);
     let msg = decision.message;
     if let Err(e) = audit.fail(&msg).await {
         tracing::warn!(error = %e, "quota audit fail failed");
     }
     Err(DispatchError::recorded(QuotaExceeded {
         message: msg,
-        retry_after_seconds: decision.window_seconds,
+        retry_after_seconds: i32::try_from(decision.detail.retry_after_seconds).unwrap_or(i32::MAX),
+        detail: Some(decision.detail),
     }))
 }
 
@@ -116,6 +184,7 @@ pub(super) async fn enforce_request_guards(
         _ => QuotaExceeded {
             message: deny.message,
             retry_after_seconds: deny.retry_after_seconds,
+            detail: None,
         }
         .into(),
     };

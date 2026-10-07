@@ -102,7 +102,7 @@ Typical deliverables: tool and key inventory, gateway and route configuration, e
 
 - **Scope of enforcement**: the gateway governs model traffic routed through it, and MCP enforcement governs tools served by governed MCP servers. Tools that execute locally on a laptop outside those paths are not governed by the platform. Say so in design reviews.
 - **Write access**: start agents read-only against repositories and production systems. Grant write tools per agent with a named owner.
-- **Quota semantics**: cost is accounted after completion, so concurrent requests can exceed a ceiling. Set quotas with headroom and alert before the limit.
+- **Quota semantics**: admission reserves each request's estimated tokens and cost (body length / 4 input, `max_tokens` output) and completion trues the window up to the audited cost, so in-flight spend counts against the ceiling; concurrent requests can overshoot by at most one estimate each. Set quotas with that headroom and alert before the limit.
 - **Measuring output, not volume**: lines of code generated is not a productivity measure. Use delivery and quality metrics.
 
 ## 9. Certification objectives (`SP-SPx-ENG`)

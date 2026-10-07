@@ -59,7 +59,7 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
 fn render_error(error: &GatewayError) -> Option<Response<Body>> {
     match error {
         GatewayError::Quota(quota) => Some(with_retry_after(
-            build_error_response(error.status(), error.error_type(), &quota.message),
+            build_quota_exceeded(error, quota),
             quota.retry_after_seconds,
         )),
         GatewayError::GuardUnavailable(unavailable) => Some(with_retry_after(
@@ -211,6 +211,24 @@ pub fn build_error_response(status: StatusCode, error_type: &str, message: &str)
         })),
     )
         .into_response()
+}
+
+fn build_quota_exceeded(
+    error: &GatewayError,
+    quota: &systemprompt_gateway::service::QuotaExceeded,
+) -> Response<Body> {
+    let Some(detail) = quota.detail.as_ref() else {
+        return build_error_response(error.status(), error.error_type(), &quota.message);
+    };
+    let body = serde_json::json!({
+        "type": "error",
+        "error": {
+            "type": error.error_type(),
+            "message": quota.message,
+            "quota": detail,
+        }
+    });
+    (error.status(), axum::Json(body)).into_response()
 }
 
 fn build_prompt_repair(message: &str, locations: &[String]) -> Response<Body> {

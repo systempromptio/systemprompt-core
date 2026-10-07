@@ -86,6 +86,7 @@ fn map_dispatch_error_quota_returns_retry_after_response() {
     let err = DispatchError::Recorded(GatewayError::from(QuotaExceeded {
         message: "daily budget exhausted".to_owned(),
         retry_after_seconds: 42,
+        detail: None,
     }));
     let resp = map_dispatch_error(err).expect("quota is a response, not a rejection");
     assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);

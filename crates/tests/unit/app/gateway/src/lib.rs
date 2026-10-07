@@ -77,6 +77,8 @@ mod prompt_recovery;
 #[cfg(test)]
 mod prompt_recovery_transport;
 #[cfg(test)]
+mod quota_estimate;
+#[cfg(test)]
 mod registry;
 #[cfg(test)]
 mod route_match_descriptor;

@@ -552,3 +552,7 @@ mod api_error_redaction;
 #[cfg(test)]
 #[path = "gateway_attribution.rs"]
 mod gateway_attribution;
+
+#[cfg(test)]
+#[path = "gateway_quota_reservation.rs"]
+mod gateway_quota_reservation;
