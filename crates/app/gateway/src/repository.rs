@@ -13,6 +13,7 @@ use systemprompt_ai::repository::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_manifest::profile::AuditConfig;
+use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_traits::{BackgroundTasks, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};
@@ -33,6 +34,7 @@ pub struct GatewayRepositories {
     pub sessions: Option<systemprompt_traits::DynSessionStore>,
     pub payload_cap_bytes: usize,
     pub background: BackgroundTasks,
+    pub subject_providers: SubjectProviderSet,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -67,7 +69,17 @@ impl GatewayRepositories {
             sessions: None,
             payload_cap_bytes: AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES,
             background,
+            subject_providers: SubjectProviderSet::discover(&AuthzHookContext {
+                pool: db.pool(),
+                sink: Arc::new(NullAuditSink),
+            }),
         }
+    }
+
+    #[must_use]
+    pub fn with_subject_providers(mut self, providers: SubjectProviderSet) -> Self {
+        self.subject_providers = providers;
+        self
     }
 
     #[must_use]

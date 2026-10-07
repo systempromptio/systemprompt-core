@@ -262,6 +262,22 @@ Base `/v1` (`crates/entry/api/src/routes/gateway/mod.rs`). The gateway mounts on
 curl http://127.0.0.1:8080/v1/models
 ```
 
+### Scope attribution
+
+Every `/v1/messages` and `/v1/responses` request is attributed to one value in each subject dimension the deployment registers (a `SubjectAttributeProvider`, for example `project` or `cost_centre`; core registers none). For each registered dimension the gateway takes, in order:
+
+1. the `x-systemprompt-scope-<dimension>` header (for example `x-systemprompt-scope-project: apollo`). The value must be one the caller holds in that dimension;
+2. the value the API key is bound to in that dimension, checked the same way;
+3. the dimension's default for the caller (the provider's first value).
+
+| Condition | Status |
+|-----------|--------|
+| A header names a dimension no provider registers, or is malformed (`[a-z][a-z0-9_]{0,63}`), empty or repeated | `400` |
+| A header or key-bound value is one the caller does not hold (an unknown value is answered the same way) | `403` `not a member of <dimension> '<value>'` |
+| A dimension listed in `gateway.require_scopes` resolves to nothing | `400` `scope_required: …` |
+
+The resolved values are written to `ai_request_attributions` (`dimension`, `value`, `source` = `header` \| `api_key` \| `default`) beside the request row, which also records the authenticating `api_key_id`; rejected requests carry the attribution known when they were refused. `x-systemprompt-scope-*` headers are never forwarded to the provider.
+
 ## Webhooks
 
 See [Context webhooks](#context-webhooks--base-apiv1webhook-authenticated) above. Base `/api/v1/webhook`, authenticated, with `/broadcast`, `/agui`, and `/a2a`.

@@ -34,6 +34,7 @@ pub(super) async fn dispatch_to_provider(
     let PreparedRequest {
         origin,
         evidence,
+        attribution,
         principal,
         body_bytes,
         client_headers,
@@ -66,6 +67,7 @@ pub(super) async fn dispatch_to_provider(
         is_streaming,
         origin,
         evidence,
+        attribution,
         access_log: rc.access_log.clone(),
     };
 

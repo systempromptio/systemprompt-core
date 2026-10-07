@@ -312,7 +312,7 @@ loader (`crates/infra/loader/src/config_loader/`):
 | Services key | Conventional file | Type | Meaning |
 |--------------|-------------------|------|---------|
 | `providers` | `services/ai/providers.yaml` | list of provider entries | The provider registry: each upstream's wire protocol, surface, endpoint, `api_key_secret`, extra headers, per-model pricing/capabilities/limits, and governance flags (`crates/shared/manifest/src/services/providers/`). Entries concatenate across includes; a provider name declared twice is a load error. |
-| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/manifest/src/services/gateway/`). First file to declare it wins across includes. |
+| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `require_scopes` (dimensions every request must resolve a scope value for; see [scope attribution](./http-api.md#scope-attribution)), `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/manifest/src/services/gateway/`). First file to declare it wins across includes. |
 
 Both files must be listed in the root aggregator's `includes:` (`services/config/config.yaml`);
 `systemprompt admin setup` writes them from the embedded seed catalog when absent and appends

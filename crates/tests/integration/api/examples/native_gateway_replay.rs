@@ -155,6 +155,7 @@ fn context(
         is_streaming: stream,
         origin: RequestOrigin::gateway(ClientKind::Other, inbound.wire(), ClientAttestation::None),
         evidence: ClientEvidence::none(),
+        attribution: systemprompt_models::attribution::RequestAttribution::none(),
         access_log: None,
     }
 }

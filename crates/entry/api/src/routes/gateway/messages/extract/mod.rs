@@ -12,6 +12,7 @@
 pub mod attribution;
 pub mod authz;
 pub mod headers;
+pub mod scope;
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -23,6 +24,7 @@ use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
 use systemprompt_manifest::services::gateway::{GatewayConfig, GatewayRoute};
+use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 
 use super::RequestContext;
@@ -41,6 +43,7 @@ use attribution::classify_client;
 pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 pub(super) use headers::ClientHeaders;
 pub use headers::extract_credential;
+use scope::{ScopeHeaders, attribute_scopes};
 
 /// What is known about a request at the moment it is rejected.
 ///
@@ -51,6 +54,7 @@ pub use headers::extract_credential;
 pub struct RejectionPartial {
     pub origin: RequestOrigin,
     pub evidence: Option<ClientEvidence>,
+    pub attribution: RequestAttribution,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
@@ -69,6 +73,10 @@ impl RejectionPartial {
         Self {
             origin,
             evidence: None,
+            attribution: RequestAttribution {
+                entries: Vec::new(),
+                api_key_id: None,
+            },
             user_id: None,
             session_id: None,
             context_id: None,
@@ -87,6 +95,7 @@ impl RejectionPartial {
 pub(super) struct PreparedRequest {
     pub origin: RequestOrigin,
     pub evidence: ClientEvidence,
+    pub attribution: RequestAttribution,
     pub principal: AuthedPrincipal,
     pub body_bytes: Bytes,
     pub client_headers: ClientHeaders,
@@ -126,8 +135,11 @@ pub(super) async fn extract_request_context(
     principal.enforce_session_binding(&session_id)?;
 
     let attribution = AttributionHeaders::capture(request.headers());
+    let scope_headers = ScopeHeaders::capture(request.headers())?;
     let (body_bytes, mut gateway_request) = read_gateway_body(inbound, request, partial).await?;
     let evidence = classify_client(&attribution, principal.is_bridge(), &body_bytes, partial)?;
+    let attribution =
+        attribute_scopes(rc, gateway_config, &principal, &scope_headers, partial).await?;
 
     let (gateway_conversation_id, context_id, client_session_id) = derive_conversation(
         principal.user_id(),
@@ -170,6 +182,7 @@ pub(super) async fn extract_request_context(
     Ok(PreparedRequest {
         origin: partial.origin,
         evidence,
+        attribution,
         principal,
         body_bytes,
         client_headers,

@@ -16,6 +16,8 @@
 //! - [`ai`] — LLM request/response shapes plus the [`ai::AiProvider`] trait.
 //! - [`api`] — public HTTP envelopes, error model, pagination, cloud DTOs.
 //! - [`artifacts`] — typed tool-result artifacts.
+//! - [`attribution`] — scope attribution of an AI request (one value per
+//!   registered subject dimension, plus the API key).
 //! - [`auth`] — authenticated user, permission, audience, and PKCE types.
 //! - [`bridge`] — bridge wire formats (signed manifest, plugin bundles,
 //!   telemetry).
@@ -66,6 +68,7 @@ pub mod agui;
 pub mod ai;
 pub mod api;
 pub mod artifacts;
+pub mod attribution;
 pub mod auth;
 pub mod bridge;
 pub mod content;

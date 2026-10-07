@@ -26,6 +26,7 @@ pub mod tools {
 }
 
 pub mod ai_request_record;
+mod ai_request_usage;
 pub mod image_generation;
 pub mod request_kind;
 pub(crate) mod rows;

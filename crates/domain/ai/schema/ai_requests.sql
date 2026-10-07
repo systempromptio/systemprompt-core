@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
             'host-token', 'bridge-secret', 'declared', 'native-marker', 'user-agent', 'none', 'internal', 'unknown')),
     message_count INTEGER NOT NULL DEFAULT 0,
     instance_id VARCHAR(255),
+    api_key_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMPTZ,
@@ -74,3 +75,4 @@ CREATE INDEX IF NOT EXISTS idx_ai_requests_user_created ON ai_requests(user_id, 
 CREATE INDEX IF NOT EXISTS idx_ai_requests_user_model ON ai_requests(user_id, model);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_provider_status ON ai_requests(provider, status);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_session_created ON ai_requests(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_requests_api_key_created ON ai_requests(api_key_id, created_at);

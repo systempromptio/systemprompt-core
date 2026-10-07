@@ -225,6 +225,7 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
             ClientAttestation::None,
         ),
         evidence: ClientEvidence::none(),
+        attribution: systemprompt_models::attribution::RequestAttribution::none(),
         access_log: None,
     }
 }

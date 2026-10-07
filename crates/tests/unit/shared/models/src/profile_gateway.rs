@@ -1119,6 +1119,7 @@ fn enabled_gateway(routes: Vec<GatewayRoute>) -> GatewayConfig {
         default_model: None,
         allow_unlisted_models: false,
         quota_fault_mode: QuotaFaultMode::Open,
+        require_scopes: Vec::new(),
         automatic_prompt_caching: true,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),

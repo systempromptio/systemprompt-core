@@ -5,12 +5,13 @@
 
 use crate::models::{AiRequest, AiRequestRecord, RequestStatus};
 use systemprompt_identifiers::{
-    AiRequestId, ClientSessionId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
-    ProviderRequestId, SessionId, TaskId, TraceId, UserId,
+    AiRequestId, ApiKeyId, ClientSessionId, ContextId, GatewayConversationId, InstanceId,
+    McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
+use super::attributions::insert_attributions;
 
 impl AiRequestRepository {
     #[must_use = "this returns a Result that should not be ignored"]
@@ -126,13 +127,33 @@ impl AiRequestRepository {
         id: &AiRequestId,
         record: &AiRequestRecord,
     ) -> Result<AiRequestId, RepositoryError> {
-        let use_completed_at = matches!(
-            record.status,
-            RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Rejected
-        );
-        let (actor_kind, actor_id) = record.actor.audit_columns();
+        let mut tx = self.write_pool().begin().await?;
+        if !insert_request_row(&mut tx, id, record).await? {
+            return Err(RepositoryError::conflict(
+                "AI request",
+                id,
+                "already exists",
+            ));
+        }
+        insert_attributions(&mut tx, id, &record.attribution).await?;
+        tx.commit().await?;
+        Ok(id.clone())
+    }
+}
 
-        let inserted = sqlx::query!(
+async fn insert_request_row(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    id: &AiRequestId,
+    record: &AiRequestRecord,
+) -> Result<bool, RepositoryError> {
+    let use_completed_at = matches!(
+        record.status,
+        RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Rejected
+    );
+    let (actor_kind, actor_id) = record.actor.audit_columns();
+    let api_key_id = record.attribution.api_key_id.as_ref().map(ApiKeyId::as_str);
+
+    let inserted = sqlx::query!(
             r#"
             INSERT INTO ai_requests (
                 id, request_id, user_id, session_id, task_id, context_id,
@@ -142,12 +163,12 @@ impl AiRequestRepository {
                 cost_microdollars, latency_ms, status, error_message,
                 actor_kind, actor_id, requested_model, instance_id, reasoning_tokens,
                 client_session_id, request_kind, client_kind, wire_protocol,
-                client_attestation, created_at, updated_at, completed_at
+                client_attestation, api_key_id, created_at, updated_at, completed_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
                 $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-                $25, $26, $27, $28, $29, $31, $32, $33, $34, $35,
+                $25, $26, $27, $28, $29, $31, $32, $33, $34, $35, $36,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
                 CASE WHEN $30 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
@@ -188,17 +209,10 @@ impl AiRequestRepository {
             record.request_kind.as_str(),
             record.origin.client.as_str(),
             record.origin.wire.as_str(),
-            record.origin.attestation.as_str()
+            record.origin.attestation.as_str(),
+            api_key_id
         )
-        .fetch_optional(self.write_pool())
+        .fetch_optional(&mut **tx)
         .await?;
-        match inserted {
-            Some(_) => Ok(id.clone()),
-            None => Err(RepositoryError::conflict(
-                "AI request",
-                id,
-                "already exists",
-            )),
-        }
-    }
+    Ok(inserted.is_some())
 }

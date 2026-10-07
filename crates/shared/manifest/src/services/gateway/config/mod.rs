@@ -66,6 +66,8 @@ pub struct GatewayConfigSpec {
     pub allow_unlisted_models: bool,
     #[serde(default)]
     pub quota_fault_mode: QuotaFaultMode,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub require_scopes: Vec<systemprompt_identifiers::ScopeDimension>,
     #[serde(default = "default_true")]
     pub automatic_prompt_caching: bool,
     #[serde(default = "default_auth_scheme")]
@@ -120,6 +122,7 @@ impl Default for GatewayConfigSpec {
             default_model: None,
             allow_unlisted_models: false,
             quota_fault_mode: QuotaFaultMode::default(),
+            require_scopes: Vec::new(),
             automatic_prompt_caching: true,
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
@@ -147,6 +150,7 @@ impl GatewayConfigSpec {
             default_model,
             allow_unlisted_models,
             quota_fault_mode,
+            require_scopes,
             automatic_prompt_caching,
             auth_scheme,
             inference_path_prefix,
@@ -161,6 +165,7 @@ impl GatewayConfigSpec {
             default_model,
             allow_unlisted_models,
             quota_fault_mode,
+            require_scopes,
             automatic_prompt_caching,
             auth_scheme,
             inference_path_prefix,

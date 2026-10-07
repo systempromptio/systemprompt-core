@@ -24,3 +24,4 @@ pub const USER_PERMISSIONS: &str = "x-user-permissions";
 pub const USER_ROLES: &str = "x-user-roles";
 pub const CLIENT_KIND: &str = "x-systemprompt-client";
 pub const CLIENT_ATTESTATION: &str = "x-systemprompt-client-attestation";
+pub const SCOPE_PREFIX: &str = "x-systemprompt-scope-";

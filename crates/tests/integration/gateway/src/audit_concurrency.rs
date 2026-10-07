@@ -76,6 +76,7 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
                 ClientAttestation::None,
             ),
             evidence: ClientEvidence::none(),
+            attribution: systemprompt_models::attribution::RequestAttribution::none(),
             access_log: None,
         };
         let req_clone = request.clone();
@@ -162,6 +163,7 @@ async fn gateway_audit_open_persists_derived_context_id() {
             ClientAttestation::None,
         ),
         evidence: ClientEvidence::none(),
+        attribution: systemprompt_models::attribution::RequestAttribution::none(),
         access_log: None,
     };
     let audit = GatewayAudit::new(&gateway_repos(&db), ctx);

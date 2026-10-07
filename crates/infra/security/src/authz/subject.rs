@@ -152,3 +152,37 @@ macro_rules! register_subject_attribute_provider {
         }
     };
 }
+
+/// The registered subject-attribute providers, discovered once at a
+/// composition root and shared by every consumer that needs to look a
+/// dimension up by name (gateway scope attribution, quota subjects).
+#[derive(Debug, Clone, Default)]
+pub struct SubjectProviderSet(Arc<[SharedSubjectAttributeProvider]>);
+
+impl SubjectProviderSet {
+    #[must_use]
+    pub fn discover(ctx: &AuthzHookContext) -> Self {
+        Self(discover_subject_providers(ctx).into())
+    }
+
+    #[must_use]
+    pub fn from_providers(providers: Vec<SharedSubjectAttributeProvider>) -> Self {
+        Self(providers.into())
+    }
+
+    #[must_use]
+    pub fn find(&self, dimension: &str) -> Option<&SharedSubjectAttributeProvider> {
+        self.0
+            .iter()
+            .find(|provider| provider.dimension().rule_type.as_str() == dimension)
+    }
+
+    #[must_use]
+    pub fn registered_dimensions(&self) -> Vec<RuleType> {
+        self.0.iter().map(|p| p.dimension().rule_type).collect()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &SharedSubjectAttributeProvider> {
+        self.0.iter()
+    }
+}

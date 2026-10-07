@@ -277,6 +277,7 @@ fn derive_conversation_without_messages_is_bad_request() {
 
 fn api_key_principal(user: &str) -> AuthedPrincipal {
     AuthedPrincipal::ApiKey(ApiKeyPrincipal {
+        api_key_id: systemprompt_identifiers::ApiKeyId::generate(),
         user_id: UserId::new(user),
         trace_id: TraceId::generate(),
         attested_session: SessionId::generate(),

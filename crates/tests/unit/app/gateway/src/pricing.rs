@@ -37,6 +37,7 @@ fn gateway_with(routes: Vec<GatewayRoute>) -> GatewayConfig {
         system_prompt_overrides: Vec::new(),
         bridge_releases: None,
         quota_fault_mode: Default::default(),
+        require_scopes: Vec::new(),
     }
 }
 

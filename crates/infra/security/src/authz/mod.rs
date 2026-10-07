@@ -76,7 +76,8 @@ pub use runtime::build_authz_hook;
 pub use subject::{
     NO_SUBJECT_ATTRIBUTES, ROLE_PRECEDENCE, SharedSubjectAttributeProvider,
     SubjectAttributeProvider, SubjectAttributes, SubjectDimension, SubjectProviderRegistration,
-    USER_PRECEDENCE, dimensions_of, discover_subject_providers, gather_subject_attributes,
+    SubjectProviderSet, USER_PRECEDENCE, dimensions_of, discover_subject_providers,
+    gather_subject_attributes,
 };
 pub use subject_directory::{
     RoleDirectory, RoleDirectoryRegistration, SharedRoleDirectory, discover_role_directory,

@@ -6,7 +6,7 @@
 use axum::http::StatusCode;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{Actor, ClientId, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, ApiKeyId, ClientId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::policy::types::AccessScope;
@@ -40,6 +40,7 @@ pub struct JwtPrincipal {
 
 #[derive(Debug)]
 pub struct ApiKeyPrincipal {
+    pub api_key_id: ApiKeyId,
     pub user_id: UserId,
     pub trace_id: TraceId,
     pub attested_session: SessionId,
@@ -89,6 +90,13 @@ impl AuthedPrincipal {
         match self {
             Self::Jwt(p) => p.client_id.as_ref(),
             Self::ApiKey(_) => None,
+        }
+    }
+
+    pub const fn api_key(&self) -> Option<&ApiKeyPrincipal> {
+        match self {
+            Self::Jwt(_) => None,
+            Self::ApiKey(p) => Some(p),
         }
     }
 
@@ -174,6 +182,7 @@ async fn authenticate_api_key(
         })?;
 
     Ok(AuthedPrincipal::ApiKey(ApiKeyPrincipal {
+        api_key_id: rec.id,
         user_id: rec.user_id,
         trace_id: TraceId::generate(),
         attested_session: session_id.clone(),

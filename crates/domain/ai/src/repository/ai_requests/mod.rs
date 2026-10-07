@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod attributions;
 mod intent_claims;
 mod message_operations;
 mod mutations;

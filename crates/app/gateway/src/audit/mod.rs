@@ -37,6 +37,7 @@ use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
     UserId,
 };
+use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 use systemprompt_security::policy::types::AccessScope;
 
@@ -60,6 +61,7 @@ pub struct GatewayRequestContext {
     pub is_streaming: bool,
     pub origin: RequestOrigin,
     pub evidence: ClientEvidence,
+    pub attribution: RequestAttribution,
     pub access_log: Option<GatewayAccessLog>,
 }
 

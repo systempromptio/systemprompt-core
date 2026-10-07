@@ -27,6 +27,7 @@ fn jwt_principal(session: &SessionId) -> AuthedPrincipal {
 
 fn api_key_principal(session: &SessionId) -> AuthedPrincipal {
     AuthedPrincipal::ApiKey(ApiKeyPrincipal {
+        api_key_id: systemprompt_identifiers::ApiKeyId::generate(),
         user_id: UserId::new("user-key"),
         trace_id: TraceId::new("trace-key"),
         attested_session: session.clone(),

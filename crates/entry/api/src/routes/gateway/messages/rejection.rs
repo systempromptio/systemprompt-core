@@ -57,6 +57,7 @@ pub fn build_rejection_record(
         AiRequestRecord::builder(ai_request_id.clone(), user_id, context_id, partial.origin)
             .streaming(partial.is_streaming)
             .request_kind(RequestKind::classify(partial.max_tokens))
+            .attribution(partial.attribution.clone())
             .rejected();
     if let Some(cs) = &partial.client_session_id {
         builder = builder.client_session_id(cs.clone());
