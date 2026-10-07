@@ -92,7 +92,14 @@ async fn issue_key(
         Some(value) if !value.is_empty() => UserId::try_new(value).map_err(ApiError::from)?,
         _ => req_ctx.user_id().clone(),
     };
-    verify_scope_bindings(&ctx, &target_user, &body.scopes).await?;
+    if !body.scopes.is_empty() {
+        SubjectProviderSet::discover(&AuthzHookContext {
+            pool: ctx.db_pool().pool(),
+            sink: Arc::new(NullAuditSink),
+        })
+        .verify_scope_bindings(&target_user, &body.scopes)
+        .await?;
+    }
     let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
 
     let issued = service
@@ -118,36 +125,6 @@ async fn issue_key(
             scopes: issued.record.scopes,
         }),
     ))
-}
-
-async fn verify_scope_bindings(
-    ctx: &AppContext,
-    owner: &UserId,
-    scopes: &[ScopeBinding],
-) -> Result<(), ApiHttpError> {
-    if scopes.is_empty() {
-        return Ok(());
-    }
-    let providers = SubjectProviderSet::discover(&AuthzHookContext {
-        pool: ctx.db_pool().pool(),
-        sink: Arc::new(NullAuditSink),
-    });
-    for scope in scopes {
-        let Some(provider) = providers.find(scope.dimension.as_str()) else {
-            return Err(ApiHttpError::bad_request(format!(
-                "unknown scope dimension '{}': no subject attribute provider registers it",
-                scope.dimension
-            )));
-        };
-        let held = provider.values_for(owner).await?;
-        if !held.iter().any(|value| value == &scope.value) {
-            return Err(ApiHttpError::forbidden(format!(
-                "the key owner is not a member of {} '{}'",
-                scope.dimension, scope.value
-            )));
-        }
-    }
-    Ok(())
 }
 
 async fn list_keys(

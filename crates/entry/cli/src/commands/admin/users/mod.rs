@@ -32,6 +32,7 @@ use crate::shared::{CommandOutput, render_result};
 use anyhow::{Result, bail};
 use clap::Subcommand;
 
+pub use apikey::{ApiKeyCommands, IssueArgs as ApiKeyIssueArgs};
 pub use types::*;
 
 #[derive(Debug, Subcommand)]
@@ -86,7 +87,7 @@ pub enum UsersCommands {
         name = "api-key",
         about = "Personal access token (sp-live-) management"
     )]
-    ApiKey(apikey::ApiKeyCommands),
+    ApiKey(ApiKeyCommands),
 }
 
 pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
@@ -173,9 +174,7 @@ impl UsersCommands {
             )
             | Self::Webauthn(webauthn::WebauthnCommands::GenerateSetupToken(_))
             | Self::ApiKey(
-                apikey::ApiKeyCommands::Issue(_)
-                | apikey::ApiKeyCommands::List(_)
-                | apikey::ApiKeyCommands::Revoke(_),
+                ApiKeyCommands::Issue(_) | ApiKeyCommands::List(_) | ApiKeyCommands::Revoke(_),
             ) => DataImpact::Preserving,
         }
     }

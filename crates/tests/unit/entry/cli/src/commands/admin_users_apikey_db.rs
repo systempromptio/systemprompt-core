@@ -12,10 +12,12 @@ use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ScopeDimension, UserId};
+use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
+use systemprompt_users::ApiKeyLimits;
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -272,4 +274,168 @@ async fn listing_a_user_with_no_keys_is_an_empty_report_rather_than_an_error() {
         .expect("a user with no keys lists nothing, which is not a failure");
 
     assert!(stored_keys(&pool, &user).await.is_empty());
+}
+
+fn issue_args(extra: &[&str]) -> users::ApiKeyIssueArgs {
+    let mut args = vec!["api-key", "issue", "--user", "someone", "--name", "ci"];
+    args.extend_from_slice(extra);
+    match parse(&args) {
+        UsersCommands::ApiKey(users::ApiKeyCommands::Issue(issue)) => issue,
+        other => panic!("expected api-key issue, got {other:?}"),
+    }
+}
+
+#[test]
+fn no_limit_flags_issue_an_unlimited_unscoped_key() {
+    let args = issue_args(&[]);
+    assert_eq!(args.limits(), ApiKeyLimits::default());
+    assert!(args.scopes.is_empty());
+}
+
+#[test]
+fn every_limit_flag_lands_on_the_typed_limits() {
+    let args = issue_args(&[
+        "--model",
+        "claude-a",
+        "--model",
+        "claude-b",
+        "--budget-microdollars",
+        "5000000",
+        "--max-requests",
+        "100",
+        "--window-seconds",
+        "3600",
+        "--scope",
+        "project=p-primary",
+        "--scope",
+        "cost_centre=cc-9",
+    ]);
+    assert_eq!(
+        args.limits(),
+        ApiKeyLimits {
+            model_allowlist: Some(vec!["claude-a".to_owned(), "claude-b".to_owned()]),
+            budget_microdollars: Some(5_000_000),
+            max_requests: Some(100),
+            request_window_seconds: Some(3600),
+        }
+    );
+    assert_eq!(
+        args.scopes,
+        vec![
+            ScopeBinding {
+                dimension: ScopeDimension::new("project"),
+                value: "p-primary".to_owned(),
+            },
+            ScopeBinding {
+                dimension: ScopeDimension::new("cost_centre"),
+                value: "cc-9".to_owned(),
+            },
+        ]
+    );
+}
+
+fn issue_parse_error(extra: &[&str]) -> String {
+    let mut args = vec!["users", "api-key", "issue", "--user", "u", "--name", "ci"];
+    args.extend_from_slice(extra);
+    UsersHarness::try_parse_from(args)
+        .expect_err("a malformed flag must be rejected at parse time")
+        .to_string()
+}
+
+#[test]
+fn a_scope_without_a_separator_is_rejected() {
+    let err = issue_parse_error(&["--scope", "project"]);
+    assert!(err.contains("DIMENSION=VALUE"), "{err}");
+}
+
+#[test]
+fn a_scope_with_an_empty_value_is_rejected() {
+    let err = issue_parse_error(&["--scope", "project="]);
+    assert!(err.contains("empty"), "{err}");
+}
+
+#[test]
+fn a_scope_with_an_invalid_dimension_is_rejected() {
+    let err = issue_parse_error(&["--scope", "Project=p"]);
+    assert!(err.contains("scope dimension"), "{err}");
+}
+
+#[test]
+fn non_positive_ceilings_are_rejected() {
+    issue_parse_error(&["--max-requests", "0"]);
+    issue_parse_error(&["--window-seconds", "-1"]);
+    issue_parse_error(&["--budget-microdollars", "-5"]);
+}
+
+// Why: no subject attribute provider is registered in this test binary, so a
+// bound dimension cannot be verified and must refuse issuance rather than
+// store an unverified binding.
+#[tokio::test]
+async fn a_scope_on_an_unregistered_dimension_refuses_issuance() {
+    let pool = test_db_pool().await;
+    let user = seeded_user(&pool).await;
+
+    let err = run(
+        &pool,
+        &[
+            "api-key",
+            "issue",
+            "--user",
+            &user,
+            "--name",
+            "ci",
+            "--scope",
+            "project=p1",
+        ],
+    )
+    .await
+    .expect_err("an unverifiable scope must not be issued");
+
+    assert!(
+        format!("{err:#}").contains("unknown scope dimension"),
+        "{err:#}"
+    );
+    assert!(
+        stored_keys(&pool, &user).await.is_empty(),
+        "nothing is stored"
+    );
+}
+
+#[tokio::test]
+async fn limits_given_on_the_command_line_are_persisted() {
+    let pool = test_db_pool().await;
+    let user = seeded_user(&pool).await;
+
+    run(
+        &pool,
+        &[
+            "api-key",
+            "issue",
+            "--user",
+            &user,
+            "--name",
+            "limited",
+            "--model",
+            "claude-a",
+            "--max-requests",
+            "10",
+            "--window-seconds",
+            "60",
+        ],
+    )
+    .await
+    .expect("issue with limits");
+
+    let (allowlist, max_requests, window): (Option<Vec<String>>, Option<i32>, Option<i32>) =
+        sqlx::query_as(
+            "SELECT model_allowlist, max_requests, request_window_seconds \
+             FROM user_api_keys WHERE user_id = $1",
+        )
+        .bind(&user)
+        .fetch_one(&*pool.pool())
+        .await
+        .expect("read limits");
+    assert_eq!(allowlist, Some(vec!["claude-a".to_owned()]));
+    assert_eq!(max_requests, Some(10));
+    assert_eq!(window, Some(60));
 }

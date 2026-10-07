@@ -19,7 +19,7 @@ use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
-use systemprompt_security::authz::AuthzError;
+use systemprompt_security::authz::{AuthzError, ScopeBindingError};
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
@@ -34,6 +34,16 @@ impl From<RepositoryError> for ApiHttpError {
 impl From<AuthzError> for ApiHttpError {
     fn from(err: AuthzError) -> Self {
         Self(ApiError::internal("Authorization lookup failed", err))
+    }
+}
+
+impl From<ScopeBindingError> for ApiHttpError {
+    fn from(err: ScopeBindingError) -> Self {
+        match err {
+            ScopeBindingError::UnknownDimension(_) => Self::bad_request(err.to_string()),
+            ScopeBindingError::NotAMember { .. } => Self::forbidden(err.to_string()),
+            ScopeBindingError::Lookup(source) => Self::from(source),
+        }
     }
 }
 
