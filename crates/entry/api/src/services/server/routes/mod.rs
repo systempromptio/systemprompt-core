@@ -1,6 +1,6 @@
 //! Router assembly for the API server.
 //!
-//! [`configure_routes`] composes the route tree for this node's role: protocol
+//! `configure_routes` composes the route tree for this node's role: protocol
 //! surfaces (OAuth, agent, MCP, stream, content, gateway), extension-mounted
 //! routes, discovery and well-known endpoints, static content, and the global
 //! IP-ban and metrics layers. [`role::route_groups`] decides which groups a

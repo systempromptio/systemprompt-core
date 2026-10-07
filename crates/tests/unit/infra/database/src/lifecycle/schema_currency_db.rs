@@ -75,6 +75,11 @@ async fn an_installed_extension_is_current_until_a_ledger_row_goes_missing() {
     assert_eq!(currency.pending[0].version, 1);
     assert_eq!(currency.pending[0].name, "add_note");
 
+    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
+        .bind(ext_id)
+        .execute(&*db.write_pool())
+        .await
+        .expect("drop ledger rows");
     drop_table(&db, table).await;
 }
 
@@ -102,5 +107,10 @@ async fn an_edited_applied_migration_is_reported_as_drift() {
     assert!(currency.pending.is_empty());
     assert_eq!(currency.drift.len(), 1, "{currency:?}");
 
+    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
+        .bind(ext_id)
+        .execute(&*db.write_pool())
+        .await
+        .expect("drop ledger rows");
     drop_table(&db, table).await;
 }
