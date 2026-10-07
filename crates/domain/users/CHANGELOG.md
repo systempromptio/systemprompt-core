@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `IssueApiKeyParams` and `CreateApiKeyParams` gain `limits: &ApiKeyLimits` and `scopes: &[ScopeBinding]`, and `UserApiKey` gains `limits` and `scopes` and no longer derives `sqlx::FromRow`; a struct literal must name them (`&ApiKeyLimits::default()` and `&[]` keep the old behaviour).
+- `UserRepository::merge_users` is removed. `UserService::merge_users` (and `promote_anonymous`) runs every injected `OwnerReassignment` and then `UserRepository::complete_merge`. A `UserService` built without `with_owner_reassignments` refuses with `UserError::MergeUnavailable`; a failed reassignment returns `UserError::OwnerReassignment { domain, source }`; a self-merge or missing source/target is `Validation`/`NotFound`.
+- `UserRepository::find_by_role` and `UserService::find_by_role` are renamed `list_by_role`.
+- `systemprompt_users::sessions` is private; import `systemprompt_users::{SessionRepository, UsersAiSessionProvider}`. `BannedIp::associated_session_ids` is `Option<Vec<SessionId>>`.
+- `UserError::Pool` is removed (never produced). The provider traits are implemented as native async; providers read host handles through the typed `Dependencies` map. `UserId` is a checked opaque id, not a UUID.
+
+### Added
+
+- Per-key limits and scope bindings: migration `021_user_api_key_limits` adds the model allowlist, budget, request-ceiling and window columns, the `user_api_keys_window_required` CHECK and the `user_api_key_scopes` table. New type `ApiKeyLimits`.
+
+### Changed
+
+- Account merges no longer write other crates' tables; each owning crate moves its own rows and the source user is deleted only after all succeed, so a failed merge can be re-run.
+- Session SQL lives in a repository module; merge and bulk operations are their own service modules.
+- Purge sweeps only the payloads the purged user's rows referenced.
+
+### Fixed
+
+- `get_activity` reports `message_count` and task counts from the user's own `user_sessions` counters instead of 0 and the agent domain's `agent_tasks`.
+- Anonymous fingerprint session reuse returns only a session owned by an anonymous user.
+- A new federated user again takes the roles the identity provider asserts (falling back to `user`).
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `signature::sign` returns `SlackResult<String>` and fails with `SlackError::SigningKey` when the signing secret is rejected.
+- `SlackError::Signature` is replaced by `EmptySigningSecret` and `MissingSignaturePrefix`; `UnknownWorkspace`, `MalformedRequest` and `NoAgentRouted` are removed. Slack apps are resolved by `SlackWorkspaceId`.
+- Manifest types are imported from `systemprompt-manifest`.
+
+### Changed
+
+- An empty signing secret is refused; `users.info` is decoded into typed structs.
+
+### Fixed
+
+- `user_info` falls back to `display_name` when `real_name` is null.
+
 ## [0.53.0] - 2026-09-15
 
 ### Changed

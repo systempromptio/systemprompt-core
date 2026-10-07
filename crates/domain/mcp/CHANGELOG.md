@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `McpToolExecutor::new(tool_usage_repo, intents, ingest, server_name)` takes a `DynToolCallIntentClaims` second; the crate no longer reads `ai_requests` or writes `ai_request_tool_calls`. An MCP server builds it with `Arc::new(AiRequestRepository::new(&db)?)`; in the runtime, `AppContext::tool_call_intents()`.
+- `UiMetadata::to_json` is replaced by `UiMetadata::tool_ui_meta`, returning the typed `ToolUiMeta`; `json_to_js_literal` takes any `Serialize` value.
+- `McpDomainError::Internal` is removed (match e.g. `ProcessDiedDuringStartup`, `HealthValidationFailed`, `ServiceRowMissing`, `BuildFailed`, `UnsafeMediaUrl`, `PortNotReleased`, `PortStillOccupied`); `McpDomainError::Config` wraps `GlobalConfigError` and `ConfigValidation` wraps `ServicesValidationError`.
+- `services::LifecycleOrchestrator` is renamed `LifecycleService`; `services::orchestrator::handlers` is `subscribers`, with `EventSubscriber`, `DatabaseSyncSubscriber`, `LifecycleSubscriber`, `MonitoringSubscriber` and `EventBus::register_subscriber`; `middleware::session_handler::DatabaseSessionManagerError` is `DatabaseSessionHandlerError`.
+- `RoleProvider`, `ContextProvider`, `AgentRegistryProvider`, `McpRegistry` and `McpDeploymentProvider` are native async traits; the `DynMcpDeploymentProvider`, `DynMcpRegistry` and `DynMcpToolProvider` re-exports are removed. Migrate by removing `#[async_trait]` from implementations.
+- Artifact execution ids are `McpExecutionId` and `ExecutionMetadata::to_object` returns `Result<Map, serde_json::Error>`.
+- `services::process::cleanup::cleanup_port_processes` is removed; call `services::network::port::cleanup_port_processes(port, &service)`, which stops only marker-verified children. A server declaring `port: 0` is not spawnable.
+- `McpOrchestrator::restart_services` runs the stop/start pipeline and returns a typed `McpRestartOutcome` per server; `restart_services_sync` is removed.
+- Server, service and tool identities are typed; wire codecs come from `systemprompt-wire` and manifest types (including `McpDeploymentProvider`) from `systemprompt-manifest`. Providers read host handles through the typed `Dependencies` map.
+
+### Changed
+
+- Children are supervised through `systemprompt_loader::subprocess`; errors propagate with their sources rather than being logged on the way up.
+
+### Fixed
+
+- Port 0 is never resolved to a process, and an unverified port holder is never signalled.
+- The image renderer reads `url` (the wire field) instead of `uri`, so remote file-part images render; image artifact parts decode through typed structs.
+- A tool-execution completion whose output cannot be serialised fails instead of being logged and dropped.
+- `build_and_restart_services` reports how many servers it restarted, so a `--build` restart naming no server errors.
+- MCP requests carry exactly one `Authorization` header; empty required-scope lists are denied explicitly.
+
+### Removed
+
+- The continuous health monitor, the `HealthCheckFailed`/`ServiceRestartRequested` pipeline, dead sync-repair functions, `orchestration/` (`McpToolLoader`) and `RegistryService`'s `McpToolProvider` impl.
+
 ## [0.60.0] - 2026-09-23
 
 ### Removed

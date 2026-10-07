@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- **Breaking:** `hmac_sha256` and `hmac_sha256_hex` return `Result<_, AtRestHashError>` and fail when the pepper is rejected as an HMAC key. Migrate by propagating the error with `?`.
+- **Breaking:** `HookTokenValidator::validate_govern`/`validate_track` take `Option<&PluginId>` and `AuthError::HookPluginIdMismatch` holds `PluginId`.
+- **Breaking:** `PolicyConfigurationError::Invalid` is replaced by `UnknownExemptScope`, `UnusableCondition` and `ToothlessSecretScan`; `AuthzError` adds `UnknownEntityKind`, `UnknownAccessScope` and `EmptyGatewayRouteSet`. The `rate_limit`, `tool_blocklist` and `scope_check` policy settings reject values of the wrong type at boot instead of falling back to the default.
+- **Breaking:** `authz::insert_governance_decision` takes any `PgExecutor` instead of `&PgPool`.
+- **Breaking:** the token authority has one write path (`authority::install`); a different key already installed fails `init()` instead of replacing it. `install_for_test` and the `ServiceAccountKey::parse` shim are removed.
+
+### Added
+
+- `authz::SubjectProviderSet` resolves each request's scope attribution across registered subject dimensions, and `SubjectProviderSet::verify_scope_bindings` checks an API key's scope bindings against its owner, returning `ScopeBindingError` (`UnknownDimension` → 400, `NotAMember` → 403).
+- `RuleType::extension_static` mints an extension rule type from a literal slug in a `const`.
+
+### Changed
+
+- The main-API validator pins the deployment issuer and enforces the act-chain depth limit through `decode_session_claims`; the dead `validate_exp`/`validate_nbf` knobs are removed. JWKS discovery keeps the issuer path.
+- Access-control ingestion queries live in a repository; key-material, vault, manifest-signing, credential and secret-pattern errors are typed and keep their source.
+
 ## [0.62.0] - 2026-09-25
 
 ### Changed

@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- The gateway-policy spec, its YAML loader and ingestion, and the safety-scanner, route-selector and system-prompt-override extension contracts move from `systemprompt_ai` (its `services::gateway` module and root re-exports) to the `systemprompt_gateway` root under the same names (`GatewayPolicySpec`, `GatewayPolicyIngestionService`, `load_gateway_policies_from_yaml`, `SafetyConfig`, `SafetyScanner`, `RouteSelector`, `SystemPromptOverride`, the `register_*!` macros, …). `AiGatewayPolicyRepository` and `GatewayPolicyRow` stay in `systemprompt_ai::repository`. Migrate by importing from `systemprompt_gateway` (`systemprompt::gateway` through the facade).
+- `AiRequestRecord` gains `attribution: RequestAttribution`, set with the builder's `.attribution(..)` (default `RequestAttribution::none()`); `insert_with_id` writes the request row and its `ai_request_attributions` rows in one transaction.
+- `systemprompt_ai::models::providers::gemini::*` is removed; the image-generation provider uses `systemprompt_wire::gemini`. An image request without search grounding omits `tools` instead of sending `"tools": null`. Migrate by importing from `systemprompt_wire::gemini`.
+- `AiError::Internal` is removed; match `ProviderNotFound`, `ProviderDisabled`, `CapabilityUnsupported`, `NoProviderWithCapability` or `Config(AiConfigError)`. `ImageService::find_generated_image` and `delete_image` take `&FileId`.
+- The vendor-level `services::providers::AiProvider` trait is renamed `ProviderClient`; `ProviderFactory::create`, `ResilientProvider::new`, `ConfigValidator` and `SynthesisParams` take `dyn ProviderClient`.
+- `TraceQueryService::new` and `AiTraceService::new` take a `TraceRepository` (`TraceRepository::new(pool)`).
+- Provider wire codecs are imported from `systemprompt-wire` and the services manifest from `systemprompt-manifest` instead of `systemprompt-models`.
+- Agent, server, service, tool and request identities are typed across the service and repository APIs.
+
+### Added
+
+- Migration `038_ai_request_attributions`: the `ai_request_attributions` table (`dimension`, `value`, `source`) and `ai_requests.api_key_id`; `AiRequestRepository::attributions_for`. The migration declares its measured cost and supersedes its earlier checksum, so a database that applied the unannotated file transitions without re-executing it.
+- `repository::{AiUsageAnomalyRepository, HourlyUsageProfile}` for the hourly `usage_anomaly_scan` job.
+- `AiRequestRepository` implements the shared `ToolCallIntentClaims` trait, through which the MCP domain claims tool-call intents.
+
+### Changed
+
+- Errors carry their sources onto the one `RepositoryError` model; Gemini `db_pool` and `as_any` are dropped, and `supports_structured_output` defaults to `false`.
+
+### Fixed
+
+- A beta the gateway does not forward takes its body field with it (`BETA_GATED_FIELDS`), so a Vertex provider no longer refuses `context_management` sent alongside a dropped `anthropic-beta`.
+
+### Removed
+
+- `systemprompt_ai::ToolResultFormatter` (use `systemprompt_models::ToolResultFormatter`) and the re-exports `systemprompt_ai::{AiProvider, DynAiProvider}` (import from `systemprompt_models::ai`).
+- `services/structured_output/` and dead provider code with no callers.
+
 ## [0.61.0] - 2026-09-23
 
 ### Breaking

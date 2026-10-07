@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `RepositoryError` is the single repository error for the workspace (the `systemprompt-database` duplicate is removed) and is classified structurally: `NotFound { entity, key: Option<String> }`, `Conflict { entity, key, reason }`, `InvalidArgument { field, reason }`, `InvalidData { field, reason }`, `Constraint { kind, constraint, source }`, `Decode` and `Database { sqlstate, source }`, built with `RepositoryError::{not_found, conflict, invalid_argument, invalid_data, database}`. `RepositoryError::Internal` and `internal()` are removed; a statement on a committed or rolled-back transaction is `TransactionConsumed`. Migrate by passing the entity kind or field name first and building backend failures with `RepositoryError::database(source)`.
+- `ExtensionApiError` and `ExtensionError::to_api_error` are removed; an extension error renders over HTTP through `systemprompt_models::api::ApiError::from_extension`.
+- `RoleProvider`, `ContextProvider` and `AgentRegistryProvider` declare native `async` methods (they were `#[async_trait]`). Migrate by removing `#[async_trait]` from implementations and using concrete types or generic bounds.
+- The unused aliases `DynAnalyticsProvider`, `DynFingerprintProvider`, `DynSessionProvider`, `DynUserProvider`, `DynRoleProvider`, `DynContextProvider`, `DynAgentRegistryProvider`, `DynMcpRegistryProvider` and `DynAiRequestTrace` are removed. Migrate by writing `Arc<dyn Trait>`.
+- Error variants keep their cause as a `#[source]` instead of a `String`: `AiProviderError::Internal`, `AuthProviderError::Internal`, `RegistryError::{Unavailable, Configuration, Internal}`, `AnalyticsProviderError::Internal`, and `ContextPropagationError::InvalidHeader { name, source }`. `AiProviderError::{FileNotFound, SessionNotFound, StorageError}` and `ContextPropagationError::Invalid` are removed (never produced). `DomainConfigError` gains `Load { context, source }` and `Io { context, source }`.
+- `ImageGenerationInfo::request_id` is `Option<AiRequestId>` and `with_request_id` takes an `AiRequestId`.
+
+### Added
+
+- `BackgroundTasks`, `OwnedTask` and `DrainOutcome`: the one owner for background work that outlives its caller; dropping an `OwnedTask` aborts its task.
+- `ToolCallIntentClaims` / `DynToolCallIntentClaims`: the seam through which the MCP domain claims a model's tool-call intent (implemented by the AI request repository).
+- `BoxedSource`, `ConstraintKind`, and the `sqlx` feature (`From<sqlx::Error>` for `RepositoryError`, classifying by SQLSTATE), enabled by `systemprompt-database`.
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

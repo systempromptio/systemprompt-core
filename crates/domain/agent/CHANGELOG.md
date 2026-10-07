@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `AgentServiceError::Internal` is removed (match e.g. `ToolFailed`, `StreamFailed`, `SkillNotOnDisk`); `ArtifactError::Transform` is replaced by `MissingArtifactType { tool_name }` and `ArtifactNotObject { found }`; `AgentError::Config(String)` is replaced by `AgentError::EmptyCorsAllowlist` and `AgentError::Validation` is removed. Migrate by matching the structured variants.
+- `PortService::cleanup_port_if_needed` takes the `&AgentName` whose port is reclaimed and `AgentLifecycle::validate_prerequisites` takes the agent name first; a port holder is stopped only when it carries that agent's spawn marker, and any other holder is refused with `OrchestrationError::PortHeldByForeignProcess`. `PortService::{kill_process_on_port, cleanup_agent_ports, verify_all_ports_available}`, `port_service::{find_process_using_port, get_process_info, is_agent_process, ProcessInfo}` and the `process` signal helpers are removed. Migrate by calling `cleanup_port_if_needed`, and `systemprompt_loader::subprocess::{pids_listening_on, owns}` for an identity check.
+- Repository lookups that may find nothing take the `find_` prefix: `AgentServiceRepository::get_agent_status`, `ArtifactRepository::get_artifact_by_id` and `TaskRepository::{get_task, get_task_context_info}` are now `find_agent_status`, `find_artifact_by_id`, `find_task` and `find_task_context_info`.
+- `validate_oauth_for_request` returns a typed `AuthenticatedCaller`, and the A2A JSON-RPC error builder returns typed envelopes: `build` returns `JsonRpcErrorResponse`, `build_as` returns `JsonRpcResponse<T>`, and `build_with_status` pairs the status with the typed envelope. None returns a `serde_json::Value`.
+- `AgUiEventBuilder` text-message and tool-call constructors take `MessageId`/`AiToolCallId` instead of strings.
+- Agent, service and tool identities are typed (`AgentName`, `SkillId`, …) across the service and repository APIs, and the `TransportProtocol` alias is removed (use `ProtocolBinding`).
+- Services manifest types are imported from `systemprompt-manifest` instead of `systemprompt_models::{services, config, profile}`; the plan-step `ToolCallResult` is `PlannedToolResult`.
+
+### Changed
+
+- Every statement on the `services` table goes through `ServiceRepository` (`upsert_service_process`); agent supervision lists only its own module's rows and reads one `AgentServiceStatus` enum, so an `error` row reads as failed without a write.
+- Agent children are supervised through `systemprompt_loader::subprocess`, and the A2A message worker spawns through `OwnedTask`.
+- The AI provider is held through the shared `DynAiProvider` alias; repository errors use the structured `RepositoryError` variants and errors are propagated with their sources instead of being logged on the way up; JSON-RPC error details are logged as a structured field.
+
+### Fixed
+
+- Port 0 is never resolved to a process when reclaiming an agent port, and a failed readiness check kills the spawned process.
+- Corrupt task metadata or a missing `agent_name` surfaces as `InvalidData`; a `Config::get()` failure no longer enables `dev_only` agents.
+- The default agent card no longer advertises push notifications; `SubscribeToTask`/`GetExtendedAgentCard` return JSON-RPC `-32004`. Empty required-scope lists are denied explicitly in the A2A check.
+
+### Removed
+
+- The agent event bus, monitor cleanup passes and the daemon loop, which had no production callers.
+
 ## [0.60.0] - 2026-09-23
 
 ### Removed

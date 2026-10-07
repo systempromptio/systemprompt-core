@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- **Breaking:** `CloudTenantInfo.app_id`, `StoredTenant.app_id` and `NewCloudTenantParams.app_id` are `Option<CloudAppId>`. Migrate by wrapping the value in `CloudAppId::new(..)`.
+- **Breaking:** `CloudError::Other` is removed and `CloudError::ApiError` is `{ status, code, message }`. Migrate by matching the fields.
+- **Breaking:** the short-name re-exports of the cloud API types (`ApiError`, `ApiResponse`, `Tenant`, `TenantInfo`, …) are removed. Migrate to the canonical `Cloud*` names.
+- **Breaking:** profile and services types come from `systemprompt-manifest` (`systemprompt_models::{profile, services, …}` → `systemprompt_manifest::{profile, services, …}`); the dockerfile builder's `with_profile` takes a `&ProfileName`.
+
+### Changed
+
+- Credential, tenant and session stores are written owner-only (0600) and published by rename through `systemprompt_config::write_private_atomic`.
+- Authored profiles name `database.migrate_on_boot: true`, `server.role: all` and `server.max_in_flight: None`.
+- The generated Dockerfile creates `storage/files`, `exports`, `data` and `data/scratch`, so every writable root exists on a read-only root filesystem.
+- Error variants keep their cause as a `#[source]`; discarded services-config lookups are logged with `inspect_err`.
+
 ## [0.59.0] - 2026-09-22
 
 ### Changed

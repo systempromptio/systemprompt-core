@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `ProcessCleanup` and `ProcessInfo` (including `kill_by_pattern`) are removed. Process control is `systemprompt_loader::subprocess`; the scheduler keeps `port_holders`, `wait_for_port_free(port, within)`, `stop_owned_port_holders` (marker-verified) and `stop_api_listeners` (returning `ApiListenerStop { pid, outcome }`). `ServiceManagementService::stop_service` returns `StopOutcome`, `cleanup_orphaned_service` returns `Option<StopOutcome>`, `stop_api_by_port` returns `Vec<ApiListenerStop>`, `OrphanCleanupReport::api_stopped: bool` becomes `api: Vec<ApiListenerStop>`, and `OrphanDisposition` gains `NotOurs`.
+- `SchedulerError::ConfigError` and `config_error()` are removed; `SchedulerError` gains `Supervision`, `PortOccupied { port, holders }` and `UnknownRetentionTable { table }`. `SchedulerError::MissingContext` wraps `MissingDependency` and `missing_context` is removed.
+- The OTLP row and state types live in `repository::otlp` (the `jobs::otlp_export` aliases are gone); `RequestRow.id`, `RequestRow.request_id` and `LedgerRow.request_id` are `AiRequestId`, and `RequestRow` gains `api_key_id: Option<ApiKeyId>` and `attributions: Vec<AttributionEntry>`.
+- The start callback of `ServiceReconciler::reconcile` returns `SchedulerResult<()>`.
+- Jobs read host handles through the typed `Dependencies` map (`ctx.get::<T>()?`).
+
+### Added
+
+- `usage_anomaly_scan` job (`UsageAnomalyScanJob`, hourly at `:02`): flags a user's previous closed hour of gateway spend or request count against their trailing seven-day hourly baseline, emitting `systemprompt_usage_anomaly_total{kind, subject_kind}` and a `usage_anomaly` warning event.
+- Exported `ai_request` spans carry `systemprompt.scope.<dimension>`, `systemprompt.scope.<dimension>.source` and `systemprompt.api_key.id`.
+
+### Changed
+
+- Job, retention, lock and OTLP queries move into repositories.
+- The OTLP log export skips and counts a row with a malformed id instead of failing the batch.
+
+### Fixed
+
+- Port 0 is never resolved to a process, and a port holder or API listener is signalled only after it is verified by its spawn or API server marker; any other holder is reported and left running.
+
 ## [0.61.0] - 2026-09-23
 
 ### Fixed

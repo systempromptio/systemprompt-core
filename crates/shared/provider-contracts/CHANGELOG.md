@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `JobContext`, `PageContext`, `PagePrepareContext`, `ContentDataContext`, `FrontmatterContext` and `ExtenderContext` carry the host's handles in a typed `Dependencies` map instead of `dyn Any` slots: `JobContext::new(actor, Dependencies)`, `PageContext::new(page_type, web_config, &Dependencies)`, `PagePrepareContext::new(web_config, &Dependencies, dist_dir)`, and the other constructors take `&Dependencies` where they took the pool. `db_pool::<T>()`, `app_context::<T>()`, `app_paths::<T>()`, `content_config::<T>()` and the `*_arc()` accessors are removed; `ctx.get::<T>()` returns `Result<&T, MissingDependency>`, which converts into the new `ProviderError::MissingDependency`. Migrate by replacing `ctx.db_pool::<DbPool>().ok_or_else(..)?` with `ctx.get::<DbPool>()?` and building contexts with `Dependencies::new().with(value)`.
+- `ProviderError` keeps causes as typed sources: `ConfigurationLoad { context, source }`, `InvalidParameter { key, value, source }` and `Rendering { context, source }` are new and `Internal` wraps a boxed error instead of a `String`.
+- `ToolProviderError::ConnectionFailed` is removed (never produced); `ToolProviderError::Execution` is new and `Internal` wraps a boxed error. Migrate by dropping the arm and matching `Execution`.
+- `ToolContext::new(actor)` no longer takes a token; `auth_token` is `Option<JwtToken>`, set with `.with_auth_token(token)`. `ToolCallRequest.tool_call_id` is `AiToolCallId` and `ToolProvider::find_tool` takes `&McpToolName`.
+- `SiteI18nConfig::validate` returns `WebConfigError::UnsupportedDefaultLocale { default_locale }` instead of a `String`.
+
+### Added
+
+- `FrameOptions` is defined here (moved from `systemprompt-extension`) so `systemprompt-models` no longer depends on the extension crate.
+- `DynPagePrerenderer` (`Arc<dyn PagePrerenderer>`) is exported from this crate.
+
 ## [0.60.0] - 2026-09-23
 
 ### Added

@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `define_id!` gains a `checked` arm (trusted `new` plus validating `try_new`, no `From<String>`, validating `Deserialize`/`FromStr`) and a `uuid` arm (`generate`, `from_uuid`, `to_uuid`); unvalidated arms gain a non-empty `try_new` for edge input. Ids moved to `checked` no longer implement `From<String>` and reject empty input on deserialise: `UserId`, `AgentName`, `McpServerId`, `McpToolName`, `PluginId`, `SkillId`, `JobName`, `InstanceId`, `TenantId`, `PriceId`, `HookId`, the Slack and Teams ids, and the OAuth jti/refresh/auth-code ids. Migrate `.into()`/`::from()` call sites to `Id::new(..)` for trusted values or `Id::try_new(..)?` for external input.
+- `UserId` is a checked opaque id: `try_new`/`Deserialize`/`FromStr` reject empty values, whitespace, control characters and the retired `"unset"` sentinel; `generate()` mints a UUIDv4 string.
+- Moved to the `uuid` arm: `ScheduledJobId`, `LogId`, `FileId`, `ExecutionStepId`, `WebhookEndpointId`, `ConfigId`, `AiSafetyFindingId`, `AiQuotaBucketId` and `AiGatewayPolicyId`. Mint them with `generate()`.
+- Sentinel constructors are removed: `AgentName::unset` is gone and `ContextId::legacy` is renamed `legacy_context_row`. "Absent" is `Option<Id>`.
+- `IdValidationError` gains `Uuid { id_type, source }` and `Json { id_type, source }`, keeping the parse cause; it is no longer derived `PartialEq` (equality compares kind, id type and message). Migrate exhaustive matches.
+- The bridge-local id duplicates move here: `MarketplaceRuleId`, `RuleName`, `SkillName`, `LibraryArtifactId`, `McpSessionId`, `HookSessionId`, `CommsMessageId` and `DeploymentOrganizationUuid` join the crate; `PluginId` and `SkillId` are the single definitions.
+
+### Added
+
+- `ExtensionId`, `TeamsAppId` and `CloudAppId` (checked, non-empty) and `ElevatedJobId` (UUID) type the extension metadata id, the Teams Bot Framework app id, the cloud tenant's hosting app and the bridge's elevated helper job.
+- `ServiceName` (checked) and `CloudUserId` type service names and the cloud login user.
+- `ScopeDimension`, `validate_scope_dimension` and `headers::SCOPE_PREFIX` (`x-systemprompt-scope-`) for gateway scope attribution.
+- `gateway_hash` (moved from `systemprompt_models::gateway_hash`): the deterministic prefix hash that mints a `GatewayConversationId` identically on both sides of the bridge boundary.
+
+### Changed
+
+- The JSON `metadata.user_id` of a client session is decoded through a typed struct.
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

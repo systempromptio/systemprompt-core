@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- The provider wire codecs move to the new `systemprompt-wire` crate: `systemprompt_models::wire::*` is `systemprompt_wire::*`, `schema::*` is `systemprompt_wire::schema::*`, `services::{WireProtocol, Hosting, ModelLimits}` are `systemprompt_wire::{WireProtocol, Hosting, ModelLimits}` and `services::providers::{is_vertex_host, names_a_project_literally, PROJECT_PLACEHOLDER, REGION_PLACEHOLDER}` are `systemprompt_wire::hosting::*`. Migrate by depending on `systemprompt-wire` and renaming the paths.
+- `wire::origin` is `systemprompt_models::origin`, `wire::BUFFERED_BODY_LIMIT_BYTES` is `net::BUFFERED_BODY_LIMIT_BYTES`, `gateway_hash` is `systemprompt_identifiers::gateway_hash`, and `services::ApiSurface` and `services::providers::without_context_variant` are `providers::{ApiSurface, without_context_variant}`.
+- The services manifest and boot-time configuration move to the new `systemprompt-manifest` crate: `systemprompt_models::{services, validators, profile, config, paths, env, secrets}` are `systemprompt_manifest::{…}` with the same root re-exports; `bridge::profile::{build, BridgeProfileParams, provider_health, is_model_servable}` are `systemprompt_manifest::bridge_profile::*` (the response types stay in `bridge::profile`) and `mcp::McpDeploymentProvider` is `systemprompt_manifest::services::McpDeploymentProvider`. Migrate by depending on `systemprompt-manifest` and renaming the paths.
+- Manifest types the signed bridge manifest carries stay here under new paths: `services::{HookEvent, HookCategory}` are `hooks::*`; `services::{ComponentSource, ComponentFilter, PluginComponentRef, PluginHooksRef, PluginDependency}` (and the root re-exports) are `plugin::*`; `services::AutoUpdatePolicy` is `bridge::update_policy::AutoUpdatePolicy`; `services::ExternalPluginSkills` is `bridge::manifest::ExternalPluginSkills`.
+- Renames: `errors::ConfigError` is `GlobalConfigError`, `errors::ConfigValidationError` is `ServicesValidationError` (without the unused `MissingSystemAdmin`), `auth::AuthError` (and the root `AuthError`) is `AuthRequestError`, and the plan-step `ai::ToolCallResult` is `PlannedToolResult`.
+- `ApiError` is the single HTTP error model: it keeps the internal cause as a logged, never-serialised source and redacts every 5xx body to the code's fixed message; `ApiError::from_extension` renders an `ExtensionError` and `From<RepositoryError>` maps not-found to 404 and conflicts and constraint violations to 409. `InternalApiError`, `ServiceError` and `ErrorResponse` are removed. Migrate by returning `ApiError`.
+- `FromStr` for `RuntimeStatus`, `StepStatus`, `StepType`, `TaskState`, `ApiKeyLocation`, `MetricStatus`, `Environment`, `LogLevel` and `OutputFormat` returns `errors::ParseEnumError { kind, value }` instead of `String`; secrets loading fails with the typed `errors::SecretsError` (`Parse`, `PepperTooShort { min, actual }`).
+- Identity types: `RequestContext` takes its actor as an argument and holds `Option<JwtToken>`/`Option<AccessTokenId>` instead of empty sentinels, and `RequestMetadata`, `ExecutionMetadata` and `AiResponse` lose their sentinel `Default`s; `AuthenticatedUser.id` is a `UserId`; artifact provenance carries `McpExecutionId`, `SkillName` and `McpToolName` and `ExecutionMetadata::to_object` returns `Result<Map, serde_json::Error>`; `AgUiEventBuilder` text-message and tool-call constructors take `MessageId`/`AiToolCallId`; `CloudTenantInfo.app_id` is `Option<CloudAppId>`; `bridge::HostKind` replaces `bridge::profile::KNOWN_HOSTS` and the `bridge::ids` duplicates (`PluginId`, `SkillId`, `RuleId`, `SkillName`, `RuleName`, `ToolName`, `ManagedMcpServerName`) are removed in favour of `systemprompt_identifiers`. Migrate by passing typed ids.
+- `McpRegistry` is a native async trait and `DynMcpRegistry` is removed.
+- `FrameOptions` is defined in `systemprompt_provider_contracts` (still re-exported as `profile::FrameOptions`), and the crate no longer depends on `systemprompt-extension`.
+- The bridge gateway bodies `WhoamiResponse`, `SelfEnrollRequest`, `SelfEnrollResponse`, `DevicePatResponse` and `ReleaseManifest` are defined once in `bridge::gateway` (moved from `systemprompt_api::routes::gateway`); `WhoamiResponse.user_id` and `email` are `Option` and omitted when unset, and a decoded `ReleaseManifest` requires `size`.
+- The bridge manifest `HookEntry` gains `timeout: Option<u32>`, `SkillEntry` gains `frontmatter`, and `ManifestMarketplace` gains `external_plugins: Vec<ManifestExternalPlugin>` and `claude_code: Option<ManifestClaudeCode>`; `ManifestMarketplace.external_marketplaces` is `Vec<ManifestExternalMarketplace>`, a tolerant mirror built with `From<ExternalMarketplace>`. A struct literal must name the new fields (`None` / `vec![]` keep the old behaviour). `bridge::manifest::skill_frontmatter` holds `PLATFORM_OWNED_SKILL_KEYS`, `is_platform_owned_skill_key` and `render_passthrough_frontmatter` (moved from the manifest crate).
+- `BaseRoles` is the role-name constants only; the `BaseRole` struct, `available_roles` and `is_admin_permission_wildcard` are removed.
+- The `api::cloud` short-name aliases (`ApiError`, `ApiResponse`, `Tenant`, `TenantInfo`, …) and `TransportProtocol` are removed. Migrate by using the canonical `Cloud*` names and `ProtocolBinding`.
+
+### Added
+
+- `attribution::{RequestAttribution, AttributionEntry, AttributionSource, ScopeBinding}` for gateway scope attribution.
+- The validated Claude Desktop fleet policy and native-tool types the signed manifest carries; deferred-tool defaults are gated on signed fleet compatibility.
+
+### Removed
+
+- `mcp::McpToolProvider` and `DynMcpToolProvider` (no implementation). Migrate by implementing `systemprompt_traits::ToolProvider`.
+- Dead and vestigial code: the `repository` module (`WhereClause`, `ServiceRecord`, `filter_running_services`), the unused `ToolExecution` and `RowParseError`, the `admin` DTO module, the `StepDetail` alias and 182 unused root re-exports.
+
+### Fixed
+
+- `Permission` serialises `HookGovern`/`HookTrack` as `hook:govern`/`hook:track`, so `scopes: [hook:govern]` parses and a serialised `AuthenticatedUser` round-trips.
+
 ## [0.61.0] - 2026-09-23
 
 ### Added

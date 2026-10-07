@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `TeamsAppConfig.app_id` is `TeamsAppId` and an empty `app_id` in YAML is rejected; `TokenProvider::{new, with_token_url}`, `ActivityTokenVerifier::{new, with_openid_url}`, `TeamsClient::{new, with_endpoints}` and `auth::validate_token` take a `TeamsAppId`. Migrate with `TeamsAppId::new(..)` or `try_new(..)`.
+- `TeamsError::TokenValidation` is replaced by `MissingKeyId`, `UnknownSigningKey { kid }`, `ServiceUrlMismatch { claim, activity }` and `MissingServiceUrl`; `MalformedActivity` by `UnhandledActivityType { kind }` and `MissingTenantId`; `Outbound` is `Outbound { status, body }` and token-endpoint failures are `TokenEndpoint { status, body }`. `Internal`, `UnknownTenant` and `NoAgentRouted` are removed.
+- Manifest types are imported from `systemprompt-manifest`.
+
+### Changed
+
+- The sender-id validation error is kept as a typed source, and a discarded failed result is logged before it is dropped.
+
 ## [0.53.0] - 2026-09-15
 
 ### Changed

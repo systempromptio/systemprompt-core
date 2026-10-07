@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `LoaderError` extension-id payloads (`extension`, `dependency`, `extension_a`, `extension_b`, `DuplicateExtension`, `RequiredExtensionDisabled`) are `ExtensionId`. Migrate by building them with `ExtensionId::new(ext.id())`.
+- `ExtensionRegistry::enabled_extensions`, `enabled_schema_extensions` and `enabled_job_extensions` take `&[ExtensionId]`. Migrate by wrapping extension ids in `ExtensionId::new(..)`.
+- `LoaderError` keeps causes as typed sources: `SchemaInstallationStepFailed` and `MigrationStepFailed { extension, context, source }` are new, `SeedFailed` carries `{ context, source }` instead of `message`, `ConfigError::ParseError` is `{ source }` and `ConfigError::SchemaValidation` wraps a boxed source. Migrate by matching the new fields.
+- `FrameOptions` is defined in `systemprompt_provider_contracts`; `systemprompt_extension::FrameOptions` and `systemprompt_extension::frame_options::FrameOptions` are removed (the prelude still re-exports it). Migrate by importing `systemprompt_provider_contracts::FrameOptions`.
+- `GatewayGuardRequest` gains `attribution: &RequestAttribution` and `api_key_id: Option<&ApiKeyId>`, so a guard can key on a scope value or the API key; a struct literal must name them. The crate now depends on `systemprompt-models`.
+
+### Removed
+
+- The nine never-called `Extension::has_*` predicates (`has_component_renderers`, `has_page_prerenderers`, `has_site_auth`, …). Migrate by testing the provider hook's return value directly.
+
+### Changed
+
+- README describes the single `Extension` trait and the `FrameOptions` move.
+
 ## [0.61.0] - 2026-09-24
 
 ### Breaking

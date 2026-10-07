@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- **Breaking:** `ExtensionRegistry` is renamed `ExtensionBinaryIndex` and its module `extension_registry` is `extension_binary_index`.
+- **Breaking:** `subprocess` is the one process supervisor: it gains `ChildKind::Api`, `api_server_service()`, `stamp_api_server()`/`ApiServerStamp`, `ChildKind::identifies`, and `is_running`, `owns`, `pids_listening_on` and `stop_owned`, replacing the MCP and agent crates' own process-existence, signal and port-lookup helpers.
+- **Breaking:** an MCP server declaring `port: 0` is no longer spawnable, and port lookups ignore port 0 and non-listening sockets (`pids_listening_on(0)` returns no holders). Migrate by giving every server a real port.
+- **Breaking:** the bundle-verification fallback error keeps the bundle failure as its source, and Vertex discovery errors are typed. Services and wire types come from `systemprompt-manifest` / `systemprompt-wire`; `ConfigValidationError` is now `ServicesValidationError`.
+
+### Changed
+
+- Port lookups run `lsof` on Linux and macOS (`netstat` on Windows); a host without it reports a supervision error instead of a port holder.
+- Bundle verification refuses a spec that pins neither a digest nor a key.
+
+### Fixed
+
+- On macOS a zombie that another process has not reaped is detected (`proc_pidinfo` answers `ESRCH` while `kill(pid, 0)` still sees the pid), so a stopper that is not the parent no longer waits out `SIGKILL` and reports `Survived`.
+
 ## [0.61.0] - 2026-09-23
 
 ### Fixed

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `GuardedConnectError::Unresolvable` is `{ host, source: Option<std::io::Error> }` and `GuardedConnectError::RedirectRefused` carries `source: OutboundUrlError` instead of a `reason` string. Migrate by matching the named fields.
+- `ClientError::UnreadableErrorBody { status, source }` is new: an error response whose body cannot be read is reported with its `reqwest` cause instead of a placeholder body string. An undecodable remote-CLI event is `ClientError::UndecodableEvent(serde_json::Error)` (retryable, like `ServerUnavailable`) instead of a formatted `ServerUnavailable` message.
+- `ClientError::{NotFound, ConfigError}` are removed; nothing produced them. Migrate by dropping the match arms.
+
+### Removed
+
+- `SystempromptClient::{list_logs, list_users, get_analytics}` and their `ApiPaths` constants: they called `/api/v1/admin/{logs,users,analytics}` routes that are not mounted.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking
