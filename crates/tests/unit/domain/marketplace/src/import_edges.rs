@@ -44,7 +44,11 @@ fn skill_md(description: &str) -> String {
 
 fn run(tree: &Tree) -> Result<(TempDir, ImportReport), MarketplaceError> {
     let dest = TempDir::new().expect("tempdir");
-    let report = import_anthropic_tree(tree.path(), dest.path(), &ImportOptions::default())?;
+    let report = import_anthropic_tree(
+        tree.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )?;
     Ok((dest, report))
 }
 
@@ -76,7 +80,7 @@ fn a_source_tree_that_does_not_exist_is_refused() {
     let err = import_anthropic_tree(
         &PathBuf::from("/nonexistent/anthropic-tree"),
         dest.path(),
-        &ImportOptions::default(),
+        &ImportOptions::new(std::env::temp_dir()),
     )
     .expect_err("missing source must fail");
 
@@ -90,8 +94,12 @@ fn a_destination_that_is_a_file_is_refused() {
     let dest = holder.path().join("out");
     std::fs::write(&dest, b"x").expect("write");
 
-    let err = import_anthropic_tree(tree.path(), &dest, &ImportOptions::default())
-        .expect_err("a file destination must fail");
+    let err = import_anthropic_tree(
+        tree.path(),
+        &dest,
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect_err("a file destination must fail");
 
     assert!(err.to_string().contains("not a directory"), "{err}");
 }

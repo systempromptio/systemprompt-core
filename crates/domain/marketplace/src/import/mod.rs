@@ -59,13 +59,14 @@ mod warning;
 mod writer;
 
 use std::collections::BTreeSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::{MarketplaceId, PluginId};
 
 use crate::dev_files::DevFileFilter;
 use crate::error::MarketplaceError;
 use crate::managed::{GitSourceCapture, NativeGitSourceCapture};
+use remote::RemoteSource;
 
 pub use anthropic::{
     MarketplaceJson, MarketplacePluginEntry, PluginEntryAuthor, PluginEntryAuthorDetail,
@@ -76,10 +77,22 @@ pub use warning::ImportWarning;
 
 pub const MARKETPLACE_MANIFEST_RELPATH: &str = ".claude-plugin/marketplace.json";
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone)]
 pub struct ImportOptions {
     pub strict: bool,
     pub dry_run: bool,
+    pub scratch_root: PathBuf,
+}
+
+impl ImportOptions {
+    #[must_use]
+    pub const fn new(scratch_root: PathBuf) -> Self {
+        Self {
+            strict: false,
+            dry_run: false,
+            scratch_root,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -99,7 +112,12 @@ pub fn import_anthropic_tree(
     into: &Path,
     opts: &ImportOptions,
 ) -> Result<ImportReport, MarketplaceError> {
-    import_anthropic_tree_with(from, into, opts, &NativeGitSourceCapture)
+    import_anthropic_tree_with(
+        from,
+        into,
+        opts,
+        &NativeGitSourceCapture::new(opts.scratch_root.clone()),
+    )
 }
 
 pub fn import_anthropic_tree_with(
@@ -128,7 +146,11 @@ pub fn import_anthropic_tree_with(
 
     let manifest_path = from.join(MARKETPLACE_MANIFEST_RELPATH);
     if manifest_path.is_file() {
-        import_marketplace_tree(from, &manifest_path, &sink, capture, &mut report)?;
+        let source = RemoteSource {
+            capture,
+            scratch_root: &opts.scratch_root,
+        };
+        import_marketplace_tree(from, &manifest_path, &sink, &source, &mut report)?;
     } else {
         report.warnings.push(ImportWarning::NoMarketplaceManifest);
     }
@@ -161,7 +183,7 @@ fn import_marketplace_tree(
     from: &Path,
     manifest_path: &Path,
     sink: &writer::Sink,
-    capture: &dyn GitSourceCapture,
+    remote_source: &RemoteSource<'_>,
     report: &mut ImportReport,
 ) -> Result<(), MarketplaceError> {
     let text = std::fs::read_to_string(manifest_path)
@@ -201,7 +223,7 @@ fn import_marketplace_tree(
                         plugin: entry.name.clone(),
                     });
                 }
-                let fetched = remote::fetch_plugin(capture, &entry.name, &remote)?;
+                let fetched = remote::fetch_plugin(remote_source, &entry.name, &remote)?;
                 report.upstream.push(format!(
                     "{} {}{}@{}",
                     entry.name,

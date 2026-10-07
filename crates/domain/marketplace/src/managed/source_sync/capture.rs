@@ -8,6 +8,7 @@ use super::{
     GitCheckout, GitSyncRequest, GitSyncResult, ManagedError, ManagedRepository, ManagedSourceId,
     Result, RevisionFiles, UserId, import_tree, resolve_ref,
 };
+use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -74,9 +75,20 @@ impl GitSynchronizationService {
     }
 }
 
-/// Captures over the network with the sandboxed `git` subprocess.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct NativeGitSourceCapture;
+/// Captures over the network with the sandboxed `git` subprocess, checking
+/// out under a caller-supplied scratch root so a read-only root filesystem
+/// needs no writable `/tmp`.
+#[derive(Debug, Clone)]
+pub struct NativeGitSourceCapture {
+    scratch_root: PathBuf,
+}
+
+impl NativeGitSourceCapture {
+    #[must_use]
+    pub const fn new(scratch_root: PathBuf) -> Self {
+        Self { scratch_root }
+    }
+}
 
 impl GitSourceCapture for NativeGitSourceCapture {
     fn capture(&self, request: &GitCaptureRequest<'_>) -> Result<CapturedGitSource> {
@@ -89,7 +101,8 @@ impl GitSourceCapture for NativeGitSourceCapture {
         } = *request;
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
         let commit = resolve_ref(repository, reference, credential, deadline)?;
-        let temp = std::env::temp_dir().join(format!(
+        std::fs::create_dir_all(&self.scratch_root)?;
+        let temp = self.scratch_root.join(format!(
             "systemprompt-managed-{}",
             ManagedSourceId::generate()
         ));

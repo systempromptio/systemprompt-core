@@ -15,13 +15,16 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::paths::WritableRoot;
+
 const PROBE: &str = ".systemprompt-write-probe";
 
 static PROBE_SEQ: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, thiserror::Error)]
-#[error("{}: {source}{ownership}", dir.display())]
+#[error("{}{}: {source}{ownership}", label(*.name), dir.display())]
 pub struct StateDirError {
+    pub name: Option<&'static str>,
     pub dir: PathBuf,
     pub ownership: String,
     #[source]
@@ -39,7 +42,15 @@ pub struct StateDirsError {
     pub failures: Vec<StateDirError>,
 }
 
+fn label(name: Option<&'static str>) -> String {
+    name.map(|n| format!("{n} ")).unwrap_or_default()
+}
+
 pub fn create_state_dir(dir: &Path) -> Result<(), StateDirError> {
+    probe_dir(None, dir)
+}
+
+fn probe_dir(name: Option<&'static str>, dir: &Path) -> Result<(), StateDirError> {
     let probe = dir.join(format!(
         "{PROBE}-{}-{}",
         std::process::id(),
@@ -49,16 +60,17 @@ pub fn create_state_dir(dir: &Path) -> Result<(), StateDirError> {
         .and_then(|()| std::fs::write(&probe, b""))
         .and_then(|()| std::fs::remove_file(&probe));
     outcome.map_err(|source| StateDirError {
+        name,
         dir: dir.to_path_buf(),
         ownership: ownership(dir),
         source,
     })
 }
 
-pub fn ensure_state_dirs_writable(dirs: &[&Path]) -> Result<(), StateDirsError> {
-    let failures: Vec<StateDirError> = dirs
+pub fn ensure_state_dirs_writable(roots: &[WritableRoot]) -> Result<(), StateDirsError> {
+    let failures: Vec<StateDirError> = roots
         .iter()
-        .filter_map(|dir| create_state_dir(dir).err())
+        .filter_map(|root| probe_dir(Some(root.name), &root.path).err())
         .collect();
     if failures.is_empty() {
         return Ok(());

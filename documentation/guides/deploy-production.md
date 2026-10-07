@@ -179,6 +179,49 @@ One image, N replicas, one Postgres primary. Every replica must agree with the o
 
 **Known per-node behaviour.** Anonymous (IP-keyed) HTTP throttles and the analytics anomaly counters are process-local, so their effective thresholds scale with the replica count; user-keyed HTTP limits and AI quotas are global. `web/dist` is rendered per node.
 
+### 3.5 Writable paths and a read-only root filesystem
+
+The server writes only to the directories below. At boot it creates and write-probes each one for the node's `server.role` and refuses to start with a single error that names every root it cannot write (for example `storage.data (/app/storage/data): Permission denied (running as uid 1000; …)`), so a missing volume fails the rollout instead of the first request.
+
+| Name in errors | Path (published image) | Written by | Roles |
+|----------------|------------------------|------------|-------|
+| `system.logs` | `{paths.system}/logs` (`/app/logs`) | MCP server and agent child logs | all |
+| `storage.files` | `{paths.storage}/files` | uploads, generated images | all |
+| `storage.exports` | `{paths.storage}/exports` | exports | all |
+| `storage.data` | `{paths.storage}/data` | gateway accounting journal and its lock, shared-mount marker | all |
+| `storage.scratch` | `{paths.storage}/data/scratch` | short-lived working trees: Git checkouts of managed sources, import staging | all |
+| `web.dist` | `{paths.web_path}/dist` | prerendered pages, sitemap, RSS, copied assets | `all`, `admin` |
+| `services.cache_dir` | `services.cache_dir` (default `{paths.system}/services-cache`, `/app/services-cache`) | fetched and composed services bundles | `all`, `admin` |
+
+`paths.services` is read-only unless you use the admin configuration writer (`admin` API edits of agents and `config.yaml`); mount it writable only in that case. The server binary writes nothing to `/tmp`; MCP servers and other child processes you add may, so give them their own `emptyDir` if they need one.
+
+```yaml
+# Kubernetes: read-only root filesystem
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+containers:
+  - name: systemprompt
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+    volumeMounts:
+      - { name: logs,           mountPath: /app/logs }
+      - { name: storage,        mountPath: /app/storage }          # PVC, or an RWX mount with storage.shared: true
+      - { name: web-dist,       mountPath: /app/web/dist }         # rendered per node; omit on gateway nodes
+      - { name: services-cache, mountPath: /app/services-cache }   # omit on gateway nodes
+      - { name: services,       mountPath: /app/services, readOnly: true }  # ConfigMap or image layer
+volumes:
+  - { name: logs,           emptyDir: {} }
+  - { name: storage,        persistentVolumeClaim: { claimName: systemprompt-storage } }
+  - { name: web-dist,       emptyDir: {} }
+  - { name: services-cache, emptyDir: {} }
+  - { name: services,       configMap: { name: systemprompt-services } }
+```
+
+Match each `mountPath` to your profile's `paths` block; the table above lists the published image's defaults. An `emptyDir` over `/app/web/dist` starts empty, so the node renders the site on its first `node`-scoped prerender job.
+
 ## 4. Backup and restore
 
 ### 4.1 Backup cadence

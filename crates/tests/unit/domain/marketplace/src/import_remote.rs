@@ -105,7 +105,7 @@ fn import(
     let dest = TempDir::new().expect("tempdir");
     let opts = ImportOptions {
         strict,
-        ..ImportOptions::default()
+        ..ImportOptions::new(std::env::temp_dir())
     };
     let report = import_anthropic_tree_with(tree.path(), dest.path(), &opts, capture)?;
     Ok((dest, report))
@@ -369,4 +369,47 @@ fn a_pass_through_entry_beside_a_vendored_one_leaves_the_vendored_one_imported()
     let marketplace = &marketplace_yaml(dest.path())["marketplace"];
     assert_eq!(marketplace["plugins"]["include"][0], "b2c");
     assert_eq!(marketplace["external_plugins"][0]["name"], "playwright-cli");
+}
+
+#[test]
+fn fetched_files_are_staged_under_the_configured_scratch_root() {
+    let tree = kit(&git_subdir("b2c", ""));
+    let capture = FakeCapture::new(vec![("skills/one/SKILL.md", skill("One."))]);
+    let blocked = TempDir::new().expect("tempdir");
+    let scratch_root = blocked.path().join("not-a-directory");
+    std::fs::write(&scratch_root, b"file").expect("blocker");
+    let dest = TempDir::new().expect("tempdir");
+    let opts = ImportOptions {
+        strict: true,
+        ..ImportOptions::new(scratch_root)
+    };
+
+    let error = import_anthropic_tree_with(tree.path(), dest.path(), &opts, &capture)
+        .expect_err("a scratch root that cannot hold a directory refuses the fetch");
+
+    assert!(
+        error.to_string().contains("create a staging directory"),
+        "staging must happen under the configured scratch root, not the system temp dir: \
+         {error}"
+    );
+}
+
+#[test]
+fn a_successful_fetch_leaves_nothing_behind_in_the_scratch_root() {
+    let tree = kit(&git_subdir("b2c", ""));
+    let capture = FakeCapture::new(vec![("skills/one/SKILL.md", skill("One."))]);
+    let scratch = TempDir::new().expect("tempdir");
+    let dest = TempDir::new().expect("tempdir");
+    let opts = ImportOptions {
+        strict: true,
+        ..ImportOptions::new(scratch.path().to_path_buf())
+    };
+
+    import_anthropic_tree_with(tree.path(), dest.path(), &opts, &capture).expect("import");
+
+    assert_eq!(
+        std::fs::read_dir(scratch.path()).expect("readable").count(),
+        0,
+        "the staging tree is removed once the plugin is imported"
+    );
 }

@@ -93,10 +93,14 @@ impl ManagedRepository {
         owner: &UserId,
         request: &GitSyncRequest,
         credential: Option<&str>,
+        scratch_root: &Path,
     ) -> Result<GitSyncResult> {
-        GitSynchronizationService::new(self.clone(), std::sync::Arc::new(NativeGitSourceCapture))
-            .sync(owner, request, credential)
-            .await
+        GitSynchronizationService::new(
+            self.clone(),
+            std::sync::Arc::new(NativeGitSourceCapture::new(scratch_root.to_path_buf())),
+        )
+        .sync(owner, request, credential)
+        .await
     }
 
     async fn sync_git_source_captured(

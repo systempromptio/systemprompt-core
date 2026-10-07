@@ -22,7 +22,9 @@ const PROFILE_ENV_SECTION: &str = r#"ENV HOST=0.0.0.0 \
     SYSTEMPROMPT_TEMPLATES_PATH=/app/services/web/templates \
     SYSTEMPROMPT_ASSETS_PATH=/app/services/web/assets"#;
 
-const MKDIR_PREFIX: &str = "RUN mkdir -p /app/bin /app/logs /app/storage/files/images \
+const MKDIR_PREFIX: &str = "RUN mkdir -p /app/bin /app/logs /app/storage/files \
+                            /app/storage/exports /app/storage/data /app/storage/data/scratch \
+                            /app/storage/files/images \
                             /app/storage/files/images/generated /app/storage/files/images/logos \
                             /app/storage/files/audio /app/storage/files/video \
                             /app/storage/files/documents /app/storage/files/uploads /app/web";

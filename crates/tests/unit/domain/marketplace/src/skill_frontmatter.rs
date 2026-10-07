@@ -69,8 +69,12 @@ fn kit(skill_md: &str) -> TempDir {
 fn import(skill_md: &str) -> Result<TempDir, String> {
     let source = kit(skill_md);
     let dest = TempDir::new().expect("tempdir");
-    import_anthropic_tree(source.path(), dest.path(), &ImportOptions::default())
-        .map_err(|e| e.to_string())?;
+    import_anthropic_tree(
+        source.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .map_err(|e| e.to_string())?;
     Ok(dest)
 }
 

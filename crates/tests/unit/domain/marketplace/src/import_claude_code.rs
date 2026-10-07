@@ -34,9 +34,13 @@ fn tree(sidecar: Option<&str>) -> TempDir {
 
 fn import(source: &Path) -> Result<TempDir, String> {
     let dest = TempDir::new().expect("tempdir");
-    import_anthropic_tree(source, dest.path(), &ImportOptions::default())
-        .map(|_| dest)
-        .map_err(|e| e.to_string())
+    import_anthropic_tree(
+        source,
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .map(|_| dest)
+    .map_err(|e| e.to_string())
 }
 
 fn marketplace_config(dest: &Path) -> MarketplaceConfigFile {

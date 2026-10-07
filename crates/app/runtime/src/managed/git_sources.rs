@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
+
 use super::OrchestrationError;
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_identifiers::{ManagedSourceId, UserId};
@@ -13,11 +15,15 @@ use systemprompt_marketplace::managed::{
 #[derive(Debug, Clone)]
 pub struct GitSourceOrchestrator {
     managed: ManagedRepository,
+    scratch_root: PathBuf,
 }
 
 impl GitSourceOrchestrator {
-    pub const fn new(managed: ManagedRepository) -> Self {
-        Self { managed }
+    pub const fn new(managed: ManagedRepository, scratch_root: PathBuf) -> Self {
+        Self {
+            managed,
+            scratch_root,
+        }
     }
 
     pub async fn synchronize(
@@ -28,7 +34,12 @@ impl GitSourceOrchestrator {
         let credential = self.credential(owner, &request.source_id).await?;
         Ok(self
             .managed
-            .sync_git_source_with_credential(owner, request, credential.as_deref())
+            .sync_git_source_with_credential(
+                owner,
+                request,
+                credential.as_deref(),
+                &self.scratch_root,
+            )
             .await?)
     }
 

@@ -45,6 +45,9 @@ pub mod cloud_container {
 
 pub mod storage {
     pub const FILES: &str = "files";
+    pub const EXPORTS: &str = "exports";
+    pub const DATA: &str = "data";
+    pub const SCRATCH: &str = "data/scratch";
     pub const IMAGES: &str = "files/images";
     pub const GENERATED: &str = "files/images/generated";
     pub const LOGOS: &str = "files/images/logos";

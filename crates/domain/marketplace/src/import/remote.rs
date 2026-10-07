@@ -31,8 +31,13 @@ pub(super) struct FetchedPlugin {
     pub commit: String,
 }
 
+pub(super) struct RemoteSource<'a> {
+    pub capture: &'a dyn GitSourceCapture,
+    pub scratch_root: &'a Path,
+}
+
 pub(super) fn fetch_plugin(
-    capture: &dyn GitSourceCapture,
+    remote: &RemoteSource<'_>,
     plugin: &str,
     source: &RemotePluginSource,
 ) -> Result<FetchedPlugin, MarketplaceError> {
@@ -51,7 +56,8 @@ pub(super) fn fetch_plugin(
         context: format!("plugin '{plugin}': {context}"),
         source: cause,
     };
-    let captured = capture
+    let captured = remote
+        .capture
         .capture(&GitCaptureRequest {
             repository: &source.repository,
             reference,
@@ -80,7 +86,7 @@ pub(super) fn fetch_plugin(
         )));
     }
 
-    let dir = TempTree::create(plugin)
+    let dir = TempTree::create(remote.scratch_root, plugin)
         .map_err(|e| caused("create a staging directory".to_owned(), e.into()))?;
     for (relative, file) in &captured.files.0 {
         write_file(&dir.0.join(relative), &file.bytes, file.executable)
@@ -110,7 +116,7 @@ fn write_file(path: &Path, bytes: &[u8], executable: bool) -> std::io::Result<()
 pub(super) struct TempTree(PathBuf);
 
 impl TempTree {
-    fn create(plugin: &str) -> std::io::Result<Self> {
+    fn create(scratch_root: &Path, plugin: &str) -> std::io::Result<Self> {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_nanos());
@@ -118,7 +124,7 @@ impl TempTree {
             .chars()
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
             .collect();
-        let path = std::env::temp_dir().join(format!(
+        let path = scratch_root.join(format!(
             "systemprompt-import-{slug}-{}-{nanos}",
             std::process::id()
         ));

@@ -57,7 +57,12 @@ fn kit_with_dev_files(ignore: Option<&str>) -> TempDir {
 
 fn import(kit: &TempDir) -> TempDir {
     let dest = TempDir::new().unwrap();
-    import_anthropic_tree(kit.path(), dest.path(), &ImportOptions::default()).unwrap();
+    import_anthropic_tree(
+        kit.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .unwrap();
     dest
 }
 
@@ -131,8 +136,12 @@ fn kit_ignore_file_adds_patterns_and_can_reinclude_a_default() {
 fn invalid_ignore_pattern_refuses_the_import() {
     let kit = kit_with_dev_files(Some("[unclosed\n"));
     let dest = TempDir::new().unwrap();
-    let err = import_anthropic_tree(kit.path(), dest.path(), &ImportOptions::default())
-        .expect_err("a malformed ignore file is an error");
+    let err = import_anthropic_tree(
+        kit.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect_err("a malformed ignore file is an error");
     assert!(err.to_string().contains(".systempromptignore"));
 }
 

@@ -240,8 +240,12 @@ fn a_generated_tree_imports_back_to_the_configuration_it_came_from() {
     write_anthropic_tree(source.path(), &plugin, &marketplace);
 
     let dest = TempDir::new().expect("tempdir");
-    import_anthropic_tree(source.path(), dest.path(), &ImportOptions::default())
-        .expect("import succeeds");
+    import_anthropic_tree(
+        source.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect("import succeeds");
 
     let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))
         .expect("imported tree loads");

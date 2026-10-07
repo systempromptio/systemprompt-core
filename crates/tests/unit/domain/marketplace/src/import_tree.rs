@@ -15,7 +15,7 @@ fn import_good() -> (TempDir, systemprompt_marketplace::ImportReport) {
     let report = import_anthropic_tree(
         &fixture("anthropic"),
         dest.path(),
-        &ImportOptions::default(),
+        &ImportOptions::new(std::env::temp_dir()),
     )
     .expect("import succeeds");
     (dest, report)
@@ -195,8 +195,12 @@ fn a_tree_without_a_marketplace_manifest_still_copies_the_base() {
     .expect("copy base file");
 
     let dest = TempDir::new().expect("tempdir");
-    let report =
-        import_anthropic_tree(source.path(), dest.path(), &ImportOptions::default()).expect("ok");
+    let report = import_anthropic_tree(
+        source.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect("ok");
 
     assert_eq!(report.copied_base_dirs, vec!["mcp"]);
     assert!(report.marketplaces.is_empty());
@@ -221,8 +225,12 @@ fn a_marketplace_only_tree_gets_no_root_config() {
     std::fs::remove_dir_all(repo.join("systemprompt")).expect("drop the base tree");
 
     let dest = TempDir::new().expect("tempdir");
-    let report = import_anthropic_tree(&repo, dest.path(), &ImportOptions::default())
-        .expect("import succeeds");
+    let report = import_anthropic_tree(
+        &repo,
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect("import succeeds");
 
     assert!(report.copied_base_dirs.is_empty());
     assert!(
@@ -248,8 +256,12 @@ fn a_plugin_source_outside_the_marketplace_tree_is_refused() {
     .expect("write marketplace.json");
     let dest = TempDir::new().expect("tempdir");
 
-    let error = import_anthropic_tree(src.path(), dest.path(), &ImportOptions::default())
-        .expect_err("a `..` plugin source never reads outside the marketplace tree");
+    let error = import_anthropic_tree(
+        src.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect_err("a `..` plugin source never reads outside the marketplace tree");
     assert!(
         matches!(
             &error,

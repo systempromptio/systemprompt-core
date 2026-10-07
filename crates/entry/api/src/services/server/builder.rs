@@ -26,7 +26,12 @@ pub use super::discovery::*;
 pub use super::health::handle_health;
 
 pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<Router> {
-    systemprompt_config::ensure_state_dirs_writable(&[ctx.app_paths().storage().data()])?;
+    let profile = systemprompt_config::ProfileBootstrap::get()?;
+    let services_cache = systemprompt_loader::bundle::cache_root(profile);
+    systemprompt_config::ensure_state_dirs_writable(
+        &ctx.app_paths()
+            .writable_roots(ctx.config().role, &services_cache),
+    )?;
 
     let rate_config = &ctx.config().rate_limits;
 

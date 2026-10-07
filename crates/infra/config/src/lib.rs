@@ -57,7 +57,9 @@ pub use config_loader::{
     build_from_profile, resolve_instance_id, try_init_config, validate_database_config,
 };
 pub use error::{ConfigError, ConfigResult};
-pub use paths::{AppPaths, BuildPaths, PathError, StoragePaths, SystemPaths, WebPaths};
+pub use paths::{
+    AppPaths, BuildPaths, PathError, StoragePaths, SystemPaths, WebPaths, WritableRoot,
+};
 pub use private_file::write_private_atomic;
 pub use services::{
     ConfigValidationError, ModelSpec, ProviderCatalogService, ProviderSpec, SecurityChange,

@@ -30,7 +30,7 @@ async fn missing_private_credentials_fail_initial_import_and_sync_without_launch
         )
         .await
         .expect("registered private source");
-    let orchestrator = GitSourceOrchestrator::new(repository);
+    let orchestrator = GitSourceOrchestrator::new(repository, std::env::temp_dir());
     let revision = ResourceRevisionId::generate();
     for base in [None, Some(revision.clone())] {
         let request = GitSyncRequest {

@@ -14,12 +14,14 @@ mod error;
 mod storage;
 mod system;
 mod web;
+mod writable;
 
 pub use build::BuildPaths;
 pub use error::PathError;
 pub use storage::StoragePaths;
 pub use system::SystemPaths;
 pub use web::WebPaths;
+pub use writable::WritableRoot;
 
 use std::path::Path;
 

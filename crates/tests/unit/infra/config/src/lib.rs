@@ -13,6 +13,8 @@
 mod fixture;
 #[cfg(test)]
 mod instance_id;
+#[cfg(test)]
+mod writable_roots;
 
 #[cfg(test)]
 mod bootstrap_profile;
