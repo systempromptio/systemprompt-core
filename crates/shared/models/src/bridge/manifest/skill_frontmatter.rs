@@ -1,6 +1,7 @@
 //! Platform-owned `SKILL.md` frontmatter keys and the passthrough renderer.
 //!
-//! The platform owns seven frontmatter keys ([`PLATFORM_OWNED_SKILL_KEYS`]):
+//! The platform owns seven frontmatter keys
+//! ([`PLATFORM_OWNED_SKILL_KEYS`](crate::bridge::manifest::skill_frontmatter::PLATFORM_OWNED_SKILL_KEYS)):
 //! `name` and `description` are re-emitted from the skill's descriptor, and
 //! `title`, `tags`, `category`, `display_category` and `hosts` are catalogue
 //! metadata clients do not read. Every other key is the author's and is
