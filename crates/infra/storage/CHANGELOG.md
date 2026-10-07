@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- `build_file_storage` takes a `FileStorageBackend` (`Local { root }` or `Gcs { params, tokens, http }`) instead of `(StorageBackend, &Path)`. Migrate `build_file_storage(StorageBackend::Local, root)` to `build_file_storage(FileStorageBackend::Local { root: root.to_path_buf() })`.
+
+### Added
+
+- `GcsFileStorage`: a `FileStorage` over the Cloud Storage JSON API (media upload, media download, delete, object metadata), with objects named `{prefix}/{id}` and the same id validation as the local backend. Authentication is an injected `GcsTokenSource`; `MetadataServerTokens` mints workload-identity tokens from the GCE metadata server, cached and refreshed ahead of expiry by a single in-flight request.
+
 ### Fixed
 
 - `probe_shared_mount` no longer leaks a marker per process when the instance id is random (a local profile with no `instance_id` and no `HOSTNAME`). The process removes its own marker after the read-back check, and markers left by earlier random-id processes are pruned instead of being reported as sibling replicas, which made every local boot warn that `storage.shared` was wrong.

@@ -29,6 +29,7 @@ mod error;
 pub mod managed;
 pub mod services_reconcile;
 mod startup_validation;
+pub mod storage;
 pub mod trace;
 mod validation;
 

@@ -98,6 +98,8 @@
 - **Breaking:** the bridge's `ElevatedResult.job_id` and `PolicyWriteRequest.job_id` are `ElevatedJobId`, and `verify`, `request_path` and `result_path` take `&ElevatedJobId`. Migrate by generating ids with `ElevatedJobId::generate()`.
 - **Breaking:** static 404s and the API fallback 404 return the JSON `ApiError` envelope (fallback suggestions move into `details`), the SSE connection cap answers with a 429 envelope, a malformed task-status notification returns 400 and a database failure during the webhook ownership check is a 500, not a 403. Migrate clients that parsed the previous bodies to the `ApiError` envelope.
 - **Breaking:** `systemprompt_manifest::services::skill_frontmatter::{PLATFORM_OWNED_SKILL_KEYS, is_platform_owned_skill_key, render_passthrough_frontmatter}` are `systemprompt_models::bridge::manifest::skill_frontmatter::*`, so the bridge renders authored frontmatter with the same code as the Claude Code bundle. The parse, split and check helpers stay in `systemprompt_manifest::services::skill_frontmatter`. Migrate by renaming the paths.
+- **Storage Rust API:** `systemprompt_storage::build_file_storage` takes a `FileStorageBackend` (`Local { root }` or `Gcs { params, tokens, http }`) instead of `(StorageBackend, &Path)`. Migrate by passing `FileStorageBackend::Local { root: root.to_path_buf() }`.
+- **Manifest Rust API:** `systemprompt_manifest::profile::StorageConfig` gains `bucket`, `prefix`, `public_read` and `credentials` and is no longer `Copy`; `StorageBackend` gains `Gcs`. A struct literal must name the new fields (`..StorageConfig::default()` keeps the old behaviour) and an exhaustive `match` on `StorageBackend` needs a `Gcs` arm.
 
 ### Changed
 
@@ -126,6 +128,7 @@
 - **Security Rust API:** `RuleType::extension_static` mints an extension rule type from a literal slug in a `const`, rejecting a malformed slug at compile time instead of returning a `Result`.
 
 - **Database Rust API:** `ServiceRepository::upsert_service_process` (`UpsertServiceProcessInput`) atomically upserts a service's pid, port and status. `AgentServiceRepository` now delegates every statement on the `services` table to it.
+- **Storage:** a Google Cloud Storage backend for uploads and generated images. `storage: { backend: gcs, bucket, prefix?, public_read?, credentials? }` in the profile writes objects to one bucket under an optional prefix; `credentials` is `workload_identity` (default; the GCE metadata server's token for the bound service account) or `{ secret: NAME }` (a service-account key JSON from the secrets document). `public_read: true` makes files resolve to `https://storage.googleapis.com/<bucket>/<object>`. Profile validation checks the bucket name and prefix shape, refuses `storage.shared` with `gcs`, and refuses the GCS keys with `local`; the shared-mount probe runs only for `local`. The gateway journal and exports stay under `paths.storage`.
 
 ### Fixed
 

@@ -53,6 +53,9 @@ systemprompt-oauth = { workspace = true }
 systemprompt-content = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+url = { workspace = true }
 serde_yaml = { workspace = true }
 indicatif = { workspace = true }
 

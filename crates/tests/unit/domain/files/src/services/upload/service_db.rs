@@ -12,7 +12,6 @@ use systemprompt_files::{
     FileRepository, FileUploadError, FileUploadRequest, FileUploadService, FilesConfig,
 };
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
-use systemprompt_manifest::profile::StorageBackend;
 use systemprompt_storage::build_file_storage;
 use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::FileStorage;
@@ -29,7 +28,9 @@ fn files_config(bootstrap: &TestBootstrap, yaml: Option<&str>) -> FilesConfig {
 }
 
 fn local_storage(bootstrap: &TestBootstrap) -> Arc<dyn FileStorage> {
-    build_file_storage(StorageBackend::Local, &bootstrap.storage_path)
+    build_file_storage(systemprompt_storage::FileStorageBackend::Local {
+        root: bootstrap.storage_path.clone(),
+    })
 }
 
 fn encoded_content() -> String {

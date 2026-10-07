@@ -247,10 +247,10 @@ fn fixture_app_context_assembled(
     let analytics_service = Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
     let session_store = Arc::clone(analytics_service.session_store());
     let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
-    let file_storage = systemprompt_storage::build_file_storage(
-        systemprompt_manifest::profile::StorageBackend::Local,
-        app_paths.storage().root(),
-    );
+    let file_storage =
+        systemprompt_storage::build_file_storage(systemprompt_storage::FileStorageBackend::Local {
+            root: app_paths.storage().root().to_path_buf(),
+        });
     let ctx = AppContext::from_parts(
         DataPlane {
             database: Arc::clone(pool),

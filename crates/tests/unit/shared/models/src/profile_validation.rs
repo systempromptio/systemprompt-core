@@ -80,7 +80,7 @@ fn cloud_paths() -> PathsConfig {
     }
 }
 
-fn valid_profile() -> Profile {
+pub(crate) fn valid_profile() -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
@@ -115,7 +115,7 @@ fn valid_profile() -> Profile {
     }
 }
 
-fn errors_of(profile: &Profile) -> String {
+pub(crate) fn errors_of(profile: &Profile) -> String {
     profile
         .validate()
         .err()
@@ -131,7 +131,7 @@ mod storage {
         let mut p = valid_profile();
         p.storage = StorageConfig {
             backend: StorageBackend::Local,
-            shared: false,
+            ..StorageConfig::default()
         };
         p.paths.storage = None;
         assert!(errors_of(&p).contains("paths.storage"));
@@ -153,9 +153,9 @@ mod storage {
     #[test]
     fn storage_section_rejects_unknown_backend_and_fields() {
         let err = serde_json::from_str::<StorageConfig>(r#"{"backend": "s3"}"#)
-            .expect_err("s3 is not a backend yet");
+            .expect_err("s3 is not a backend");
         assert!(err.to_string().contains("s3"));
-        serde_json::from_str::<StorageConfig>(r#"{"backend": "local", "bucket": "x"}"#)
+        serde_json::from_str::<StorageConfig>(r#"{"backend": "local", "region": "x"}"#)
             .expect_err("unknown field must be rejected");
         let cfg: StorageConfig =
             serde_json::from_str(r#"{"shared": true}"#).expect("shared alone parses");

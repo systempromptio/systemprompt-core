@@ -32,7 +32,7 @@ use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_traits::FileStorage;
 
-use crate::error::{RuntimeError, RuntimeResult};
+use crate::error::RuntimeResult;
 
 pub(super) struct CoreLayer {
     pub(super) config: Arc<Config>,
@@ -83,7 +83,9 @@ pub(super) async fn init_core(
     let config = Arc::new(Config::get()?.clone());
     let instance_id = config.instance_id.clone();
     systemprompt_logging::set_instance_id(instance_id.clone());
-    let file_storage = init_file_storage(&profile.storage, &app_paths, &instance_id).await?;
+    let file_storage =
+        crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, secrets)
+            .await?;
 
     systemprompt_security::keys::authority::init()?;
 
@@ -153,43 +155,6 @@ pub async fn discover_vertex_models(
         std::time::Duration::from_secs(10),
     )
     .await
-}
-
-async fn init_file_storage(
-    storage: &systemprompt_manifest::profile::StorageConfig,
-    app_paths: &AppPaths,
-    instance_id: &systemprompt_identifiers::InstanceId,
-) -> RuntimeResult<Arc<dyn FileStorage>> {
-    let root = app_paths.storage().root();
-    let report = systemprompt_storage::probe_shared_mount(root, instance_id)
-        .await
-        .map_err(|source| RuntimeError::StorageProbe {
-            path: root.to_path_buf(),
-            source,
-        })?;
-    if !report.write_read_ok {
-        return Err(RuntimeError::StorageReadBack {
-            path: root.to_path_buf(),
-        });
-    }
-    match (storage.shared, report.has_siblings()) {
-        (true, false) => tracing::warn!(
-            root = %root.display(),
-            "storage.shared is true but no other replica has marked this root; \
-             it may be a per-node disk"
-        ),
-        (false, true) => tracing::warn!(
-            root = %root.display(),
-            instances = ?report.instances,
-            "storage.shared is false but other replicas have marked this root; \
-             set storage.shared: true if it is a shared mount"
-        ),
-        _ => {},
-    }
-    Ok(systemprompt_storage::build_file_storage(
-        storage.backend,
-        root,
-    ))
 }
 
 fn chain_sources() -> RuntimeResult<systemprompt_security::authz::ChainSources> {

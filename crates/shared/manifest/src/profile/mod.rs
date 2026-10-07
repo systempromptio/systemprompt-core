@@ -66,7 +66,7 @@ pub use services::{
     ServicesProfileConfig, ServicesSource,
 };
 pub use site::SiteConfig;
-pub use storage::{StorageBackend, StorageConfig};
+pub use storage::{GcsCredentials, StorageBackend, StorageConfig};
 pub use style::ProfileStyle;
 pub use vault::{
     DEFAULT_VAULT_RETRIES, DEFAULT_VAULT_TIMEOUT_SECS, MAX_VAULT_RETRIES, MAX_VAULT_TIMEOUT_SECS,

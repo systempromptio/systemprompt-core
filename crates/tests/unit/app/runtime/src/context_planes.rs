@@ -129,8 +129,9 @@ async fn plane_debug_impls_flag_optional_members() {
         event_router: systemprompt_events::EventRouter::local_only(),
         geoip_reader: None,
         file_storage: systemprompt_storage::build_file_storage(
-            systemprompt_manifest::profile::StorageBackend::Local,
-            &std::env::temp_dir(),
+            systemprompt_storage::FileStorageBackend::Local {
+                root: std::env::temp_dir(),
+            },
         ),
         shutdown: Default::default(),
         background_tasks: Default::default(),

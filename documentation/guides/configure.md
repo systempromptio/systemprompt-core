@@ -73,6 +73,29 @@ paths:
 
 `system`, `services`, and `bin` are required (`crates/shared/manifest/src/profile/paths.rs`). Omit `web_path` for a headless API-only deployment.
 
+### File storage
+
+Uploads and generated images go through one storage backend, chosen by the `storage` section (`crates/shared/manifest/src/profile/storage.rs`). The default writes under `paths.storage`:
+
+```yaml
+storage:
+  backend: local
+  shared: false        # true when paths.storage is a mount every replica sees
+```
+
+To keep those files in Google Cloud Storage instead:
+
+```yaml
+storage:
+  backend: gcs
+  bucket: my-bucket              # required
+  prefix: tenant-a/files         # optional; no leading or trailing '/', no '..'
+  public_read: false             # optional; true returns https://storage.googleapis.com/<bucket>/<object> URLs
+  credentials: workload_identity # default; or  { secret: GCS_SERVICE_ACCOUNT_KEY }
+```
+
+`workload_identity` takes the token of the service account bound to the workload from the GCE metadata server (GKE Workload Identity, Cloud Run, GCE). `{ secret: NAME }` reads a service-account key JSON from the secrets document under `NAME`. Either identity needs `roles/storage.objectAdmin` on the bucket. `bucket`, `prefix`, `public_read` and `credentials` are refused with `backend: local`, and `shared` is refused with `backend: gcs`. `paths.storage` is still required: the gateway journal and exports stay on local disk.
+
 ## 5. Wire secrets
 
 The deployment model is customer-owned: the binary never holds the master key and performs no symmetric at-rest encryption of the secrets file. Your key-management tooling opens the envelope and presents plaintext to the binary, either as a file or as environment variables.

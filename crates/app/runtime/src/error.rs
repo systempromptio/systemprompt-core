@@ -24,6 +24,7 @@ use systemprompt_config::{
 use systemprompt_content::ContentError;
 use systemprompt_extension::LoaderError;
 use systemprompt_files::FilesError;
+use systemprompt_identifiers::SecretName;
 use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_mcp::McpDomainError;
@@ -125,6 +126,25 @@ pub enum RuntimeError {
 
     #[error("storage root {} did not read back what was written", .path.display())]
     StorageReadBack { path: PathBuf },
+
+    #[error("storage.credentials names secret '{name}', which the secrets store does not hold")]
+    StorageCredentialMissing { name: SecretName },
+
+    #[error("storage.credentials secret '{name}' is not a service-account key: {source}")]
+    StorageCredential {
+        name: SecretName,
+        #[source]
+        source: serde_json::Error,
+    },
+
+    #[error("storage.backend 'gcs' requires storage.bucket")]
+    StorageBucketMissing,
+
+    #[error("storage endpoint: {0}")]
+    StorageEndpoint(#[source] url::ParseError),
+
+    #[error("storage HTTP client: {0}")]
+    StorageHttp(#[source] reqwest::Error),
 
     #[error(
         "Configured system admin '{username}' was not found in the users table. Run `systemprompt \

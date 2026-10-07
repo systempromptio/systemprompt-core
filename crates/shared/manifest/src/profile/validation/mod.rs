@@ -10,6 +10,7 @@ mod network;
 mod observability;
 mod security;
 mod services;
+mod storage;
 
 use super::{Profile, ProfileError, ProfileResult};
 
@@ -40,18 +41,6 @@ impl Profile {
                 name: self.name.clone(),
                 errors,
             })
-        }
-    }
-
-    pub(crate) fn validate_storage(&self, errors: &mut Vec<String>) {
-        match self.storage.backend {
-            super::StorageBackend::Local => {
-                if self.paths.storage.as_deref().is_none_or(str::is_empty) {
-                    errors.push(
-                        "storage.backend 'local' requires paths.storage to be set".to_owned(),
-                    );
-                }
-            },
         }
     }
 

@@ -289,6 +289,9 @@ mod wire_stream_usage_order;
 mod profile_validation;
 
 #[cfg(test)]
+mod profile_storage_gcs;
+
+#[cfg(test)]
 mod auth_claims;
 
 #[cfg(test)]

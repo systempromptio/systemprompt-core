@@ -10,7 +10,6 @@ use systemprompt_files::{
     FileUploadError, FileUploadRequest, FileUploadService, FileValidator, FilesConfig,
 };
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
-use systemprompt_manifest::profile::StorageBackend;
 use systemprompt_storage::build_file_storage;
 use systemprompt_traits::FileStorage;
 
@@ -18,7 +17,9 @@ use crate::bootstrap::test_env;
 use systemprompt_test_fixtures::test_db_pool;
 
 fn local_storage(files_config: &FilesConfig) -> std::sync::Arc<dyn FileStorage> {
-    build_file_storage(StorageBackend::Local, files_config.storage_root())
+    build_file_storage(systemprompt_storage::FileStorageBackend::Local {
+        root: files_config.storage_root().to_path_buf(),
+    })
 }
 
 fn one_pixel_png_base64() -> String {

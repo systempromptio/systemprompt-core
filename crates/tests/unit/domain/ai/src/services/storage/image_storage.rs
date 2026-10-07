@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_ai::services::storage::{ImageStorage, StorageConfig, StorageConfigError};
-use systemprompt_manifest::profile::StorageBackend;
 use systemprompt_storage::build_file_storage;
 use systemprompt_test_mocks::MockFileStorage;
 use systemprompt_traits::{FileStorage, StoredFileId};
@@ -12,7 +11,9 @@ use tempfile::TempDir;
 
 fn temp_backend() -> (TempDir, Arc<dyn FileStorage>) {
     let dir = TempDir::new().unwrap();
-    let backend = build_file_storage(StorageBackend::Local, dir.path());
+    let backend = build_file_storage(systemprompt_storage::FileStorageBackend::Local {
+        root: dir.path().to_path_buf(),
+    });
     (dir, backend)
 }
 
