@@ -135,3 +135,29 @@ async fn heartbeat_touches_own_rows_and_reaper_crosses_instances() {
         "b stopped heartbeating, so any instance may reap it"
     );
 }
+
+#[tokio::test]
+async fn reaper_skips_an_instance_that_holds_its_claim() {
+    let db = test_pool().await;
+    let pg = (*db.write_pool()).clone();
+    let claimed = ServiceRepository::new(&db, InstanceId::new(unique("alive")));
+    let reaper = ServiceRepository::new(&db, InstanceId::new(unique("reaper")));
+    let name = ServiceName::new(unique("svc"));
+
+    let claim = claimed.claim_instance().await.expect("claim");
+    register(&claimed, &name, 444).await;
+    age_heartbeat(&pg, claimed.instance_id(), 600).await;
+
+    reaper.delete_dead_instances(1).await.expect("reap");
+    assert!(
+        claimed.find_service_by_name(&name).await.unwrap().is_some(),
+        "a claimed replica with a stalled heartbeat must not be reaped"
+    );
+
+    claim.release().await;
+    reaper.delete_dead_instances(1).await.expect("reap");
+    assert!(
+        claimed.find_service_by_name(&name).await.unwrap().is_none(),
+        "an unclaimed replica with a stale heartbeat is reaped"
+    );
+}

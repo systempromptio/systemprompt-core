@@ -12,6 +12,6 @@ pub mod service;
 
 pub use base::PgDbPool;
 pub use service::{
-    CreateServiceInput, ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus,
-    UpsertServiceProcessInput,
+    CreateServiceInput, INSTANCE_CLAIM_CLASS, InstanceClaim, InstanceClaimError, ServiceConfig,
+    ServiceModule, ServiceRepository, ServiceStatus, UpsertServiceProcessInput,
 };

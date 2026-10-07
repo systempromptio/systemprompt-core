@@ -9,7 +9,7 @@
 //! operator gets from a refused boot.
 
 use systemprompt_api::services::server::lifecycle::reconciliation::{
-    handle_missing_servers, verify_database_registration,
+    VERIFY_ATTEMPTS, VERIFY_BACKOFF, handle_missing_servers, verify_database_registration,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
@@ -257,4 +257,61 @@ async fn several_servers_that_never_started_are_all_named() {
         message.contains("2 required MCP server(s)"),
         "the count must match the list; got: {message}"
     );
+}
+
+#[tokio::test]
+async fn a_row_that_turns_running_during_the_retry_window_passes_verification() {
+    let pool = live_pool().await;
+    let boot = ensure_test_bootstrap();
+    let ctx = test_app_context(&pool, &boot.database_url);
+    let name = unique_name("late");
+    seed(&pool, &name, "starting").await;
+
+    let flipper = {
+        let pool = pool.clone();
+        let name = name.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            seed(&pool, &name, "running").await;
+        })
+    };
+
+    let outcome = verify_database_registration(&[required(&name)], &ctx, None).await;
+    flipper.await.expect("flip task");
+
+    assert!(
+        outcome.is_ok(),
+        "a concurrent reconcile that finishes inside the bounded retry must pass: {outcome:?}"
+    );
+
+    drop_row(&pool, &name).await;
+}
+
+#[tokio::test]
+async fn a_row_that_never_turns_running_fails_after_every_attempt() {
+    let pool = live_pool().await;
+    let boot = ensure_test_bootstrap();
+    let ctx = test_app_context(&pool, &boot.database_url);
+    let name = unique_name("stuck");
+    seed(&pool, &name, "stopped").await;
+
+    let started = std::time::Instant::now();
+    let error = verify_database_registration(&[required(&name)], &ctx, None)
+        .await
+        .map(|_| ())
+        .expect_err("a row that stays stopped must fail");
+    let elapsed = started.elapsed();
+
+    let expected_wait = VERIFY_BACKOFF * (VERIFY_ATTEMPTS - 1);
+    assert!(
+        elapsed >= expected_wait,
+        "verification must retry {VERIFY_ATTEMPTS} times before refusing; took {elapsed:?}"
+    );
+    let message = error.to_string();
+    assert!(
+        message.contains(&format!("after {VERIFY_ATTEMPTS} attempts")),
+        "the refusal reports how many attempts were made; got: {message}"
+    );
+
+    drop_row(&pool, &name).await;
 }

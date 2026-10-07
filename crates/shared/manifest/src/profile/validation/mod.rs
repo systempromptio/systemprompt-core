@@ -9,6 +9,7 @@
 mod network;
 mod observability;
 mod security;
+mod server;
 mod services;
 mod storage;
 
@@ -25,6 +26,7 @@ impl Profile {
         self.validate_security_settings(&mut errors);
         self.validate_database_pool(&mut errors);
         self.validate_trusted_proxies(&mut errors, is_cloud);
+        self.validate_instance_identity(&mut errors, is_cloud);
         self.validate_cors_origins(&mut errors);
         self.validate_rate_limits(&mut errors);
         self.validate_governance(&mut errors, is_cloud);

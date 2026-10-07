@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
@@ -20,6 +20,13 @@ pub async fn run_server(
     early: super::startup::EarlyServer,
 ) -> Result<()> {
     let start_time = std::time::Instant::now();
+
+    let instance_claim = ctx
+        .service_repository()
+        .claim_instance()
+        .await
+        .context("replica identity")?;
+    tracing::info!(instance_id = %instance_claim.instance_id(), "replica identity claimed");
 
     let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
 
@@ -61,6 +68,7 @@ pub async fn run_server(
         tracing::debug!("Metrics listener had already stopped on the shutdown signal");
     }
     super::shutdown::drain(&ctx, scheduler_handle).await;
+    instance_claim.release().await;
     forced_exit.abort();
 
     serve_result

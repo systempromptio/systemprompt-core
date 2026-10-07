@@ -83,8 +83,8 @@ pub use lifecycle::{
     validate_database_connection, validate_table_exists, validate_write_pool_is_primary,
 };
 pub use repository::{
-    CreateServiceInput, PgDbPool, ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus,
-    UpsertServiceProcessInput,
+    CreateServiceInput, INSTANCE_CLAIM_CLASS, InstanceClaim, InstanceClaimError, PgDbPool,
+    ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus, UpsertServiceProcessInput,
 };
 
 pub use admin::{

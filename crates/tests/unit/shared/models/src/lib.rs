@@ -83,6 +83,8 @@ mod profile_services_sources;
 #[cfg(test)]
 mod profile_audit;
 #[cfg(test)]
+mod profile_instance_identity;
+#[cfg(test)]
 mod profile_judge;
 #[cfg(test)]
 mod profile_observability;

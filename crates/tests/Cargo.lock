@@ -7788,6 +7788,7 @@ dependencies = [
  "chrono",
  "futures",
  "serde_json",
+ "systemprompt-database",
  "systemprompt-events",
  "systemprompt-identifiers",
  "systemprompt-models",
