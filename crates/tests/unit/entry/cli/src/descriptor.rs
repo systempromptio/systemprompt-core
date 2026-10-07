@@ -219,6 +219,7 @@ fn only_the_server_commands_install_the_registry_through_model_discovery() {
     let serve = Commands::Infra(InfraCommands::Services(ServicesCommands::Serve {
         foreground: true,
         kill_port_process: false,
+        skip_migrate: false,
     }))
     .descriptor();
     assert!(serve.discovers_models());

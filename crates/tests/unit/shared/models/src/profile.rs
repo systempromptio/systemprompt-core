@@ -72,6 +72,7 @@ fn make_profile(name: &str) -> Profile {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
             external_db_access: false,
+            migrate_on_boot: true,
             pool: None,
         },
         server: make_server_config(),
@@ -719,6 +720,7 @@ fn database_config_serde_roundtrip() {
     let config = ProfileDatabaseConfig {
         db_type: "postgres".to_string(),
         external_db_access: true,
+        migrate_on_boot: true,
         pool: None,
     };
     let json = serde_json::to_string(&config).unwrap();

@@ -8,6 +8,7 @@ use crate::interactive::{Prompter, confirm_optional};
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::subprocess::{self, ChildKind};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, ShutdownRequest, validate_system};
@@ -53,13 +54,18 @@ pub async fn execute_with_events(
             .with_startup_warnings(true)
             .with_shutdown(shutdown)
             .with_migrations(run_migrations)
+            .with_schema_verification(!run_migrations)
             .build()
             .await
             .context("Failed to initialize application context")?,
     );
 
     if events.is_none() {
-        CliService::phase_success("Database schemas installed", None);
+        if run_migrations {
+            CliService::phase_success("Database schemas installed", None);
+        } else {
+            CliService::phase_success("Schema current (migrations skipped)", None);
+        }
     }
 
     if let Some(tx) = events {
@@ -108,18 +114,28 @@ pub async fn execute_with_events(
     Ok(format!("http://127.0.0.1:{}", port))
 }
 
-pub async fn execute(
-    prompter: &dyn Prompter,
-    foreground: bool,
-    kill_port_process: bool,
-    config: &CliConfig,
-) -> Result<()> {
+#[derive(Debug, Clone, Copy)]
+pub struct ServeFlags {
+    pub foreground: bool,
+    pub kill_port_process: bool,
+    pub skip_migrate: bool,
+}
+
+pub const fn effective_run_migrations(skip_flag: bool, migrate_on_boot: bool) -> bool {
+    !skip_flag && migrate_on_boot
+}
+
+pub async fn execute(prompter: &dyn Prompter, flags: ServeFlags, config: &CliConfig) -> Result<()> {
+    let migrate_on_boot = ProfileBootstrap::get()
+        .context("Profile not initialized")?
+        .database
+        .migrate_on_boot;
     execute_with_events(
         prompter,
         ServeOptions {
-            foreground,
-            kill_port_process,
-            run_migrations: true,
+            foreground: flags.foreground,
+            kill_port_process: flags.kill_port_process,
+            run_migrations: effective_run_migrations(flags.skip_migrate, migrate_on_boot),
         },
         config,
         None,

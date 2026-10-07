@@ -38,4 +38,11 @@ pub struct DatabaseConfig {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pool: Option<PoolConfig>,
+
+    #[serde(default = "default_migrate_on_boot")]
+    pub migrate_on_boot: bool,
+}
+
+const fn default_migrate_on_boot() -> bool {
+    true
 }

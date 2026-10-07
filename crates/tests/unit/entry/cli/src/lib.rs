@@ -94,6 +94,8 @@ mod services_refresh_changed_exit;
 #[cfg(test)]
 mod services_refresh_flows;
 #[cfg(test)]
+mod services_serve_parsing;
+#[cfg(test)]
 mod services_validate;
 #[cfg(test)]
 mod services_validate_flows;

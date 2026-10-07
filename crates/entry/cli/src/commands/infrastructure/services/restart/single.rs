@@ -30,7 +30,16 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
             CliService::warning("API server is not running");
             CliService::info("Starting API server...");
         }
-        super::super::serve::execute(prompter, true, false, config).await?;
+        super::super::serve::execute(
+            prompter,
+            super::super::serve::ServeFlags {
+                foreground: true,
+                kill_port_process: false,
+                skip_migrate: false,
+            },
+            config,
+        )
+        .await?;
         let output = RestartOutput {
             service_type: "api".to_owned(),
             service_name: None,
@@ -63,7 +72,16 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
         CliService::info("Starting API server...");
     }
 
-    super::super::serve::execute(prompter, true, false, config).await?;
+    super::super::serve::execute(
+        prompter,
+        super::super::serve::ServeFlags {
+            foreground: true,
+            kill_port_process: false,
+            skip_migrate: false,
+        },
+        config,
+    )
+    .await?;
 
     let message = "API server restarted successfully".to_owned();
     if !quiet {

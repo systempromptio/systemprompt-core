@@ -328,6 +328,7 @@ fn minimal_profile() -> systemprompt_manifest::Profile {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
             external_db_access: false,
+            migrate_on_boot: true,
             pool: None,
         },
         server: ServerConfig {

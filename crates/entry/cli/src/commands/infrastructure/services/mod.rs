@@ -170,6 +170,12 @@ pub enum ServicesCommands {
 
         #[arg(long, help = KILL_PORT_PROCESS_HELP)]
         kill_port_process: bool,
+
+        #[arg(
+            long,
+            help = "Skip database migrations (the schema is still verified to be current)"
+        )]
+        skip_migrate: bool,
     },
 }
 

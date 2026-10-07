@@ -76,11 +76,12 @@ pub use lifecycle::{
     FkDeferralError, ForeignKeyDrift, FreshnessCheck, HOT_TABLES, MarkAppliedOutcome,
     MigrationConfig, MigrationCost, MigrationResult, MigrationService, MigrationStatus,
     OrphanMigrationLedger, OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus,
-    SchemaInstallReport, SchemaResidue, SlotCollision, SplitCreateTable, TombstonedSlot,
-    UndeclaredTable, audit_migration_cost, audit_one, audit_schema_residue,
+    SchemaCurrency, SchemaInstallReport, SchemaResidue, SlotCollision, SplitCreateTable,
+    TombstonedSlot, UndeclaredTable, audit_migration_cost, audit_one, audit_schema_residue,
     check_migration_references, check_trigger_routines, install_extension_schemas_full,
-    is_retirement, replica_status, split_create_table_foreign_keys, validate_column_exists,
-    validate_database_connection, validate_table_exists, validate_write_pool_is_primary,
+    is_retirement, replica_status, schema_currency, split_create_table_foreign_keys,
+    validate_column_exists, validate_database_connection, validate_table_exists,
+    validate_write_pool_is_primary,
 };
 pub use repository::{
     CreateServiceInput, INSTANCE_CLAIM_CLASS, InstanceClaim, InstanceClaimError, PgDbPool,

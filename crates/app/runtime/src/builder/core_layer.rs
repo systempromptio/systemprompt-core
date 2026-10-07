@@ -188,9 +188,15 @@ fn pool_config_from_profile(
     cfg
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct SchemaPolicy {
+    pub install: bool,
+    pub verify: bool,
+}
+
 pub(super) async fn init_extensions(
     extension_registry: Option<ExtensionRegistry>,
-    install_schemas: bool,
+    schema: SchemaPolicy,
     migration_config: MigrationConfig,
     database: &Arc<Database>,
 ) -> RuntimeResult<(Arc<ExtensionRegistry>, SchemaInstallReport)> {
@@ -200,9 +206,14 @@ pub(super) async fn init_extensions(
     };
     registry.validate()?;
 
-    let report = if install_schemas {
+    let report = if schema.install {
         install_extension_schemas_full(&registry, database.write(), &[], migration_config).await?
     } else {
+        if schema.verify {
+            let profile = ProfileBootstrap::get()?;
+            crate::schema_currency::assert_schema_current(&registry, database.write(), profile)
+                .await?;
+        }
         SchemaInstallReport::default()
     };
 

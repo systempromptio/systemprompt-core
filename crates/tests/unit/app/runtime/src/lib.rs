@@ -45,6 +45,8 @@ mod files_validator_tests;
 #[cfg(all(test, unix))]
 mod managed_inventory_lifecycle;
 #[cfg(test)]
+mod schema_behind_error;
+#[cfg(test)]
 mod services_reconcile_decision;
 #[cfg(test)]
 mod services_reconcile_fetched;

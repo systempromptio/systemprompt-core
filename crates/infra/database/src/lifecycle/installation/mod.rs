@@ -15,6 +15,7 @@ mod routine_refs;
 mod seeds;
 mod undeclared;
 
+pub use extension::current::{SchemaCurrency, schema_currency};
 pub use extension::install_extension_schemas_full;
 pub use fk_deferral::{
     DeferredForeignKey, FkDeferralError, SplitCreateTable, split_create_table_foreign_keys,

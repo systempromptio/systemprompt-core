@@ -30,7 +30,7 @@ use systemprompt_users::UserService;
 use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 use crate::error::RuntimeResult;
 pub use core_layer::discover_vertex_models;
-use core_layer::{CoreLayer, init_core, init_extensions};
+use core_layer::{CoreLayer, SchemaPolicy, init_core, init_extensions};
 
 /// Assembles an [`AppContext`], owning the bootstrap order described on the
 /// module.
@@ -46,7 +46,7 @@ pub struct AppContextBuilder {
     show_startup_warnings: bool,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
     authz_hook: Option<SharedAuthzHook>,
-    install_schemas: bool,
+    schema: SchemaPolicy,
     migration_config: MigrationConfig,
     shutdown: Option<ShutdownRequest>,
     background_tasks: Option<BackgroundTasks>,
@@ -60,7 +60,8 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("show_startup_warnings", &self.show_startup_warnings)
             .field("marketplace_filter", &self.marketplace_filter.is_some())
             .field("authz_hook", &self.authz_hook.is_some())
-            .field("install_schemas", &self.install_schemas)
+            .field("install_schemas", &self.schema.install)
+            .field("verify_schema", &self.schema.verify)
             .field("migration_config", &self.migration_config)
             .field("shutdown", &self.shutdown.is_some())
             .field("background_tasks", &self.background_tasks.is_some())
@@ -95,7 +96,13 @@ impl AppContextBuilder {
 
     #[must_use]
     pub const fn with_migrations(mut self, install: bool) -> Self {
-        self.install_schemas = install;
+        self.schema.install = install;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_schema_verification(mut self, verify: bool) -> Self {
+        self.schema.verify = verify;
         self
     }
 
@@ -150,7 +157,7 @@ impl AppContextBuilder {
 
         let (extension_registry, schema_install) = init_extensions(
             self.extension_registry,
-            self.install_schemas,
+            self.schema,
             self.migration_config,
             &database,
         )

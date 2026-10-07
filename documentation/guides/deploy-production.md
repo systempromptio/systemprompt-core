@@ -293,6 +293,25 @@ No outbound network calls are required for governance operation. The binary does
 3. Preview migrations: `systemprompt infra db migrate-plan` (no DB writes). Apply with `systemprompt infra db migrate`.
 4. Rolling restart: replace one replica at a time; wait for `GET /health` to return 200 before proceeding. Use a `preStop` drain (§3.1) to bound request loss during each replacement.
 
+**Migrations outside the rollout (Kubernetes).** By default `infra services serve` migrates at boot, serialised across replicas by an advisory lock. To keep schema changes out of pod start-up, set `database: { migrate_on_boot: false }` in the mounted profile (or pass `infra services serve --skip-migrate`) and run the migration as a pre-rollout `Job` (a Helm `pre-upgrade` hook or an Argo `PreSync` hook) using the same image:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata: { name: systemprompt-migrate }
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: <your image>
+          args: ["systemprompt", "infra", "db", "migrate", "--profile", "<name>"]
+```
+
+A pod that skips migrations still verifies the schema before its domain services start: an extension whose tables do not exist, a pending migration or a changed migration file fails the boot with the list and the migrate command, so a rollout whose Job did not run fails fast instead of serving errors. The flag only skips: a profile with `migrate_on_boot: false` is not turned back on from the command line.
+
 ### 9.2 Rollback
 
 Migrations are additive-only within a minor version, so rolling back by one minor is supported:

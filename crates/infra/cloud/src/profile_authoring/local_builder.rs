@@ -69,26 +69,10 @@ impl LocalProfileBuilder {
             database: ProfileDatabaseConfig {
                 db_type: consts::DEFAULT_DB_TYPE.to_owned(),
                 external_db_access: false,
+                migrate_on_boot: true,
                 pool: None,
             },
-            server: ServerConfig {
-                host: consts::LOCAL_HOST.to_owned(),
-                port: consts::DEFAULT_PORT,
-                api_server_url: local_url.clone(),
-                api_internal_url: local_url.clone(),
-                api_external_url: local_url.clone(),
-                use_https: false,
-                cors_allowed_origins: vec![local_url, "http://localhost:5173".to_owned()],
-                content_negotiation: ContentNegotiationConfig::default(),
-                security_headers: SecurityHeadersConfig::default(),
-                instance_id: None,
-                metrics_port: None,
-                max_concurrent_streams:
-                    systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
-                role: systemprompt_manifest::profile::NodeRole::All,
-                max_in_flight: None,
-                trusted_proxies: crate::trusted_proxies::default_local_trusted_proxies(),
-            },
+            server: local_server_config(local_url),
             paths: PathsConfig {
                 system: system_path,
                 services: self.services_path,
@@ -125,5 +109,25 @@ impl LocalProfileBuilder {
                 email: Some(Email::local_admin()),
             },
         }
+    }
+}
+
+fn local_server_config(local_url: String) -> ServerConfig {
+    ServerConfig {
+        host: consts::LOCAL_HOST.to_owned(),
+        port: consts::DEFAULT_PORT,
+        api_server_url: local_url.clone(),
+        api_internal_url: local_url.clone(),
+        api_external_url: local_url.clone(),
+        use_https: false,
+        cors_allowed_origins: vec![local_url, "http://localhost:5173".to_owned()],
+        content_negotiation: ContentNegotiationConfig::default(),
+        security_headers: SecurityHeadersConfig::default(),
+        instance_id: None,
+        metrics_port: None,
+        max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+        role: systemprompt_manifest::profile::NodeRole::All,
+        max_in_flight: None,
+        trusted_proxies: crate::trusted_proxies::default_local_trusted_proxies(),
     }
 }

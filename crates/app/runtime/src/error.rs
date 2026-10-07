@@ -174,6 +174,24 @@ pub enum RuntimeError {
         source: BoxedSource,
     },
 
+    #[error(
+        "database schema is behind this binary (migrations skipped at boot): {} extension(s) not \
+         installed [{}], {} pending migration(s) [{}], {} checksum drift(s) [{}]; run \
+         'systemprompt infra db migrate --profile {profile}' and restart",
+        .fresh.len(),
+        .fresh.join(", "),
+        .pending.len(),
+        .pending.join(", "),
+        .drift.len(),
+        .drift.join(", ")
+    )]
+    SchemaBehind {
+        profile: String,
+        fresh: Vec<String>,
+        pending: Vec<String>,
+        drift: Vec<String>,
+    },
+
     #[error("DATABASE_URL is empty")]
     EmptyDatabaseUrl,
 

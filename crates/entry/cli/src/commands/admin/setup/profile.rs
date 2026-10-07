@@ -72,6 +72,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_owned(),
             external_db_access: false,
+            migrate_on_boot: true,
             pool: None,
         },
         server,
