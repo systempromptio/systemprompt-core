@@ -148,6 +148,7 @@ pub(super) async fn extract_request_context(
         partial,
     )?;
     let route = resolve_route(rc, gateway_config, &gateway_request, partial)?;
+    scope::enforce_key_model_allowlist(&principal, gateway_request.model.as_str())?;
     let wire = rc
         .services
         .providers

@@ -76,6 +76,8 @@ async fn an_unarmed_registry_admits_the_request() {
         route_id: Some(&route),
         provider: &provider,
         streaming: false,
+        attribution: &systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_id: None,
     };
     assert!(run_gateway_guards(&StubDb, &request).await.is_ok());
 }
@@ -101,6 +103,8 @@ async fn a_guard_sees_the_resolved_request_and_its_forbidden_kind_survives() {
         route_id: Some(&route),
         provider: &provider,
         streaming: true,
+        attribution: &systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_id: None,
     };
     let deny = run_gateway_guards(&StubDb, &request)
         .await

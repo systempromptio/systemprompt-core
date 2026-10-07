@@ -108,6 +108,8 @@ async fn issue(service: &ApiKeyService, args: IssueArgs) -> Result<CommandOutput
             user_id: &args.user,
             name: &args.name,
             expires_at: args.expires,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await?;
     let output = IssuedKeyOutput {

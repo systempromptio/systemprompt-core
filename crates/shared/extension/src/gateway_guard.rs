@@ -20,7 +20,8 @@
 
 use std::sync::{Arc, LazyLock};
 
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId, UserId};
+use systemprompt_identifiers::{ApiKeyId, ModelId, ProviderId, RouteId, UserId};
+use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_traits::DatabaseHandle;
 
 /// The resolved gateway request a guard is asked to admit or deny.
@@ -31,6 +32,8 @@ pub struct GatewayGuardRequest<'a> {
     pub route_id: Option<&'a RouteId>,
     pub provider: &'a ProviderId,
     pub streaming: bool,
+    pub attribution: &'a RequestAttribution,
+    pub api_key_id: Option<&'a ApiKeyId>,
 }
 
 /// How a guard denial maps onto the HTTP response.

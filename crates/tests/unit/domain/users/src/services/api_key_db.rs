@@ -37,6 +37,8 @@ async fn issue_then_verify_round_trip_touches_usage() {
             user_id: &ctx.user_id,
             name: "  primary  ",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue");
@@ -71,6 +73,8 @@ async fn issue_rejects_blank_name() {
             user_id: &ctx.user_id,
             name: "   ",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await;
     assert!(matches!(result, Err(UserError::Validation(_))));
@@ -85,6 +89,8 @@ async fn verify_rejects_malformed_and_mismatched_secrets() {
             user_id: &ctx.user_id,
             name: "victim",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue");
@@ -124,6 +130,8 @@ async fn expired_key_fails_verification() {
             user_id: &ctx.user_id,
             name: "short-lived",
             expires_at: Some(Utc::now() - Duration::hours(1)),
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue");
@@ -146,6 +154,8 @@ async fn revoke_disables_key_and_is_idempotent() {
             user_id: &ctx.user_id,
             name: "revocable",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue");

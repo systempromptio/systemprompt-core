@@ -278,6 +278,8 @@ fn derive_conversation_without_messages_is_bad_request() {
 fn api_key_principal(user: &str) -> AuthedPrincipal {
     AuthedPrincipal::ApiKey(ApiKeyPrincipal {
         api_key_id: systemprompt_identifiers::ApiKeyId::generate(),
+        limits: systemprompt_users::ApiKeyLimits::default(),
+        scopes: Vec::new(),
         user_id: UserId::new(user),
         trace_id: TraceId::generate(),
         attested_session: SessionId::generate(),
@@ -371,6 +373,8 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
             user_id: &cred.user_id,
             name: "gateway-auth-test",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await?;
 
@@ -398,6 +402,8 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
             user_id: &cred.user_id,
             name: "gateway-auth-forged-session",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await?;
 

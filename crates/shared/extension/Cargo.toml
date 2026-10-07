@@ -28,6 +28,7 @@ axum = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

@@ -14,8 +14,10 @@ use std::sync::Arc;
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_runtime::AppContext;
-use systemprompt_users::{ApiKeyService, IssueApiKeyParams, UserApiKey};
+use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
+use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, UserApiKey};
 
 use crate::error::ApiHttpError;
 
@@ -32,6 +34,10 @@ pub(super) struct IssueApiKeyRequest {
     pub target_user_id: Option<String>,
     #[serde(default)]
     pub expires_at: Option<DateTime<Utc>>,
+    #[serde(default, flatten)]
+    pub limits: ApiKeyLimits,
+    #[serde(default)]
+    pub scopes: Vec<ScopeBinding>,
 }
 
 #[derive(Debug, Serialize)]
@@ -42,6 +48,9 @@ pub(super) struct IssueApiKeyResponse {
     pub secret: String,
     pub created_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,
+    #[serde(flatten)]
+    pub limits: ApiKeyLimits,
+    pub scopes: Vec<ScopeBinding>,
 }
 
 #[derive(Debug, Serialize)]
@@ -53,6 +62,9 @@ pub(super) struct ApiKeyView {
     pub last_used_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,
     pub revoked_at: Option<DateTime<Utc>>,
+    #[serde(flatten)]
+    pub limits: ApiKeyLimits,
+    pub scopes: Vec<ScopeBinding>,
 }
 
 impl From<UserApiKey> for ApiKeyView {
@@ -65,6 +77,8 @@ impl From<UserApiKey> for ApiKeyView {
             last_used_at: k.last_used_at,
             expires_at: k.expires_at,
             revoked_at: k.revoked_at,
+            limits: k.limits,
+            scopes: k.scopes,
         }
     }
 }
@@ -78,6 +92,7 @@ async fn issue_key(
         Some(value) if !value.is_empty() => UserId::try_new(value).map_err(ApiError::from)?,
         _ => req_ctx.user_id().clone(),
     };
+    verify_scope_bindings(&ctx, &target_user, &body.scopes).await?;
     let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
 
     let issued = service
@@ -85,6 +100,8 @@ async fn issue_key(
             user_id: &target_user,
             name: &body.name,
             expires_at: body.expires_at,
+            limits: &body.limits,
+            scopes: &body.scopes,
         })
         .await?;
 
@@ -97,8 +114,40 @@ async fn issue_key(
             secret: issued.secret,
             created_at: issued.record.created_at,
             expires_at: issued.record.expires_at,
+            limits: issued.record.limits,
+            scopes: issued.record.scopes,
         }),
     ))
+}
+
+async fn verify_scope_bindings(
+    ctx: &AppContext,
+    owner: &UserId,
+    scopes: &[ScopeBinding],
+) -> Result<(), ApiHttpError> {
+    if scopes.is_empty() {
+        return Ok(());
+    }
+    let providers = SubjectProviderSet::discover(&AuthzHookContext {
+        pool: ctx.db_pool().pool(),
+        sink: Arc::new(NullAuditSink),
+    });
+    for scope in scopes {
+        let Some(provider) = providers.find(scope.dimension.as_str()) else {
+            return Err(ApiHttpError::bad_request(format!(
+                "unknown scope dimension '{}': no subject attribute provider registers it",
+                scope.dimension
+            )));
+        };
+        let held = provider.values_for(owner).await?;
+        if !held.iter().any(|value| value == &scope.value) {
+            return Err(ApiHttpError::forbidden(format!(
+                "the key owner is not a member of {} '{}'",
+                scope.dimension, scope.value
+            )));
+        }
+    }
+    Ok(())
 }
 
 async fn list_keys(

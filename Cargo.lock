@@ -4774,6 +4774,7 @@ dependencies = [
  "serde",
  "serde_json",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",

@@ -172,6 +172,8 @@ async fn mint_device_pat(
             user_id: &user_id,
             name: device_name,
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await?;
 

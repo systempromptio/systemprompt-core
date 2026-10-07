@@ -48,6 +48,7 @@ pub(super) async fn dispatch_to_provider(
     } = prepared;
 
     let max_tokens = gateway_request.max_tokens;
+    let api_key_windows = super::extract::scope::api_key_windows(&principal);
     let is_streaming = gateway_request.stream;
 
     let gateway_ctx = GatewayRequestContext {
@@ -68,6 +69,7 @@ pub(super) async fn dispatch_to_provider(
         origin,
         evidence,
         attribution,
+        api_key_windows,
         access_log: rc.access_log.clone(),
     };
 

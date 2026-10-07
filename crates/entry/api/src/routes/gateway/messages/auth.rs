@@ -7,10 +7,11 @@ use axum::http::StatusCode;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use systemprompt_identifiers::{Actor, ApiKeyId, ClientId, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::policy::types::AccessScope;
-use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
+use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits, ApiKeyService};
 
 use super::error::RejectionError;
 use crate::services::middleware::JwtContextExtractor;
@@ -41,6 +42,8 @@ pub struct JwtPrincipal {
 #[derive(Debug)]
 pub struct ApiKeyPrincipal {
     pub api_key_id: ApiKeyId,
+    pub limits: ApiKeyLimits,
+    pub scopes: Vec<ScopeBinding>,
     pub user_id: UserId,
     pub trace_id: TraceId,
     pub attested_session: SessionId,
@@ -183,6 +186,8 @@ async fn authenticate_api_key(
 
     Ok(AuthedPrincipal::ApiKey(ApiKeyPrincipal {
         api_key_id: rec.id,
+        limits: rec.limits,
+        scopes: rec.scopes,
         user_id: rec.user_id,
         trace_id: TraceId::generate(),
         attested_session: session_id.clone(),

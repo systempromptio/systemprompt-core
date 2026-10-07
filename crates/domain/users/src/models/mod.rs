@@ -14,6 +14,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use systemprompt_identifiers::{ApiKeyId, DeviceCertId, SessionId, UserId};
+use systemprompt_models::attribution::ScopeBinding;
 
 pub use systemprompt_models::auth::{UserRole, UserStatus};
 
@@ -131,11 +132,28 @@ pub struct UserExport {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+/// The limits an API key carries: an optional model allowlist, and a spend
+/// budget and request ceiling counted over `request_window_seconds`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiKeyLimits {
+    pub model_allowlist: Option<Vec<String>>,
+    pub budget_microdollars: Option<i64>,
+    pub max_requests: Option<i32>,
+    pub request_window_seconds: Option<i32>,
+}
+
+impl ApiKeyLimits {
+    #[must_use]
+    pub fn allows_model(&self, model: &str) -> bool {
+        self.model_allowlist
+            .as_ref()
+            .is_none_or(|allowed| allowed.iter().any(|m| m == model))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserApiKey {
-    #[sqlx(try_from = "String")]
     pub id: ApiKeyId,
-    #[sqlx(try_from = "String")]
     pub user_id: UserId,
     pub name: String,
     pub key_prefix: String,
@@ -144,6 +162,8 @@ pub struct UserApiKey {
     pub last_used_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,
     pub revoked_at: Option<DateTime<Utc>>,
+    pub limits: ApiKeyLimits,
+    pub scopes: Vec<ScopeBinding>,
 }
 
 impl UserApiKey {

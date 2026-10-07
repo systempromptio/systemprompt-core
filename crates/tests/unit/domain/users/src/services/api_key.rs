@@ -70,6 +70,8 @@ mod issue_api_key_params_tests {
             user_id: &uid,
             name: "ci-key",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         };
         assert_eq!(params.name, "ci-key");
         assert!(params.expires_at.is_none());
@@ -85,6 +87,8 @@ mod issue_api_key_params_tests {
             user_id: &uid,
             name: "expiring-key",
             expires_at: Some(expires),
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         };
         assert_eq!(params.expires_at, Some(expires));
         assert_eq!(params.name, "expiring-key");

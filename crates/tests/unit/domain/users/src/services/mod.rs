@@ -11,6 +11,7 @@ mod admin_service;
 mod admin_service_db;
 mod api_key;
 mod api_key_db;
+mod api_key_limits_and_scopes;
 mod device_cert;
 mod device_cert_service;
 mod providers_db;

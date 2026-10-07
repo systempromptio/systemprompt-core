@@ -263,6 +263,7 @@ pub(super) fn dispatch_ctx(
         origin: RequestOrigin::gateway(ClientKind::Other, wire, ClientAttestation::None),
         evidence: ClientEvidence::none(),
         attribution: systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_windows: Vec::new(),
         access_log: None,
     }
 }

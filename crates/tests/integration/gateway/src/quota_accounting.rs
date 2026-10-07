@@ -97,6 +97,7 @@ fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestCon
         ),
         evidence: ClientEvidence::none(),
         attribution: systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_windows: Vec::new(),
         access_log: None,
     }
 }

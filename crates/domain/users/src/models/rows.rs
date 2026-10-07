@@ -10,10 +10,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{ApiKeyId, DeviceCertId, UserId};
+use systemprompt_identifiers::{ApiKeyId, DeviceCertId, ScopeDimension, UserId};
+use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_traits::RepositoryError;
 
-use super::{User, UserActivity, UserApiKey, UserDeviceCert, UserStatus, UserWithSessions};
+use super::{
+    ApiKeyLimits, User, UserActivity, UserApiKey, UserDeviceCert, UserStatus, UserWithSessions,
+};
 use crate::error::UserError;
 
 #[derive(Debug, thiserror::Error)]
@@ -137,6 +140,12 @@ pub(crate) struct UserApiKeyRow {
     pub last_used_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,
     pub revoked_at: Option<DateTime<Utc>>,
+    pub model_allowlist: Option<Vec<String>>,
+    pub budget_microdollars: Option<i64>,
+    pub max_requests: Option<i32>,
+    pub request_window_seconds: Option<i32>,
+    pub scope_dimensions: Vec<String>,
+    pub scope_values: Vec<String>,
 }
 
 impl From<UserApiKeyRow> for UserApiKey {
@@ -151,6 +160,21 @@ impl From<UserApiKeyRow> for UserApiKey {
             last_used_at: row.last_used_at,
             expires_at: row.expires_at,
             revoked_at: row.revoked_at,
+            limits: ApiKeyLimits {
+                model_allowlist: row.model_allowlist,
+                budget_microdollars: row.budget_microdollars,
+                max_requests: row.max_requests,
+                request_window_seconds: row.request_window_seconds,
+            },
+            scopes: row
+                .scope_dimensions
+                .into_iter()
+                .zip(row.scope_values)
+                .map(|(dimension, value)| ScopeBinding {
+                    dimension: ScopeDimension::new(dimension),
+                    value,
+                })
+                .collect(),
         }
     }
 }

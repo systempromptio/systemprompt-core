@@ -78,6 +78,8 @@ async fn pat_with_valid_key_issues_bridge_access() -> Result<()> {
             user_id: &user,
             name: "bridge pat",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await?;
 

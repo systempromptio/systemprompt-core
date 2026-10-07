@@ -556,3 +556,7 @@ mod gateway_attribution;
 #[cfg(test)]
 #[path = "gateway_quota_reservation.rs"]
 mod gateway_quota_reservation;
+
+#[cfg(test)]
+#[path = "gateway_api_key_limits.rs"]
+mod gateway_api_key_limits;

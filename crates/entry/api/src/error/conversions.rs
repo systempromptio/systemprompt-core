@@ -19,6 +19,7 @@ use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
+use systemprompt_security::authz::AuthzError;
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
@@ -27,6 +28,12 @@ use super::ApiHttpError;
 impl From<RepositoryError> for ApiHttpError {
     fn from(err: RepositoryError) -> Self {
         Self(ApiError::from(err))
+    }
+}
+
+impl From<AuthzError> for ApiHttpError {
+    fn from(err: AuthzError) -> Self {
+        Self(ApiError::internal("Authorization lookup failed", err))
     }
 }
 

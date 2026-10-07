@@ -9,9 +9,10 @@ use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use subtle::ConstantTimeEq;
 use systemprompt_identifiers::{ApiKeyId, UserId};
+use systemprompt_models::attribution::ScopeBinding;
 
 use crate::error::{Result, UserError};
-use crate::models::{NewApiKey, UserApiKey};
+use crate::models::{ApiKeyLimits, NewApiKey, UserApiKey};
 use crate::repository::{CreateApiKeyParams, UserRepository};
 
 pub const API_KEY_PREFIX: &str = "sp-live-";
@@ -23,6 +24,8 @@ pub struct IssueApiKeyParams<'a> {
     pub user_id: &'a UserId,
     pub name: &'a str,
     pub expires_at: Option<DateTime<Utc>>,
+    pub limits: &'a ApiKeyLimits,
+    pub scopes: &'a [ScopeBinding],
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +46,9 @@ impl ApiKeyService {
             ));
         }
 
+        validate_limits(params.limits)?;
+        validate_scopes(params.scopes)?;
+
         let id = ApiKeyId::generate();
         let (secret, key_prefix, key_hash) = generate_secret();
 
@@ -55,6 +61,8 @@ impl ApiKeyService {
                 key_prefix: &key_prefix,
                 key_hash: &key_hash,
                 expires_at: params.expires_at,
+                limits: params.limits,
+                scopes: params.scopes,
             })
             .await?;
 
@@ -98,6 +106,53 @@ impl ApiKeyService {
     pub async fn revoke(&self, id: &ApiKeyId, user_id: &UserId) -> Result<bool> {
         self.repository.revoke_api_key(id, user_id).await
     }
+}
+
+fn validate_limits(limits: &ApiKeyLimits) -> Result<()> {
+    if limits
+        .model_allowlist
+        .as_ref()
+        .is_some_and(|models| models.is_empty() || models.iter().any(|m| m.trim().is_empty()))
+    {
+        return Err(UserError::Validation(
+            "model_allowlist must name at least one model, or be omitted".into(),
+        ));
+    }
+    if limits.budget_microdollars.is_some_and(|b| b < 0)
+        || limits.max_requests.is_some_and(|m| m < 0)
+    {
+        return Err(UserError::Validation(
+            "budget_microdollars and max_requests must not be negative".into(),
+        ));
+    }
+    let ceiling = limits.budget_microdollars.is_some() || limits.max_requests.is_some();
+    if ceiling && limits.request_window_seconds.is_none_or(|w| w <= 0) {
+        return Err(UserError::Validation(
+            "budget_microdollars and max_requests need a positive request_window_seconds".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_scopes(scopes: &[ScopeBinding]) -> Result<()> {
+    for (index, scope) in scopes.iter().enumerate() {
+        if scope.value.trim().is_empty() {
+            return Err(UserError::Validation(format!(
+                "scope {} must bind a non-empty value",
+                scope.dimension
+            )));
+        }
+        if scopes[..index]
+            .iter()
+            .any(|s| s.dimension == scope.dimension)
+        {
+            return Err(UserError::Validation(format!(
+                "scope {} is bound more than once",
+                scope.dimension
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn generate_secret() -> (String, String, String) {

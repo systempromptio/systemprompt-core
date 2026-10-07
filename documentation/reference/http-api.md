@@ -303,6 +303,20 @@ Gateway policies (`services/gateway/policies.yaml`) declare `quota_windows`, eac
 
 `dimension` is one of `requests`, `input_tokens`, `output_tokens`, `cost_microdollars`; it, `limit` and `used` are `null` when the window could not be evaluated under `quota_fault_mode: closed`. The `Retry-After` header equals `retry_after_seconds`, the time until `resets_at`. Under `quota_mode: warn` the request proceeds and the breach is recorded as a `quota` governance decision. Every breach increments `systemprompt_quota_denials_total{subject_kind, dimension, mode}`.
 
+### API key limits and scope bindings
+
+`POST /api/v1/admin/api-keys` accepts, beside `name`, `target_user_id` and `expires_at`:
+
+| Field | Type | Effect |
+|-------|------|--------|
+| `model_allowlist` | string[] | Requests for any other model answer `403` before routing. Omit for no restriction; an empty list is refused. |
+| `budget_microdollars` | integer | Spend ceiling for the key over `request_window_seconds`. |
+| `max_requests` | integer | Request ceiling for the key over `request_window_seconds`. |
+| `request_window_seconds` | integer | Required (positive) when either ceiling is set. |
+| `scopes` | `[{dimension, value}]` | One bound value per scope dimension; each must be a value the key's owner holds (`403` otherwise, `400` for an unregistered dimension). |
+
+The ceilings run as a quota window with `subject: api_key`, so they reserve, settle and answer `429` exactly as policy windows do. `GET /api/v1/admin/api-keys` returns the same fields.
+
 ## Webhooks
 
 See [Context webhooks](#context-webhooks--base-apiv1webhook-authenticated) above. Base `/api/v1/webhook`, authenticated, with `/broadcast`, `/agui`, and `/a2a`.

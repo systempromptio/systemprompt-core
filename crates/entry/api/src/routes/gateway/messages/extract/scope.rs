@@ -29,6 +29,7 @@ use super::RejectionPartial;
 use crate::routes::gateway::messages::RequestContext;
 use crate::routes::gateway::messages::auth::AuthedPrincipal;
 use crate::routes::gateway::messages::error::RejectionError;
+use systemprompt_gateway::policies::{API_KEY_QUOTA_SUBJECT, QuotaWindow};
 use systemprompt_manifest::services::gateway::GatewayConfig;
 
 /// The `x-systemprompt-scope-*` headers of one request, parsed before the
@@ -215,9 +216,45 @@ pub(super) async fn attribute_scopes(
         providers: &rc.repos.subject_providers,
         user_id: principal.user_id(),
         headers: scope_headers,
-        key_bindings: &[],
+        key_bindings: principal.api_key().map_or(&[], |key| key.scopes.as_slice()),
         api_key_id: principal.api_key().map(|key| &key.api_key_id),
         require: &gateway_config.require_scopes,
     };
     resolve_scope_attribution(scope, partial).await
+}
+
+pub fn enforce_key_model_allowlist(
+    principal: &AuthedPrincipal,
+    model: &str,
+) -> Result<(), RejectionError> {
+    match principal.api_key() {
+        Some(key) if !key.limits.allows_model(model) => Err(RejectionError::client(
+            StatusCode::FORBIDDEN,
+            format!("model '{model}' is not allowed for this API key"),
+        )),
+        _ => Ok(()),
+    }
+}
+
+#[must_use]
+pub fn api_key_windows(principal: &AuthedPrincipal) -> Vec<QuotaWindow> {
+    let Some(key) = principal.api_key() else {
+        return Vec::new();
+    };
+    let limits = &key.limits;
+    match limits.request_window_seconds {
+        Some(window_seconds)
+            if limits.max_requests.is_some() || limits.budget_microdollars.is_some() =>
+        {
+            vec![QuotaWindow {
+                window_seconds,
+                subject: API_KEY_QUOTA_SUBJECT.to_owned(),
+                max_requests: limits.max_requests.map(i64::from),
+                max_input_tokens: None,
+                max_output_tokens: None,
+                max_cost_microdollars: limits.budget_microdollars,
+            }]
+        },
+        _ => Vec::new(),
+    }
 }

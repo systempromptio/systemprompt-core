@@ -156,6 +156,7 @@ fn context(
         origin: RequestOrigin::gateway(ClientKind::Other, inbound.wire(), ClientAttestation::None),
         evidence: ClientEvidence::none(),
         attribution: systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_windows: Vec::new(),
         access_log: None,
     }
 }

@@ -64,6 +64,7 @@ pub struct GatewayRequestContext {
     pub origin: RequestOrigin,
     pub evidence: ClientEvidence,
     pub attribution: RequestAttribution,
+    pub api_key_windows: Vec<crate::policies::QuotaWindow>,
     pub access_log: Option<GatewayAccessLog>,
 }
 

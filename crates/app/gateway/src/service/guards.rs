@@ -12,7 +12,7 @@ use super::super::{GatewayAudit, GatewayRepositories, quota};
 use super::resolve::ResolvedUpstream;
 use super::stages::record_quota_warning;
 use super::{DispatchError, GatewayError, GuardForbidden, GuardUnavailable, QuotaExceeded};
-use crate::policies::GatewayPolicySpec;
+use crate::policies::{GatewayPolicySpec, QuotaWindow};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct QuotaAdmission<'a> {
@@ -64,6 +64,12 @@ pub(super) async fn enforce_quota(
         estimate,
     } = admission;
     let ctx = &audit.ctx;
+    let windows: Vec<QuotaWindow> = policy
+        .quota_windows
+        .iter()
+        .chain(&ctx.api_key_windows)
+        .cloned()
+        .collect();
     let outcome = quota::precheck_and_reserve(
         &repos.quota_buckets,
         quota::ReserveParams {
@@ -73,7 +79,7 @@ pub(super) async fn enforce_quota(
                 api_key_id: ctx.attribution.api_key_id.as_ref(),
                 attribution: &ctx.attribution,
             },
-            windows: &policy.quota_windows,
+            windows: &windows,
             fault_mode,
             estimate,
         },
@@ -90,18 +96,7 @@ pub(super) async fn enforce_quota(
             reservation,
         } => (decision, reservation),
     };
-    let mode = if policy.quota_mode.is_warn() {
-        "warn"
-    } else {
-        "enforce"
-    };
-    metrics::counter!(
-        "systemprompt_quota_denials_total",
-        "subject_kind" => decision.detail.subject.clone(),
-        "dimension" => decision.detail.dimension.map_or("unevaluated", quota::QuotaDimension::as_str),
-        "mode" => mode,
-    )
-    .increment(1);
+    count_denial(&decision, policy);
     if policy.quota_mode.is_warn() {
         audit.set_quota_reservation(reservation);
         tracing::warn!(
@@ -130,6 +125,21 @@ pub(super) async fn enforce_quota(
     }))
 }
 
+fn count_denial(decision: &quota::QuotaDecision, policy: &GatewayPolicySpec) {
+    let mode = if policy.quota_mode.is_warn() {
+        "warn"
+    } else {
+        "enforce"
+    };
+    metrics::counter!(
+        "systemprompt_quota_denials_total",
+        "subject_kind" => decision.detail.subject.clone(),
+        "dimension" => decision.detail.dimension.map_or("unevaluated", quota::QuotaDimension::as_str),
+        "mode" => mode,
+    )
+    .increment(1);
+}
+
 pub(super) async fn enforce_request_guards(
     db: &DbPool,
     user_id: &UserId,
@@ -147,6 +157,8 @@ pub(super) async fn enforce_request_guards(
         route_id: Some(&route_id),
         provider: &upstream.route.provider,
         streaming: request.stream,
+        attribution: &audit.ctx.attribution,
+        api_key_id: audit.ctx.attribution.api_key_id.as_ref(),
     };
     let outcome = if db.pool().is_closed() {
         Err(systemprompt_extension::GatewayDenyReason::unavailable(

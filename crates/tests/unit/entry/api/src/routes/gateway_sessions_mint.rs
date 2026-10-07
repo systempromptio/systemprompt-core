@@ -54,6 +54,8 @@ async fn mint_key(pool: &DbPool, user_id: &UserId) -> String {
             user_id,
             name: "gateway-mint",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue")
@@ -154,6 +156,8 @@ async fn revoked_api_key_no_longer_mints() {
             user_id: &h.user_id,
             name: "to-revoke",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue");
