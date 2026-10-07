@@ -23,6 +23,7 @@ mod complete;
 mod fail;
 pub mod journal;
 pub mod message_text;
+pub mod metrics;
 mod open;
 pub mod payload;
 mod quota_settlement;

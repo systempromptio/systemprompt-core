@@ -245,20 +245,23 @@ Run a DR drill annually. Capture per-step timing and update the runbook.
 
 The Prometheus endpoint is served at `GET /metrics` on the separate listener configured by `server.metrics_port`. When that setting is unset, no metrics listener is started. The endpoint has no scrape authentication; restrict access to the configured port using network policy or an authenticated proxy.
 
-Recorded series (`metrics.rs:14-79`):
+Recorded series (`crates/entry/api/src/services/server/metrics.rs`, `crates/app/gateway/src/audit/metrics.rs`). Histograms are exported with explicit buckets, so `histogram_quantile` works across replicas:
 
 | Metric | Type | Labels | Use |
 |--------|------|--------|-----|
 | `http_requests_total` | counter | `method`, `path`, `status` | request and error rate |
-| `http_request_duration_seconds` | histogram | `method`, `path`, `status` | p50/p95/p99 latency |
+| `http_request_duration_seconds` | histogram (5 ms–10 s) | `method`, `path`, `status` | p50/p95/p99 latency |
 | `http_requests_in_flight` | gauge | — | concurrency / saturation |
 | `sse_active_connections` | gauge | `channel` (`context`, `agui`, `a2a`, `analytics`) | live SSE stream counts |
+| `gateway_overhead_seconds` | histogram (1 ms–1 s) | `route` (inbound wire dialect, e.g. `anthropic.messages`), `provider` | time the gateway added to a completed inference request, excluding the provider call |
+| `gateway_upstream_duration_seconds` | histogram (100 ms–120 s) | `route`, `provider` | provider call duration for a completed inference request |
 
 Recommended alerts:
 
 - `http_requests_total` 5xx rate climbing for 5 minutes — warn.
 - p99 of `http_request_duration_seconds` over your SLO for 10 minutes — page.
 - `http_requests_in_flight` near the replica's concurrency ceiling — warn (saturation).
+- p99 of `gateway_overhead_seconds` above 50 ms for 10 minutes — warn: the gateway, not the provider, is adding latency.
 
 ### 7.2 SIEM integration
 

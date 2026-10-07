@@ -73,6 +73,12 @@ impl GatewayAudit {
         );
         receipt.completion = Some(completion);
         super::journal::record(&self.settlement, receipt).await?;
+        super::metrics::record_completion(
+            self.ctx.origin.wire.as_str(),
+            &self.served_provider(),
+            latency_ms,
+            upstream_latency_ms,
+        );
 
         tracing::info!(
             ai_request_id = %self.ctx.ai_request_id,

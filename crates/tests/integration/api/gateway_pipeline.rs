@@ -316,7 +316,7 @@ fn governance_inputs(
     dispatch
 }
 
-fn buffered_response_json() -> serde_json::Value {
+pub(super) fn buffered_response_json() -> serde_json::Value {
     serde_json::json!({
         "id": "msg_upstream_1",
         "type": "message",
@@ -328,7 +328,7 @@ fn buffered_response_json() -> serde_json::Value {
     })
 }
 
-fn streaming_sse_body() -> String {
+pub(super) fn streaming_sse_body() -> String {
     [
         "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_s\",\"model\":\"claude-test-model\",\"usage\":{\"input_tokens\":9,\"output_tokens\":0}}}\n\n",
         "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
