@@ -110,6 +110,7 @@ fn the_inherited_set_is_exactly_the_allowlist_that_is_set() {
         "PATH" => Some("/usr/bin".to_owned()),
         "HOME" => Some("/home/sp".to_owned()),
         "HOSTNAME" => Some("node-a".to_owned()),
+        "FLY_MACHINE_ID" => Some("0801e1a2".to_owned()),
         _ => None,
     };
 
@@ -121,6 +122,7 @@ fn the_inherited_set_is_exactly_the_allowlist_that_is_set() {
             (DEPLOYMENT_HOST_ENV.to_owned(), "sp-tenant".to_owned()),
             ("FLY_APP_NAME".to_owned(), "sp-fly".to_owned()),
             ("HOSTNAME".to_owned(), "node-a".to_owned()),
+            ("FLY_MACHINE_ID".to_owned(), "0801e1a2".to_owned()),
             ("PATH".to_owned(), "/usr/bin".to_owned()),
             ("HOME".to_owned(), "/home/sp".to_owned()),
         ]

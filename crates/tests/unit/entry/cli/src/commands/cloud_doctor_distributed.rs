@@ -61,13 +61,17 @@ fn identity_fingerprints_fail_when_a_secret_is_missing() {
 }
 
 #[test]
-fn instance_id_fails_on_a_cloud_profile_without_an_explicit_id() {
+fn instance_id_on_a_cloud_profile_passes_unset_and_fails_static() {
     let mut profile = fixture_profile();
     profile.target = ProfileType::Cloud;
     profile.server.instance_id = None;
     let result = check_instance_id(&profile);
+    assert_eq!(result.status, CheckStatus::Pass);
+    assert!(result.detail.contains("FLY_MACHINE_ID"));
+    profile.server.instance_id = Some(systemprompt_identifiers::InstanceId::new("node-a"));
+    let result = check_instance_id(&profile);
     assert_eq!(result.status, CheckStatus::Fail);
-    assert!(result.detail.contains("MCP subprocess"));
+    assert!(result.detail.contains("remove it"));
 }
 
 #[test]

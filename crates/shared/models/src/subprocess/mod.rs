@@ -52,6 +52,7 @@ pub fn inherited_parent_env(lookup: impl Fn(&str) -> Option<String>) -> Vec<(Str
         DEPLOYMENT_HOST_ENV,
         FLY_HOST_ENV,
         "HOSTNAME",
+        "FLY_MACHINE_ID",
         "PATH",
         "HOME",
     ]
