@@ -4,6 +4,8 @@
 //! The matched route's deployment chain is selected from the request's scope
 //! attribution (`by_scope`); an attributed value the route does not map is
 //! refused unless the route opts into `unmapped: shared`.
+//! The chain is then planned (`chain_plan`): reordered by its selection
+//! strategy and checked against the leading deployment's context window.
 //! `resolve_deployment_upstream` binds the same request to a later deployment
 //! of that chain when an earlier one has failed.
 //!
@@ -24,6 +26,7 @@ use systemprompt_models::attribution::RequestAttribution;
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
 use super::super::registry::GatewayUpstreamRegistry;
+use super::chain_plan::{PlannedChain, fit_context_window, order_chain};
 use super::{DispatchError, GatewayError, PolicyDenied};
 
 pub(super) struct ResolvedUpstream<'a> {
@@ -91,8 +94,12 @@ pub(super) async fn resolve_upstream<'a>(
     }
     let scope = selection.descriptor();
     let scoped = matches!(selection, ChainSelection::Scope { .. });
-    let deployments = route.chain_views(&selection);
-    let route_match_descriptor = describe_route_match(&route, declarative, selector, scope);
+    let planned = plan_chain(registry, request, &route, &selection, ai_request_id)?;
+    let deployments = planned.deployments;
+    let route_match_descriptor = join_segments(
+        describe_route_match(&route, declarative, selector, scope),
+        planned.descriptor,
+    );
     let Some(primary) = deployments.first().cloned() else {
         return Err(DispatchError::pre_audit(GatewayError::NoRoute {
             model: request.model.to_string(),
@@ -109,6 +116,40 @@ pub(super) async fn resolve_upstream<'a>(
     bound.deployments = deployments;
     bound.scoped = scoped;
     Ok(bound)
+}
+
+fn plan_chain(
+    registry: &ProviderRegistry,
+    request: &CanonicalRequest,
+    route: &GatewayRoute,
+    selection: &ChainSelection<'_>,
+    ai_request_id: &AiRequestId,
+) -> Result<PlannedChain, DispatchError> {
+    let ordered = order_chain(route.chain_views(selection), request.model.as_str());
+    let context_fallbacks = route.context_fallback_views(selection);
+    let fitted = fit_context_window(registry, request, ordered.deployments, context_fallbacks)
+        .map_err(|exceeded| {
+            tracing::warn!(
+                ai_request_id = %ai_request_id,
+                route = %route.effective_id(),
+                model = %exceeded.model,
+                estimate = exceeded.estimate,
+                limit = exceeded.limit,
+                "Gateway denied: request exceeds the model's context window"
+            );
+            DispatchError::pre_audit(exceeded)
+        })?;
+    Ok(PlannedChain {
+        deployments: fitted.deployments,
+        descriptor: join_segments(ordered.descriptor, fitted.descriptor),
+    })
+}
+
+fn join_segments(first: Option<String>, second: Option<String>) -> Option<String> {
+    match (first, second) {
+        (Some(a), Some(b)) => Some(format!("{a};{b}")),
+        (a, b) => a.or(b),
+    }
 }
 
 pub(super) struct DeploymentHop<'h> {

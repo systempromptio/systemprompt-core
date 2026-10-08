@@ -16,7 +16,9 @@ use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 
 use systemprompt_gateway::protocol::outbound::UpstreamError;
-use systemprompt_gateway::service::{DispatchError, GatewayError, upstream_status};
+use systemprompt_gateway::service::{
+    ContextWindowExceeded, DispatchError, GatewayError, upstream_status,
+};
 
 use super::RejectionError;
 
@@ -89,6 +91,7 @@ fn render_error(error: &GatewayError) -> Option<Response<Body>> {
         GatewayError::PolicyDenied(_)
         | GatewayError::PolicyUnavailable(_)
         | GatewayError::Safety(_)
+        | GatewayError::ContextWindow(_)
         | GatewayError::MissingPricing(_)
         | GatewayError::UpstreamTarget(_)
         | GatewayError::NoRoute { .. }
@@ -117,6 +120,10 @@ fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {
         },
         GatewayError::Safety(blocked) => {
             RejectionError::client(status, policy_denial_message(&blocked.message))
+        },
+        GatewayError::ContextWindow(exceeded) => {
+            RejectionError::client(status, exceeded.to_string())
+                .with_error_key(ContextWindowExceeded::ERROR_KEY)
         },
         GatewayError::Quota(quota) => RejectionError::client(status, quota.message.clone()),
         GatewayError::GuardForbidden(forbidden) => {

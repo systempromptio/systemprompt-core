@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Gateway:** deployment selection strategies. A route (and each `by_scope` chain) takes `strategy: ordered | weighted | least_busy`, default `ordered`, which keeps today's chain order. `weighted` draws the first attempt by each deployment's `weight` (default 1, on the route, each `fallbacks` entry and each scope chain) among deployments whose circuit breaker is closed and tries the rest in descending weight; `least_busy` sends the first attempt to the healthy deployment with the fewest requests in flight in this process. Failover after the first attempt is unchanged. A non-`ordered` strategy adds `strategy:<name>` to `route_match`, and `gateway_deployment_selected_total{route,provider,strategy}` counts every selection. `weight: 0` is refused at load (`GatewayProfileError::RouteDeploymentWeightZero`); a weight under `ordered` is accepted and ignored. Existing configs load unchanged.
+- **Gateway:** context-window pre-check. Before any upstream call the request's input tokens are estimated from its text (`systemprompt_manifest::services::estimate_input_tokens`, which errs low) and compared with the selected deployment's catalog `limits.context_window`. A request that does not fit goes to the route's (or scope chain's) `context_fallbacks: [{provider, upstream_model}]` whose window fits (`route_match` `context_window:a->b`, `gateway_context_fallbacks_total{from,to}`), or is refused with a 400 in the caller's wire format carrying `error.error_key: context_window_exceeded` and the estimate, limit and model. Failover deployments whose declared window is too small are skipped; a model with no declared window is never refused; `max_tokens` stays clamped to the output ceiling, not refused. Context fallbacks are validated at load like fallbacks (`GatewayProfileError::RouteContextFallbackProviderNotInRegistry`).
+
+### Breaking
+
+- **Manifest Rust API:** `GatewayRoute` gains `strategy: SelectionStrategy`, `weight: Option<u32>` and `context_fallbacks: Vec<RouteDeployment>`; `ScopeChain` gains the same three; `RouteDeployment` gains `weight: Option<u32>`. A struct literal must name them (`SelectionStrategy::Ordered` (or `Default::default()`) / `None` / `Vec::new()` keep the old behaviour). `GatewayProfileError` gains `RouteDeploymentWeightZero` and `RouteContextFallbackProviderNotInRegistry`.
+- **Gateway / API Rust API:** `GatewayError` gains `ContextWindow(ContextWindowExceeded)` (400), so an exhaustive `match` must name it; `systemprompt_gateway::service::chain_plan::{order_chain, fit_context_window, PlannedChain}` and `service::failover::{plan_selection, DeploymentState, DeploymentLoad, InFlight}` are new. The API crate's `RejectionError` gains `error_key: Option<&'static str>` (set with `with_error_key`).
+
 ## [0.63.1] - 2026-10-08
 
 ### Fixed

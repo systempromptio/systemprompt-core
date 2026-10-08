@@ -84,7 +84,10 @@ pub async fn handle(
                     .await;
             }
             let public_message = rejection.public_message();
-            let body = inbound.render_error(status, public_message);
+            let body = with_error_key(
+                inbound.render_error(status, public_message),
+                rejection.error_key,
+            );
             Response::builder()
                 .status(status)
                 .header("content-type", "application/json")
@@ -96,6 +99,20 @@ pub async fn handle(
     };
     attach_log_identity(&mut response, &partial);
     response
+}
+
+fn with_error_key(body: bytes::Bytes, key: Option<&'static str>) -> bytes::Bytes {
+    let Some(key) = key else {
+        return body;
+    };
+    let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&body) else {
+        return body;
+    };
+    let Some(error) = value.get_mut("error").and_then(serde_json::Value::as_object_mut) else {
+        return body;
+    };
+    error.insert("error_key".to_owned(), serde_json::Value::from(key));
+    serde_json::to_vec(&value).map_or(body, bytes::Bytes::from)
 }
 
 fn attach_log_identity(response: &mut Response<Body>, partial: &RejectionPartial) {

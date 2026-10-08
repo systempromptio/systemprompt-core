@@ -3,7 +3,8 @@
 //! Every deployment of every chain is validated as the route that deployment
 //! will actually serve, so a failover or a per-scope chain can never land on
 //! a model the primary route's pricing and governance checks would have
-//! refused at boot.
+//! refused at boot. Context-window fallbacks are validated the same way, and
+//! a deployment `weight` must be at least 1.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -35,10 +36,17 @@ impl GatewayConfig {
             let mut seen = HashSet::with_capacity(views.len());
             for view in &views {
                 let provider = view.provider.as_str().to_owned();
+                if view.weight == Some(0) {
+                    return Err(GatewayProfileError::RouteDeploymentWeightZero {
+                        route: route_id,
+                        chain: chain_label(scope),
+                        provider,
+                    });
+                }
                 if !seen.insert(view.provider.clone()) {
                     return Err(GatewayProfileError::RouteDeploymentDuplicate {
                         route: route_id,
-                        chain: scope.map_or_else(|| "route".to_owned(), str::to_owned),
+                        chain: chain_label(scope),
                         provider,
                     });
                 }
@@ -59,6 +67,23 @@ impl GatewayConfig {
                 validate_route_governance(registry, view)?;
             }
         }
+        for (scope, views) in route.all_context_fallbacks() {
+            for view in &views {
+                if view.resolve(registry).is_none() {
+                    return Err(GatewayProfileError::RouteContextFallbackProviderNotInRegistry {
+                        route: route_id,
+                        chain: chain_label(scope),
+                        provider: view.provider.as_str().to_owned(),
+                    });
+                }
+                self.validate_route_pricing(registry, view)?;
+                validate_route_governance(registry, view)?;
+            }
+        }
         Ok(())
     }
+}
+
+fn chain_label(scope: Option<&str>) -> String {
+    scope.map_or_else(|| "route".to_owned(), str::to_owned)
 }

@@ -43,6 +43,7 @@ fn deployment(provider: &str) -> RouteDeployment {
     RouteDeployment {
         provider: ProviderId::new(provider),
         upstream_model: None,
+        weight: None,
     }
 }
 
@@ -61,6 +62,9 @@ fn scoped(unmapped: UnmappedScope) -> GatewayRoute {
             provider: ProviderId::new("vertex-acme-eu-w4"),
             upstream_model: None,
             fallbacks: vec![deployment("vertex-acme-eu-w1")],
+            strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
+            weight: None,
+            context_fallbacks: Vec::new(),
         },
     );
     r.by_scope = Some(RouteScopeChains {

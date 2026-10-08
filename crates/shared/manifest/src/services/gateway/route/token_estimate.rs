@@ -1,11 +1,17 @@
-//! Conservative text-size estimation for conditional gateway routing.
+//! Conservative text-size estimation for conditional gateway routing and the
+//! gateway's context-window pre-check.
+//!
+//! Only text is counted (system, message, thinking and tool-result text, and
+//! Anthropic tool blocks); images and tool-use inputs are not, so the estimate
+//! errs low and a check against it never refuses a request that fits.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_wire::canonical::{CanonicalContent, CanonicalRequest};
 
-pub(super) fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
+#[must_use]
+pub fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
     let mut chars = request
         .system
         .iter()

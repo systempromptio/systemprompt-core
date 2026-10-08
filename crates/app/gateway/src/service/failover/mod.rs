@@ -16,6 +16,11 @@
 //! row as `served_provider` repriced at the serving deployment's catalog
 //! rate, and extends the `failover:a->b->c` segment of `route_match`.
 //!
+//! Which deployment is tried first is the chain's `strategy`
+//! ([`plan_selection`]), applied when the chain is resolved: the chain is
+//! reordered so the selected deployment leads, and failover then walks the
+//! reordered chain exactly as it walks an `ordered` one.
+//!
 //! Failover never makes a request worse off: a deployment that cannot be
 //! bound (credential, adapter, governance requirement, pricing) is skipped,
 //! and the client sees the last real upstream verdict.
@@ -26,8 +31,13 @@
 mod breakers;
 mod chain;
 mod decision;
+mod load;
+mod selection;
 
 pub use self::breakers::ProviderBreakers;
+pub(crate) use self::breakers::breaker_settings;
+pub use self::load::{DeploymentLoad, InFlight};
+pub use self::selection::{DeploymentState, plan_selection};
 pub use self::decision::{FailoverReason, failover_reason, is_failover_status, plan_attempts};
 
 use systemprompt_identifiers::AiRequestId;
@@ -53,6 +63,7 @@ pub(super) async fn send_with_failover(
     send: FailoverSend<'_, '_>,
 ) -> Result<OutboundOutcome, DispatchError> {
     if send.primary.deployments.len() <= 1 {
+        let _in_flight = enter_deployment(send.primary, scanned.request_model());
         return with_policy(
             current_policy(),
             scanned.send(send.primary, send.forward_headers, send.audit),
@@ -60,4 +71,11 @@ pub(super) async fn send_with_failover(
         .await;
     }
     chain::run(scanned, send).await
+}
+
+pub(super) fn enter_deployment(upstream: &ResolvedUpstream<'_>, request_model: &str) -> InFlight {
+    DeploymentLoad::global().enter(&DeploymentLoad::key(
+        upstream.provider.name.as_str(),
+        upstream.route.effective_upstream_model(request_model),
+    ))
 }

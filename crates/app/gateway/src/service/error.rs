@@ -60,6 +60,8 @@ pub enum GatewayError {
     #[error(transparent)]
     Safety(#[from] SafetyBlocked),
     #[error(transparent)]
+    ContextWindow(#[from] ContextWindowExceeded),
+    #[error(transparent)]
     ImageFetch(#[from] ImageFetchFailed),
     #[error(transparent)]
     Upstream(#[from] UpstreamError),
@@ -97,7 +99,8 @@ impl GatewayError {
             Self::PolicyDenied(_)
             | Self::Governance(_)
             | Self::PromptRepair(_)
-            | Self::Safety(_) => StatusCode::BAD_REQUEST,
+            | Self::Safety(_)
+            | Self::ContextWindow(_) => StatusCode::BAD_REQUEST,
             Self::PolicyUnavailable(_) | Self::GuardUnavailable(_) => {
                 StatusCode::SERVICE_UNAVAILABLE
             },
@@ -210,6 +213,24 @@ pub struct PromptRepairRequired {
 pub struct SafetyBlocked {
     pub category: String,
     pub message: String,
+}
+
+/// A request whose estimated input does not fit the selected deployment's
+/// context window, with no `context_fallbacks` deployment it fits; refused
+/// before any upstream call.
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "context_window_exceeded: the request is an estimated {estimate} input tokens, over the \
+     {limit}-token context window of model '{model}'"
+)]
+pub struct ContextWindowExceeded {
+    pub estimate: u32,
+    pub limit: u32,
+    pub model: String,
+}
+
+impl ContextWindowExceeded {
+    pub const ERROR_KEY: &'static str = "context_window_exceeded";
 }
 
 #[derive(Debug, thiserror::Error)]

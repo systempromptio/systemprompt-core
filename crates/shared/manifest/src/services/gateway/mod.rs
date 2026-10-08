@@ -31,7 +31,8 @@ pub use error::{GatewayProfileError, GatewayResult};
 pub use override_rule::{OverrideRuleAction, SystemPromptRule};
 pub use route::{
     ChainSelection, GatewayRoute, ResponseFormatKind, RouteDeployment, RouteMatch,
-    RouteRequirements, RouteScopeChains, ScopeChain, UnmappedScope,
+    RouteRequirements, RouteScopeChains, ScopeChain, SelectionStrategy, UnmappedScope,
+    estimate_input_tokens,
 };
 pub use route_id::{slugify_pattern, synthesize_route_id};
 pub use state::GatewayState;

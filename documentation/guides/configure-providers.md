@@ -84,6 +84,8 @@ Each route maps a model name pattern to one upstream (`crates/shared/manifest/sr
 | `id` | no | Stable route id; synthesised from pattern/provider/endpoint if omitted. |
 | `fallbacks` | no | Ordered list of `{provider, upstream_model}` deployments the request is re-sent to, in turn, when the previous one exhausts its transient-failure retries, returns a 5xx, or cannot be reached. A provider is only used when listed. |
 | `by_scope` | no | `{dimension, chains: {<value>: {provider, upstream_model, fallbacks}}, unmapped: deny\|shared}`: requests attributed to a mapped value in that scope dimension use its own chain (for example a tenant's own Vertex project and region); an unmapped value is refused unless `unmapped: shared`. |
+| `strategy` | no | `ordered` (default), `weighted` (first attempt drawn by each deployment's `weight`, default 1) or `least_busy` (first attempt to the deployment with the fewest in-flight requests in this process). Failover order after the first attempt is unchanged. |
+| `context_fallbacks` | no | `{provider, upstream_model}` deployments with a larger context window. A request whose estimated input exceeds the selected model's `context_window` goes to the first that fits, or is refused with `context_window_exceeded` before any upstream call. |
 
 The first matching route wins, so order specific patterns before general ones. The API key is referenced by name, not inlined: `api_key_secret: anthropic` reads the `anthropic` key from your secrets document (see [configure.md](configure.md) §5).
 

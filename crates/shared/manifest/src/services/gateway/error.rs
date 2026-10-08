@@ -44,6 +44,26 @@ pub enum GatewayProfileError {
         provider: String,
     },
 
+    #[error(
+        "gateway route '{route}' chain '{chain}' gives deployment '{provider}' `weight: 0`; a \
+         weight is at least 1 (remove the deployment to stop sending to it)"
+    )]
+    RouteDeploymentWeightZero {
+        route: String,
+        chain: String,
+        provider: String,
+    },
+
+    #[error(
+        "gateway route '{route}' chain '{chain}' context fallback '{provider}' is not declared in \
+         services providers"
+    )]
+    RouteContextFallbackProviderNotInRegistry {
+        route: String,
+        chain: String,
+        provider: String,
+    },
+
     #[error("gateway route '{route}' declares `by_scope` with no `chains`")]
     RouteScopeChainsEmpty { route: String },
 

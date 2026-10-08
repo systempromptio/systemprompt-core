@@ -19,6 +19,7 @@
 
 mod chain;
 mod predicates;
+mod selection;
 mod token_estimate;
 
 use std::collections::HashMap;
@@ -33,6 +34,8 @@ use systemprompt_wire::canonical::CanonicalRequest;
 
 pub use chain::{ChainSelection, RouteDeployment, RouteScopeChains, ScopeChain, UnmappedScope};
 pub use predicates::{ResponseFormatKind, RouteMatch, RouteRequirements};
+pub use selection::SelectionStrategy;
+pub use token_estimate::estimate_input_tokens;
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -59,6 +62,12 @@ pub struct GatewayRoute {
     pub fallbacks: Vec<RouteDeployment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub by_scope: Option<RouteScopeChains>,
+    #[serde(default, skip_serializing_if = "SelectionStrategy::is_ordered")]
+    pub strategy: SelectionStrategy,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_fallbacks: Vec<RouteDeployment>,
 }
 
 impl GatewayRoute {
