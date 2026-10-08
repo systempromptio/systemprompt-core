@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.63.1] - 2026-10-08
+
+### Fixed
+
+- `subprocess::inherited_parent_env` forwards `FLY_MACHINE_ID`, so MCP and agent subprocesses resolve the same replica identity as the gateway.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

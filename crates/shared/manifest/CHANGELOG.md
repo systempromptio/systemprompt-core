@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.63.1] - 2026-10-08
+
+### Fixed
+
+- `config::stable_instance_id` falls back to `FLY_MACHINE_ID` when `HOSTNAME` is absent or blank; Fly does not export `HOSTNAME` to application processes.
+
 ## [0.63.0] - 2026-10-07
 
 ### Added

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.63.1] - 2026-10-08
+
+### Fixed
+
+- `cloud doctor`'s `instance-id` check passes a cloud profile without `server.instance_id` and fails one that sets it, matching profile validation; 0.63.0 failed the unset case, so no Fly deploy could pass preflight.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

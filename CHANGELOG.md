@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.63.1] - 2026-10-08
+
+### Fixed
+
+- **Cloud deploys:** a Fly deploy could not pass preflight on 0.63.0. Profile validation rejected `server.instance_id` on cloud profiles while `cloud doctor` failed a cloud profile without it, and Fly does not export `HOSTNAME` to application processes. A cloud replica now resolves its identity from `HOSTNAME`, falling back to `FLY_MACHINE_ID`; MCP subprocesses inherit `FLY_MACHINE_ID` so they resolve the same id; and `cloud doctor` passes a cloud profile without `server.instance_id` and fails one with it. Migrate by removing `server.instance_id` from cloud profiles, as 0.63.0 already required.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking
