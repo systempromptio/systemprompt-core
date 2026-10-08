@@ -7,7 +7,9 @@ use systemprompt_gateway::protocol::canonical::{
 use systemprompt_gateway::service::chain_plan::{fit_context_window, order_chain};
 use systemprompt_gateway::service::failover::{DeploymentState, plan_selection};
 use systemprompt_identifiers::ModelId;
-use systemprompt_manifest::services::{GatewayRoute, ProviderEntry, ProviderRegistry, SelectionStrategy};
+use systemprompt_manifest::services::{
+    GatewayRoute, ProviderEntry, ProviderRegistry, SelectionStrategy,
+};
 
 const fn state(tripped: bool, weight: u32, in_flight: u64) -> DeploymentState {
     DeploymentState {
@@ -20,17 +22,29 @@ const fn state(tripped: bool, weight: u32, in_flight: u64) -> DeploymentState {
 #[test]
 fn ordered_keeps_chain_order_and_skips_tripped() {
     let states = [state(false, 1, 0), state(true, 1, 0), state(false, 1, 0)];
-    assert_eq!(plan_selection(SelectionStrategy::Ordered, &states, 7), vec![0, 2]);
+    assert_eq!(
+        plan_selection(SelectionStrategy::Ordered, &states, 7),
+        vec![0, 2]
+    );
 }
 
 #[test]
 fn weighted_draw_lands_by_cumulative_weight() {
     let states = [state(false, 1, 0), state(false, 3, 0)];
-    assert_eq!(plan_selection(SelectionStrategy::Weighted, &states, 0), vec![0, 1]);
+    assert_eq!(
+        plan_selection(SelectionStrategy::Weighted, &states, 0),
+        vec![0, 1]
+    );
     for draw in 1..4 {
-        assert_eq!(plan_selection(SelectionStrategy::Weighted, &states, draw), vec![1, 0]);
+        assert_eq!(
+            plan_selection(SelectionStrategy::Weighted, &states, draw),
+            vec![1, 0]
+        );
     }
-    assert_eq!(plan_selection(SelectionStrategy::Weighted, &states, 4), vec![0, 1]);
+    assert_eq!(
+        plan_selection(SelectionStrategy::Weighted, &states, 4),
+        vec![0, 1]
+    );
 }
 
 #[test]
@@ -47,15 +61,24 @@ fn weighted_never_draws_a_tripped_deployment_and_tries_it_last() {
 #[test]
 fn weighted_with_every_deployment_tripped_still_sends() {
     let states = [state(true, 1, 0), state(true, 1, 0)];
-    assert_eq!(plan_selection(SelectionStrategy::Weighted, &states, 3), vec![0, 1]);
+    assert_eq!(
+        plan_selection(SelectionStrategy::Weighted, &states, 3),
+        vec![0, 1]
+    );
 }
 
 #[test]
 fn least_busy_leads_with_the_fewest_in_flight_and_ties_go_to_chain_order() {
     let states = [state(false, 1, 4), state(false, 1, 1), state(false, 1, 1)];
-    assert_eq!(plan_selection(SelectionStrategy::LeastBusy, &states, 0), vec![1, 0, 2]);
+    assert_eq!(
+        plan_selection(SelectionStrategy::LeastBusy, &states, 0),
+        vec![1, 0, 2]
+    );
     let tripped_idle = [state(false, 1, 9), state(true, 1, 0)];
-    assert_eq!(plan_selection(SelectionStrategy::LeastBusy, &tripped_idle, 0), vec![0, 1]);
+    assert_eq!(
+        plan_selection(SelectionStrategy::LeastBusy, &tripped_idle, 0),
+        vec![0, 1]
+    );
 }
 
 fn route(yaml: &str) -> GatewayRoute {
@@ -70,7 +93,11 @@ fn route_strategy_and_weights_reach_every_view() {
     let views = r.chain_views(&systemprompt_manifest::services::ChainSelection::Route);
     let weights: Vec<u32> = views.iter().map(GatewayRoute::effective_weight).collect();
     assert_eq!(weights, vec![3, 2, 1]);
-    assert!(views.iter().all(|v| v.strategy == SelectionStrategy::Weighted));
+    assert!(
+        views
+            .iter()
+            .all(|v| v.strategy == SelectionStrategy::Weighted)
+    );
 }
 
 #[test]
@@ -80,7 +107,11 @@ fn ordered_chain_is_unchanged_and_not_described() {
         r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
         "m",
     );
-    let providers: Vec<&str> = planned.deployments.iter().map(|v| v.provider.as_str()).collect();
+    let providers: Vec<&str> = planned
+        .deployments
+        .iter()
+        .map(|v| v.provider.as_str())
+        .collect();
     assert_eq!(providers, vec!["a", "b"]);
     assert_eq!(planned.descriptor, None);
 }
@@ -117,15 +148,18 @@ fn request_of(chars: usize) -> CanonicalRequest {
 
 fn chain(r: &GatewayRoute) -> (Vec<GatewayRoute>, Vec<GatewayRoute>) {
     let selection = systemprompt_manifest::services::ChainSelection::Route;
-    (r.chain_views(&selection), r.context_fallback_views(&selection))
+    (
+        r.chain_views(&selection),
+        r.context_fallback_views(&selection),
+    )
 }
 
 #[test]
 fn a_request_that_fits_keeps_its_chain() {
     let r = route("model_pattern: m\nprovider: small\ncontext_fallbacks:\n  - {provider: large}\n");
     let (deployments, fallbacks) = chain(&r);
-    let planned = fit_context_window(&registry(), &request_of(40), deployments, fallbacks)
-        .expect("fits");
+    let planned =
+        fit_context_window(&registry(), &request_of(40), deployments, fallbacks).expect("fits");
     assert_eq!(planned.deployments[0].provider.as_str(), "small");
     assert_eq!(planned.descriptor, None);
 }
@@ -138,7 +172,10 @@ fn an_oversized_request_moves_to_the_context_fallback() {
         .expect("falls back");
     assert_eq!(planned.deployments.len(), 1);
     assert_eq!(planned.deployments[0].provider.as_str(), "large");
-    assert_eq!(planned.descriptor.as_deref(), Some("context_window:small->large"));
+    assert_eq!(
+        planned.descriptor.as_deref(),
+        Some("context_window:small->large")
+    );
 }
 
 #[test]
@@ -158,6 +195,10 @@ fn failover_deployments_too_small_for_the_request_are_dropped() {
     let (deployments, fallbacks) = chain(&r);
     let planned = fit_context_window(&registry(), &request_of(4_000), deployments, fallbacks)
         .expect("fits the primary");
-    let providers: Vec<&str> = planned.deployments.iter().map(|v| v.provider.as_str()).collect();
+    let providers: Vec<&str> = planned
+        .deployments
+        .iter()
+        .map(|v| v.provider.as_str())
+        .collect();
     assert_eq!(providers, vec!["large"]);
 }

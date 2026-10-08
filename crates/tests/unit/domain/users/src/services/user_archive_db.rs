@@ -12,14 +12,20 @@ async fn setup() -> (crate::privacy_fixture::PrivacyFixture, UserService) {
 
 fn unique(prefix: &str) -> (String, String) {
     let tag = Uuid::new_v4().simple().to_string();
-    (format!("{prefix}-{tag}"), format!("{prefix}-{tag}@archive.invalid"))
+    (
+        format!("{prefix}-{tag}"),
+        format!("{prefix}-{tag}@archive.invalid"),
+    )
 }
 
 #[tokio::test]
 async fn archive_hides_the_user_and_restore_brings_it_back() {
     let (_fixture, service) = setup().await;
     let (name, email) = unique("arch");
-    let user = service.create(&name, &email, None, None).await.expect("create");
+    let user = service
+        .create(&name, &email, None, None)
+        .await
+        .expect("create");
 
     service
         .archive(
@@ -50,7 +56,11 @@ async fn archive_hides_the_user_and_restore_brings_it_back() {
     );
 
     service.restore(&user.id, 90).await.expect("restore");
-    let restored = service.find_by_id(&user.id).await.expect("find").expect("present");
+    let restored = service
+        .find_by_id(&user.id)
+        .await
+        .expect("find")
+        .expect("present");
     assert_eq!(restored.status, UserStatus::Active);
     service.delete(&user.id).await.expect("cleanup");
 }
@@ -59,9 +69,15 @@ async fn archive_hides_the_user_and_restore_brings_it_back() {
 async fn purge_refuses_an_active_user_and_a_legal_hold() {
     let (_fixture, service) = setup().await;
     let (name, email) = unique("hold");
-    let user = service.create(&name, &email, None, None).await.expect("create");
+    let user = service
+        .create(&name, &email, None, None)
+        .await
+        .expect("create");
 
-    assert!(matches!(service.purge(&user.id).await, Err(UserError::NotArchived(_))));
+    assert!(matches!(
+        service.purge(&user.id).await,
+        Err(UserError::NotArchived(_))
+    ));
     service
         .archive(
             &user.id,
@@ -73,9 +89,15 @@ async fn purge_refuses_an_active_user_and_a_legal_hold() {
         )
         .await
         .expect("archive");
-    assert!(matches!(service.purge(&user.id).await, Err(UserError::LegalHold(_))));
+    assert!(matches!(
+        service.purge(&user.id).await,
+        Err(UserError::LegalHold(_))
+    ));
 
-    service.set_legal_hold(&user.id, false).await.expect("release");
+    service
+        .set_legal_hold(&user.id, false)
+        .await
+        .expect("release");
     service.purge(&user.id).await.expect("purge");
     assert!(service.find_by_id(&user.id).await.expect("find").is_none());
 }
@@ -84,7 +106,10 @@ async fn purge_refuses_an_active_user_and_a_legal_hold() {
 async fn restore_is_refused_after_the_window() {
     let (_fixture, service) = setup().await;
     let (name, email) = unique("late");
-    let user = service.create(&name, &email, None, None).await.expect("create");
+    let user = service
+        .create(&name, &email, None, None)
+        .await
+        .expect("create");
     service
         .archive(&user.id, ArchiveParams::default())
         .await
