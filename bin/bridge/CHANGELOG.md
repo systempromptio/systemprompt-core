@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.63.1] - 2026-10-08
+
+### Changed
+
+- Built against core 0.63.1 (cloud replica identity falls back to `FLY_MACHINE_ID`); no bridge behaviour change.
+
 ## [0.63.0] - 2026-10-07
 
 ### Fixed

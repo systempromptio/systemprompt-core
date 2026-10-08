@@ -29,9 +29,13 @@ pub const DEFAULT_MAX_CONCURRENT_STREAMS: usize = 256;
 
 #[must_use]
 pub fn stable_instance_id(lookup: impl Fn(&str) -> Option<String>) -> Option<String> {
-    lookup("HOSTNAME")
-        .map(|h| h.trim().to_owned())
-        .filter(|h| !h.is_empty())
+    // Why: Fly does not export HOSTNAME to application processes; FLY_MACHINE_ID
+    // is the stable per-machine identity it does export.
+    ["HOSTNAME", "FLY_MACHINE_ID"].iter().find_map(|name| {
+        lookup(name)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    })
 }
 
 #[must_use]
