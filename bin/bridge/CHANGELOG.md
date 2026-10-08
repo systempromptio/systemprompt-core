@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.64.0] - 2026-10-08
+
+### Changed
+
+- Built against core 0.64.0 (gateway selection strategies and context-window pre-check, user archive and legal hold); no bridge behaviour change.
+
 ## [0.63.1] - 2026-10-08
 
 ### Changed

@@ -13,7 +13,7 @@ Loads marketplace catalogs, resolves enabled marketplace membership, applies per
 
 ```toml
 [dependencies]
-systemprompt-marketplace = "0.63"
+systemprompt-marketplace = "0.64"
 ```
 
 ```rust,ignore

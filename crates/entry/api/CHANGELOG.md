@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.64.0] - 2026-10-08
+
+### Added
+
+- Gateway messages refuse a request that exceeds the selected deployment's context window with a 400 in the caller's wire format, carrying `error.error_key: context_window_exceeded` and the estimate, limit and model.
+
+### Breaking
+
+- `RejectionError` gains `error_key: Option<&'static str>` (set with `with_error_key`); a struct literal must name it.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking
